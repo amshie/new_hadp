@@ -347,7 +347,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.13,<2" },
     { name = "boto3", specifier = ">=1.34,<2" },
     { name = "fastapi", specifier = ">=0.115,<0.116" },
-    { name = "psycopg", extras = ["binary"], specifier = ">=3.2,<4" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4,<4" },
     { name = "pydantic", specifier = ">=2.8,<3" },
     { name = "pydantic-settings", specifier = ">=2.4,<3" },
     { name = "python-multipart", specifier = ">=0.0.9,<0.1" },
