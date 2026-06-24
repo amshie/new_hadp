@@ -91,12 +91,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          # gitleaks-action@v2 requires GITHUB_TOKEN to scan pull requests (breaking change).
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_CONFIG: .gitleaks.toml
+      - name: Install gitleaks
+        run: |
+          VERSION=8.24.3
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          ./gitleaks version
+      - name: gitleaks (scan committed history)
+        # Run the CLI directly rather than gitleaks-action@v2: the action's PR mode calls the GitHub
+        # API and fails on the default token ("Resource not accessible by integration"), so it never
+        # actually scans. `gitleaks git` scans commit history — exactly what is published — and honors
+        # the .gitleaks.toml allowlist, exiting non-zero on any finding outside it. fetch-depth: 0
+        # (above) gives it the full history.
+        run: ./gitleaks git . --config .gitleaks.toml --redact --no-banner
 
   dependency-scan:
     runs-on: ubuntu-latest
