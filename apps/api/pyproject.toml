@@ -5,7 +5,7 @@ description = "Longevity Health Analytics Platform — FastAPI backend (syntheti
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115,<0.116",
-    "uvicorn[standard]>=0.30,<0.35",
+    "uvicorn[standard]>=0.49.0,<0.50",
     "pydantic>=2.8,<3",
     "pydantic-settings>=2.4,<3",
     "sqlalchemy>=2.0.30,<2.1",
