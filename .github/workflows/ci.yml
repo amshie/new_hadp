@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.14.0
       - uses: actions/setup-node@v4
@@ -127,7 +127,7 @@ jobs:
             --ignore-vuln CVE-2026-48817 \
             --ignore-vuln CVE-2026-54283 \
             --ignore-vuln CVE-2026-54282
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.14.0
       - uses: actions/setup-node@v4
