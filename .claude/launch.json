@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": [
+        "--project",
+        "apps/api",
+        "run",
+        "uvicorn",
+        "hadp_api.main:app",
+        "--reload",
+        "--port",
+        "8000"
+      ],
+      "port": 8000
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@hadp/web", "dev"],
+      "port": 3000
+    }
+  ]
+}

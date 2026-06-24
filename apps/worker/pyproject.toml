@@ -1,0 +1,30 @@
+[project]
+name = "hadp-worker"
+version = "0.0.0"
+description = "Longevity Health Analytics Platform — background worker (Redis-backed)"
+requires-python = ">=3.12"
+dependencies = [
+    "redis>=5.0,<6",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6,<0.13",
+    "mypy>=1.11,<2",
+    "types-redis>=4.6,<5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hadp_worker"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+disallow_untyped_defs = true

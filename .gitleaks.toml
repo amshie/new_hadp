@@ -1,0 +1,21 @@
+# gitleaks configuration. Extends the upstream default rule set and allowlists
+# only the obviously-fake placeholders used in example/config files. Real secrets
+# must never be committed; CI fails the build on any finding outside this allowlist.
+title = "HADP secret scan"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known-safe local/dev placeholders (synthetic, non-secret)"
+paths = [
+  '''\.env\.example$''',
+  '''docker-compose\.yml$''',
+  '''README\.md$''',
+]
+regexes = [
+  '''dev-only-not-a-secret-change-me''',
+  '''minioadmin''',
+  '''postgres:postgres''',
+  '''hadp_app:hadp_app''',
+]

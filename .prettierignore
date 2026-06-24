@@ -1,0 +1,7 @@
+# Generated / vendored — never hand-format
+pnpm-lock.yaml
+packages/api-client/openapi.json
+packages/api-client/src/generated/
+**/.next/
+**/dist/
+**/node_modules/

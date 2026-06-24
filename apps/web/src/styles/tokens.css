@@ -1,0 +1,99 @@
+/*
+ * HADP design tokens — single source of truth.
+ * Lifted verbatim from the approved prototype (HADP-UI-Optimiert-v2/assets/hadp.css :root).
+ * The "derived tints" group below tokenizes recurring component colors so nothing is a
+ * one-off; each value is identical to the prototype's original literal (no visual change).
+ * --font-sans references the Inter variable provided by next/font (apps/web/src/app/layout.tsx).
+ */
+:root {
+  color-scheme: light;
+
+  /* Brand */
+  --brand-950: #083b35;
+  --brand-900: #0a4d44;
+  --brand-800: #0b5c51;
+  --brand-700: #0c6b5d;
+  --brand-600: #117c6d;
+  --brand-100: #dff1ed;
+  --brand-50: #edf8f5;
+
+  /* Ink / text */
+  --ink: #17292f;
+  --ink-2: #3d5158;
+  --muted: #66777e;
+  --muted-2: #7d8c92;
+
+  /* Surfaces */
+  --canvas: #f2f5f6;
+  --surface: #ffffff;
+  --surface-2: #f7f9f9;
+  --surface-3: #eef2f3;
+  --border: #dce4e6;
+  --border-strong: #cbd6d9;
+
+  /* Status */
+  --success: #217555;
+  --success-bg: #e6f3ed;
+  --warning: #8b641d;
+  --warning-bg: #fbf2dd;
+  --danger: #a54840;
+  --danger-bg: #f9e9e7;
+  --info: #426b7a;
+  --info-bg: #e8f0f3;
+  --gold: #b59655;
+
+  /* Shadow / radius */
+  --shadow-sm: 0 1px 2px rgba(19, 38, 44, 0.05), 0 4px 12px rgba(19, 38, 44, 0.04);
+  --shadow-md: 0 2px 4px rgba(19, 38, 44, 0.05), 0 18px 45px -28px rgba(19, 38, 44, 0.32);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+
+  /* Type — Inter loaded explicitly via next/font (--font-inter) */
+  --font-sans: var(--font-inter), Inter, Aptos, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
+  /* Layout scales */
+  --sidebar: 244px;
+  --content: 1260px;
+
+  /* ---- Derived tints (recurring component colors; values match the prototype) ---- */
+  --white: #ffffff;
+  --progress-track: #e5eaeb;
+  --row-hover: #f7faf9;
+  --row-hover-soft: #f8faf9;
+  --cell-border: #e7ecee;
+  --rule-bar-idle: #e0e6e8;
+  --rule-medium: #b98a31;
+  --rule-high: #bc5d54;
+  --tab-count-bg: #e7ecee;
+  --tab-active-count-bg: #cfe9e3;
+  --badge-brand-border: #cce9e2;
+  --badge-success-border: #cee7db;
+  --badge-warning-border: #ecd9ac;
+  --badge-danger-border: #efd0cc;
+  --badge-info-border: #cfdee4;
+  --notice-brand-border: #cae7e0;
+  --notice-warning-border: #ead7a9;
+  --notice-warning-ink: #694d18;
+  --notice-danger-border: #efcbc7;
+  --notice-danger-ink: #803832;
+  --btn-danger-border: #ebc6c2;
+  --stat-brand-border: #d1ebe5;
+  --stat-warning-border: #ead7aa;
+  --stat-info-border: #d0e0e5;
+  --activity-icon-border: #d5ebe6;
+  --avatar-bg: #dcebe7;
+  --patient-avatar-bg: #e5f0ed;
+  --patient-avatar-border: #d1e1dd;
+  --check-success-border: #cce5d8;
+  --check-pending-border: #e8d4a4;
+  --draft-border: #ead7a9;
+  --domain-sel-icon-bg: #d8eee9;
+  --domain-sel-icon-border: #b8ddd4;
+  --source-link-border: #cce4de;
+  --coverage-track: #e3e9ea;
+  --focus-ring: rgba(12, 107, 93, 0.28);
+  --focus-ring-soft: rgba(12, 107, 93, 0.11);
+}

@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+**/.venv/
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Build output
+.next/
+dist/
+build/
+*.tsbuildinfo
+apps/web/.next/
+packages/*/dist/
+
+# Generated API client artifacts
+packages/api-client/src/generated/
+
+# Environment / secrets — NEVER commit real secrets or patient data
+.env
+.env.local
+.env.*.local
+*.local.env
+
+# Object storage / local data
+.data/
+minio-data/
+postgres-data/
+
+# Logs
+*.log
+logs/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# uv
+.uv/

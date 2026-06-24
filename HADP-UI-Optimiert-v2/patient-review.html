@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="HADP klinischer Review eines Healthspan-Assessments">
+  <title>HADP · Assessment prüfen</title>
+  <link rel="stylesheet" href="assets/hadp.css">
+</head>
+<body data-page="review">
+  <a class="skip-link" href="#main-content">Zum Hauptinhalt springen</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Hauptnavigation">
+      <a class="brand" href="worklist.html" aria-label="HADP Übersicht">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-copy"><strong>HADP</strong><small>Health Analytics</small></span>
+      </a>
+
+      <div class="nav-label">Arbeitsbereich</div>
+      <nav class="nav">
+        <a class="nav-link" href="worklist.html">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"></path></svg>
+          Übersicht
+          <span class="nav-count">3</span>
+        </a>
+        <a class="nav-link" href="#" aria-current="page">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 8h5M18.5 5.5v5"></path></svg>
+          Patienten
+        </a>
+        <a class="nav-link" href="#">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M8 11l4 4 4-4"></path><path d="M5 20h14"></path></svg>
+          Importe
+          <span class="nav-count">2</span>
+        </a>
+        <a class="nav-link" href="#">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"></path><path d="M9 12h6M9 16h6M14 3v4h4"></path></svg>
+          Berichte
+        </a>
+      </nav>
+
+      <div class="nav-label" style="margin-top:12px">Verwaltung</div>
+      <nav class="nav">
+        <a class="nav-link" href="#">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path><circle cx="8" cy="6" r="2"></circle><circle cx="15" cy="12" r="2"></circle><circle cx="10" cy="18" r="2"></circle></svg>
+          Regeln
+        </a>
+        <a class="nav-link" href="#">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"></path><path d="M9 9h6M9 13h6M9 17h4"></path></svg>
+          Audit-Protokoll
+        </a>
+        <a class="nav-link" href="#">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1z"></path></svg>
+          Einstellungen
+        </a>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-card"><strong>Pilotumgebung</strong>Synthetische Beispieldaten · keine reale Patientenversorgung</div>
+      <div class="sidebar-user">
+        <div class="avatar" aria-hidden="true">SJ</div>
+        <div class="meta"><strong>Dr. Sarah Johnson</strong><span>Clinician</span></div>
+      </div>
+    </aside>
+
+    <div class="app-main">
+      <header class="topbar">
+        <a class="brand mobile-brand" href="worklist.html" aria-label="HADP Übersicht">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-copy"><strong style="color:var(--ink)">HADP</strong><small>Health Analytics</small></span>
+        </a>
+        <nav class="breadcrumbs" aria-label="Brotkrümelnavigation">
+          <a href="worklist.html">Arbeitsliste</a><span>/</span><a href="#">Amelia Hart</a><span>/</span><span>Assessment #2</span>
+        </nav>
+        <div class="topbar-spacer"></div>
+        <button class="clinic-switch" type="button" data-demo-action="clinic-switch">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M6 20V8l6-4 6 4v12M9 11h.01M12 11h.01M15 11h.01M9 15h.01M12 15h.01M15 15h.01"></path></svg>
+          <span>Meridian Longevity</span>
+          <svg class="icon" style="width:14px;height:14px" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"></path></svg>
+        </button>
+        <div class="user-menu">
+          <button class="user-menu-button" type="button" aria-haspopup="menu" aria-expanded="false" data-user-menu-button>
+            <span class="user-copy"><strong>Dr. Sarah Johnson</strong><span>Clinician</span></span>
+            <span class="avatar" aria-hidden="true">SJ</span>
+          </button>
+          <div class="menu hidden" role="menu" data-user-menu>
+            <a href="#" role="menuitem"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Konto</a>
+            <a href="#" role="menuitem"><svg class="icon" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"></path><path d="M9 12h6M9 16h6"></path></svg>Mein Audit-Log</a>
+            <div class="menu-sep"></div>
+            <a class="danger" href="auth.html" role="menuitem"><svg class="icon" viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3M14 4h6v16h-6"></path></svg>Abmelden</a>
+          </div>
+        </div>
+      </header>
+
+      <main class="content" id="main-content">
+        <header class="page-header">
+          <div class="patient-heading">
+            <div class="patient-avatar" aria-hidden="true">AH</div>
+            <div class="patient-heading-copy">
+              <h1>Amelia Hart</h1>
+              <div class="patient-details"><span class="num">P-2026-0017</span><span>45 Jahre</span><span>Assessment #2</span><span>Erhoben am 15. Mai 2026</span></div>
+            </div>
+            <span class="badge badge-warning">Klinische Prüfung offen</span>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-secondary" type="button" data-demo-action="open-source">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"></path><path d="M9 12h6M9 16h6M14 3v4h4"></path></svg>
+              Quelldokumente
+            </button>
+            <button class="btn btn-secondary" type="button" data-demo-action="more">Mehr</button>
+          </div>
+        </header>
+
+        <nav class="review-tabs" aria-label="Patientenansichten">
+          <a href="#" aria-current="page">Assessment</a>
+          <a href="#">Laborwerte</a>
+          <a href="#">Verlauf</a>
+          <a href="#">Dokumente</a>
+          <a href="#">Bericht</a>
+        </nav>
+
+        <div class="draft-banner" role="status">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.8 20h18.4z"></path><path d="M12 9v4M12 17h.01"></path></svg>
+          <span><strong>Systementwurf – nicht freigegeben.</strong> Aussagen müssen anhand der Quellen geprüft und vom klinischen Team signiert werden.</span>
+        </div>
+
+        <section class="review-overview" aria-label="Assessment-Zusammenfassung">
+          <article class="card summary-card">
+            <span class="kicker">Deterministische Zusammenfassung</span>
+            <h2>Überwiegend positive Veränderungen; ein Bereich benötigt gezielte Prüfung.</h2>
+            <p>Vergleich mit der Baseline vom 15. Januar 2026. Die Zusammenfassung basiert ausschließlich auf importierten Beobachtungen und konfigurierten Klinikregeln.</p>
+            <div class="rollups">
+              <div class="rollup success"><span class="rollup-icon" aria-hidden="true">↑</span><div><strong>3</strong><span>verbessert</span></div></div>
+              <div class="rollup info"><span class="rollup-icon" aria-hidden="true">→</span><div><strong>2</strong><span>stabil</span></div></div>
+              <div class="rollup warning"><span class="rollup-icon" aria-hidden="true">!</span><div><strong>1</strong><span>zu prüfen</span></div></div>
+            </div>
+          </article>
+
+          <article class="card coverage-card">
+            <div class="coverage-ring" style="--value:86" role="img" aria-label="Datenabdeckung 86 Prozent">
+              <span class="coverage-value">86%</span>
+            </div>
+            <div class="coverage-label">Datenabdeckung</div>
+            <div class="coverage-help">31 von 36 erwarteten Beobachtungen vorhanden und zeitlich zuordenbar.</div>
+          </article>
+
+          <article class="card checklist-card">
+            <h2 class="card-title">Review-Checkliste</h2>
+            <p class="card-subtitle">Vor der Signatur vollständig prüfen.</p>
+            <div class="checklist">
+              <div class="check-item"><span class="check-mark"><svg class="icon" style="width:13px;height:13px" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg></span><span>Alle unsicheren Zuordnungen wurden bestätigt.</span></div>
+              <div class="check-item"><span class="check-mark"><svg class="icon" style="width:13px;height:13px" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg></span><span>Einheiten und Referenzintervalle sind sichtbar.</span></div>
+              <div class="check-item pending"><span class="check-mark">!</span><span>Ein Regelhinweis im Bereich Herz-Kreislauf ist offen.</span></div>
+            </div>
+          </article>
+        </section>
+
+        <div class="section-header">
+          <div><h2>Domänenübersicht</h2><p>Wählen Sie einen Bereich, um Beobachtungen und Quellen zu prüfen.</p></div>
+          <span class="badge badge-neutral no-dot">6 Bereiche · 33 Marker</span>
+        </div>
+
+        <section class="card domain-card" aria-labelledby="domains-title">
+          <h2 class="sr-only" id="domains-title">Domänenübersicht</h2>
+          <table class="domain-table">
+            <caption class="sr-only">Gesundheitsbereiche mit Veränderung, Regelhinweisen, Funktion und Datenqualität</caption>
+            <thead><tr><th>Bereich</th><th>Messwertverlauf</th><th>Regelhinweise</th><th>Funktion</th><th>Datenqualität</th></tr></thead>
+            <tbody id="domain-rows"></tbody>
+          </table>
+        </section>
+
+        <div class="section-header">
+          <div><h2>Quellen und Beobachtungen</h2><p>Jeder Entwurf bleibt auf die zugrunde liegenden Messwerte zurückführbar.</p></div>
+        </div>
+
+        <section class="evidence-layout" aria-live="polite">
+          <article class="card evidence-summary">
+            <div class="eyebrow">Ausgewählter Bereich</div>
+            <h3 class="evidence-title" id="evidence-title">Herz-Kreislauf</h3>
+            <div class="evidence-badges" id="evidence-badges"></div>
+
+            <div class="system-draft">
+              <div class="system-draft-head"><span>Quellengebundener Entwurf</span><span class="badge badge-brand no-dot" style="min-height:22px;padding:3px 7px">Nicht freigegeben</span></div>
+              <p id="evidence-summary-text"></p>
+              <div class="source-links" id="evidence-source-links"></div>
+            </div>
+
+            <div class="mini-chart">
+              <div class="mini-chart-head"><span>Datenqualität · fünf Assessments</span><span class="num" id="quality-current">55%</span></div>
+              <svg id="quality-spark" viewBox="0 0 300 52" preserveAspectRatio="none" role="img" aria-label="Verlauf der Datenqualität"></svg>
+            </div>
+          </article>
+
+          <article class="card evidence-table-card">
+            <div class="evidence-table-head">
+              <div class="head-copy"><h3>Beobachtungsnachweis</h3><p id="marker-count-copy">7 Marker · gemessene Werte, Einheiten, Referenzintervalle und Quellen</p></div>
+              <button class="btn btn-secondary btn-sm" type="button" data-demo-action="export-evidence">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M8 11l4 4 4-4M5 20h14"></path></svg>
+                Export
+              </button>
+            </div>
+            <div class="table-wrap">
+              <table class="marker-table">
+                <caption class="sr-only">Beobachtungen des ausgewählten Bereichs</caption>
+                <thead><tr><th>Marker</th><th>Aktuell</th><th>Vorher</th><th>Veränderung</th><th>Referenz</th><th>Quelle</th></tr></thead>
+                <tbody id="marker-rows"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <div class="section-header"><div><h2>Audit-Status</h2><p>Fortschritt von Datenerfassung bis Patientenfreigabe.</p></div></div>
+        <section class="card audit-card" aria-label="Audit-Status">
+          <div class="audit-steps">
+            <div class="audit-step done"><span class="audit-step-dot">✓</span><span class="audit-step-copy"><strong>Datenerfassung</strong><span>Vollständig</span></span></div>
+            <span class="audit-line" aria-hidden="true"></span>
+            <div class="audit-step done"><span class="audit-step-dot">✓</span><span class="audit-step-copy"><strong>Entwurf erstellt</strong><span>Quellengebunden</span></span></div>
+            <span class="audit-line" aria-hidden="true"></span>
+            <div class="audit-step active"><span class="audit-step-dot">3</span><span class="audit-step-copy"><strong>Klinischer Review</strong><span>In Bearbeitung</span></span></div>
+            <span class="audit-line" aria-hidden="true"></span>
+            <div class="audit-step"><span class="audit-step-dot">4</span><span class="audit-step-copy"><strong>Ärztliche Freigabe</strong><span>Ausstehend</span></span></div>
+            <span class="audit-line" aria-hidden="true"></span>
+            <div class="audit-step"><span class="audit-step-dot">5</span><span class="audit-step-copy"><strong>Patientenfreigabe</strong><span>Nicht möglich</span></span></div>
+          </div>
+        </section>
+
+        <div class="action-bar">
+          <div class="action-bar-copy"><strong>Assessment #2 · letzte Änderung 15. Mai 2026, 14:30</strong><span>Die Signatur dokumentiert Ihre Prüfung; sie veröffentlicht den Bericht noch nicht an die Patientin.</span></div>
+          <div class="action-bar-buttons">
+            <button class="btn btn-secondary" type="button" data-demo-action="defer">Zurückstellen</button>
+            <button class="btn btn-primary" type="button" data-open-review-dialog>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>
+              Review signieren
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="dialog-backdrop hidden" data-review-dialog role="presentation">
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="review-dialog-title" aria-describedby="review-dialog-copy">
+      <div class="dialog-head">
+        <div><h2 id="review-dialog-title">Klinischen Review signieren?</h2><p id="review-dialog-copy">Sie bestätigen, dass Sie die sichtbaren Beobachtungen, Referenzintervalle, Quellen und offenen Regelhinweise geprüft haben. Der Bericht bleibt bis zur ärztlichen Freigabe intern.</p></div>
+        <button class="icon-btn" type="button" aria-label="Dialog schließen" data-close-review-dialog><svg class="icon" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+      </div>
+      <label class="checkbox" style="margin-top:17px"><input type="checkbox" data-review-confirm><span>Ich habe die offenen Hinweise geprüft und bestätige die klinische Dokumentation.</span></label>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" type="button" data-close-review-dialog>Abbrechen</button>
+        <button class="btn btn-primary" type="button" data-confirm-review disabled>Signieren und weiterleiten</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <script src="assets/hadp.js"></script>
+</body>
+</html>

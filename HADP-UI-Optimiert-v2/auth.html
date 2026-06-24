@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="HADP – sicherer Zugang für klinische Teams">
+  <title>HADP · Klinischer Zugang</title>
+  <link rel="stylesheet" href="assets/hadp.css">
+</head>
+<body data-page="auth">
+  <a class="skip-link" href="#auth-content">Zum Anmeldeformular springen</a>
+  <main class="auth-page">
+    <section class="auth-brand" aria-labelledby="auth-brand-title">
+      <a class="brand" href="auth.html" aria-label="HADP Startseite">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-copy"><strong>HADP</strong><small>Health Analytics</small></span>
+      </a>
+
+      <div class="auth-message">
+        <span class="kicker">Klinischer Arbeitsbereich</span>
+        <h1 id="auth-brand-title">Gesundheitsdaten verstehen. Entscheidungen nachvollziehbar dokumentieren.</h1>
+        <p>Ein ruhiger, quellengebundener Workspace für Longevity- und Präventionskliniken – mit menschlicher Prüfung vor jeder Freigabe.</p>
+      </div>
+
+      <div class="auth-trust" aria-label="Sicherheitsmerkmale">
+        <div class="auth-trust-item">
+          <span class="auth-trust-icon" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+          </span>
+          <span>Mehrstufige Anmeldung und zeitlich begrenzte Sitzungen</span>
+        </div>
+        <div class="auth-trust-item">
+          <span class="auth-trust-icon" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"></path><path d="M9 12h6M9 16h6M14 3v4h4"></path></svg>
+          </span>
+          <span>Zugriffe und Änderungen werden für das Audit protokolliert</span>
+        </div>
+        <div class="auth-trust-item">
+          <span class="auth-trust-icon" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.8 3.1 7.8 7.5 9.5 4.4-1.7 7.5-4.7 7.5-9.5V6z"></path><path d="m9 12 2 2 4-4"></path></svg>
+          </span>
+          <span>Für sensible Gesundheitsdaten und EU-Datenresidenz konzipiert</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="auth-main" id="auth-content" aria-label="Anmeldung">
+      <div class="auth-wrap">
+        <div class="auth-card">
+          <section class="auth-state is-active" data-auth-state="signin" aria-labelledby="signin-title">
+            <div class="eyebrow">Klinischer Zugang</div>
+            <h2 id="signin-title">Willkommen zurück</h2>
+            <p class="auth-sub">Melden Sie sich an, um Patientendaten zu prüfen und Berichte freizugeben.</p>
+
+            <form class="auth-form" id="signin-form">
+              <label class="field">
+                <span class="field-label">Geschäftliche E-Mail</span>
+                <span class="input-wrap">
+                  <svg class="icon input-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4z"></path><path d="m4 7 8 6 8-6"></path></svg>
+                  <input class="input has-leading" type="email" name="email" value="s.johnson@meridian-health.eu" autocomplete="username" required>
+                </span>
+              </label>
+
+              <label class="field">
+                <span class="field-label"><span>Passwort</span><a href="#" data-demo-action="reset">Passwort vergessen?</a></span>
+                <span class="input-wrap">
+                  <svg class="icon input-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+                  <input class="input has-leading has-trailing" id="password" type="password" name="password" placeholder="Mindestens 12 Zeichen" autocomplete="current-password" required>
+                  <button class="input-action" type="button" data-password-toggle aria-controls="password" aria-pressed="false">Anzeigen</button>
+                </span>
+              </label>
+
+              <label class="checkbox">
+                <input type="checkbox" name="trusted-device">
+                <span>Dieses persönliche Gerät 30 Tage merken. Nicht auf gemeinsam genutzten Geräten verwenden.</span>
+              </label>
+
+              <button class="btn btn-primary btn-block" type="submit">Weiter zur Bestätigung</button>
+
+              <div class="divider">oder</div>
+              <button class="btn btn-secondary btn-block" type="button" data-demo-action="sso">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M6 20V8l6-4 6 4v12M9 11h.01M12 11h.01M15 11h.01M9 15h.01M12 15h.01M15 15h.01"></path></svg>
+                Mit Klinik-SSO fortfahren
+              </button>
+
+              <div class="notice notice-brand">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.8 3.1 7.8 7.5 9.5 4.4-1.7 7.5-4.7 7.5-9.5V6z"></path><path d="M12 8v5M12 16h.01"></path></svg>
+                <span>Der Zugriff auf Patientendaten ist zweckgebunden und wird protokolliert.</span>
+              </div>
+            </form>
+          </section>
+
+          <section class="auth-state" data-auth-state="twofactor" aria-labelledby="twofactor-title">
+            <div class="eyebrow">Zwei-Faktor-Bestätigung</div>
+            <h2 id="twofactor-title">Identität bestätigen</h2>
+            <p class="auth-sub">Geben Sie den sechsstelligen Code aus Ihrer Authenticator-App ein.</p>
+
+            <form id="twofactor-form">
+              <fieldset style="border:0;padding:0;margin:0">
+                <legend class="sr-only">Sechsstelliger Bestätigungscode</legend>
+                <div class="code-inputs" data-code-inputs>
+                  <input inputmode="numeric" autocomplete="one-time-code" maxlength="1" aria-label="Ziffer 1">
+                  <input inputmode="numeric" maxlength="1" aria-label="Ziffer 2">
+                  <input inputmode="numeric" maxlength="1" aria-label="Ziffer 3">
+                  <input inputmode="numeric" maxlength="1" aria-label="Ziffer 4">
+                  <input inputmode="numeric" maxlength="1" aria-label="Ziffer 5">
+                  <input inputmode="numeric" maxlength="1" aria-label="Ziffer 6">
+                </div>
+              </fieldset>
+              <p class="card-subtitle" style="margin-bottom:18px">Kein Zugriff auf die App? <a href="#" style="color:var(--brand-700);font-weight:750;text-decoration:none" data-demo-action="backup">Backup-Code verwenden</a></p>
+              <button class="btn btn-primary btn-block" type="submit">Bestätigen und anmelden</button>
+              <div class="auth-link-line"><button type="button" data-auth-target="signin">← Zurück zur Anmeldung</button></div>
+            </form>
+          </section>
+
+          <section class="auth-state" data-auth-state="locked" aria-labelledby="locked-title">
+            <div class="eyebrow">Sitzung gesperrt</div>
+            <div class="auth-identity">
+              <div class="avatar" aria-hidden="true">SJ</div>
+              <strong id="locked-title">Dr. Sarah Johnson</strong>
+              <span>Clinician · Meridian Longevity</span>
+            </div>
+            <div class="notice notice-warning" style="margin-bottom:17px">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+              <span>Die Sitzung wurde nach 15 Minuten Inaktivität gesperrt. Nicht gespeicherte Eingaben bleiben erhalten.</span>
+            </div>
+            <form class="auth-form" id="unlock-form">
+              <label class="field">
+                <span class="field-label">Passwort</span>
+                <input class="input" type="password" autocomplete="current-password" required>
+              </label>
+              <button class="btn btn-primary btn-block" type="submit">Sitzung entsperren</button>
+            </form>
+            <div class="auth-link-line">Nicht Ihre Sitzung? <button type="button" data-auth-target="signedout">Abmelden</button></div>
+          </section>
+
+          <section class="auth-state" data-auth-state="signedout" aria-labelledby="signedout-title">
+            <div class="success-lock" aria-hidden="true">
+              <svg class="icon" style="width:26px;height:26px" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg>
+            </div>
+            <h2 id="signedout-title" style="text-align:center">Sicher abgemeldet</h2>
+            <p class="auth-sub" style="text-align:center">Die Sitzung wurde beendet und im Audit-Protokoll erfasst. Schließen Sie diesen Tab auf gemeinsam genutzten Geräten.</p>
+            <div class="notice notice-brand" style="margin-bottom:17px">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"></path><path d="M9 12h6M9 16h6M14 3v4h4"></path></svg>
+              <span>Abgemeldet um <span class="num">14:52</span> · Sitzung <span class="num">00:42:18</span></span>
+            </div>
+            <button class="btn btn-primary btn-block" type="button" data-auth-target="signin">Erneut anmelden</button>
+          </section>
+
+          <div class="auth-legal">© <span data-current-year></span> HADP · <a href="#">Datenschutz</a> · <a href="#">Nutzungsbedingungen</a></div>
+        </div>
+
+        <details class="prototype-switcher">
+          <summary>Prototyp-Zustände anzeigen</summary>
+          <div class="prototype-switcher-buttons">
+            <button type="button" data-auth-target="signin">Anmeldung</button>
+            <button type="button" data-auth-target="twofactor">2FA</button>
+            <button type="button" data-auth-target="locked">Gesperrt</button>
+            <button type="button" data-auth-target="signedout">Abgemeldet</button>
+          </div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <script src="assets/hadp.js"></script>
+</body>
+</html>

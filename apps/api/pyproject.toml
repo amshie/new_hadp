@@ -1,0 +1,68 @@
+[project]
+name = "hadp-api"
+version = "0.0.0"
+description = "Longevity Health Analytics Platform — FastAPI backend (synthetic data only)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115,<0.116",
+    "uvicorn[standard]>=0.30,<0.35",
+    "pydantic>=2.8,<3",
+    "pydantic-settings>=2.4,<3",
+    "sqlalchemy>=2.0.30,<2.1",
+    "psycopg[binary]>=3.2,<4",
+    "alembic>=1.13,<2",
+    "python-multipart>=0.0.9,<0.1",
+    "boto3>=1.34,<2",
+    "redis>=5.0,<6",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2,<9",
+    "httpx>=0.27,<0.29",
+    "ruff>=0.6,<0.13",
+    "mypy>=1.11,<2",
+    "boto3-stubs[s3]>=1.34,<2",
+    "types-redis>=4.6,<5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hadp_api"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+ignore = ["B008"] # FastAPI uses function calls (Depends/File) in argument defaults
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+strict_equality = true
+exclude = ["alembic/"]
+
+[[tool.mypy.overrides]]
+module = ["boto3.*", "botocore.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+filterwarnings = ["error::DeprecationWarning:hadp_api.*"]

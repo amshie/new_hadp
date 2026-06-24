@@ -1,0 +1,1916 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Longevity Health Analytics Platform API",
+    "description": "Longevity Health Analytics Platform API. Documentation-support software \u2014 not an autonomous medical decision-maker. Synthetic data only in development and tests.",
+    "version": "0.0.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/dev-login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Dev Login",
+        "operationId": "dev_login_api_v1_auth_dev_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Me",
+        "operationId": "me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenancy/my-tenants": {
+      "get": {
+        "tags": [
+          "tenancy"
+        ],
+        "summary": "My Tenants",
+        "operationId": "my_tenants_api_v1_tenancy_my_tenants_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TenantMembershipOut"
+                  },
+                  "type": "array",
+                  "title": "Response My Tenants Api V1 Tenancy My Tenants Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenancy/select-tenant": {
+      "post": {
+        "tags": [
+          "tenancy"
+        ],
+        "summary": "Select Tenant",
+        "operationId": "select_tenant_api_v1_tenancy_select_tenant_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectTenantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectTenantResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/patients": {
+      "get": {
+        "tags": [
+          "patients"
+        ],
+        "summary": "List Patients",
+        "operationId": "list_patients_api_v1_patients_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PatientOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Patients Api V1 Patients Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "patients"
+        ],
+        "summary": "Create Patient",
+        "operationId": "create_patient_api_v1_patients_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePatientRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/patients/{patient_id}": {
+      "get": {
+        "tags": [
+          "patients"
+        ],
+        "summary": "Get Patient",
+        "operationId": "get_patient_api_v1_patients__patient_id__get",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/worklist": {
+      "get": {
+        "tags": [
+          "worklist"
+        ],
+        "summary": "Get Worklist",
+        "operationId": "get_worklist_api_v1_worklist_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorklistRowOut"
+                  },
+                  "title": "Response Get Worklist Api V1 Worklist Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/patients/{patient_id}/documents": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Upload Document",
+        "operationId": "upload_document_api_v1_patients__patient_id__documents_post",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_document_api_v1_patients__patient_id__documents_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/patients/{patient_id}/imports": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Run Import",
+        "operationId": "run_import_api_v1_patients__patient_id__imports_post",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResultOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/patients/{patient_id}/observations": {
+      "get": {
+        "tags": [
+          "observations"
+        ],
+        "summary": "Timeline",
+        "operationId": "timeline_api_v1_patients__patient_id__observations_get",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TimelinePointOut"
+                  },
+                  "title": "Response Timeline Api V1 Patients  Patient Id  Observations Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/patients/{patient_id}/interpretation": {
+      "get": {
+        "tags": [
+          "interpretation"
+        ],
+        "summary": "Get Interpretation",
+        "operationId": "get_interpretation_api_v1_patients__patient_id__interpretation_get",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainMatrixOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/patients/{patient_id}/reports": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Generate Report",
+        "operationId": "generate_report_api_v1_patients__patient_id__reports_post",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Generate Report Api V1 Patients  Patient Id  Reports Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{report_id}": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Get Report",
+        "operationId": "get_report_api_v1_reports__report_id__get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Report Api V1 Reports  Report Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{report_id}/edit": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Edit Report",
+        "operationId": "edit_report_api_v1_reports__report_id__edit_post",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Edit Report Api V1 Reports  Report Id  Edit Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{report_id}/approve": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Approve Report",
+        "operationId": "approve_report_api_v1_reports__report_id__approve_post",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Approve Report Api V1 Reports  Report Id  Approve Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{report_id}/release": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Release Report",
+        "operationId": "release_report_api_v1_reports__report_id__release_post",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/patient-view": {
+      "get": {
+        "tags": [
+          "patient-view"
+        ],
+        "summary": "Patient View",
+        "operationId": "patient_view_api_v1_patient_view_get",
+        "parameters": [
+          {
+            "name": "tenant",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Tenant"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Patient View Api V1 Patient View Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_upload_document_api_v1_patients__patient_id__documents_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_document_api_v1_patients__patient_id__documents_post"
+      },
+      "CreatePatientRequest": {
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name"
+          },
+          "external_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Ref"
+          },
+          "date_of_birth": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Of Birth"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_name"
+        ],
+        "title": "CreatePatientRequest"
+      },
+      "DevLoginRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "DevLoginRequest"
+      },
+      "DocumentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "checksum_sha256": {
+            "type": "string",
+            "title": "Checksum Sha256"
+          },
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "checksum_sha256",
+          "created"
+        ],
+        "title": "DocumentOut"
+      },
+      "DomainMatrixOut": {
+        "properties": {
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "run_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Number"
+          },
+          "domains": {
+            "items": {
+              "$ref": "#/components/schemas/DomainVerdictOut"
+            },
+            "type": "array",
+            "title": "Domains"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "run_number",
+          "domains"
+        ],
+        "title": "DomainMatrixOut"
+      },
+      "DomainVerdictOut": {
+        "properties": {
+          "domain_axis": {
+            "type": "string",
+            "title": "Domain Axis"
+          },
+          "cis_status": {
+            "type": "string",
+            "title": "Cis Status"
+          },
+          "actionability_class": {
+            "type": "string",
+            "title": "Actionability Class"
+          },
+          "followup_adequacy": {
+            "type": "string",
+            "title": "Followup Adequacy"
+          },
+          "review_status": {
+            "type": "string",
+            "title": "Review Status"
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale"
+          },
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/TriStateCellOut"
+            },
+            "type": "array",
+            "title": "Cells"
+          }
+        },
+        "type": "object",
+        "required": [
+          "domain_axis",
+          "cis_status",
+          "actionability_class",
+          "followup_adequacy",
+          "review_status",
+          "rationale",
+          "cells"
+        ],
+        "title": "DomainVerdictOut"
+      },
+      "EditReportRequest": {
+        "properties": {
+          "statements": {
+            "items": {
+              "$ref": "#/components/schemas/StatementIn"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Statements"
+          }
+        },
+        "type": "object",
+        "required": [
+          "statements"
+        ],
+        "title": "EditReportRequest"
+      },
+      "EvidenceObsOut": {
+        "properties": {
+          "original_name": {
+            "type": "string",
+            "title": "Original Name"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "observed_at": {
+            "type": "string",
+            "title": "Observed At"
+          },
+          "review_status": {
+            "type": "string",
+            "title": "Review Status"
+          },
+          "metric_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metric Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "original_name",
+          "value",
+          "unit",
+          "reference",
+          "observed_at",
+          "review_status",
+          "metric_code"
+        ],
+        "title": "EvidenceObsOut"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "app_env": {
+            "type": "string",
+            "title": "App Env"
+          },
+          "synthetic_data_only": {
+            "type": "boolean",
+            "title": "Synthetic Data Only"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "app_env",
+          "synthetic_data_only"
+        ],
+        "title": "HealthOut"
+      },
+      "ImportRequest": {
+        "properties": {
+          "source_document_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Document Id"
+          },
+          "parser_name": {
+            "type": "string",
+            "title": "Parser Name",
+            "default": "manual-entry"
+          },
+          "parser_version": {
+            "type": "string",
+            "title": "Parser Version",
+            "default": "1"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/ImportValueIn"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Values"
+          }
+        },
+        "type": "object",
+        "required": [
+          "values"
+        ],
+        "title": "ImportRequest"
+      },
+      "ImportResultOut": {
+        "properties": {
+          "import_job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Import Job Id"
+          },
+          "published_count": {
+            "type": "integer",
+            "title": "Published Count"
+          },
+          "review_count": {
+            "type": "integer",
+            "title": "Review Count"
+          },
+          "observation_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Observation Ids"
+          },
+          "review_item_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Review Item Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "import_job_id",
+          "published_count",
+          "review_count",
+          "observation_ids",
+          "review_item_ids"
+        ],
+        "title": "ImportResultOut"
+      },
+      "ImportValueIn": {
+        "properties": {
+          "original_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Original Name"
+          },
+          "original_value": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Original Value"
+          },
+          "original_unit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Unit"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "observed_at_is_date_only": {
+            "type": "boolean",
+            "title": "Observed At Is Date Only",
+            "default": false
+          },
+          "reference_low": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Low"
+          },
+          "reference_high": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference High"
+          },
+          "source_record_locator": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Record Locator"
+          }
+        },
+        "type": "object",
+        "required": [
+          "original_name",
+          "original_value",
+          "observed_at"
+        ],
+        "title": "ImportValueIn"
+      },
+      "LoginResponse": {
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserOut"
+          },
+          "tenants": {
+            "items": {
+              "$ref": "#/components/schemas/TenantMembershipOut"
+            },
+            "type": "array",
+            "title": "Tenants"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user",
+          "tenants"
+        ],
+        "title": "LoginResponse"
+      },
+      "MeResponse": {
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/UserOut"
+          },
+          "active_tenant_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Tenant Id"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Role"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "user",
+          "active_tenant_id",
+          "role"
+        ],
+        "title": "MeResponse"
+      },
+      "PatientOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "external_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Ref"
+          },
+          "date_of_birth": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Of Birth"
+          },
+          "is_synthetic": {
+            "type": "boolean",
+            "title": "Is Synthetic"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "external_ref",
+          "date_of_birth",
+          "is_synthetic"
+        ],
+        "title": "PatientOut"
+      },
+      "ReleaseOut": {
+        "properties": {
+          "report_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Report Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "patient_access_token": {
+            "type": "string",
+            "title": "Patient Access Token"
+          },
+          "patient_view_url": {
+            "type": "string",
+            "title": "Patient View Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "report_id",
+          "status",
+          "patient_access_token",
+          "patient_view_url"
+        ],
+        "title": "ReleaseOut"
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "owner",
+          "clinician",
+          "assistant"
+        ],
+        "title": "Role",
+        "description": "Tenant staff roles. Patients are not staff and have no Membership."
+      },
+      "SelectTenantRequest": {
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Tenant Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenant_id"
+        ],
+        "title": "SelectTenantRequest"
+      },
+      "SelectTenantResponse": {
+        "properties": {
+          "active_tenant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Active Tenant Id"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "active_tenant_id",
+          "role"
+        ],
+        "title": "SelectTenantResponse"
+      },
+      "StatementIn": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Text"
+          },
+          "evidence_observation_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Evidence Observation Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "evidence_observation_ids"
+        ],
+        "title": "StatementIn"
+      },
+      "TenantMembershipOut": {
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Tenant Id"
+          },
+          "tenant_name": {
+            "type": "string",
+            "title": "Tenant Name"
+          },
+          "tenant_slug": {
+            "type": "string",
+            "title": "Tenant Slug"
+          },
+          "is_synthetic": {
+            "type": "boolean",
+            "title": "Is Synthetic"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenant_id",
+          "tenant_name",
+          "tenant_slug",
+          "is_synthetic",
+          "role"
+        ],
+        "title": "TenantMembershipOut"
+      },
+      "TimelinePointOut": {
+        "properties": {
+          "observation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Observation Id"
+          },
+          "metric_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metric Code"
+          },
+          "original_name": {
+            "type": "string",
+            "title": "Original Name"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "reference_low": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Low"
+          },
+          "reference_high": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference High"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "observed_at_is_date_only": {
+            "type": "boolean",
+            "title": "Observed At Is Date Only"
+          },
+          "review_status": {
+            "type": "string",
+            "title": "Review Status"
+          },
+          "delta_vs_previous": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Vs Previous"
+          },
+          "previous_observation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Observation Id"
+          },
+          "kpi_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpi Code"
+          },
+          "kpi_primary_domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpi Primary Domain"
+          },
+          "kpi_secondary_domains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Kpi Secondary Domains"
+          },
+          "comparability": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparability"
+          },
+          "comparability_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparability Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "observation_id",
+          "metric_code",
+          "original_name",
+          "value",
+          "unit",
+          "reference_low",
+          "reference_high",
+          "observed_at",
+          "observed_at_is_date_only",
+          "review_status",
+          "delta_vs_previous",
+          "previous_observation_id",
+          "kpi_code",
+          "kpi_primary_domain",
+          "kpi_secondary_domains",
+          "comparability",
+          "comparability_reason"
+        ],
+        "title": "TimelinePointOut"
+      },
+      "TriStateCellOut": {
+        "properties": {
+          "tri_state_axis": {
+            "type": "string",
+            "title": "Tri State Axis"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "endpoint_adequacy": {
+            "type": "string",
+            "title": "Endpoint Adequacy"
+          },
+          "evidence_count": {
+            "type": "integer",
+            "title": "Evidence Count"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceObsOut"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tri_state_axis",
+          "state",
+          "endpoint_adequacy",
+          "evidence_count",
+          "evidence",
+          "rationale"
+        ],
+        "title": "TriStateCellOut"
+      },
+      "UserOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "display_name"
+        ],
+        "title": "UserOut"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WorklistRowOut": {
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Patient Id"
+          },
+          "report_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "external_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Ref"
+          },
+          "date_of_birth": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Of Birth"
+          },
+          "report_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Status"
+          },
+          "version_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version No"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "patient_id",
+          "report_id",
+          "display_name",
+          "external_ref",
+          "date_of_birth",
+          "report_status",
+          "version_no",
+          "updated_at"
+        ],
+        "title": "WorklistRowOut"
+      }
+    }
+  }
+}

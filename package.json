@@ -1,0 +1,24 @@
+{
+  "name": "longevity-health-analytics-platform",
+  "version": "0.0.0",
+  "private": true,
+  "description": "GDPR-first analytics workspace for longevity / preventive-care clinics (DACH/EU). Synthetic data only.",
+  "packageManager": "pnpm@10.14.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\" --ignore-path .gitignore --ignore-path .prettierignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\" --ignore-path .gitignore --ignore-path .prettierignore",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "build": "pnpm -r --if-present build",
+    "gen:client": "node packages/api-client/scripts/generate.mjs"
+  },
+  "devDependencies": {
+    "prettier": "3.3.3",
+    "openapi-typescript": "7.4.1",
+    "typescript": "5.6.3"
+  }
+}
