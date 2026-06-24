@@ -4,6 +4,12 @@
 // Domain rollup / data-quality coverage are intentionally absent (Gate G1, ADR-0002 §6).
 
 import { comparabilityNote } from "@/lib/comparabilityCopy";
+import {
+  referenceBar,
+  referencePosition,
+  type PositionBar,
+  type ReferencePosition,
+} from "@/lib/referencePosition";
 import type {
   DomainMatrixView,
   EvidenceObs,
@@ -70,12 +76,15 @@ export interface StatementView {
 export interface MarkerView {
   name: string;
   current: string;
-  previous: string;
   change: string;
   reference: string;
   code: string;
   status: string;
   reviewRequired: boolean;
+  // Lage zum Referenzintervall (docs/notes/0009 out_of_source_interval): the value's deterministic
+  // position relative to the lab interval + a cosmetic position bar. Provenance, never a verdict.
+  lagePosition: ReferencePosition;
+  lageBar: PositionBar;
   // Catalog linkage (ADR-0004 Slice 2b): the canonical KPI + its navigational domains.
   kpiCode: string | null;
   primaryDomainLabel: string | null;
@@ -252,7 +261,6 @@ export function presentReview(
     markers: timeline.map((p) => ({
       name: p.original_name,
       current: unitJoin(p.value, p.unit),
-      previous: "—", // not exposed by the timeline endpoint; shown as not-available
       change: p.delta_vs_previous ?? "—",
       reference:
         p.reference_low != null || p.reference_high != null
@@ -261,6 +269,8 @@ export function presentReview(
       code: p.metric_code ?? "—",
       status: p.review_status,
       reviewRequired: p.review_status !== "published",
+      lagePosition: referencePosition(p.value, p.reference_low, p.reference_high),
+      lageBar: referenceBar(p.value, p.reference_low, p.reference_high),
       kpiCode: p.kpi_code ?? null,
       primaryDomainLabel: p.kpi_primary_domain
         ? (DOMAIN_AXIS_LABELS[p.kpi_primary_domain] ?? p.kpi_primary_domain)

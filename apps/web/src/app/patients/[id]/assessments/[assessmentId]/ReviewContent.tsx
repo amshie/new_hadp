@@ -4,6 +4,7 @@ import { Fragment, useEffect, useState } from "react";
 
 import { Icon } from "@/components/Icon";
 import { useToast } from "@/components/Toaster";
+import { lageLabel } from "@/lib/lageCopy";
 import type { MarkerView, ReviewView } from "@/lib/presenters/review";
 
 // "Veränderung" cell: the withheld-delta comparability note (text-carried, no color-alone) when the
@@ -31,6 +32,62 @@ function ChangeCell({ marker }: { marker: MarkerView }) {
   );
 }
 
+// "Lage zum Referenzintervall" cell: a direction pill (glyph + word + full screen-reader sentence)
+// and a cosmetic, aria-hidden position bar. Meaning is carried by text, never by colour alone, and
+// the palette is calm — never the danger/alarm colours. A marker with no lab interval renders
+// "Keine Referenz" with no dot — never a guessed position (doctrine: never read as normal/stable).
+function LageCell({ marker }: { marker: MarkerView }) {
+  const l = lageLabel(marker.lagePosition);
+  const bar = marker.lageBar;
+  const intervalText =
+    marker.reference === "—" ? "kein Referenzintervall hinterlegt" : marker.reference;
+  return (
+    <div className="lage-cell">
+      <span className={`badge ${l.badge} no-dot lage-pill`}>
+        <span aria-hidden="true">{l.glyph}</span>
+        <span>{l.label}</span>
+      </span>
+      {bar.hasScale ? (
+        <span className="pos-bar" aria-hidden="true">
+          <span
+            className="pos-bar-band"
+            style={{ left: `${bar.bandStartPct}%`, right: `${100 - bar.bandEndPct}%` }}
+          />
+          {bar.dotPct != null && (
+            <span className="pos-bar-dot" style={{ left: `${bar.dotPct}%` }} />
+          )}
+        </span>
+      ) : (
+        <span className="pos-bar-noscale" aria-hidden="true">
+          keine Skala
+        </span>
+      )}
+      <span className="sr-only">
+        {`${marker.name} ${marker.current}; Referenzintervall ${intervalText}; ${l.sentence}.`}
+      </span>
+    </div>
+  );
+}
+
+type RefFilter = "all" | "outside" | "no_ref";
+
+const REF_FILTERS: { key: RefFilter; label: string }[] = [
+  { key: "all", label: "Alle" },
+  { key: "outside", label: "Außerhalb Referenz" },
+  { key: "no_ref", label: "Ohne Referenz" },
+];
+
+function matchesRefFilter(marker: MarkerView, filter: RefFilter): boolean {
+  if (filter === "outside")
+    return marker.lagePosition === "above" || marker.lagePosition === "below";
+  if (filter === "no_ref")
+    return (
+      marker.lagePosition === "no_reference" ||
+      marker.lagePosition === "not_evaluable"
+    );
+  return true;
+}
+
 const NOT_IMPLEMENTED = "Diese Ansicht ist im Prototyp noch nicht umgesetzt.";
 
 function initials(name: string): string {
@@ -48,12 +105,19 @@ export function ReviewContent({ view }: { view: ReviewView }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<number | null>(null);
+  // Transient view filter on the value's position vs. its reference interval. No counts (a count
+  // across markers would read as a severity tally — out of bounds, founder decision 2026-06-24);
+  // default "all" never hides values; composes (AND) with the domain selection below.
+  const [refFilter, setRefFilter] = useState<RefFilter>("all");
   const selected =
     selectedDomain != null ? (view.domains[selectedDomain] ?? null) : null;
   // Beobachtungsnachweis shows the selected domain's own biomarkers, or all when none is selected.
   const primaryMarkers = selected
     ? view.markers.filter((m) => selected.markerCodes.includes(m.code))
     : view.markers;
+  const visiblePrimary = primaryMarkers.filter((m) =>
+    matchesRefFilter(m, refFilter),
+  );
   // Secondary-linked biomarkers (ADR-0004 Slice 2b): the SAME single observation surfaced where it
   // is also relevant — navigational visibility only, never a second verdict. Excludes any already
   // in the domain's own evidence (no duplication across domains).
@@ -310,7 +374,7 @@ export function ReviewContent({ view }: { view: ReviewView }) {
           <p>
             {selected
               ? `Eigene Beobachtungen der Domäne: ${selected.axisLabel}.`
-              : "Gemessene Werte, Einheiten, Referenzintervalle und Provenienz."}
+              : "Gemessene Werte, Einheiten, Referenzintervalle und Provenienz — mit Lage zum Referenzintervall."}
           </p>
         </div>
         {selected && (
@@ -322,6 +386,23 @@ export function ReviewContent({ view }: { view: ReviewView }) {
             Alle anzeigen
           </button>
         )}
+      </div>
+      <div
+        className="lage-filters"
+        role="group"
+        aria-label="Nach Lage zum Referenzintervall filtern"
+      >
+        {REF_FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            className="tab"
+            aria-pressed={refFilter === f.key}
+            onClick={() => setRefFilter(f.key)}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
       <section
         className="card evidence-table-card"
@@ -339,20 +420,22 @@ export function ReviewContent({ view }: { view: ReviewView }) {
               <tr>
                 <th>Marker</th>
                 <th>Aktuell</th>
-                <th>Vorher</th>
+                <th>Lage zum Referenzintervall</th>
                 <th>Veränderung</th>
                 <th>Referenz</th>
                 <th>Code / Status</th>
               </tr>
             </thead>
             <tbody>
-              {primaryMarkers.map((m, i) => (
+              {visiblePrimary.map((m, i) => (
                 <tr key={i}>
                   <td>
                     <span className="marker-name">{m.name}</span>
                   </td>
                   <td className="num">{m.current}</td>
-                  <td className="num">{m.previous}</td>
+                  <td>
+                    <LageCell marker={m} />
+                  </td>
                   <td>
                     <ChangeCell marker={m} />
                   </td>
@@ -363,15 +446,19 @@ export function ReviewContent({ view }: { view: ReviewView }) {
                   </td>
                 </tr>
               ))}
-              {primaryMarkers.length === 0 && (
+              {visiblePrimary.length === 0 && (
                 <tr>
                   <td
                     colSpan={6}
                     style={{ color: "var(--muted)", padding: "18px" }}
                   >
-                    {selected
-                      ? "Keine Beobachtungen für diese Domäne."
-                      : "Keine Beobachtungen vorhanden."}
+                    {refFilter === "outside"
+                      ? "Keine Marker außerhalb des Referenzintervalls."
+                      : refFilter === "no_ref"
+                        ? "Keine Marker ohne hinterlegte Referenz."
+                        : selected
+                          ? "Keine Beobachtungen für diese Domäne."
+                          : "Keine Beobachtungen vorhanden."}
                   </td>
                 </tr>
               )}
@@ -406,7 +493,7 @@ export function ReviewContent({ view }: { view: ReviewView }) {
                     <th>Marker</th>
                     <th>Primärdomäne</th>
                     <th>Aktuell</th>
-                    <th>Vorher</th>
+                    <th>Lage zum Referenzintervall</th>
                     <th>Veränderung</th>
                     <th>Referenz</th>
                     <th>Code / Status</th>
@@ -420,7 +507,9 @@ export function ReviewContent({ view }: { view: ReviewView }) {
                       </td>
                       <td>{m.primaryDomainLabel ?? "—"}</td>
                       <td className="num">{m.current}</td>
-                      <td className="num">{m.previous}</td>
+                      <td>
+                        <LageCell marker={m} />
+                      </td>
                       <td>
                         <ChangeCell marker={m} />
                       </td>

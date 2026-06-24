@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Protocol
 
+from hadp_api.modules.observations.reference_position import position_vs_source_interval
+
 
 @dataclass
 class EvidenceItem:
@@ -72,17 +74,15 @@ class DeterministicNarrativeProvider:
                 )
                 parts.append(f"Source reference interval: {interval.rstrip()}.")
                 # Factual comparison to the lab-provided interval (a rule match, not a diagnosis).
-                if (
-                    item.value is not None
-                    and item.reference_high is not None
-                    and (item.value > item.reference_high)
-                ):
+                # Uses the shared predicate so the narrative, the web "Lage" column, and the
+                # planned out_of_source_interval rule cannot drift. Only above/below are stated;
+                # within / not-evaluable add no sentence (unchanged behaviour).
+                position = position_vs_source_interval(
+                    item.value, item.reference_low, item.reference_high
+                )
+                if position == "above":
                     parts.append("The value is above the source reference interval.")
-                elif (
-                    item.value is not None
-                    and item.reference_low is not None
-                    and (item.value < item.reference_low)
-                ):
+                elif position == "below":
                     parts.append("The value is below the source reference interval.")
             if item.delta_vs_previous is not None and item.previous_observation_id is not None:
                 parts.append(

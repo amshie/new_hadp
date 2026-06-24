@@ -163,6 +163,7 @@ svg.icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-w
 .tab { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 7px 10px; border: 0; border-radius: 9px; color: var(--muted); background: transparent; font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer; }
 .tab:hover { color: var(--ink); background: var(--surface-3); }
 .tab[aria-selected="true"] { color: var(--brand-700); background: var(--brand-50); }
+.tab[aria-pressed="true"] { color: var(--brand-700); background: var(--brand-50); }
 .tab .count { min-width: 20px; padding: 2px 5px; border-radius: 999px; color: var(--muted); background: var(--cell-border); font-family: var(--font-mono); font-size: 10px; text-align: center; }
 .tab[aria-selected="true"] .count { color: var(--brand-700); background: var(--tab-active-count-bg); }
 .toolbar-actions { display: flex; align-items: center; gap: 8px; }
@@ -301,6 +302,17 @@ svg.icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-w
 .marker-table .marker-name { color: var(--ink); font-weight: 750; white-space: normal; }
 .marker-table .marker-meta { display: block; margin-top: 2px; color: var(--muted); font-size: 9px; font-weight: 500; }
 .marker-table .source { max-width: 150px; overflow: hidden; color: var(--brand-700); text-overflow: ellipsis; }
+
+/* Lage zum Referenzintervall: a direction pill + a cosmetic position bar. The pill (glyph + word +
+   sr-only sentence) carries all meaning; the bar is decorative and aria-hidden. Calm, non-alarm
+   palette — never the danger/warning colours, so "outside" reads as provenance, not a risk signal. */
+.lage-cell { display: flex; flex-direction: column; gap: 5px; min-width: 156px; }
+.lage-pill { width: fit-content; }
+.lage-filters { display: inline-flex; gap: 4px; margin: 0 0 10px; }
+.pos-bar { position: relative; height: 6px; border-radius: 999px; background: var(--surface-3); }
+.pos-bar-band { position: absolute; top: 0; bottom: 0; background: var(--brand-100); border-radius: 999px; }
+.pos-bar-dot { position: absolute; top: 50%; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: var(--ink); transform: translateY(-50%); box-shadow: 0 0 0 2px var(--surface); }
+.pos-bar-noscale { color: var(--muted-2); font-size: 9.5px; font-style: italic; }
 .change-up { color: var(--success); font-weight: 750; }
 .change-flat { color: var(--info); font-weight: 750; }
 .change-down { color: var(--danger); font-weight: 750; }
