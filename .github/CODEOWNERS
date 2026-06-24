@@ -1,0 +1,18 @@
+# Code ownership for review routing. Doctrine, regulatory, migration, and security-critical
+# paths are owned by the founder/Regulatory-Lead and should not change without their review.
+# (Auto-requests review; enforced only if branch protection requires code-owner review.)
+
+*                                         @amshie
+
+# Doctrine + governance
+/CLAUDE.md                                @amshie
+/docs/adr/                                @amshie
+/docs/regulatory/                         @amshie
+
+# DB migrations, RLS, tenant isolation, config — security-critical
+/apps/api/alembic/versions/               @amshie
+/apps/api/src/hadp_api/db/                @amshie
+/apps/api/src/hadp_api/config.py          @amshie
+
+# CI / repo configuration
+/.github/                                 @amshie

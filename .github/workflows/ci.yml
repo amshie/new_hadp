@@ -54,6 +54,11 @@ jobs:
       - name: Install JS dependencies
         run: pnpm install
 
+      - name: Generate API client
+        # src/generated/schema.ts is gitignored and derived from the committed openapi.json
+        # (offline, deterministic — no running server). Regenerate it so typecheck/test resolve it.
+        run: pnpm gen:client
+
       - name: Install API dependencies
         run: cd apps/api && uv sync
 
@@ -86,10 +91,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITLEAKS_CONFIG: .gitleaks.toml
+      - name: Install gitleaks
+        run: |
+          VERSION=8.24.3
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          ./gitleaks version
+      - name: gitleaks (scan committed history)
+        # Run the CLI directly rather than gitleaks-action@v2: the action's PR mode calls the GitHub
+        # API and fails on the default token ("Resource not accessible by integration"), so it never
+        # actually scans. `gitleaks git` scans commit history — exactly what is published — and honors
+        # the .gitleaks.toml allowlist, exiting non-zero on any finding outside it. fetch-depth: 0
+        # (above) gives it the full history.
+        run: ./gitleaks git . --config .gitleaks.toml --redact --no-banner
 
   dependency-scan:
     runs-on: ubuntu-latest
@@ -97,9 +111,22 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
       - name: pip-audit (Python dependencies)
+        # Blocking: a NEW advisory fails CI. The IDs below are KNOWN advisories in transitive deps
+        # (starlette via FastAPI; pytest, dev-only) accepted pending the dependency-upgrade slice
+        # tracked in docs/notes/0008-dependency-advisories.md. Re-review this allowlist on any dep
+        # change; remove an ID once its fix is pulled in. This is an explicit, in-repo allowlist —
+        # not a silent `|| echo` suppression.
         run: |
           cd apps/api && uv sync
-          uv run --with pip-audit pip-audit || echo "::warning::pip-audit reported advisories"
+          uv run --with pip-audit pip-audit \
+            --ignore-vuln CVE-2025-71176 \
+            --ignore-vuln PYSEC-2026-161 \
+            --ignore-vuln CVE-2025-54121 \
+            --ignore-vuln CVE-2025-62727 \
+            --ignore-vuln CVE-2026-48818 \
+            --ignore-vuln CVE-2026-48817 \
+            --ignore-vuln CVE-2026-54283 \
+            --ignore-vuln CVE-2026-54282
       - uses: pnpm/action-setup@v4
         with:
           version: 10.14.0
@@ -108,4 +135,5 @@ jobs:
           node-version: 20
           cache: pnpm
       - name: pnpm audit (JS dependencies)
-        run: pnpm install && pnpm audit --audit-level high || echo "::warning::pnpm audit reported advisories"
+        # Blocking on high/critical (moderate advisories are reported by Dependabot, not gated here).
+        run: pnpm install && pnpm audit --audit-level high

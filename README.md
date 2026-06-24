@@ -1,24 +1,31 @@
-# Longevity Health Analytics Platform
+# HADP — Physician-Governed Longevity Analytics
 
-A GDPR-first analytics workspace for longevity, functional-medicine, concierge, and
-preventive-care clinics (DACH/EU). It imports laboratory data, normalizes it, shows
-longitudinal change, prepares a **source-grounded** pre-visit report, and requires
-**clinician approval before any patient release**.
+A GDPR-first, multi-tenant, **physician-governed, audit-first decision-support** workspace for
+longevity, functional-medicine, concierge, and preventive-care clinics (DACH/EU). It aggregates
+laboratory data with full provenance, shows longitudinal change against the laboratory's own
+reference intervals, lets a **clinician author** a per-patient, per-axis interpretation (recorded
+append-only with its evidence), and requires a **medical-director lock before any patient release**.
 
-> **Intended-use boundary.** This is a data aggregation, visualization, workflow, and
-> documentation-support product — **not** an autonomous medical decision-maker. It does
-> not diagnose, recommend treatment, or produce risk/biological-age scores. See
-> [`docs/regulatory/INTENDED_USE.md`](docs/regulatory/INTENDED_USE.md). **Synthetic data
-> only** in development and tests — never commit or import real patient data.
+> **Intended-use boundary.** A documentation / decision-**support** product — **not** an autonomous
+> medical decision-maker. The engine **validates and records; it never derives** a verdict or a
+> score: the per-axis verdicts (CIS, Actionability) and the tri-state cells are **authored by a
+> qualified clinician**, gated by a medical director. No autonomous diagnosis, treatment advice,
+> risk prediction, biological-age, or unified/health score. The MDR/MDSW classification of this
+> governance model is an **open, pending determination** (see
+> [`docs/adr/0003-adopt-hadp-governance-doctrine.md`](docs/adr/0003-adopt-hadp-governance-doctrine.md)
+> and [`docs/regulatory/INTENDED_USE.md`](docs/regulatory/INTENDED_USE.md)). **Synthetic data only**
+> in development and tests — never commit or import real patient data.
 
-The binding project contract is [`CLAUDE.md`](CLAUDE.md).
+The binding project contract is [`CLAUDE.md`](CLAUDE.md); the product model is set by
+[ADR-0003](docs/adr/0003-adopt-hadp-governance-doctrine.md).
 
 ## Layout
 
 ```
 apps/
   api/      FastAPI backend (modular monolith): identity, tenancy, patients,
-            consents, documents, imports, observations, reports, audit, ...
+            consents, documents, imports, observations, interpretation, kpi,
+            derivations, reports, audit, ...
   web/      Next.js + TypeScript clinic/patient web app
   worker/   Redis-backed background jobs (imports, reports)
 packages/

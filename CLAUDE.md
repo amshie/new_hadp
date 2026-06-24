@@ -1,5 +1,18 @@
 # CLAUDE.md — Longevity Health Analytics Platform
 
+> **Product model superseded — see [ADR-0003](docs/adr/0003-adopt-hadp-governance-doctrine.md)
+> (founder decision, 2026-06-22).** This file's original **lab-analytics** intended use, prohibited
+> list, and forbidden-language bank are **superseded for the product model** by the HADP
+> **governance** doctrine: the core artifact is a per-patient, per-axis interpretation (six domains;
+> clinician-authored CIS + Actionability closed-enum verdicts + verdict-free tri-state cells;
+> append-only). The engine **validates and records; it never derives.** **Retained in force** (not
+> dropped): synthetic-data-only, tenant isolation via RLS, append-only audit + provenance, **no
+> unified score / no %**, closed vocabularies, and the human gates for real patient data, MDR/SaMD
+> qualification, and GDPR/DPIA. The current intended-use statement of record is
+> [`docs/regulatory/INTENDED_USE.md`](docs/regulatory/INTENDED_USE.md). Where this file conflicts
+> with ADR-0003 on the *product model*, ADR-0003 wins; on *safety/privacy/regulatory invariants*,
+> both agree and they remain binding.
+
 ## Purpose of this file
 
 This repository contains a greenfield B2B health-data product for longevity and preventive-care clinics in the DACH/EU market. This file is the persistent project contract for Claude Code.
