@@ -47,7 +47,7 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -109,7 +109,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v7
       - name: pip-audit (Python dependencies)
         # Blocking: a NEW advisory fails CI. The IDs below are KNOWN advisories in transitive deps
         # (starlette via FastAPI; pytest, dev-only) accepted pending the dependency-upgrade slice
