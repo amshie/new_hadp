@@ -6,7 +6,9 @@
 import { comparabilityNote } from "@/lib/comparabilityCopy";
 import {
   referenceBar,
+  referenceDetailBar,
   referencePosition,
+  type DetailBar,
   type PositionBar,
   type ReferencePosition,
 } from "@/lib/referencePosition";
@@ -81,10 +83,20 @@ export interface MarkerView {
   code: string;
   status: string;
   reviewRequired: boolean;
+  // Stable identity for selection (the timeline index); the same marker code can appear on more
+  // than one row (multiple timepoints), so code is not unique.
+  rowKey: number;
   // Lage zum Referenzintervall (docs/notes/0009 out_of_source_interval): the value's deterministic
   // position relative to the lab interval + a cosmetic position bar. Provenance, never a verdict.
   lagePosition: ReferencePosition;
   lageBar: PositionBar;
+  // Raw numbers + the richer detail-card bar (single-marker focus view).
+  unit: string | null;
+  valueStr: string; // source value, precision preserved (no unit)
+  valueNum: number | null;
+  refLowNum: number | null;
+  refHighNum: number | null;
+  lageDetailBar: DetailBar;
   // Catalog linkage (ADR-0004 Slice 2b): the canonical KPI + its navigational domains.
   kpiCode: string | null;
   primaryDomainLabel: string | null;
@@ -147,6 +159,12 @@ function unitJoin(
 ): string {
   if (value == null) return "—";
   return unit ? `${value} ${unit}` : value;
+}
+
+function toNum(value: string | null | undefined): number | null {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 function auditSteps(status: string): AuditStepView[] {
@@ -258,7 +276,7 @@ export function presentReview(
             },
       ),
     })),
-    markers: timeline.map((p) => ({
+    markers: timeline.map((p, i) => ({
       name: p.original_name,
       current: unitJoin(p.value, p.unit),
       change: p.delta_vs_previous ?? "—",
@@ -269,8 +287,15 @@ export function presentReview(
       code: p.metric_code ?? "—",
       status: p.review_status,
       reviewRequired: p.review_status !== "published",
+      rowKey: i,
       lagePosition: referencePosition(p.value, p.reference_low, p.reference_high),
       lageBar: referenceBar(p.value, p.reference_low, p.reference_high),
+      unit: p.unit ?? null,
+      valueStr: p.value ?? "—",
+      valueNum: toNum(p.value),
+      refLowNum: toNum(p.reference_low),
+      refHighNum: toNum(p.reference_high),
+      lageDetailBar: referenceDetailBar(p.value, p.reference_low, p.reference_high),
       kpiCode: p.kpi_code ?? null,
       primaryDomainLabel: p.kpi_primary_domain
         ? (DOMAIN_AXIS_LABELS[p.kpi_primary_domain] ?? p.kpi_primary_domain)

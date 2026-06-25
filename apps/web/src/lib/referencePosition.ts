@@ -85,3 +85,52 @@ export function referenceBar(
     dotPct: v == null ? null : pct(v),
   };
 }
+
+export interface DetailBar {
+  hasScale: boolean;
+  bandStartPct: number;
+  bandEndPct: number;
+  midPct: number; // band midpoint — the reference tick + "Referenz x–y" label sit here
+  dotPct: number | null;
+  scaleMax: number; // right-hand scale-end value (left end is always 0)
+}
+
+// The richer position bar for the single-marker detail card (the Claude Design "Lage zur Referenz"
+// comp). Scale is [0, scaleMax] like the comp — natural for lab values (≥ 0). scaleMax fits the
+// larger of the upper reference bound and the value (+ a little headroom) so the value dot is always
+// on-scale and "how far outside" stays readable, while the band still reflects ONLY the lab-provided
+// interval — never an introduced "optimal"/normal bound, never a clinical target.
+export function referenceDetailBar(
+  value: string | null | undefined,
+  referenceLow: string | null | undefined,
+  referenceHigh: string | null | undefined,
+): DetailBar {
+  const empty: DetailBar = {
+    hasScale: false,
+    bandStartPct: 0,
+    bandEndPct: 0,
+    midPct: 0,
+    dotPct: null,
+    scaleMax: 0,
+  };
+  const v = num(value);
+  const lo = num(referenceLow);
+  const hi = num(referenceHigh);
+  if (lo == null || hi == null || hi <= lo) return empty;
+
+  const top = Math.max(hi, v ?? hi);
+  const scaleMax = top * 1.07; // headroom so the dot/end never sits flush against the edge
+  const pct = (x: number): number => {
+    const p = (x / scaleMax) * 100;
+    return p < 0 ? 0 : p > 100 ? 100 : p;
+  };
+
+  return {
+    hasScale: true,
+    bandStartPct: pct(lo),
+    bandEndPct: pct(hi),
+    midPct: pct((lo + hi) / 2),
+    dotPct: v == null ? null : pct(v),
+    scaleMax,
+  };
+}

@@ -69,6 +69,79 @@ function LageCell({ marker }: { marker: MarkerView }) {
   );
 }
 
+function fmtNum(n: number): string {
+  const r = Math.round(n * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+}
+
+// Single-marker focus card — the Claude Design "Marker Lage zur Referenz" comp, rebuilt in HADP
+// tokens (founder decisions 2026-06-25): comp layout, HADP palette, doctrine-safe positional labels
+// (never "Hoch"/"erhöht"), calm — no alarm colour and no pulsing dot. The reference band reflects
+// only the lab-provided interval; the [0, scaleMax] axis fits the value so "how far" stays readable.
+function MarkerDetailCard({ marker }: { marker: MarkerView }) {
+  const l = lageLabel(marker.lagePosition);
+  const bar = marker.lageDetailBar;
+  const refText =
+    marker.refLowNum != null && marker.refHighNum != null
+      ? `${fmtNum(marker.refLowNum)}–${fmtNum(marker.refHighNum)}`
+      : null;
+  return (
+    <section
+      className="lage-card"
+      aria-label={`Lage zum Referenzintervall: ${marker.name}`}
+    >
+      <div className="lage-card-head">
+        <div className="lage-card-titles">
+          <span className="lage-card-eyebrow">Lage zum Referenzintervall</span>
+          <span className="lage-card-name">{marker.name}</span>
+        </div>
+        <span className={`badge ${l.badge} no-dot`}>
+          <span aria-hidden="true">{l.glyph}</span>
+          <span>{l.label}</span>
+        </span>
+      </div>
+
+      <div className="lage-card-value">
+        <span className="lage-card-num">{marker.valueStr}</span>
+        {marker.unit && <span className="lage-card-unit">{marker.unit}</span>}
+        <span className="lage-card-range">{l.range}</span>
+      </div>
+
+      {bar.hasScale ? (
+        <div className="lage-card-bar">
+          <div className="lage-card-track">
+            <div
+              className="lage-card-band"
+              style={{ left: `${bar.bandStartPct}%`, right: `${100 - bar.bandEndPct}%` }}
+            />
+          </div>
+          <div className="lage-card-tick" style={{ left: `${bar.midPct}%` }} />
+          {refText && (
+            <div className="lage-card-refrange" style={{ left: `${bar.midPct}%` }}>
+              Referenz {refText}
+            </div>
+          )}
+          {bar.dotPct != null && (
+            <div className="lage-card-dot" style={{ left: `${bar.dotPct}%` }} />
+          )}
+          <div className="lage-card-scalemin">0</div>
+          <div className="lage-card-scalemax">{fmtNum(bar.scaleMax)}</div>
+        </div>
+      ) : (
+        <div className="lage-card-noscale">
+          Kein Referenzbereich hinterlegt — keine Skala.
+        </div>
+      )}
+
+      <span className="sr-only">
+        {`${marker.name}: ${marker.current}. ${
+          refText ? `Referenzbereich ${refText}${marker.unit ? ` ${marker.unit}` : ""}. ` : ""
+        }${l.sentence}.`}
+      </span>
+    </section>
+  );
+}
+
 type RefFilter = "all" | "outside" | "no_ref";
 
 const REF_FILTERS: { key: RefFilter; label: string }[] = [
@@ -109,6 +182,9 @@ export function ReviewContent({ view }: { view: ReviewView }) {
   // across markers would read as a severity tally — out of bounds, founder decision 2026-06-24);
   // default "all" never hides values; composes (AND) with the domain selection below.
   const [refFilter, setRefFilter] = useState<RefFilter>("all");
+  // Which marker the focus card shows. Keyed by the stable rowKey (marker code is not unique across
+  // timepoints). Defaults to the first visible marker; falls back if the selection is filtered out.
+  const [selectedRowKey, setSelectedRowKey] = useState<number | null>(null);
   const selected =
     selectedDomain != null ? (view.domains[selectedDomain] ?? null) : null;
   // Beobachtungsnachweis shows the selected domain's own biomarkers, or all when none is selected.
@@ -118,6 +194,10 @@ export function ReviewContent({ view }: { view: ReviewView }) {
   const visiblePrimary = primaryMarkers.filter((m) =>
     matchesRefFilter(m, refFilter),
   );
+  const selectedMarker =
+    visiblePrimary.find((m) => m.rowKey === selectedRowKey) ??
+    visiblePrimary[0] ??
+    null;
   // Secondary-linked biomarkers (ADR-0004 Slice 2b): the SAME single observation surfaced where it
   // is also relevant — navigational visibility only, never a second verdict. Excludes any already
   // in the domain's own evidence (no duplication across domains).
@@ -404,6 +484,7 @@ export function ReviewContent({ view }: { view: ReviewView }) {
           </button>
         ))}
       </div>
+      {selectedMarker && <MarkerDetailCard marker={selectedMarker} />}
       <section
         className="card evidence-table-card"
         aria-labelledby="evidence-heading"
@@ -430,7 +511,14 @@ export function ReviewContent({ view }: { view: ReviewView }) {
               {visiblePrimary.map((m, i) => (
                 <tr key={i}>
                   <td>
-                    <span className="marker-name">{m.name}</span>
+                    <button
+                      type="button"
+                      className="marker-name marker-name-btn"
+                      aria-pressed={selectedMarker?.rowKey === m.rowKey}
+                      onClick={() => setSelectedRowKey(m.rowKey)}
+                    >
+                      {m.name}
+                    </button>
                   </td>
                   <td className="num">{m.current}</td>
                   <td>

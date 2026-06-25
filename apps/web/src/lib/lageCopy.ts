@@ -18,6 +18,7 @@ export interface LageLabel {
   label: string; // terse pill text
   badge: string; // .badge variant — calm, non-alarm (never danger/warning)
   sentence: string; // clause for the full screen-reader / title sentence
+  range: string; // short positional phrase for the detail card ("oberhalb des Referenzbereichs")
 }
 
 const LABELS: Record<ReferencePosition, Record<Locale, LageLabel>> = {
@@ -27,12 +28,14 @@ const LABELS: Record<ReferencePosition, Record<Locale, LageLabel>> = {
       label: "Über Referenz",
       badge: "badge-info",
       sentence: "über dem Quellreferenzintervall",
+      range: "oberhalb des Referenzbereichs",
     },
     en: {
       glyph: "↑",
       label: "Above reference",
       badge: "badge-info",
       sentence: "above the source reference interval",
+      range: "above the reference range",
     },
   },
   below: {
@@ -41,12 +44,14 @@ const LABELS: Record<ReferencePosition, Record<Locale, LageLabel>> = {
       label: "Unter Referenz",
       badge: "badge-info",
       sentence: "unter dem Quellreferenzintervall",
+      range: "unterhalb des Referenzbereichs",
     },
     en: {
       glyph: "↓",
       label: "Below reference",
       badge: "badge-info",
       sentence: "below the source reference interval",
+      range: "below the reference range",
     },
   },
   within: {
@@ -55,12 +60,14 @@ const LABELS: Record<ReferencePosition, Record<Locale, LageLabel>> = {
       label: "Im Intervall",
       badge: "badge-success",
       sentence: "innerhalb des Quellreferenzintervalls",
+      range: "innerhalb des Referenzbereichs",
     },
     en: {
       glyph: "–",
       label: "Within reference",
       badge: "badge-success",
       sentence: "within the source reference interval",
+      range: "within the reference range",
     },
   },
   no_reference: {
@@ -69,12 +76,14 @@ const LABELS: Record<ReferencePosition, Record<Locale, LageLabel>> = {
       label: "Keine Referenz",
       badge: "badge-neutral",
       sentence: "kein Quellreferenzintervall hinterlegt — Lage nicht bestimmbar",
+      range: "kein Referenzbereich hinterlegt",
     },
     en: {
       glyph: "⊘",
       label: "No reference",
       badge: "badge-neutral",
       sentence: "no source reference interval on file — position not determinable",
+      range: "no reference range on file",
     },
   },
   not_evaluable: {
@@ -83,12 +92,14 @@ const LABELS: Record<ReferencePosition, Record<Locale, LageLabel>> = {
       label: "Nicht bestimmbar",
       badge: "badge-neutral",
       sentence: "Lage relativ zum Referenzintervall nicht bestimmbar",
+      range: "Lage nicht bestimmbar",
     },
     en: {
       glyph: "⊘",
       label: "Not determinable",
       badge: "badge-neutral",
       sentence: "position relative to the reference interval not determinable",
+      range: "position not determinable",
     },
   },
 };
