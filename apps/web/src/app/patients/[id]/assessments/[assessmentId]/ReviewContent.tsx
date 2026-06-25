@@ -32,10 +32,18 @@ function ChangeCell({ marker }: { marker: MarkerView }) {
   );
 }
 
+function fmtNum(n: number): string {
+  const r = Math.round(n * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+}
+
 // "Lage zum Referenzintervall" cell: a direction pill (glyph + word + full screen-reader sentence)
-// and a cosmetic, aria-hidden position bar. Meaning is carried by text, never by colour alone, and
-// the palette is calm — never the danger/alarm colours. A marker with no lab interval renders
-// "Keine Referenz" with no dot — never a guessed position (doctrine: never read as normal/stable).
+// above a position bar styled after the Claude Design comp (founder direction 2026-06-25): a cream
+// track, a teal reference band, a midpoint tick, the "Referenz x–y" label, 0…scale-end labels, and
+// an amber value dot (no pulse). The reference band reflects only the lab-provided interval; the
+// amber dot is a palette choice, never a verdict — meaning is still carried by the pill + the
+// sr-only sentence (never colour alone). A marker with no lab interval renders "keine Skala" — no
+// dot, never a guessed position (doctrine: never read as normal/stable).
 function LageCell({ marker }: { marker: MarkerView }) {
   const l = lageLabel(marker.lagePosition);
   const bar = marker.lageBar;
@@ -48,15 +56,25 @@ function LageCell({ marker }: { marker: MarkerView }) {
         <span>{l.label}</span>
       </span>
       {bar.hasScale ? (
-        <span className="pos-bar" aria-hidden="true">
-          <span
-            className="pos-bar-band"
-            style={{ left: `${bar.bandStartPct}%`, right: `${100 - bar.bandEndPct}%` }}
-          />
-          {bar.dotPct != null && (
-            <span className="pos-bar-dot" style={{ left: `${bar.dotPct}%` }} />
+        <div className="pos-bar" aria-hidden="true">
+          <div className="pos-bar-track">
+            <div
+              className="pos-bar-band"
+              style={{ left: `${bar.bandStartPct}%`, right: `${100 - bar.bandEndPct}%` }}
+            />
+          </div>
+          <div className="pos-bar-tick" style={{ left: `${bar.midPct}%` }} />
+          {marker.referenceRange && (
+            <div className="pos-bar-refrange" style={{ left: `${bar.midPct}%` }}>
+              Referenz {marker.referenceRange}
+            </div>
           )}
-        </span>
+          {bar.dotPct != null && (
+            <div className="pos-bar-dot" style={{ left: `${bar.dotPct}%` }} />
+          )}
+          <div className="pos-bar-scalemin">0</div>
+          <div className="pos-bar-scalemax">{fmtNum(bar.scaleMax)}</div>
+        </div>
       ) : (
         <span className="pos-bar-noscale" aria-hidden="true">
           keine Skala
