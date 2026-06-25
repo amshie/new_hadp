@@ -19,7 +19,9 @@ export interface PositionBar {
   hasScale: boolean;
   bandStartPct: number;
   bandEndPct: number;
+  midPct: number; // band midpoint — the reference tick + "Referenz x–y" label sit here
   dotPct: number | null;
+  scaleMax: number; // right-hand scale-end value (left end is always 0)
 }
 
 function num(v: string | null | undefined): number | null {
@@ -45,11 +47,12 @@ export function referencePosition(
   return "not_evaluable";
 }
 
-// Cosmetic position bar derived ONLY from the lab bounds — never from the value's magnitude, so it
-// can never imply a target the lab did not state. Padding is a fixed fraction of the interval span;
-// a non-negative lower bound keeps the band flush-left (no impossible sub-zero space). The dot
-// clamps to [0,100] so a far-outside value sits at the gutter rather than escaping the track. The
-// bar is decorative-supportive: the pill + screen-reader sentence carry the meaning.
+// Position bar geometry (the Claude Design "Lage zur Referenz" comp). Scale is [0, scaleMax] —
+// natural for lab values (≥ 0). scaleMax fits the larger of the upper reference bound and the value
+// (+ a little headroom) so the value dot is always on-scale and "how far outside" stays readable.
+// The reference BAND reflects ONLY the lab-provided interval — never an introduced "optimal"/normal
+// bound, never a clinical target; the axis extent is a cosmetic choice, not a bound. The bar is
+// decorative: the pill + screen-reader sentence carry the meaning (never colour alone).
 export function referenceBar(
   value: string | null | undefined,
   referenceLow: string | null | undefined,
@@ -59,7 +62,9 @@ export function referenceBar(
     hasScale: false,
     bandStartPct: 0,
     bandEndPct: 0,
+    midPct: 0,
     dotPct: null,
+    scaleMax: 0,
   };
   const v = num(value);
   const lo = num(referenceLow);
@@ -67,14 +72,10 @@ export function referenceBar(
   // A two-sided, non-degenerate interval is required to draw a meaningful band.
   if (lo == null || hi == null || hi <= lo) return empty;
 
-  const span = hi - lo;
-  const pad = span * 0.4;
-  let scaleMin = lo - pad;
-  if (lo >= 0 && scaleMin < 0) scaleMin = 0;
-  const scaleMax = hi + pad;
-  const range = scaleMax - scaleMin;
+  const top = Math.max(hi, v ?? hi);
+  const scaleMax = top * 1.07; // headroom so the dot/end never sits flush against the edge
   const pct = (x: number): number => {
-    const p = ((x - scaleMin) / range) * 100;
+    const p = (x / scaleMax) * 100;
     return p < 0 ? 0 : p > 100 ? 100 : p;
   };
 
@@ -82,6 +83,8 @@ export function referenceBar(
     hasScale: true,
     bandStartPct: pct(lo),
     bandEndPct: pct(hi),
+    midPct: pct((lo + hi) / 2),
     dotPct: v == null ? null : pct(v),
+    scaleMax,
   };
 }

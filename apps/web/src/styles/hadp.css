@@ -306,12 +306,21 @@ svg.icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-w
 /* Lage zum Referenzintervall: a direction pill + a cosmetic position bar. The pill (glyph + word +
    sr-only sentence) carries all meaning; the bar is decorative and aria-hidden. Calm, non-alarm
    palette — never the danger/warning colours, so "outside" reads as provenance, not a risk signal. */
-.lage-cell { display: flex; flex-direction: column; gap: 5px; min-width: 156px; }
+.lage-cell { display: flex; flex-direction: column; gap: 7px; min-width: 240px; }
 .lage-pill { width: fit-content; }
 .lage-filters { display: inline-flex; gap: 4px; margin: 0 0 10px; }
-.pos-bar { position: relative; height: 6px; border-radius: 999px; background: var(--surface-3); }
-.pos-bar-band { position: absolute; top: 0; bottom: 0; background: var(--brand-100); border-radius: 999px; }
-.pos-bar-dot { position: absolute; top: 50%; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: var(--ink); transform: translateY(-50%); box-shadow: 0 0 0 2px var(--surface); }
+/* Position bar — Claude Design comp styling (founder direction 2026-06-25): cream track, teal
+   reference band, midpoint tick, "Referenz x–y" + 0…max labels, amber value dot (no pulse).
+   Decorative; the pill + the sr-only sentence carry the meaning (never colour alone). The warm
+   palette is scoped to these classes, not the global tokens. */
+.pos-bar { position: relative; height: 44px; }
+.pos-bar-track { position: absolute; top: 6px; left: 0; right: 0; height: 10px; background: #eae4d6; border-radius: 7px; overflow: hidden; box-shadow: inset 0 1px 2px rgba(43,54,64,.07); }
+.pos-bar-band { position: absolute; top: 0; bottom: 0; background: linear-gradient(180deg,#cfebe3,#b9e0d4); border-radius: 7px; }
+.pos-bar-tick { position: absolute; top: 3px; width: 1px; height: 16px; background: rgba(17,124,109,.35); transform: translateX(-50%); }
+.pos-bar-refrange { position: absolute; top: 20px; transform: translateX(-50%); font-family: var(--font-mono); font-size: 10px; color: var(--brand-700); white-space: nowrap; }
+.pos-bar-dot { position: absolute; top: 3.5px; width: 15px; height: 15px; margin-left: -7.5px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #e0a93e, #c9881c 70%); border: 2.5px solid #fefdfa; box-shadow: 0 0 0 4px rgba(201,136,28,.16), 0 1px 2px rgba(60,42,12,.25); }
+.pos-bar-scalemin { position: absolute; top: 31px; left: 0; font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.pos-bar-scalemax { position: absolute; top: 31px; right: 0; font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
 .pos-bar-noscale { color: var(--muted-2); font-size: 9.5px; font-style: italic; }
 .change-up { color: var(--success); font-weight: 750; }
 .change-flat { color: var(--info); font-weight: 750; }
