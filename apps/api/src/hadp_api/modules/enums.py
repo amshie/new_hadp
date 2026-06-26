@@ -67,6 +67,27 @@ class ConsentStatus(str, Enum):
     WITHDRAWN = "withdrawn"
 
 
+class ConsentEventType(str, Enum):
+    """An append-only consent state change. Withdrawal is a NEW event, never an overwrite."""
+
+    GRANTED = "granted"
+    WITHDRAWN = "withdrawn"
+
+
+class ConsentPurpose(str, Enum):
+    """Purpose a consent event scopes — a CLOSED vocabulary.
+
+    These are SYNTHETIC-ALPHA PLACEHOLDER values. The real, lawful purpose taxonomy and the
+    per-purpose Art. 9(2) lawful basis are a DPO/counsel deliverable (PENDING), NOT an engineering
+    default — see docs/regulatory (Regulatory-Lead UNASSIGNED). Only `report_release` is enforced as
+    a gate today (on patient-facing report release); the others name transitions for completeness.
+    """
+
+    REPORT_RELEASE = "report_release"  # gates patient-facing release of a report (enforced)
+    ANALYTICS = "analytics"
+    DATA_SOURCE_CONNECT = "data_source_connect"
+
+
 # --- HADP interpretation doctrine (ADR-0003): six axes, two engines, tri-state ---
 #
 # The domain axis is the canonical unit: ONE CIS + ONE Actionability per axis per run, with three

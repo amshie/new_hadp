@@ -7,10 +7,12 @@ COMMIT so the application connection (the `hadp_app` role) can see the rows.
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from hadp_api.modules.enums import Role
+from hadp_api.modules.consents.models import ConsentEvent
+from hadp_api.modules.enums import ConsentEventType, ConsentPurpose, Role
 from hadp_api.modules.identity.models import User
 from hadp_api.modules.tenancy.models import Membership, Tenant
 
@@ -52,6 +54,28 @@ def provision_staff(
     make_membership(admin_session, user_id=user.id, tenant_id=tenant.id, role=role)
     admin_session.commit()
     return user, tenant
+
+
+def grant_release_consent(
+    admin_session: Session, *, tenant_id: uuid.UUID, patient_id: uuid.UUID | str
+) -> None:
+    """Append a GRANTED report_release consent event so the patient can be released to.
+
+    Setup helper for release-path tests (the consent gate is fail-closed). Uses the admin session
+    and COMMITs so the app connection sees it, like the other factories.
+    """
+    admin_session.add(
+        ConsentEvent(
+            tenant_id=tenant_id,
+            patient_id=uuid.UUID(str(patient_id)),
+            purpose=ConsentPurpose.REPORT_RELEASE,
+            event_type=ConsentEventType.GRANTED,
+            consent_text_version="synthetic-v1",
+            channel="in_person",
+            recorded_at=datetime.now(UTC),
+        )
+    )
+    admin_session.commit()
 
 
 def login(client, email: str):  # type: ignore[no-untyped-def]

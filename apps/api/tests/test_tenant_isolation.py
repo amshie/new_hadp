@@ -7,7 +7,13 @@ from sqlalchemy import func, select
 from hadp_api.db.engine import get_sessionmaker, set_tenant_context
 from hadp_api.modules.enums import Role
 from hadp_api.modules.patients.models import Patient
-from tests.helpers import login, login_as, provision_staff, select_tenant
+from tests.helpers import (
+    grant_release_consent,
+    login,
+    login_as,
+    provision_staff,
+    select_tenant,
+)
 
 
 def test_api_tenant_cannot_see_other_tenant_patients(client, admin_session) -> None:  # type: ignore[no-untyped-def]
@@ -155,6 +161,7 @@ def test_cross_tenant_token_replay_is_404(client, admin_session) -> None:  # typ
     )
     rid = client.post(f"/api/v1/patients/{pid}/reports").json()["report_id"]
     client.post(f"/api/v1/reports/{rid}/approve")
+    grant_release_consent(admin_session, tenant_id=tenant_a.id, patient_id=pid)
     token = client.post(f"/api/v1/reports/{rid}/release").json()["patient_access_token"]
 
     # Clinic B exists; presenting A's valid token under B's tenant reveals nothing.

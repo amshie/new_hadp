@@ -17,9 +17,11 @@ from sqlalchemy import Engine, create_engine, select
 from sqlalchemy.orm import Session
 
 from hadp_api.config import get_settings
-from hadp_api.modules.consents.models import ConsentRecord
+from hadp_api.modules.consents.models import ConsentEvent, ConsentRecord
 from hadp_api.modules.derivations.service import compute_derived
 from hadp_api.modules.enums import (
+    ConsentEventType,
+    ConsentPurpose,
     ConsentStatus,
     KpiMeasurementClass,
     ReviewStatus,
@@ -122,6 +124,28 @@ def _ensure_consent(db: Session, tenant_id: uuid.UUID, patient_id: uuid.UUID) ->
                 purposes=["analytics", "report"],
                 channel="in_person",
                 status=ConsentStatus.ACTIVE,
+                recorded_at=datetime.now(UTC),
+            )
+        )
+        db.flush()
+
+    # Authoritative append-only consent: a GRANTED report_release event so the demo report can be
+    # released (the consent gate reads consent_events, not the legacy ConsentRecord). Idempotent.
+    has_release = db.execute(
+        select(ConsentEvent).where(
+            ConsentEvent.patient_id == patient_id,
+            ConsentEvent.purpose == ConsentPurpose.REPORT_RELEASE,
+        )
+    ).first()
+    if has_release is None:
+        db.add(
+            ConsentEvent(
+                tenant_id=tenant_id,
+                patient_id=patient_id,
+                purpose=ConsentPurpose.REPORT_RELEASE,
+                event_type=ConsentEventType.GRANTED,
+                consent_text_version="synthetic-v1",
+                channel="in_person",
                 recorded_at=datetime.now(UTC),
             )
         )
