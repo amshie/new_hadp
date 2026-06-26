@@ -20,7 +20,8 @@ from sqlalchemy.orm import Session
 
 from hadp_api.auth.sessions import hash_token
 from hadp_api.errors import Conflict, IntendedUseViolation, NotFound, ValidationFailed
-from hadp_api.modules.enums import ReportStatus
+from hadp_api.modules.consents import service as consents_service
+from hadp_api.modules.enums import ConsentPurpose, ReportStatus
 from hadp_api.modules.observations.models import Observation
 from hadp_api.modules.reports.evidence import build_evidence_payload, validate_statements
 from hadp_api.modules.reports.models import (
@@ -93,6 +94,21 @@ def _revoke_patient_links(db: Session, report_id: uuid.UUID) -> None:
     """Revoke any outstanding patient access links for a report (idempotent)."""
     db.query(PatientAccessLink).filter(
         PatientAccessLink.report_id == report_id,
+        PatientAccessLink.revoked_at.is_(None),
+    ).update({PatientAccessLink.revoked_at: datetime.now(UTC)})
+    db.flush()
+
+
+def revoke_all_patient_links(db: Session, *, tenant_id: uuid.UUID, patient_id: uuid.UUID) -> None:
+    """Revoke ALL live patient access links for a patient (idempotent).
+
+    Public seam called on consent withdrawal (consents.service.withdraw_consent): the moment
+    report_release consent is withdrawn, every live link is revoked so resolve_patient_view 404s.
+    Filters on tenant_id as well as patient_id (defense-in-depth on top of RLS).
+    """
+    db.query(PatientAccessLink).filter(
+        PatientAccessLink.tenant_id == tenant_id,
+        PatientAccessLink.patient_id == patient_id,
         PatientAccessLink.revoked_at.is_(None),
     ).update({PatientAccessLink.revoked_at: datetime.now(UTC)})
     db.flush()
@@ -239,6 +255,16 @@ def release_report(
     version = _current_version(db, report)
     if version.status != ReportStatus.APPROVED:
         raise Conflict("report must be approved before release")
+    # Consent gate (fail-closed): a patient-facing release requires an ACTIVE consent for the
+    # report_release purpose. Checked AFTER the approval invariant so an unapproved report still
+    # reports the approval error first.
+    if not consents_service.has_active_consent(
+        db,
+        tenant_id=tenant_id,
+        patient_id=report.patient_id,
+        purpose=ConsentPurpose.REPORT_RELEASE,
+    ):
+        raise Conflict("active patient consent (report_release) is required before release")
 
     version.status = ReportStatus.RELEASED
     version.released_at = datetime.now(UTC)

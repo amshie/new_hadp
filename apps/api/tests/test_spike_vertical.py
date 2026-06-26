@@ -8,7 +8,7 @@ NO patient release of unapproved content. Every module is crossed once.
 from __future__ import annotations
 
 from hadp_api.modules.enums import Role
-from tests.helpers import login_as
+from tests.helpers import grant_release_consent, login_as
 
 
 def test_full_happy_path_crosses_every_module(client, admin_session) -> None:  # type: ignore[no-untyped-def]
@@ -106,6 +106,8 @@ def test_full_happy_path_crosses_every_module(client, admin_session) -> None:  #
     assert approve.status_code == 200, approve.text
     assert approve.json()["status"] == "approved"
 
+    # Release is consent-gated (fail-closed): grant report_release consent for this patient.
+    grant_release_consent(admin_session, tenant_id=tenant.id, patient_id=patient_id)
     release = client.post(f"/api/v1/reports/{report_id}/release")
     assert release.status_code == 200, release.text
     token = release.json()["patient_access_token"]
@@ -149,6 +151,7 @@ def test_editing_a_released_report_revokes_patient_access(client, admin_session)
     report = client.post(f"/api/v1/patients/{pid}/reports").json()
     rid = report["report_id"]
     client.post(f"/api/v1/reports/{rid}/approve")
+    grant_release_consent(admin_session, tenant_id=tenant.id, patient_id=pid)
     token = client.post(f"/api/v1/reports/{rid}/release").json()["patient_access_token"]
 
     # The released report is viewable by the patient.
