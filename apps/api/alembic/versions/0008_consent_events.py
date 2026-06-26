@@ -50,19 +50,28 @@ def upgrade() -> None:
         sa.Column("recorded_by_user_id", sa.UUID(), nullable=True),
         sa.Column("id", sa.UUID(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
         ),
+        # ON DELETE RESTRICT (not CASCADE): this is an APPEND-ONLY ledger, and the BEFORE
+        # UPDATE/DELETE trigger below blocks any row delete — so a CASCADE from a parent would not
+        # cascade, it would ABORT the parent delete with a confusing "append-only" error. RESTRICT
+        # makes the constraint honest: a patient/tenant cannot be hard-deleted while consent events
+        # exist. Real-patient erasure (retain-then-erase after the legal retention period) is a
+        # deliberate, DPO/counsel-designed, gated process — not a silent cascade.
         sa.ForeignKeyConstraint(
             ["tenant_id"],
             ["tenants.id"],
             name=op.f("fk_consent_events_tenant_id_tenants"),
-            ondelete="CASCADE",
+            ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
             ["patient_id"],
             ["patients.id"],
             name=op.f("fk_consent_events_patient_id_patients"),
-            ondelete="CASCADE",
+            ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
             ["recorded_by_user_id"],

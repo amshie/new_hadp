@@ -52,11 +52,18 @@ class ConsentEvent(UUIDPrimaryKey, TimestampCreated, Base):
     __tablename__ = "consent_events"
     __table_args__ = (Index("ix_consent_events_patient_purpose", "patient_id", "purpose"),)
 
+    # ON DELETE RESTRICT, not CASCADE: an append-only ledger must not be cascade-deleted (the
+    # immutability trigger would turn a parent delete into a confusing abort). A patient/tenant
+    # cannot be hard-deleted while consent events exist; real erasure is a gated DPO/counsel
+    # process.
     tenant_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
     )
     patient_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("patients.id", ondelete="RESTRICT"), nullable=False
     )
     purpose: Mapped[ConsentPurpose] = mapped_column(pg_enum(ConsentPurpose), nullable=False)
     event_type: Mapped[ConsentEventType] = mapped_column(pg_enum(ConsentEventType), nullable=False)

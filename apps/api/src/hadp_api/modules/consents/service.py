@@ -106,5 +106,5 @@ def withdraw_consent(
         # Local import avoids a circular import (reports.service imports this module for the gate).
         from hadp_api.modules.reports import service as reports_service
 
-        reports_service.revoke_all_patient_links(db, patient_id=patient_id)
+        reports_service.revoke_all_patient_links(db, tenant_id=tenant_id, patient_id=patient_id)
     return event

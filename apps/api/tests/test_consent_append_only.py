@@ -8,7 +8,7 @@ revokes any live patient access link in the same transaction.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select, text
@@ -20,6 +20,29 @@ from hadp_api.modules.consents.models import ConsentEvent
 from hadp_api.modules.enums import ConsentEventType, ConsentPurpose, Role
 from hadp_api.modules.patients.models import Patient
 from tests.helpers import grant_release_consent, login_as, make_tenant
+
+
+def _grant(
+    admin_session,  # type: ignore[no-untyped-def]
+    *,
+    tenant_id,
+    patient_id,
+    purpose=ConsentPurpose.REPORT_RELEASE,
+    event_type=ConsentEventType.GRANTED,
+    recorded_at=None,
+):
+    event = ConsentEvent(
+        tenant_id=tenant_id,
+        patient_id=patient_id,
+        purpose=purpose,
+        event_type=event_type,
+        consent_text_version="synthetic-v1",
+        channel="in_person",
+        recorded_at=recorded_at or datetime.now(UTC),
+    )
+    admin_session.add(event)
+    return event
+
 
 _IMPORT = {
     "values": [
@@ -156,3 +179,139 @@ def test_withdrawal_is_a_new_event_and_revokes_access(client, admin_session) -> 
         )
     finally:
         check.close()
+
+
+def test_consent_events_revoke_and_rls_under_app_role(admin_session) -> None:  # type: ignore[no-untyped-def]
+    """Under the real runtime role (hadp_app): UPDATE/DELETE are denied by REVOKE (not merely the
+    trigger), and RLS is fail-closed — no rows are visible without a bound tenant context."""
+    tenant = make_tenant(admin_session, name="Consent App", slug="consent-app")
+    patient = Patient(tenant_id=tenant.id, display_name="P", is_synthetic=True)
+    admin_session.add(patient)
+    admin_session.flush()
+    event = _grant(admin_session, tenant_id=tenant.id, patient_id=patient.id)
+    admin_session.commit()
+
+    # RLS fail-closed: with no app.current_tenant the hadp_app role sees zero rows.
+    blind = get_sessionmaker()()
+    try:
+        assert blind.execute(text("SELECT count(*) FROM consent_events")).scalar() == 0
+    finally:
+        blind.close()
+
+    # With the bound tenant context the row IS visible to hadp_app.
+    scoped = get_sessionmaker()()
+    set_tenant_context(scoped, tenant.id)
+    try:
+        assert scoped.execute(text("SELECT count(*) FROM consent_events")).scalar() == 1
+    finally:
+        scoped.close()
+
+    # REVOKE bites: UPDATE and DELETE are permission-denied to hadp_app (each on its own txn).
+    for stmt in (
+        "UPDATE consent_events SET channel = 'x' WHERE id = :i",
+        "DELETE FROM consent_events WHERE id = :i",
+    ):
+        sess = get_sessionmaker()()
+        set_tenant_context(sess, tenant.id)
+        try:
+            with pytest.raises((DBAPIError, ProgrammingError)) as excinfo:
+                sess.execute(text(stmt), {"i": event.id})
+            assert "permission denied" in str(excinfo.value).lower()
+        finally:
+            sess.rollback()
+            sess.close()
+
+
+def test_consent_is_tenant_scoped(admin_session) -> None:  # type: ignore[no-untyped-def]
+    """A grant under tenant A must not satisfy a release queried under tenant B (and vice versa)."""
+    tenant_a = make_tenant(admin_session, name="A", slug="consent-ta")
+    tenant_b = make_tenant(admin_session, name="B", slug="consent-tb")
+    patient = Patient(tenant_id=tenant_a.id, display_name="P", is_synthetic=True)
+    admin_session.add(patient)
+    admin_session.flush()
+    _grant(admin_session, tenant_id=tenant_a.id, patient_id=patient.id)
+    admin_session.commit()
+
+    assert (
+        consents_service.has_active_consent(
+            admin_session,
+            tenant_id=tenant_a.id,
+            patient_id=patient.id,
+            purpose=ConsentPurpose.REPORT_RELEASE,
+        )
+        is True
+    )
+    assert (
+        consents_service.has_active_consent(
+            admin_session,
+            tenant_id=tenant_b.id,
+            patient_id=patient.id,
+            purpose=ConsentPurpose.REPORT_RELEASE,
+        )
+        is False
+    )
+
+
+def test_wrong_purpose_consent_does_not_unlock_release(admin_session) -> None:  # type: ignore[no-untyped-def]
+    """An ANALYTICS grant must not unlock report_release — purposes are independent."""
+    tenant = make_tenant(admin_session, name="Purpose", slug="consent-purpose")
+    patient = Patient(tenant_id=tenant.id, display_name="P", is_synthetic=True)
+    admin_session.add(patient)
+    admin_session.flush()
+    _grant(
+        admin_session, tenant_id=tenant.id, patient_id=patient.id, purpose=ConsentPurpose.ANALYTICS
+    )
+    admin_session.commit()
+
+    assert (
+        consents_service.has_active_consent(
+            admin_session,
+            tenant_id=tenant.id,
+            patient_id=patient.id,
+            purpose=ConsentPurpose.ANALYTICS,
+        )
+        is True
+    )
+    assert (
+        consents_service.has_active_consent(
+            admin_session,
+            tenant_id=tenant.id,
+            patient_id=patient.id,
+            purpose=ConsentPurpose.REPORT_RELEASE,
+        )
+        is False
+    )
+
+
+def test_regrant_after_withdraw_restores_consent(admin_session) -> None:  # type: ignore[no-untyped-def]
+    """Latest-event-wins: grant -> withdraw -> grant leaves consent active again."""
+    tenant = make_tenant(admin_session, name="Regrant", slug="consent-regrant")
+    patient = Patient(tenant_id=tenant.id, display_name="P", is_synthetic=True)
+    admin_session.add(patient)
+    admin_session.flush()
+    t0 = datetime.now(UTC)
+    _grant(admin_session, tenant_id=tenant.id, patient_id=patient.id, recorded_at=t0)
+    _grant(
+        admin_session,
+        tenant_id=tenant.id,
+        patient_id=patient.id,
+        event_type=ConsentEventType.WITHDRAWN,
+        recorded_at=t0 + timedelta(seconds=1),
+    )
+    _grant(
+        admin_session,
+        tenant_id=tenant.id,
+        patient_id=patient.id,
+        recorded_at=t0 + timedelta(seconds=2),
+    )
+    admin_session.commit()
+
+    assert (
+        consents_service.has_active_consent(
+            admin_session,
+            tenant_id=tenant.id,
+            patient_id=patient.id,
+            purpose=ConsentPurpose.REPORT_RELEASE,
+        )
+        is True
+    )

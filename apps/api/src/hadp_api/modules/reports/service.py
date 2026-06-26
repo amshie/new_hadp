@@ -99,13 +99,15 @@ def _revoke_patient_links(db: Session, report_id: uuid.UUID) -> None:
     db.flush()
 
 
-def revoke_all_patient_links(db: Session, *, patient_id: uuid.UUID) -> None:
+def revoke_all_patient_links(db: Session, *, tenant_id: uuid.UUID, patient_id: uuid.UUID) -> None:
     """Revoke ALL live patient access links for a patient (idempotent).
 
     Public seam called on consent withdrawal (consents.service.withdraw_consent): the moment
     report_release consent is withdrawn, every live link is revoked so resolve_patient_view 404s.
+    Filters on tenant_id as well as patient_id (defense-in-depth on top of RLS).
     """
     db.query(PatientAccessLink).filter(
+        PatientAccessLink.tenant_id == tenant_id,
         PatientAccessLink.patient_id == patient_id,
         PatientAccessLink.revoked_at.is_(None),
     ).update({PatientAccessLink.revoked_at: datetime.now(UTC)})
