@@ -121,6 +121,12 @@ be presented as a compliant medical-device feature.
 - New `apps/web` screens (`/overview`, `/patients`, `/patients/[id]`) + a shared "VitaBahn" shell,
   the VitaBahn design tokens (additive to `tokens.css`; existing screens untouched), and a synthetic
   demo dataset. No backend, schema, or interpretation-model change.
+- **`/overview` replaces the old `/worklist` as the authenticated home** (founder direction): `/`
+  redirects authed users to `/overview` (the `me()` login gate is unchanged), `/worklist` is a
+  redirect to `/overview`, and the legacy AppShell brand/nav point to `/overview`. The old worklist
+  UI (`WorklistContent`) is removed; the `worklist` API/presenter helpers remain as unused library
+  surface. The legacy assessment-review page (`/patients/[id]/assessments/[assessmentId]`) is
+  unchanged and still reachable by URL.
 - The CLASSIFICATION_REGISTER gains rows for the three surfaces (and notes the A–E grade was
   **removed**), each marked synthetic-Alpha / founder-directed with the external + clinical/privacy/
   regulatory review **pending**.
