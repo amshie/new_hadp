@@ -366,6 +366,51 @@
         }
       }
     },
+    "/api/v1/worklist/throughput": {
+      "get": {
+        "tags": [
+          "worklist"
+        ],
+        "summary": "Get Throughput",
+        "operationId": "get_throughput_api_v1_worklist_throughput_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 90,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThroughputOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/patients/{patient_id}/documents": {
       "post": {
         "tags": [
@@ -1600,6 +1645,62 @@
           "role"
         ],
         "title": "TenantMembershipOut"
+      },
+      "ThroughputBucketOut": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created"
+          },
+          "signed": {
+            "type": "integer",
+            "title": "Signed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "created",
+          "signed"
+        ],
+        "title": "ThroughputBucketOut"
+      },
+      "ThroughputOut": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/ThroughputBucketOut"
+            },
+            "type": "array",
+            "title": "Buckets"
+          },
+          "total_created": {
+            "type": "integer",
+            "title": "Total Created"
+          },
+          "total_signed": {
+            "type": "integer",
+            "title": "Total Signed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "buckets",
+          "total_created",
+          "total_signed"
+        ],
+        "title": "ThroughputOut",
+        "description": "Real per-day report-version throughput for the dashboard \"Review-Durchsatz\" chart.\n\n`created` = versions created that day; `signed` = versions approved (signed off) that day \u2014\nboth from persisted `ReportVersion` timestamps, tenant-scoped. A real rate over time, NOT a\nfabricated trend; zero-activity days are included so the series has no gaps."
       },
       "TimelinePointOut": {
         "properties": {

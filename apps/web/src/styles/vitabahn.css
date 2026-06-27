@@ -152,3 +152,15 @@
   background: var(--surface-sunken) !important;
   color: var(--text-strong) !important;
 }
+
+/* Übersicht: wide Review-Durchsatz + Datenlage, collapsing to one column on narrow viewports. */
+.vb-scope .vb-dash-split {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+}
+@media (max-width: 900px) {
+  .vb-scope .vb-dash-split {
+    grid-template-columns: 1fr;
+  }
+}

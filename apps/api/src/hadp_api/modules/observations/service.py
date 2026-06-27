@@ -75,7 +75,9 @@ def coverage_summary(db: Session, tenant_id: uuid.UUID) -> CoverageSummary:
             .filter(Observation.review_status == ReviewStatus.PUBLISHED)
             .label("published"),
             func.count()
-            .filter(or_(Observation.reference_low.is_not(None), Observation.reference_high.is_not(None)))
+            .filter(
+                or_(Observation.reference_low.is_not(None), Observation.reference_high.is_not(None))
+            )
             .label("with_reference"),
             func.max(Observation.observed_at).label("latest_observed_at"),
         ).where(Observation.tenant_id == tenant_id)

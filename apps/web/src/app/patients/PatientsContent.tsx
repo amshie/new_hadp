@@ -3,6 +3,7 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
+import { AddPatientDialog } from "@/components/vitabahn/AddPatientDialog";
 import { clickable } from "@/components/vitabahn/interactive";
 import type {
   DirectoryView,
@@ -133,48 +134,60 @@ export function PatientsContent({ view }: { view: DirectoryView }) {
 
   return (
     <>
-      <div style={{ marginBottom: "28px" }}>
-        <div
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "11px",
-            letterSpacing: "0.16em",
-            textTransform: "uppercase",
-            color: "var(--brand)",
-            fontWeight: 500,
-            marginBottom: "10px",
-          }}
-        >
-          Mandant · Meridian Longevity
+      <div
+        style={{
+          marginBottom: "28px",
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "20px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "11px",
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "var(--brand)",
+              fontWeight: 500,
+              marginBottom: "10px",
+            }}
+          >
+            Mandant · Meridian Longevity
+          </div>
+          <h1
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 700,
+              fontSize: "var(--text-3xl)",
+              letterSpacing: "var(--tracking-tight)",
+              color: "var(--text-strong)",
+              margin: "0 0 10px",
+              lineHeight: 1.05,
+            }}
+          >
+            Patienten
+          </h1>
+          <p
+            style={{
+              fontSize: "var(--text-md)",
+              lineHeight: 1.5,
+              color: "var(--text-muted)",
+              margin: 0,
+              maxWidth: "64ch",
+            }}
+          >
+            <span style={{ color: "var(--text-strong)", fontWeight: 600 }}>
+              {view.total} {view.total === 1 ? "Patientin" : "Patienten"}
+            </span>{" "}
+            · tenant-bezogen, RLS-geschützt · pseudonymisierte, synthetische
+            Beispieldaten.
+          </p>
         </div>
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: 700,
-            fontSize: "var(--text-3xl)",
-            letterSpacing: "var(--tracking-tight)",
-            color: "var(--text-strong)",
-            margin: "0 0 10px",
-            lineHeight: 1.05,
-          }}
-        >
-          Patienten
-        </h1>
-        <p
-          style={{
-            fontSize: "var(--text-md)",
-            lineHeight: 1.5,
-            color: "var(--text-muted)",
-            margin: 0,
-            maxWidth: "64ch",
-          }}
-        >
-          <span style={{ color: "var(--text-strong)", fontWeight: 600 }}>
-            {view.total} {view.total === 1 ? "Patientin" : "Patienten"}
-          </span>{" "}
-          · tenant-bezogen, RLS-geschützt · pseudonymisierte, synthetische
-          Beispieldaten.
-        </p>
+        <AddPatientDialog />
       </div>
 
       {/* stat chips */}

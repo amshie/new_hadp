@@ -3,18 +3,22 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
+import { AddPatientDialog } from "@/components/vitabahn/AddPatientDialog";
 import { clickable } from "@/components/vitabahn/interactive";
 import type {
   CoverageView,
   OverviewView,
   StatusSnapshotView,
+  ThroughputChartView,
   WorkRowView,
 } from "@/lib/presenters/dashboard";
 
+import { ThroughputTile } from "./ThroughputTile";
+
 // VitaBahn Übersicht (ADR-0006, real-data path). Consumes the governed OverviewView (real,
-// deterministic counts + work-list over the API). The comp's data-quality gauge, review-throughput
-// chart, activity feed and imports panel have NO backend source (see ADR-0006 / register) and are
-// shown as honest gated states, not fabricated values.
+// deterministic counts + work-list over the API). Review-Durchsatz (per-day report-version
+// throughput) and Datenlage (observation coverage) are now real, tenant-scoped tiles; the activity
+// feed and imports panel still have NO backend source and stay honest gated states (deferred slices).
 
 const cardStyle: CSSProperties = {
   background: "var(--surface-card)",
@@ -367,9 +371,11 @@ function rowGroup(r: WorkRowView): string {
 export function OverviewContent({
   view,
   coverage,
+  throughput,
 }: {
   view: OverviewView;
   coverage: CoverageView | null;
+  throughput: ThroughputChartView | null;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState("alle");
@@ -521,50 +527,62 @@ export function OverviewContent({
 
   return (
     <>
-      <div style={{ marginBottom: "28px" }}>
-        <div
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "11px",
-            letterSpacing: "0.16em",
-            textTransform: "uppercase",
-            color: "var(--brand)",
-            fontWeight: 500,
-            marginBottom: "10px",
-          }}
-        >
-          Klinischer Arbeitsbereich
+      <div
+        style={{
+          marginBottom: "28px",
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "20px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "11px",
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "var(--brand)",
+              fontWeight: 500,
+              marginBottom: "10px",
+            }}
+          >
+            Klinischer Arbeitsbereich
+          </div>
+          <h1
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 700,
+              fontSize: "var(--text-3xl)",
+              letterSpacing: "var(--tracking-tight)",
+              color: "var(--text-strong)",
+              margin: "0 0 10px",
+              lineHeight: 1.05,
+            }}
+          >
+            Übersicht
+          </h1>
+          <p
+            style={{
+              fontSize: "var(--text-md)",
+              lineHeight: 1.5,
+              color: "var(--text-muted)",
+              margin: 0,
+              maxWidth: "62ch",
+            }}
+          >
+            <span style={{ color: "var(--text-strong)", fontWeight: 600 }}>
+              {view.kpis.openReviews}{" "}
+              {view.kpis.openReviews === 1 ? "Review" : "Reviews"}
+            </span>{" "}
+            {view.kpis.openReviews === 1 ? "wartet" : "warten"} auf Ihre
+            Prüfung. Quellengebundene Entwürfe müssen vor jeder Freigabe geprüft
+            werden. Synthetische Beispieldaten.
+          </p>
         </div>
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: 700,
-            fontSize: "var(--text-3xl)",
-            letterSpacing: "var(--tracking-tight)",
-            color: "var(--text-strong)",
-            margin: "0 0 10px",
-            lineHeight: 1.05,
-          }}
-        >
-          Übersicht
-        </h1>
-        <p
-          style={{
-            fontSize: "var(--text-md)",
-            lineHeight: 1.5,
-            color: "var(--text-muted)",
-            margin: 0,
-            maxWidth: "62ch",
-          }}
-        >
-          <span style={{ color: "var(--text-strong)", fontWeight: 600 }}>
-            {view.kpis.openReviews}{" "}
-            {view.kpis.openReviews === 1 ? "Review" : "Reviews"}
-          </span>{" "}
-          {view.kpis.openReviews === 1 ? "wartet" : "warten"} auf Ihre Prüfung.
-          Quellengebundene Entwürfe müssen vor jeder Freigabe geprüft werden.
-          Synthetische Beispieldaten.
-        </p>
+        <AddPatientDialog />
       </div>
 
       {/* KPI ROW (real counts) */}
@@ -879,15 +897,16 @@ export function OverviewContent({
         </div>
       </div>
 
-      {/* Panels with no backend source — honest gated states (ADR-0006; deferred backend slices) */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-          gap: "16px",
-        }}
-      >
-        <StatusSnapshotTile snapshot={view.statusSnapshot} />
+      {/* Row 1 — real Review-Durchsatz (wide) + Datenlage coverage */}
+      <div className="vb-dash-split" style={{ marginBottom: "16px" }}>
+        {throughput ? (
+          <ThroughputTile view={throughput} />
+        ) : (
+          <GatedPanel
+            title="Review-Durchsatz"
+            reason="Durchsatz-Zeitreihe ist derzeit nicht abrufbar. Eigener Backend-Slice (report_versions nach Status)."
+          />
+        )}
         {coverage ? (
           <CoverageTile coverage={coverage} />
         ) : (
@@ -896,6 +915,17 @@ export function OverviewContent({
             reason="Abdeckung über die Beobachtungen ist derzeit nicht abrufbar. Pro Patient zeigt die Detailansicht die reale Datenlage."
           />
         )}
+      </div>
+
+      {/* Row 2 — real Berichtsstatus snapshot + still-gated panels (deferred backend slices) */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gap: "16px",
+        }}
+      >
+        <StatusSnapshotTile snapshot={view.statusSnapshot} />
         <GatedPanel
           title="Letzte Aktivität"
           reason="Audit-Feed benötigt einen tenant-scoped Lese-Endpoint über die Append-only-Events. Eigener Backend-Slice."

@@ -4,7 +4,7 @@
 // codes/raw fields/timestamps. Everything here is a deterministic count/format over real
 // data — no score, no risk, no quality engine (those have no backend; see ADR-0006).
 
-import type { Coverage, Patient, WorklistRow } from "@/lib/api";
+import type { Coverage, Patient, Throughput, WorklistRow } from "@/lib/api";
 
 export interface BadgeMeta {
   label: string;
@@ -208,6 +208,45 @@ export function presentStatusSnapshot(rows: WorklistRow[]): StatusSnapshotView {
     buckets: raw.map((b) => ({
       ...b,
       share: total > 0 ? b.count / total : 0,
+    })),
+  };
+}
+
+// --- Review-Durchsatz (real per-day report-version throughput; ADR-0006 follow-up) ------------
+// Erstellt = versions created that day; Signiert = versions approved (signed off) that day. Both
+// from persisted ReportVersion timestamps — a real rate over time, no fabricated trend. The view
+// carries the full window (default 30 days); the tile slices it to the selected 14/30 sub-window
+// and recomputes totals from the slice.
+
+export interface ThroughputPoint {
+  date: string; // ISO date (YYYY-MM-DD)
+  label: string; // short "D.M." for the axis
+  created: number;
+  signed: number;
+}
+
+export interface ThroughputChartView {
+  points: ThroughputPoint[];
+}
+
+function shortDay(iso: string): string {
+  // Parse the date-only "YYYY-MM-DD" by component. `new Date(iso)` would parse it as UTC midnight
+  // and `.getDate()` would render it in the viewer's local zone — off-by-one west of UTC, which
+  // would disagree with the raw ISO shown in the accessible data table.
+  const [, mm, dd] = iso.split("-");
+  const m = Number(mm);
+  const d = Number(dd);
+  if (!Number.isFinite(m) || !Number.isFinite(d)) return "";
+  return `${d}.${m}.`;
+}
+
+export function presentThroughput(t: Throughput): ThroughputChartView {
+  return {
+    points: t.buckets.map((b) => ({
+      date: b.date,
+      label: shortDay(b.date),
+      created: b.created,
+      signed: b.signed,
     })),
   };
 }

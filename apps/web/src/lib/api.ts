@@ -11,6 +11,7 @@ export type LoginResponse = Schemas["LoginResponse"];
 export type ReleaseOut = Schemas["ReleaseOut"];
 export type WorklistRow = Schemas["WorklistRowOut"];
 export type Coverage = Schemas["CoverageOut"];
+export type Throughput = Schemas["ThroughputOut"];
 
 // The report view endpoints return an open dict (no response_model); typed locally.
 export interface ReportEvidenceItem {
@@ -165,10 +166,14 @@ export const selectTenant = (tenant_id: string) =>
   });
 
 export const listPatients = () => request<Patient[]>("/api/v1/patients");
-export const createPatient = (display_name: string) =>
+export const createPatient = (input: {
+  display_name: string;
+  external_ref?: string | null;
+  date_of_birth?: string | null;
+}) =>
   request<Patient>("/api/v1/patients", {
     method: "POST",
-    body: JSON.stringify({ display_name }),
+    body: JSON.stringify(input),
   });
 
 export const getPatient = (patientId: string) =>
@@ -183,6 +188,9 @@ export const worklist = (params?: { status?: string; q?: string }) => {
 };
 
 export const coverage = () => request<Coverage>("/api/v1/worklist/coverage");
+
+export const throughput = (days = 30) =>
+  request<Throughput>(`/api/v1/worklist/throughput?days=${days}`);
 
 export const timeline = (patientId: string) =>
   request<TimelinePoint[]>(`/api/v1/patients/${patientId}/observations`);

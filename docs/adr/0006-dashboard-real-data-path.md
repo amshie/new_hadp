@@ -110,3 +110,32 @@ two (activity feed, imports) stay gated.
 - **Tests:** `apps/api/tests/test_coverage.py` pins the counts and proves cross-tenant isolation
   (a fresh tenant sees all-zero coverage). OpenAPI re-exported + client regenerated (contract, not
   a hand-typed shape).
+
+## Addendum 2 (2026-06-27) — real Review-Durchsatz time series + "+ Patient hinzufügen"
+
+The interim Berichtsstatus snapshot is now joined by the **real throughput chart** the founder asked
+for, and the comp's create-patient affordance is wired.
+
+- **Review-Durchsatz (real rate over time)** → a new tenant-scoped read endpoint
+  `GET /api/v1/worklist/throughput?days=` (`ThroughputOut`: per-day `created` / `signed` buckets +
+  totals), `PATIENT_READ`, audited (`worklist.throughput.read`), tenant-filtered with RLS as
+  defense-in-depth. **Erstellt** = `ReportVersion.created_at` by day; **Signiert** =
+  `ReportVersion.approved_at` (clinician sign-off) by day — **persisted timestamps, a real rate, NOT
+  a fabricated/smoothed trend.** Zero-activity days are present so the series has no gaps; the window
+  is validated at the boundary (`1..90`). The tile loads 30 days; the 14/30 toggle slices
+  client-side and recomputes totals. It carries an accessible data table (WCAG) + summarizing
+  aria-label. The **Berichtsstatus** snapshot moves to the second row; activity-feed + imports stay
+  gated.
+- **"+ Patient hinzufügen"** → the header button opens an accessible modal (`AddPatientDialog`:
+  role=dialog, focus in/out, Escape) and creates a patient via a `"use server"` action
+  (`app/patients/actions.ts`) → `POST /api/v1/patients`. Creation runs **server-side** (the session
+  cookie is httpOnly on the app origin; deny-by-default at the API). **The API forces
+  `is_synthetic=True`** — created records are always synthetic demo patients; the dialog says so. On
+  success it `revalidatePath`s `/overview` + `/patients` and refreshes so the new patient appears.
+  Present on both the Übersicht and Patienten headers.
+- **Honesty boundary:** "Signiert" counts the persisted approval timestamp. The inline Freigabe sign
+  is still the Gate-G2 demo stub (not wired to `approveReport`), so in the synthetic seed the signed
+  series reflects seeded approvals only — real, possibly sparse, never inflated.
+- **Tests:** `apps/api/tests/test_throughput.py` pins the day-bucketing (created vs signed, today vs
+  yesterday), the `days` boundary (422 on out-of-range), and cross-tenant isolation (a fresh tenant
+  sees an all-zero series). OpenAPI re-exported + client regenerated.
