@@ -4,20 +4,18 @@ import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { clickable } from "@/components/vitabahn/interactive";
-import {
-  ATTN_META,
-  PATIENTS,
-  PATIENT_COHORT,
-  PATIENT_STATUS_META,
-  initials,
-  type PatientStatus,
-} from "@/lib/demo/dashboard";
+import type {
+  DirectoryView,
+  DirectoryRowView,
+} from "@/lib/presenters/dashboard";
 
-// VitaBahn Patienten directory (ADR-0005). Synthetic Alpha. The Risiko indicator
-// and the per-row Datenqualität percentage are founder-approved surfaces (ADR-0005).
+// VitaBahn Patienten directory (ADR-0005, real-data path). Consumes the governed DirectoryView
+// (real patients + worklist). Patient name/age/status/last-assessment are real. The founder-approved
+// Risiko and Datenqualität columns are kept VISIBLE but honestly GATED — there is no compliant real
+// source (an autonomous patient risk score is register-BLOCKED; no data-quality engine exists), so
+// they show "n. v." rather than fabricated values (ADR-0005). Programm/cohort tabs are dropped (no field).
 
-const PGRID =
-  "minmax(210px,2fr) 80px minmax(150px,1.3fr) 104px minmax(140px,1.1fr) minmax(170px,1.4fr) 116px";
+const PGRID = "minmax(220px,2fr) 70px 96px 110px minmax(150px,1.3fr) 120px";
 
 const cardStyle: CSSProperties = {
   background: "var(--surface-card)",
@@ -34,208 +32,80 @@ const colLabel: CSSProperties = {
   fontWeight: 500,
 };
 
-function qColor(q: number) {
-  return q >= 90
-    ? "var(--vital-500)"
-    : q >= 70
-      ? "var(--amber-500)"
-      : "var(--rose-500)";
-}
-
-const TABS: { key: "alle" | PatientStatus; label: string }[] = [
-  { key: "alle", label: "Alle" },
-  { key: "aktiv", label: "Aktiv" },
-  { key: "onboarding", label: "Onboarding" },
-  { key: "pausiert", label: "Pausiert" },
-  { key: "archiviert", label: "Archiviert" },
-];
-
-const upArrow = (
-  <svg
-    width="11"
-    height="11"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.4"
-    strokeLinecap="round"
-    strokeLinejoin="round"
+const GATED = (
+  <span
+    title="Kein zugelassener Echtdaten-Indikator (ADR-0005)"
+    style={{
+      fontFamily: "var(--font-mono)",
+      fontSize: "11px",
+      color: "var(--text-faint)",
+    }}
   >
-    <path d="M7 17L17 7M9 7h8v8" />
-  </svg>
+    n. v.
+  </span>
 );
 
-interface Chip {
-  label: string;
-  value: ReactNode;
-  delta: ReactNode;
-  help: string;
-  iconBg: string;
-  icon: ReactNode;
-}
-const CHIPS: Chip[] = [
-  {
-    label: "Gesamt",
-    value: "148",
-    delta: (
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "3px",
-          fontFamily: "var(--font-mono)",
-          fontSize: "11px",
-          fontWeight: 600,
-          color: "var(--vital-500)",
-          paddingBottom: "4px",
-        }}
-      >
-        {upArrow}+6 · 30T
-      </span>
-    ),
-    help: "Im Mandanten · RLS-geschützt",
-    iconBg: "var(--brand-soft)",
-    icon: (
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="var(--teal-600)"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
-  },
-  {
-    label: "Aktiv betreut",
-    value: "132",
-    delta: (
-      <span
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "11px",
-          fontWeight: 600,
-          color: "var(--text-muted)",
-          paddingBottom: "4px",
-        }}
-      >
-        89%
-      </span>
-    ),
-    help: "Laufende Programme",
-    iconBg: "rgba(20,169,130,0.12)",
-    icon: (
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="var(--vital-500)"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-      </svg>
-    ),
-  },
-  {
-    label: "Offene Assessments",
-    value: "7",
-    delta: (
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "3px",
-          fontFamily: "var(--font-mono)",
-          fontSize: "11px",
-          fontWeight: 600,
-          color: "var(--amber-500)",
-          paddingBottom: "4px",
-        }}
-      >
-        {upArrow}+3
-      </span>
-    ),
-    help: "Prüfung ausstehend",
-    iconBg: "rgba(201,136,28,0.12)",
-    icon: (
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="var(--amber-500)"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M9 11l3 3L22 4" />
-        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-      </svg>
-    ),
-  },
-  {
-    label: "Ø Datenqualität",
-    value: (
-      <>
-        94
-        <span style={{ fontSize: "18px", color: "var(--text-muted)" }}>%</span>
-      </>
-    ),
-    delta: (
-      <span
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "11px",
-          fontWeight: 600,
-          color: "var(--vital-500)",
-          paddingBottom: "4px",
-        }}
-      >
-        verifiziert
-      </span>
-    ),
-    help: "Über alle Beobachtungen",
-    iconBg: "var(--brand-soft)",
-    icon: (
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="var(--teal-600)"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        <path d="M9 12l2 2 4-4" />
-      </svg>
-    ),
-  },
+const TABS: { key: string; label: string }[] = [
+  { key: "alle", label: "Alle" },
+  { key: "offen", label: "Offene Reviews" },
+  { key: "freigegeben", label: "Freigegeben" },
+  { key: "ohne", label: "Ohne Bericht" },
 ];
 
-export function PatientsContent() {
+function rowGroup(r: DirectoryRowView): string {
+  if (r.statusLabel === "In Prüfung") return "offen";
+  if (r.statusLabel === "Freigegeben") return "freigegeben";
+  if (r.statusLabel === "Kein Entwurf") return "ohne";
+  return "andere";
+}
+
+export function PatientsContent({ view }: { view: DirectoryView }) {
   const router = useRouter();
-  const [pTab, setPTab] = useState<"alle" | PatientStatus>("alle");
+  const [tab, setTab] = useState("alle");
   const [term, setTerm] = useState("");
 
+  const counts = useMemo(
+    () => ({
+      alle: view.rows.length,
+      offen: view.rows.filter((r) => rowGroup(r) === "offen").length,
+      freigegeben: view.rows.filter((r) => rowGroup(r) === "freigegeben")
+        .length,
+      ohne: view.rows.filter((r) => rowGroup(r) === "ohne").length,
+    }),
+    [view.rows],
+  );
+
   const visible = useMemo(() => {
-    const byTab =
-      pTab === "alle" ? PATIENTS : PATIENTS.filter((p) => p.status === pTab);
     const q = term.toLowerCase();
-    return byTab.filter((p) =>
-      `${p.name} ${p.id} ${p.program}`.toLowerCase().includes(q),
-    );
-  }, [pTab, term]);
+    return view.rows.filter((r) => {
+      const matchTab = tab === "alle" || rowGroup(r) === tab;
+      const hay = `${r.name} ${r.ref}`.toLowerCase();
+      return matchTab && hay.includes(q);
+    });
+  }, [view.rows, tab, term]);
+
+  const chips: { value: ReactNode; label: string; help: string }[] = [
+    {
+      value: view.total,
+      label: "Gesamt",
+      help: "Im Mandanten · RLS-geschützt",
+    },
+    {
+      value: view.withReport,
+      label: "Mit Bericht",
+      help: "Mindestens ein Berichtsentwurf",
+    },
+    {
+      value: view.openAssessments,
+      label: "Offene Assessments",
+      help: "Klinische Prüfung ausstehend",
+    },
+    {
+      value: "n. v.",
+      label: "Ø Datenqualität",
+      help: "Kein Datenqualitätsmodell (Gate G1)",
+    },
+  ];
 
   const tabBtn = (active: boolean): CSSProperties => ({
     display: "inline-flex",
@@ -263,135 +133,48 @@ export function PatientsContent() {
 
   return (
     <>
-      {/* header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: "24px",
-          flexWrap: "wrap",
-          marginBottom: "28px",
-        }}
-      >
-        <div style={{ minWidth: "280px" }}>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "11px",
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              color: "var(--brand)",
-              fontWeight: 500,
-              marginBottom: "10px",
-            }}
-          >
-            Mandant · Meridian Longevity
-          </div>
-          <h1
-            style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 700,
-              fontSize: "var(--text-3xl)",
-              letterSpacing: "var(--tracking-tight)",
-              color: "var(--text-strong)",
-              margin: "0 0 10px",
-              lineHeight: 1.05,
-            }}
-          >
-            Patienten
-          </h1>
-          <p
-            style={{
-              fontSize: "var(--text-md)",
-              lineHeight: 1.5,
-              color: "var(--text-muted)",
-              margin: 0,
-              maxWidth: "64ch",
-            }}
-          >
-            <span style={{ color: "var(--text-strong)", fontWeight: 600 }}>
-              148 Patienten
-            </span>{" "}
-            · tenant-bezogen, RLS-geschützt · pseudonymisierte, synthetische
-            Beispieldaten.
-          </p>
+      <div style={{ marginBottom: "28px" }}>
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "11px",
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            color: "var(--brand)",
+            fontWeight: 500,
+            marginBottom: "10px",
+          }}
+        >
+          Mandant · Meridian Longevity
         </div>
-        <div style={{ display: "flex", gap: "10px", flexShrink: 0 }}>
-          <button
-            type="button"
-            className="vb-btn-sec"
-            title="Im Prototyp noch nicht umgesetzt"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "9px",
-              height: "42px",
-              padding: "0 16px",
-              whiteSpace: "nowrap",
-              borderRadius: "var(--radius-sm)",
-              border: "1px solid var(--border-default)",
-              background: "var(--surface-card)",
-              color: "var(--text-strong)",
-              fontFamily: "var(--font-text)",
-              fontSize: "var(--text-sm)",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            <svg
-              width="17"
-              height="17"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <path d="M7 10l5 5 5-5" />
-              <path d="M12 15V3" />
-            </svg>
-            Daten importieren
-          </button>
-          <button
-            type="button"
-            className="vb-btn-pri"
-            title="Im Prototyp noch nicht umgesetzt"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "9px",
-              height: "42px",
-              padding: "0 18px",
-              whiteSpace: "nowrap",
-              borderRadius: "var(--radius-sm)",
-              border: "1px solid var(--brand)",
-              background: "var(--brand)",
-              color: "var(--text-on-brand)",
-              fontFamily: "var(--font-text)",
-              fontSize: "var(--text-sm)",
-              fontWeight: 600,
-              cursor: "pointer",
-              boxShadow: "0 1px 2px rgba(12,18,20,0.12)",
-            }}
-          >
-            <svg
-              width="17"
-              height="17"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Patient hinzufügen
-          </button>
-        </div>
+        <h1
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 700,
+            fontSize: "var(--text-3xl)",
+            letterSpacing: "var(--tracking-tight)",
+            color: "var(--text-strong)",
+            margin: "0 0 10px",
+            lineHeight: 1.05,
+          }}
+        >
+          Patienten
+        </h1>
+        <p
+          style={{
+            fontSize: "var(--text-md)",
+            lineHeight: 1.5,
+            color: "var(--text-muted)",
+            margin: 0,
+            maxWidth: "64ch",
+          }}
+        >
+          <span style={{ color: "var(--text-strong)", fontWeight: 600 }}>
+            {view.total} {view.total === 1 ? "Patientin" : "Patienten"}
+          </span>{" "}
+          · tenant-bezogen, RLS-geschützt · pseudonymisierte, synthetische
+          Beispieldaten.
+        </p>
       </div>
 
       {/* stat chips */}
@@ -403,63 +186,33 @@ export function PatientsContent() {
           marginBottom: "16px",
         }}
       >
-        {CHIPS.map((c) => (
+        {chips.map((c) => (
           <div key={c.label} style={{ ...cardStyle, padding: "18px" }}>
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: "14px",
+                fontFamily: "var(--font-mono)",
+                fontSize: "10.5px",
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: "var(--text-muted)",
+                fontWeight: 500,
+                marginBottom: "12px",
               }}
             >
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "10.5px",
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  color: "var(--text-muted)",
-                  fontWeight: 500,
-                }}
-              >
-                {c.label}
-              </span>
-              <div
-                style={{
-                  width: "30px",
-                  height: "30px",
-                  borderRadius: "var(--radius-sm)",
-                  background: c.iconBg,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {c.icon}
-              </div>
+              {c.label}
             </div>
             <div
               style={{
-                display: "flex",
-                alignItems: "flex-end",
-                gap: "9px",
+                fontFamily: "var(--font-display)",
+                fontWeight: 700,
+                fontSize: "34px",
+                lineHeight: 1,
+                color: "var(--text-strong)",
+                letterSpacing: "-0.02em",
                 marginBottom: "6px",
               }}
             >
-              <span
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontWeight: 700,
-                  fontSize: "34px",
-                  lineHeight: 1,
-                  color: "var(--text-strong)",
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                {c.value}
-              </span>
-              {c.delta}
+              {c.value}
             </div>
             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
               {c.help}
@@ -491,9 +244,10 @@ export function PatientsContent() {
             }}
           >
             Pseudonymisiert · keine automatische Diagnose oder
-            Therapieempfehlung.
+            Therapieempfehlung. Risiko- und Datenqualitäts-Spalten sind in der
+            Echtdaten-Ansicht deaktiviert (kein zugelassener Quell-/Modellwert —
+            ADR-0005).
           </p>
-
           <div
             style={{
               display: "flex",
@@ -506,111 +260,75 @@ export function PatientsContent() {
           >
             <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
               {TABS.map((t) => {
-                const active = pTab === t.key;
+                const active = tab === t.key;
                 return (
                   <button
                     key={t.key}
                     type="button"
-                    onClick={() => setPTab(t.key)}
+                    onClick={() => setTab(t.key)}
                     style={tabBtn(active)}
                   >
                     {t.label}{" "}
                     <span style={tabBadge(active)}>
-                      {PATIENT_COHORT[t.key]}
+                      {counts[t.key as keyof typeof counts] ?? 0}
                     </span>
                   </button>
                 );
               })}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <div
+            <div
+              style={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--text-faint)"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 style={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
+                  position: "absolute",
+                  left: "11px",
+                  pointerEvents: "none",
                 }}
               >
-                <svg
-                  aria-hidden="true"
-                  focusable="false"
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="var(--text-faint)"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{
-                    position: "absolute",
-                    left: "11px",
-                    pointerEvents: "none",
-                  }}
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="M21 21l-4.35-4.35" />
-                </svg>
-                <input
-                  className="vb-input"
-                  type="text"
-                  aria-label="Patient oder ID suchen"
-                  value={term}
-                  onChange={(e) => setTerm(e.target.value)}
-                  placeholder="Patient oder ID suchen"
-                  style={{
-                    height: "36px",
-                    width: "220px",
-                    padding: "0 12px 0 33px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border-default)",
-                    background: "var(--surface-sunken)",
-                    color: "var(--text-strong)",
-                    fontFamily: "var(--font-text)",
-                    fontSize: "13px",
-                    outline: "none",
-                  }}
-                />
-              </div>
-              <button
-                type="button"
-                aria-label="Filter"
-                className="vb-iconbtn"
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
+              <input
+                className="vb-input"
+                type="text"
+                aria-label="Patient oder ID suchen"
+                value={term}
+                onChange={(e) => setTerm(e.target.value)}
+                placeholder="Patient oder ID suchen"
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "7px",
                   height: "36px",
-                  padding: "0 12px",
+                  width: "220px",
+                  padding: "0 12px 0 33px",
                   borderRadius: "var(--radius-sm)",
                   border: "1px solid var(--border-default)",
-                  background: "var(--surface-card)",
-                  cursor: "pointer",
-                  color: "var(--text-body)",
+                  background: "var(--surface-sunken)",
+                  color: "var(--text-strong)",
                   fontFamily: "var(--font-text)",
                   fontSize: "13px",
-                  fontWeight: 600,
+                  outline: "none",
                 }}
-              >
-                <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M22 3H2l8 9.46V19l4 2v-8.54z" />
-                </svg>
-                Filter
-              </button>
+              />
             </div>
           </div>
         </div>
 
         <div style={{ overflowX: "auto" }}>
-          <div style={{ minWidth: "1180px" }}>
+          <div style={{ minWidth: "860px" }}>
             <div
               style={{
                 display: "grid",
@@ -624,24 +342,20 @@ export function PatientsContent() {
             >
               <span style={colLabel}>Patient</span>
               <span style={colLabel}>Alter</span>
-              <span style={colLabel}>Programm</span>
               <span style={colLabel}>Risiko</span>
               <span style={colLabel}>Datenqualität</span>
               <span style={colLabel}>Letztes Assessment</span>
               <span style={colLabel}>Status</span>
             </div>
-
             {visible.map((p) => {
-              const sm = PATIENT_STATUS_META[p.status];
-              const am = ATTN_META[p.risk];
-              const qc = qColor(p.q);
+              const sm = p.statusBadge;
               return (
                 <div
-                  key={p.id}
+                  key={p.patientId}
                   className="vb-row"
                   {...clickable(
-                    () => router.push(`/patients/${p.id}`),
-                    `Patient ${p.name}, ${p.id} öffnen`,
+                    () => router.push(`/patients/${p.patientId}`),
+                    `Patient ${p.name}, ${p.ref} öffnen`,
                   )}
                   style={{
                     display: "grid",
@@ -678,7 +392,7 @@ export function PatientsContent() {
                         color: "var(--teal-600)",
                       }}
                     >
-                      {initials(p.name)}
+                      {p.initials}
                     </div>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div
@@ -700,7 +414,7 @@ export function PatientsContent() {
                           color: "var(--text-faint)",
                         }}
                       >
-                        {p.id}
+                        {p.ref}
                       </div>
                     </div>
                   </div>
@@ -711,104 +425,18 @@ export function PatientsContent() {
                       color: "var(--text-muted)",
                     }}
                   >
-                    {p.age} · {p.sex}
+                    {p.age}
                   </div>
+                  <div>{GATED}</div>
+                  <div>{GATED}</div>
                   <div
                     style={{
-                      fontSize: "13px",
-                      color: "var(--text-body)",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "12px",
+                      color: "var(--text-muted)",
                     }}
                   >
-                    {p.program}
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "7px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: "7px",
-                        height: "7px",
-                        borderRadius: "999px",
-                        flexShrink: 0,
-                        background: am.c,
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: "12.5px",
-                        fontWeight: 500,
-                        color: am.c,
-                      }}
-                    >
-                      {am.label}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "9px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        flex: 1,
-                        height: "6px",
-                        borderRadius: "999px",
-                        background: "var(--surface-sunken)",
-                        overflow: "hidden",
-                      }}
-                    >
-                      <div
-                        style={{
-                          height: "100%",
-                          borderRadius: "999px",
-                          width: p.q + "%",
-                          background: qc,
-                        }}
-                      />
-                    </div>
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "11.5px",
-                        fontWeight: 600,
-                        minWidth: "34px",
-                        textAlign: "right",
-                        color: qc,
-                      }}
-                    >
-                      {p.q}%
-                    </span>
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: "13px",
-                        color: "var(--text-body)",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {p.last}
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "11px",
-                        color: "var(--text-faint)",
-                      }}
-                    >
-                      {p.when}
-                    </div>
+                    {p.lastAssessment}
                   </div>
                   <div>
                     <span
@@ -830,7 +458,6 @@ export function PatientsContent() {
                 </div>
               );
             })}
-
             {visible.length === 0 && (
               <div style={{ textAlign: "center", padding: "54px 20px" }}>
                 <div
@@ -870,77 +497,8 @@ export function PatientsContent() {
               color: "var(--text-muted)",
             }}
           >
-            Zeige 1–{visible.length} von {PATIENT_COHORT[pTab]}
+            Zeige {visible.length} von {view.total}
           </span>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button
-              type="button"
-              disabled
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "7px",
-                height: "34px",
-                padding: "0 13px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-card)",
-                color: "var(--text-muted)",
-                fontFamily: "var(--font-text)",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "not-allowed",
-                opacity: 0.6,
-              }}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-              Zurück
-            </button>
-            <button
-              type="button"
-              className="vb-btn-next"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "7px",
-                height: "34px",
-                padding: "0 13px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-card)",
-                color: "var(--text-strong)",
-                fontFamily: "var(--font-text)",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Weiter
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-            </button>
-          </div>
         </div>
       </div>
     </>

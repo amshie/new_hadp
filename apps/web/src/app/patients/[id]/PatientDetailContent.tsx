@@ -10,44 +10,16 @@ import {
 import { useRouter } from "next/navigation";
 
 import { clickable } from "@/components/vitabahn/interactive";
-import {
-  DOMAINS,
-  DOMAIN_DESC,
-  DOMAIN_HEALTH,
-  OBSERVATIONS,
-  initials,
-  type Observation,
-  type ObsStat,
-} from "@/lib/demo/dashboard";
+import { lageLabel } from "@/lib/lageCopy";
+import type { ReferencePosition } from "@/lib/referencePosition";
+import type { DetailView } from "@/lib/presenters/patientDetail";
+import type { MarkerView } from "@/lib/presenters/review";
 
-// VitaBahn patient Detail (ADR-0005). Synthetic Alpha. The per-domain A–E grade from
-// the comp was removed by founder direction (ADR-0005); the observation status
-// (Normal/Grenzwertig/Auffällig) is a founder-approved surface recorded in the ADR.
-
-const STAT3: Record<ObsStat, { label: string; txt: string; accent: string }> = {
-  abnormal: {
-    label: "Auffällig",
-    txt: "var(--rose-500)",
-    accent: "var(--rose-400)",
-  },
-  borderline: {
-    label: "Grenzwertig",
-    txt: "var(--amber-500)",
-    accent: "var(--amber-400)",
-  },
-  normal: {
-    label: "Normal",
-    txt: "var(--teal-600)",
-    accent: "var(--vital-400)",
-  },
-};
-const ORDER3: ObsStat[] = ["abnormal", "borderline", "normal"];
-const TRD: Record<string, string> = {
-  up: "M2 15 L11 12 L20 13 L29 7 L38 4",
-  down: "M2 4 L11 8 L20 7 L29 12 L38 15",
-  flat: "M3 10 L37 10",
-};
-const EGRID = "minmax(150px,1.7fr) 104px minmax(96px,0.9fr) 92px 124px 64px";
+// VitaBahn patient Detail (ADR-0005, real-data path). Consumes the governed DetailView
+// (presentReview + a real data-completeness stat). NO A–E grade (doctrine). Observation Status
+// is the verdict-free positional Lage (Über/Unter Referenz · Im Intervall · Keine Referenz),
+// NOT a Normal/Grenzwertig/Auffällig verdict — that has no real source and crosses the MDR
+// boundary. The marker modal uses the lab-only reference bar, not a heuristic severity gauge.
 
 const cardStyle: CSSProperties = {
   background: "var(--surface-card)",
@@ -55,7 +27,7 @@ const cardStyle: CSSProperties = {
   borderRadius: "var(--radius-lg)",
   boxShadow: "var(--shadow-sm)",
 };
-const eColLabel: CSSProperties = {
+const colLabel: CSSProperties = {
   fontFamily: "var(--font-mono)",
   fontSize: "9.5px",
   letterSpacing: "0.1em",
@@ -63,111 +35,210 @@ const eColLabel: CSSProperties = {
   color: "var(--text-faint)",
   fontWeight: 500,
 };
+const EGRID =
+  "minmax(150px,1.6fr) 110px minmax(96px,0.9fr) 96px minmax(150px,1.2fr) 132px";
 
-const parseNum = (val: string) => {
-  const m = String(val).match(/-?\d+(?:[.,]\d+)?/);
-  return m ? parseFloat(m[0].replace(",", ".")) : 0;
-};
-const refNumsOf = (r: string) =>
-  (String(r).match(/\d+(?:[.,]\d+)?/g) || []).map((x) =>
-    parseFloat(x.replace(",", ".")),
+function statusVita(
+  status: string,
+  label: string,
+): {
+  fg: string;
+  bg: string;
+  bd: string;
+  text: string;
+} {
+  if (status === "released")
+    return {
+      fg: "var(--vital-500)",
+      bg: "rgba(20,169,130,0.12)",
+      bd: "rgba(20,169,130,0.30)",
+      text: label,
+    };
+  if (status === "approved")
+    return {
+      fg: "var(--sky-400)",
+      bg: "rgba(63,164,201,0.12)",
+      bd: "rgba(63,164,201,0.30)",
+      text: label,
+    };
+  if (status === "draft_generated" || status === "draft_edited")
+    return {
+      fg: "var(--amber-500)",
+      bg: "rgba(201,136,28,0.12)",
+      bd: "rgba(201,136,28,0.30)",
+      text: label,
+    };
+  if (status === "rejected")
+    return {
+      fg: "var(--rose-500)",
+      bg: "rgba(194,74,74,0.12)",
+      bd: "rgba(194,74,74,0.30)",
+      text: label,
+    };
+  return {
+    fg: "var(--text-muted)",
+    bg: "var(--surface-sunken)",
+    bd: "var(--border-default)",
+    text: "Kein Entwurf",
+  };
+}
+
+// Calm, non-alarm colours for the positional Lage pill (never a verdict).
+function lageVita(pos: ReferencePosition): {
+  fg: string;
+  bg: string;
+  bd: string;
+} {
+  if (pos === "within")
+    return {
+      fg: "var(--vital-500)",
+      bg: "rgba(20,169,130,0.12)",
+      bd: "rgba(20,169,130,0.30)",
+    };
+  if (pos === "above" || pos === "below")
+    return {
+      fg: "var(--sky-400)",
+      bg: "rgba(63,164,201,0.12)",
+      bd: "rgba(63,164,201,0.30)",
+    };
+  return {
+    fg: "var(--text-muted)",
+    bg: "var(--surface-sunken)",
+    bd: "var(--border-default)",
+  };
+}
+
+function initialsOf(name: string): string {
+  return (name.match(/[A-ZÀ-Þ]/g) || [name[0] ?? "–"]).slice(0, 2).join("");
+}
+
+function ReferenceBar({ marker }: { marker: MarkerView }) {
+  const bar = marker.lageBar;
+  if (!bar.hasScale)
+    return (
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "10.5px",
+          color: "var(--text-faint)",
+        }}
+      >
+        keine Skala
+      </span>
+    );
+  return (
+    <div aria-hidden="true" style={{ width: "100%" }}>
+      <div
+        style={{
+          position: "relative",
+          height: "8px",
+          borderRadius: "999px",
+          background: "var(--w-sand)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: bar.bandStartPct + "%",
+            width: bar.bandEndPct - bar.bandStartPct + "%",
+            background:
+              "linear-gradient(90deg, var(--teal-300), var(--teal-500))",
+            opacity: 0.55,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: "-2px",
+            bottom: "-2px",
+            left: bar.midPct + "%",
+            width: "1.5px",
+            background: "var(--teal-700)",
+            transform: "translateX(-50%)",
+          }}
+        />
+        {bar.dotPct != null && (
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: bar.dotPct + "%",
+              width: "9px",
+              height: "9px",
+              borderRadius: "999px",
+              background:
+                "radial-gradient(circle at 35% 35%, var(--amber-400), var(--amber-500))",
+              transform: "translate(-50%,-50%)",
+              boxShadow: "0 0 0 2px var(--surface-card)",
+            }}
+          />
+        )}
+      </div>
+      {marker.referenceRange && (
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "9px",
+            color: "var(--text-faint)",
+            marginTop: "3px",
+          }}
+        >
+          Ref {marker.referenceRange}
+        </div>
+      )}
+    </div>
   );
-function inRef(v: number, r: string): boolean {
-  const str = String(r);
-  const nn = refNumsOf(r);
-  if (str.indexOf("–") >= 0 && nn.length >= 2)
-    return v >= nn[0]! && v <= nn[1]!;
-  if (!nn.length) return true;
-  const a = nn[0]!;
-  if (str.indexOf("≥") >= 0) return v >= a;
-  if (str.indexOf("≤") >= 0) return v <= a;
-  if (str.indexOf("<") >= 0) return v < a;
-  if (str.indexOf(">") >= 0) return v > a;
-  return true;
 }
 
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mär",
-  "Apr",
-  "Mai",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Okt",
-  "Nov",
-  "Dez",
-];
-const SAMPLE_MAP: Record<string, number[]> = {
-  visit: [0],
-  "3": [0, 1, 2, 3],
-  "6": [0, 1, 2, 3, 4, 5, 6],
-  "12": [0, 2, 4, 6, 8, 10, 12],
-  "24": [0, 4, 8, 12, 16, 20, 24],
-};
-const HIST_TABS: [string, string][] = [
-  ["visit", "Letzter Besuch"],
-  ["3", "3 M"],
-  ["6", "6 M"],
-  ["12", "12 M"],
-  ["24", "24 M"],
-];
-
-interface AuditStep {
-  label: string;
-  sub: string;
-  first?: boolean;
-  last?: boolean;
+function LagePill({ pos }: { pos: ReferencePosition }) {
+  const l = lageLabel(pos);
+  const c = lageVita(pos);
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "5px",
+        padding: "3px 10px",
+        borderRadius: "999px",
+        fontFamily: "var(--font-text)",
+        fontSize: "11.5px",
+        fontWeight: 600,
+        color: c.fg,
+        background: c.bg,
+        border: "1px solid " + c.bd,
+      }}
+    >
+      <span aria-hidden="true">{l.glyph}</span>
+      {l.label}
+      <span className="sr-only">{l.sentence}</span>
+    </span>
+  );
 }
-const AUDIT_STEPS: AuditStep[] = [
-  { label: "Datenerfassung", sub: "Vollständig", first: true },
-  { label: "Entwurf erstellt", sub: "Quellengebunden" },
-  { label: "Klinischer Review", sub: "Signiert" },
-  { label: "Ärztliche Freigabe", sub: "Abgeschlossen" },
-  { label: "Patientenfreigabe", sub: "Freigegeben", last: true },
-];
 
-const check = (size: number) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="#fff"
-    strokeWidth="2.6"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M20 6L9 17l-5-5" />
-  </svg>
-);
-
-export function PatientDetailContent({
-  name,
-  id,
-  age,
-}: {
-  name: string;
-  id: string;
-  age: string;
-}) {
+export function PatientDetailContent({ view }: { view: DetailView }) {
   const router = useRouter();
-  const [domainKey, setDomainKey] = useState("kardio");
-  const [openMarker, setOpenMarker] = useState<Observation | null>(null);
-  const [histRange, setHistRange] = useState("6");
+  const { review, completeness } = view;
+  const domains = review.domains;
+
+  const firstWithMarkers =
+    domains.find((d) => d.markerCodes.length > 0)?.domainAxis ??
+    domains[0]?.domainAxis ??
+    "";
+  const [domainAxis, setDomainAxis] = useState(firstWithMarkers);
+  const [openMarker, setOpenMarker] = useState<MarkerView | null>(null);
   const lastFocusedRef = useRef<HTMLElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
-  const openObs = (o: Observation) => {
+  const openObs = (m: MarkerView) => {
     lastFocusedRef.current = document.activeElement as HTMLElement | null;
-    setOpenMarker(o);
+    setOpenMarker(m);
   };
   const closeObs = () => setOpenMarker(null);
 
-  // Modal a11y: close on Escape, move focus into the dialog on open, restore it to the
-  // triggering row on close (WCAG 2.1.2 / 2.4.3 / 4.1.2).
   useEffect(() => {
     if (!openMarker) return;
     const onKey = (e: KeyboardEvent) => {
@@ -181,231 +252,17 @@ export function PatientDetailContent({
     };
   }, [openMarker]);
 
-  const curHealth = DOMAIN_HEALTH[domainKey] ?? domainKey;
-  const curDesc = DOMAIN_DESC[domainKey] ?? "";
-  const curDomName = DOMAINS.find((d) => d.key === domainKey)?.name ?? "";
-
-  const evidenceGroups = useMemo(() => {
-    const all = OBSERVATIONS[domainKey] ?? [];
-    return ORDER3.map((k) => {
-      const items = all.filter((o) => o.stat === k);
-      return items.length ? { key: k, bandLabel: STAT3[k].label, items } : null;
-    }).filter(
-      (g): g is { key: ObsStat; bandLabel: string; items: Observation[] } =>
-        g !== null,
+  const curDomain = domains.find((d) => d.domainAxis === domainAxis) ?? null;
+  const evidence = useMemo(() => {
+    if (!curDomain) return [];
+    const codes = new Set(curDomain.markerCodes);
+    return review.markers.filter(
+      (m) => codes.has(m.code) || m.primaryDomainLabel === curDomain.axisLabel,
     );
-  }, [domainKey]);
+  }, [curDomain, review.markers]);
 
-  const modal = useMemo(() => {
-    const om = openMarker;
-    if (!om) return null;
-    const s3 = STAT3[om.stat] ?? STAT3.normal;
-    const cur = parseNum(om.value);
-    const dir = om.trend === "up" ? 1 : om.trend === "down" ? -1 : 0;
-    const baseY = 2025,
-      baseM = 5;
-    const monLabel = (ago: number) => {
-      let m = baseM - ago,
-        y = baseY;
-      while (m < 0) {
-        m += 12;
-        y--;
-      }
-      return MONTHS[m] + " ’" + ("0" + (y % 100)).slice(-2);
-    };
-    const spread = Math.abs(cur) * 0.22 + (cur === 0 ? 1 : 0.5);
-    const vAt = (ago: number) =>
-      cur - dir * spread * (ago / 24) + Math.sin(ago * 0.9) * spread * 0.08;
-    const agos = (SAMPLE_MAP[histRange] ?? SAMPLE_MAP["6"] ?? [0])
-      .slice()
-      .reverse();
-    const vals = agos.map(vAt);
-    const labels = agos.map(monLabel);
-    const n = vals.length;
-    vals[n - 1] = cur;
-    const W = 520,
-      H = 150,
-      padL = 12,
-      padR = 12,
-      padT = 16,
-      padB = 18;
-    const lo = Math.min(...vals),
-      hi = Math.max(...vals);
-    const pdv = (hi - lo) * 0.32 || Math.abs(hi) * 0.12 || 1;
-    const yMin = lo - pdv,
-      yMax = hi + pdv;
-    const xx = (i: number) =>
-      n <= 1 ? W / 2 : padL + (W - padL - padR) * (i / (n - 1));
-    const yy = (v: number) =>
-      padT + (H - padT - padB) * (1 - (v - yMin) / (yMax - yMin || 1));
-    const pts = vals.map((v, i) => ({
-      x: +xx(i).toFixed(1),
-      y: +yy(v).toFixed(1),
-    }));
-    const chartLine =
-      n <= 1
-        ? ""
-        : pts.map((p, i) => (i ? "L" : "M") + p.x + " " + p.y).join(" ");
-    const chartArea =
-      n <= 1
-        ? ""
-        : chartLine +
-          " L " +
-          pts[n - 1]!.x +
-          " " +
-          (H - padB) +
-          " L " +
-          pts[0]!.x +
-          " " +
-          (H - padB) +
-          " Z";
-    const dots = pts.map((p, i) => ({
-      cx: p.x,
-      cy: p.y,
-      r: i === n - 1 ? 4.5 : 3,
-      fill: i === n - 1 ? s3.accent : "var(--surface-card)",
-      stroke: s3.accent,
-    }));
-    const rnums = refNumsOf(om.ref);
-    const isRange = String(om.ref).indexOf("–") >= 0;
-    let refY = 0,
-      hasRefLine = false;
-    if (
-      !isRange &&
-      rnums.length === 1 &&
-      rnums[0]! >= yMin &&
-      rnums[0]! <= yMax
-    ) {
-      refY = +yy(rnums[0]!).toFixed(1);
-      hasRefLine = true;
-    }
-    const refPool = rnums.length ? rnums.concat([cur]) : [cur];
-    const scaleMax = Math.max(...refPool) * 1.5 || 1;
-    const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-    const GC = 84,
-      GCY = 90,
-      GR = 66;
-    const Apt = (f: number): [number, number] => {
-      const th = ((180 - 180 * clamp01(f)) * Math.PI) / 180;
-      return [GC + GR * Math.cos(th), GCY - GR * Math.sin(th)];
-    };
-    const arcP = (f0: number, f1: number) => {
-      const a = Apt(f0),
-        b = Apt(f1);
-      return (
-        "M " +
-        a[0].toFixed(1) +
-        " " +
-        a[1].toFixed(1) +
-        " A " +
-        GR +
-        " " +
-        GR +
-        " 0 0 1 " +
-        b[0].toFixed(1) +
-        " " +
-        b[1].toFixed(1)
-      );
-    };
-    const gaugeTrack = arcP(0, 1);
-    const zc = {
-      good: "var(--vital-400)",
-      warn: "var(--amber-400)",
-      bad: "var(--rose-400)",
-    };
-    let zoneDefs: [number, number, string][];
-    if (isRange && rnums.length >= 2) {
-      const fa = clamp01(rnums[0]! / scaleMax),
-        fb = clamp01(rnums[1]! / scaleMax);
-      zoneDefs = [
-        [0, fa, zc.warn],
-        [fa, fb, zc.good],
-        [fb, 1, zc.warn],
-      ];
-    } else if (!rnums.length) {
-      zoneDefs = [[0, 1, zc.good]];
-    } else {
-      const fx = clamp01(rnums[0]! / scaleMax);
-      const greater =
-        String(om.ref).indexOf(">") >= 0 || String(om.ref).indexOf("≥") >= 0;
-      if (greater) {
-        const fw = clamp01(fx * 0.7);
-        zoneDefs = [
-          [0, fw, zc.bad],
-          [fw, fx, zc.warn],
-          [fx, 1, zc.good],
-        ];
-      } else {
-        const fw = clamp01(fx + (1 - fx) * 0.4);
-        zoneDefs = [
-          [0, fx, zc.good],
-          [fx, fw, zc.warn],
-          [fw, 1, zc.bad],
-        ];
-      }
-    }
-    const zones = zoneDefs
-      .filter((z) => z[1] > z[0] + 0.002)
-      .map((z) => ({ d: arcP(z[0], z[1]), c: z[2] }));
-    const fv = clamp01(cur / scaleMax);
-    const nth = ((180 - 180 * fv) * Math.PI) / 180;
-    const needleX = +(GC + (GR - 4) * Math.cos(nth)).toFixed(1);
-    const needleY = +(GCY - (GR - 4) * Math.sin(nth)).toFixed(1);
-    const numPart = (String(om.value).match(/-?\d+(?:[.,]\d+)?(?:\/\d+)?/) || [
-      om.value,
-    ])[0];
-    const unitPart = String(om.value).replace(numPart, "").trim();
-    const rows = vals
-      .map((v, i) => {
-        const prev = i > 0 ? vals[i - 1] : null;
-        const d = prev == null ? 0 : v - prev;
-        const ok = inRef(v, om.ref);
-        const ad = Math.abs(d);
-        return {
-          date: labels[i],
-          val: (Math.round(v * 10) / 10).toString().replace(".", ","),
-          delta:
-            prev == null
-              ? "—"
-              : (d > 0.05 ? "▲ " : d < -0.05 ? "▼ " : "–") +
-                (ad < 0.05
-                  ? ""
-                  : (Math.round(ad * 10) / 10).toString().replace(".", ",")),
-          dotColor: ok ? "var(--vital-500)" : "var(--amber-500)",
-          highlight: i === n - 1,
-        };
-      })
-      .reverse();
-    return {
-      name: om.marker,
-      cat: om.cat,
-      ref: om.ref,
-      value: om.value,
-      statLabel: s3.label,
-      accent: s3.accent,
-      statTxt: s3.txt,
-      gaugeTrack,
-      zones,
-      needleX,
-      needleY,
-      ringVal: numPart,
-      ringUnit: unitPart,
-      chartLine,
-      chartArea,
-      dots,
-      hasRefLine,
-      refY,
-      refCaption: "Referenz " + om.ref + (isRange ? " (Intervall)" : ""),
-      dateLabels: labels,
-      rows,
-      summaryTxt:
-        (dir > 0
-          ? "Tendenz steigend"
-          : dir < 0
-            ? "Tendenz fallend"
-            : "Stabil") + " über die letzten Messungen.",
-    };
-  }, [openMarker, histRange]);
+  const sb = statusVita(review.status, review.statusLabel);
+  const idBadge = sb;
 
   const detTab = (active: boolean): CSSProperties => ({
     padding: "13px 4px",
@@ -440,6 +297,8 @@ export function PatientDetailContent({
         }}
       >
         <svg
+          aria-hidden="true"
+          focusable="false"
           width="15"
           height="15"
           viewBox="0 0 24 24"
@@ -494,7 +353,7 @@ export function PatientDetailContent({
                 color: "var(--teal-600)",
               }}
             >
-              {initials(name)}
+              {initialsOf(review.patientName)}
             </div>
             <div style={{ minWidth: 0 }}>
               <div
@@ -517,7 +376,7 @@ export function PatientDetailContent({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {name}
+                  {review.patientName}
                 </h1>
                 <span
                   style={{
@@ -528,9 +387,9 @@ export function PatientDetailContent({
                     borderRadius: "999px",
                     fontSize: "12px",
                     fontWeight: 600,
-                    color: "var(--vital-500)",
-                    background: "rgba(20,169,130,0.12)",
-                    border: "1px solid rgba(20,169,130,0.30)",
+                    color: idBadge.fg,
+                    background: idBadge.bg,
+                    border: "1px solid " + idBadge.bd,
                   }}
                 >
                   <span
@@ -538,10 +397,10 @@ export function PatientDetailContent({
                       width: "6px",
                       height: "6px",
                       borderRadius: "999px",
-                      background: "var(--vital-500)",
+                      background: idBadge.fg,
                     }}
                   />
-                  Freigegeben
+                  {idBadge.text}
                 </span>
               </div>
               <div
@@ -555,7 +414,7 @@ export function PatientDetailContent({
                   color: "var(--text-muted)",
                 }}
               >
-                <span>{id}</span>
+                <span>{review.ref}</span>
                 <span
                   style={{
                     width: "3px",
@@ -564,7 +423,7 @@ export function PatientDetailContent({
                     background: "var(--border-strong)",
                   }}
                 />
-                <span>{age} Jahre</span>
+                <span>{review.ageProfile}</span>
                 <span
                   style={{
                     width: "3px",
@@ -573,80 +432,13 @@ export function PatientDetailContent({
                     background: "var(--border-strong)",
                   }}
                 />
-                <span>Bericht · v1</span>
+                <span>
+                  {review.status === "none"
+                    ? "Kein Bericht"
+                    : `Bericht · v${review.versionNo}`}
+                </span>
               </div>
             </div>
-          </div>
-          <div style={{ display: "flex", gap: "10px", flexShrink: 0 }}>
-            <button
-              type="button"
-              className="vb-btn-sec"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                height: "40px",
-                padding: "0 15px",
-                whiteSpace: "nowrap",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-card)",
-                color: "var(--text-strong)",
-                fontFamily: "var(--font-text)",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <path d="M14 2v6h6" />
-              </svg>
-              Quelldokumente
-            </button>
-            <button
-              type="button"
-              className="vb-btn-sec"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                height: "40px",
-                padding: "0 15px",
-                whiteSpace: "nowrap",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-card)",
-                color: "var(--text-strong)",
-                fontFamily: "var(--font-text)",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Mehr
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </button>
           </div>
         </div>
         <div
@@ -658,7 +450,7 @@ export function PatientDetailContent({
           }}
         >
           <div style={detTab(true)}>Assessment</div>
-          {["Laborwerte", "Verlauf", "Dokumente", "Bericht"].map((t, i, a) => (
+          {["Laborwerte", "Verlauf", "Bericht"].map((t, i, a) => (
             <div
               key={t}
               className="vb-tab-text"
@@ -673,353 +465,364 @@ export function PatientDetailContent({
         </div>
       </div>
 
-      {/* domain cards (no A–E grade — ADR-0005) */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(258px, 1fr))",
-          gap: "14px",
-          marginBottom: "20px",
-        }}
-      >
-        {DOMAINS.map((d) => {
-          const sel = d.key === domainKey;
-          return (
-            <div
-              key={d.key}
-              className="vb-domaincard"
-              {...clickable(
-                () => setDomainKey(d.key),
-                `Domäne ${d.name} auswählen`,
-              )}
-              aria-pressed={sel}
-              style={{
-                background: "var(--surface-card)",
-                borderRadius: "var(--radius-lg)",
-                padding: "16px 18px",
-                border:
-                  "1.5px solid " +
-                  (sel ? "var(--brand)" : "var(--border-subtle)"),
-                boxShadow: sel
-                  ? "0 0 0 3px var(--brand-soft)"
-                  : "var(--shadow-xs)",
-                cursor: "pointer",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  gap: "10px",
-                  marginBottom: "11px",
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 700,
-                    fontSize: "var(--text-md)",
-                    color: "var(--text-strong)",
-                    letterSpacing: "-0.01em",
-                  }}
-                >
-                  {d.name}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "10px",
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    color: "var(--text-faint)",
-                    flexShrink: 0,
-                    marginTop: "4px",
-                  }}
-                >
-                  Entwurf
-                </span>
-              </div>
-              <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                Follow-up-Adäquanz: {d.followUp}
-              </div>
-              {sel ? (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    marginTop: "10px",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "var(--vital-500)",
-                  }}
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                  Biomarker im Beobachtungsnachweis
-                </div>
-              ) : (
-                <div
-                  style={{
-                    marginTop: "10px",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "var(--brand)",
-                  }}
-                >
-                  Biomarker ansehen ({d.count})
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Beobachtungsnachweis */}
-      <div style={{ ...cardStyle, marginBottom: "16px", overflow: "hidden" }}>
-        <div style={{ padding: "18px 22px 6px" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "9px",
-              marginBottom: "9px",
-            }}
-          >
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "27px",
-                height: "27px",
-                flexShrink: 0,
-                borderRadius: "8px",
-                background:
-                  "color-mix(in oklch, var(--rose-400) 17%, var(--surface-card))",
-              }}
-            >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="var(--rose-500)"
-                stroke="none"
-              >
-                <path d="M12 21s-7.6-4.7-10-9.4C.3 8.2 2 5 5.2 5c2 0 3.3 1.1 4 2.4C9.9 6.1 11.2 5 13.2 5 16.4 5 18.1 8.2 16.4 11.6 14 16.3 12 21 12 21z" />
-              </svg>
-            </span>
+      {/* data completeness (real, deterministic — the compliant replacement for the comp's quality gauge) */}
+      <div style={{ ...cardStyle, padding: "16px 22px", marginBottom: "20px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "16px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
             <h3
               style={{
                 fontFamily: "var(--font-display)",
-                fontWeight: 800,
-                fontSize: "var(--text-xl)",
+                fontWeight: 700,
+                fontSize: "var(--text-md)",
                 color: "var(--text-strong)",
-                margin: 0,
-                letterSpacing: "-0.02em",
+                margin: "0 0 2px",
+                letterSpacing: "-0.01em",
               }}
             >
-              {curHealth}
+              Datenlage
             </h3>
+            <p
+              style={{
+                fontSize: "12px",
+                color: "var(--text-muted)",
+                margin: 0,
+              }}
+            >
+              Deterministisch aus den Beobachtungen · keine klinische
+              Qualitätsbewertung.
+            </p>
           </div>
-          <p
-            style={{
-              fontSize: "13px",
-              lineHeight: 1.6,
-              color: "var(--text-body)",
-              margin: 0,
-              maxWidth: "94ch",
-              textWrap: "pretty",
-            }}
-          >
-            {curDesc}
-          </p>
-        </div>
-
-        <div style={{ overflowX: "auto", marginTop: "10px" }}>
-          <div style={{ minWidth: "720px" }}>
-            {evidenceGroups.map((g) => (
-              <div key={g.key}>
+          <div style={{ display: "flex", gap: "26px", flexWrap: "wrap" }}>
+            {[
+              { v: String(completeness.total), l: "Beobachtungen" },
+              {
+                v: `${completeness.published}/${completeness.total}`,
+                l: "veröffentlicht",
+              },
+              {
+                v: `${completeness.withReference}/${completeness.total}`,
+                l: "mit Referenz",
+              },
+              {
+                v:
+                  completeness.latestAgeDays == null
+                    ? "—"
+                    : completeness.latestAgeDays === 0
+                      ? "heute"
+                      : `${completeness.latestAgeDays} T`,
+                l: "letzte Messung",
+              },
+            ].map((s) => (
+              <div key={s.l}>
                 <div
                   style={{
-                    padding: "9px 22px",
-                    background: "var(--surface-sunken)",
-                    borderTop: "1px solid var(--border-subtle)",
-                    borderBottom: "1px solid var(--border-subtle)",
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 700,
+                    fontSize: "var(--text-lg)",
+                    color: "var(--text-strong)",
                   }}
                 >
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "10.5px",
-                      fontWeight: 700,
-                      letterSpacing: "0.12em",
-                      textTransform: "uppercase",
-                      color: "var(--text-muted)",
-                    }}
-                  >
-                    {g.bandLabel}
-                  </span>
+                  {s.v}
                 </div>
                 <div
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: EGRID,
-                    alignItems: "center",
-                    gap: "14px",
-                    padding: "9px 22px",
-                    borderBottom: "1px solid var(--border-subtle)",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "10.5px",
+                    color: "var(--text-muted)",
                   }}
                 >
-                  <span style={eColLabel}>Marker</span>
-                  <span style={eColLabel}>Kategorie</span>
-                  <span style={eColLabel}>Wert</span>
-                  <span style={eColLabel}>Referenz</span>
-                  <span style={eColLabel}>Status</span>
-                  <span style={{ ...eColLabel, textAlign: "right" }}>
-                    Trend
-                  </span>
+                  {s.l}
                 </div>
-                {g.items.map((o, i) => {
-                  const s = STAT3[o.stat] ?? STAT3.normal;
-                  return (
-                    <div
-                      key={o.marker + i}
-                      className="vb-erow"
-                      {...clickable(
-                        () => openObs(o),
-                        `Marker ${o.marker} öffnen`,
-                      )}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: EGRID,
-                        alignItems: "center",
-                        gap: "14px",
-                        padding: "13px 22px",
-                        borderBottom: "1px solid var(--border-subtle)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: "13.5px",
-                          fontWeight: 600,
-                          color: "var(--text-strong)",
-                          lineHeight: 1.3,
-                        }}
-                      >
-                        {o.marker}
-                      </span>
-                      <span>
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            padding: "2px 9px",
-                            borderRadius: "999px",
-                            fontFamily: "var(--font-text)",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            color: "var(--text-muted)",
-                            background: "var(--surface-sunken)",
-                            border: "1px solid var(--border-subtle)",
-                          }}
-                        >
-                          {o.cat}
-                        </span>
-                      </span>
-                      <span
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "13px",
-                          fontWeight: 600,
-                          color: "var(--text-strong)",
-                        }}
-                      >
-                        {o.value}
-                      </span>
-                      <span
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "12px",
-                          color: "var(--text-muted)",
-                        }}
-                      >
-                        {o.ref || "—"}
-                      </span>
-                      <span>
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            padding: "3px 11px",
-                            borderRadius: "999px",
-                            fontFamily: "var(--font-text)",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            color: s.txt,
-                            background:
-                              "color-mix(in oklch, " +
-                              s.accent +
-                              " 17%, var(--surface-card))",
-                            border:
-                              "1px solid color-mix(in oklch, " +
-                              s.accent +
-                              " 30%, transparent)",
-                          }}
-                        >
-                          <span
-                            style={{
-                              width: "6px",
-                              height: "6px",
-                              borderRadius: "999px",
-                              flexShrink: 0,
-                              background: s.accent,
-                            }}
-                          />
-                          {s.label}
-                        </span>
-                      </span>
-                      <span
-                        style={{ display: "flex", justifyContent: "flex-end" }}
-                      >
-                        <svg
-                          width="42"
-                          height="18"
-                          viewBox="0 0 40 18"
-                          fill="none"
-                        >
-                          <path
-                            d={TRD[o.trend] || TRD.flat}
-                            stroke={s.accent}
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </span>
-                    </div>
-                  );
-                })}
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Audit-Status */}
+      {/* domain cards (no A–E grade — doctrine) */}
+      {domains.length > 0 ? (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(258px, 1fr))",
+            gap: "14px",
+            marginBottom: "20px",
+          }}
+        >
+          {domains.map((d) => {
+            const sel = d.domainAxis === domainAxis;
+            return (
+              <div
+                key={d.domainAxis}
+                className="vb-domaincard"
+                {...clickable(
+                  () => setDomainAxis(d.domainAxis),
+                  `Domäne ${d.axisLabel} auswählen`,
+                )}
+                aria-pressed={sel}
+                style={{
+                  background: "var(--surface-card)",
+                  borderRadius: "var(--radius-lg)",
+                  padding: "16px 18px",
+                  border:
+                    "1.5px solid " +
+                    (sel ? "var(--brand)" : "var(--border-subtle)"),
+                  boxShadow: sel
+                    ? "0 0 0 3px var(--brand-soft)"
+                    : "var(--shadow-xs)",
+                  cursor: "pointer",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: "10px",
+                    marginBottom: "11px",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontWeight: 700,
+                      fontSize: "var(--text-md)",
+                      color: "var(--text-strong)",
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    {d.axisLabel}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "10px",
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      color: "var(--text-faint)",
+                      flexShrink: 0,
+                      marginTop: "4px",
+                    }}
+                  >
+                    {d.reviewed ? "Geprüft" : "Entwurf"}
+                  </span>
+                </div>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                  Follow-up-Adäquanz: {d.adequacyLabel}
+                </div>
+                {sel ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      marginTop: "10px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "var(--vital-500)",
+                    }}
+                  >
+                    <svg
+                      aria-hidden="true"
+                      focusable="false"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                    Biomarker im Beobachtungsnachweis
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      marginTop: "10px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "var(--brand)",
+                    }}
+                  >
+                    Biomarker ansehen ({d.markerCodes.length})
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          style={{
+            ...cardStyle,
+            padding: "28px 22px",
+            marginBottom: "20px",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 700,
+              fontSize: "var(--text-md)",
+              color: "var(--text-strong)",
+              marginBottom: "4px",
+            }}
+          >
+            Keine Interpretation vorhanden
+          </div>
+          <div style={{ fontSize: "12.5px", color: "var(--text-muted)" }}>
+            Für diese Patientin liegt noch kein Interpretationslauf vor.
+          </div>
+        </div>
+      )}
+
+      {/* Beobachtungsnachweis (real observations, positional Lage status) */}
+      <div style={{ ...cardStyle, marginBottom: "16px", overflow: "hidden" }}>
+        <div style={{ padding: "18px 22px 6px" }}>
+          <h3
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 800,
+              fontSize: "var(--text-xl)",
+              color: "var(--text-strong)",
+              margin: "0 0 3px",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Beobachtungsnachweis{curDomain ? ` · ${curDomain.axisLabel}` : ""}
+          </h3>
+          <p
+            style={{
+              fontSize: "12.5px",
+              color: "var(--text-muted)",
+              margin: 0,
+              maxWidth: "94ch",
+            }}
+          >
+            Quellengebundene Beobachtungen · Lage relativ zum
+            Quellreferenzintervall (keine Diagnose, keine Bewertung).
+          </p>
+        </div>
+        <div style={{ overflowX: "auto", marginTop: "10px" }}>
+          <div style={{ minWidth: "760px" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: EGRID,
+                alignItems: "center",
+                gap: "14px",
+                padding: "9px 22px",
+                borderTop: "1px solid var(--border-subtle)",
+                borderBottom: "1px solid var(--border-subtle)",
+                background: "var(--surface-sunken)",
+              }}
+            >
+              <span style={colLabel}>Marker</span>
+              <span style={colLabel}>Kategorie</span>
+              <span style={colLabel}>Wert</span>
+              <span style={colLabel}>Δ</span>
+              <span style={colLabel}>Lage z. Referenz</span>
+              <span style={colLabel}>Referenzlage</span>
+            </div>
+            {evidence.map((m, i) => (
+              <div
+                key={m.code + m.name + i}
+                className="vb-erow"
+                {...clickable(() => openObs(m), `Marker ${m.name} öffnen`)}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: EGRID,
+                  alignItems: "center",
+                  gap: "14px",
+                  padding: "13px 22px",
+                  borderBottom: "1px solid var(--border-subtle)",
+                  cursor: "pointer",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "13.5px",
+                    fontWeight: 600,
+                    color: "var(--text-strong)",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {m.name}
+                </span>
+                <span>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: "2px 9px",
+                      borderRadius: "999px",
+                      fontFamily: "var(--font-text)",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: "var(--text-muted)",
+                      background: "var(--surface-sunken)",
+                      border: "1px solid var(--border-subtle)",
+                    }}
+                  >
+                    {m.primaryDomainLabel ?? "—"}
+                  </span>
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "var(--text-strong)",
+                  }}
+                >
+                  {m.current}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "12px",
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  {m.change}
+                </span>
+                <span>
+                  <LagePill pos={m.lagePosition} />
+                </span>
+                <span>
+                  <ReferenceBar marker={m} />
+                </span>
+              </div>
+            ))}
+            {evidence.length === 0 && (
+              <div
+                style={{
+                  padding: "28px 22px",
+                  textAlign: "center",
+                  fontSize: "13px",
+                  color: "var(--text-muted)",
+                }}
+              >
+                Keine Beobachtungen in dieser Domäne.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Audit stepper (real, from report status) */}
       <div
         style={{
           ...cardStyle,
@@ -1046,7 +849,8 @@ export function PatientDetailContent({
             margin: "0 0 18px",
           }}
         >
-          Fortschritt von Datenerfassung bis Patientenfreigabe (Live-Status).
+          Fortschritt von Datenerfassung bis Patientenfreigabe (aus dem
+          Berichtsstatus abgeleitet).
         </p>
         <div
           style={{
@@ -1055,72 +859,108 @@ export function PatientDetailContent({
             minWidth: "560px",
           }}
         >
-          {AUDIT_STEPS.map((s) => (
-            <div
-              key={s.label}
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                textAlign: "center",
-              }}
-            >
+          {review.auditSteps.map((s, i, a) => {
+            const done = s.state === "done";
+            const active = s.state === "active";
+            const dotBg = done
+              ? "var(--vital-500)"
+              : active
+                ? "var(--amber-400)"
+                : "var(--surface-sunken)";
+            const dotFg = done || active ? "#fff" : "var(--text-faint)";
+            return (
               <div
-                style={{ display: "flex", alignItems: "center", width: "100%" }}
+                key={s.label}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
+                }}
               >
                 <div
                   style={{
-                    flex: 1,
-                    height: "2px",
-                    background: s.first ? "transparent" : "var(--teal-300)",
-                  }}
-                />
-                <div
-                  style={{
-                    width: "26px",
-                    height: "26px",
-                    flexShrink: 0,
-                    borderRadius: "999px",
-                    background: "var(--vital-500)",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
+                    width: "100%",
                   }}
                 >
-                  {check(14)}
+                  <div
+                    style={{
+                      flex: 1,
+                      height: "2px",
+                      background: i === 0 ? "transparent" : "var(--teal-300)",
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: "26px",
+                      height: "26px",
+                      flexShrink: 0,
+                      borderRadius: "999px",
+                      background: dotBg,
+                      color: dotFg,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {done ? (
+                      <svg
+                        aria-hidden="true"
+                        focusable="false"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#fff"
+                        strokeWidth="2.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    ) : (
+                      s.dot
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      flex: 1,
+                      height: "2px",
+                      background:
+                        i === a.length - 1 ? "transparent" : "var(--teal-300)",
+                    }}
+                  />
                 </div>
-                <div
-                  style={{
-                    flex: 1,
-                    height: "2px",
-                    background: s.last ? "transparent" : "var(--teal-300)",
-                  }}
-                />
+                <div style={{ marginTop: "9px" }}>
+                  <div
+                    style={{
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      color: "var(--text-strong)",
+                    }}
+                  >
+                    {s.label}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "10.5px",
+                      color: "var(--text-muted)",
+                      marginTop: "2px",
+                    }}
+                  >
+                    {s.sub}
+                  </div>
+                </div>
               </div>
-              <div style={{ marginTop: "9px" }}>
-                <div
-                  style={{
-                    fontSize: "12.5px",
-                    fontWeight: 600,
-                    color: "var(--text-strong)",
-                  }}
-                >
-                  {s.label}
-                </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "10.5px",
-                    color: "var(--text-muted)",
-                    marginTop: "2px",
-                  }}
-                >
-                  {s.sub}
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -1144,27 +984,30 @@ export function PatientDetailContent({
               color: "var(--text-strong)",
             }}
           >
-            Bericht v1 · Status: Freigegeben
+            {review.status === "none"
+              ? "Kein Berichtsentwurf"
+              : `Bericht v${review.versionNo} · Status: ${idBadge.text}`}
           </div>
           <div
             style={{
               fontSize: "12.5px",
               color: "var(--text-muted)",
               marginTop: "3px",
-              maxWidth: "78ch",
+              maxWidth: "82ch",
             }}
           >
-            Die Signatur ist noch nicht an den Freigabe-Lifecycle angebunden
-            (Gate G2); sie veröffentlicht keinen Bericht an die Patientin.
+            Freigabe & Signatur laufen über die autoritative Review-Ansicht
+            (rollen- und einwilligungsgebunden); hier werden sie nur angezeigt.
           </div>
         </div>
-        <div style={{ display: "flex", gap: "10px", flexShrink: 0 }}>
-          <button
-            type="button"
-            className="vb-btn-sec"
+        {view.reportLink && (
+          <a
+            href={view.reportLink}
+            className="vb-btn-next"
             style={{
               display: "inline-flex",
               alignItems: "center",
+              gap: "8px",
               height: "40px",
               padding: "0 16px",
               whiteSpace: "nowrap",
@@ -1176,50 +1019,30 @@ export function PatientDetailContent({
               fontSize: "13px",
               fontWeight: 600,
               cursor: "pointer",
+              textDecoration: "none",
             }}
           >
-            Zurückstellen
-          </button>
-          <button
-            type="button"
-            className="vb-btn-pri"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              height: "40px",
-              padding: "0 18px",
-              whiteSpace: "nowrap",
-              borderRadius: "var(--radius-sm)",
-              border: "1px solid var(--brand)",
-              background: "var(--brand)",
-              color: "var(--text-on-brand)",
-              fontFamily: "var(--font-text)",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: "pointer",
-              boxShadow: "0 1px 2px rgba(12,18,20,0.12)",
-            }}
-          >
+            Zur Review-Ansicht
             <svg
-              width="16"
-              height="16"
+              aria-hidden="true"
+              focusable="false"
+              width="15"
+              height="15"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="1.9"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <path d="M20 6L9 17l-5-5" />
+              <path d="M5 12h14M13 6l6 6-6 6" />
             </svg>
-            Review signieren
-          </button>
-        </div>
+          </a>
+        )}
       </div>
 
-      {/* Marker modal */}
-      {modal && (
+      {/* Marker modal — compliant (lab reference bar + positional Lage; no severity gauge) */}
+      {openMarker && (
         <div
           onClick={closeObs}
           style={{
@@ -1239,7 +1062,7 @@ export function PatientDetailContent({
             aria-labelledby="vb-marker-title"
             onClick={(e) => e.stopPropagation()}
             style={{
-              width: "620px",
+              width: "560px",
               maxWidth: "100%",
               maxHeight: "90vh",
               overflowY: "auto",
@@ -1270,7 +1093,8 @@ export function PatientDetailContent({
                     marginBottom: "6px",
                   }}
                 >
-                  Marker-Detail · {modal.cat}
+                  Marker-Detail ·{" "}
+                  {openMarker.primaryDomainLabel ?? openMarker.code}
                 </div>
                 <h3
                   id="vb-marker-title"
@@ -1283,7 +1107,7 @@ export function PatientDetailContent({
                     letterSpacing: "-0.02em",
                   }}
                 >
-                  {modal.name}
+                  {openMarker.name}
                 </h3>
               </div>
               <button
@@ -1307,6 +1131,8 @@ export function PatientDetailContent({
                 }}
               >
                 <svg
+                  aria-hidden="true"
+                  focusable="false"
                   width="16"
                   height="16"
                   viewBox="0 0 24 24"
@@ -1324,416 +1150,132 @@ export function PatientDetailContent({
               <div
                 style={{
                   display: "flex",
-                  gap: "24px",
                   alignItems: "center",
+                  gap: "12px",
                   flexWrap: "wrap",
+                  marginBottom: "16px",
                 }}
               >
-                <div
-                  style={{ flexShrink: 0, width: "182px", textAlign: "center" }}
-                >
-                  <svg
-                    viewBox="0 0 168 104"
-                    style={{ display: "block", width: "100%", height: "auto" }}
-                  >
-                    <path
-                      d={modal.gaugeTrack}
-                      fill="none"
-                      stroke="var(--surface-sunken)"
-                      strokeWidth="13"
-                      strokeLinecap="round"
-                    />
-                    {modal.zones.map((z, i) => (
-                      <path
-                        key={i}
-                        d={z.d}
-                        fill="none"
-                        stroke={z.c}
-                        strokeWidth="13"
-                      />
-                    ))}
-                    <line
-                      x1="84"
-                      y1="90"
-                      x2={modal.needleX}
-                      y2={modal.needleY}
-                      stroke="var(--text-strong)"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                    />
-                    <circle cx="84" cy="90" r="5.5" fill="var(--text-strong)" />
-                  </svg>
-                  <div style={{ marginTop: "2px", lineHeight: 1 }}>
-                    <span
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontWeight: 800,
-                        fontSize: "24px",
-                        color: "var(--text-strong)",
-                        letterSpacing: "-0.02em",
-                      }}
-                    >
-                      {modal.ringVal}
-                    </span>
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "11px",
-                        color: "var(--text-muted)",
-                        marginLeft: "4px",
-                      }}
-                    >
-                      {modal.ringUnit}
-                    </span>
-                  </div>
-                </div>
-                <div style={{ flex: 1, minWidth: "190px" }}>
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "4px 12px",
-                      borderRadius: "999px",
-                      fontFamily: "var(--font-text)",
-                      fontSize: "12.5px",
-                      fontWeight: 600,
-                      color: modal.statTxt,
-                      background:
-                        "color-mix(in oklch, " +
-                        modal.accent +
-                        " 17%, var(--surface-card))",
-                      border:
-                        "1px solid color-mix(in oklch, " +
-                        modal.accent +
-                        " 30%, transparent)",
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: "7px",
-                        height: "7px",
-                        borderRadius: "999px",
-                        flexShrink: 0,
-                        background: modal.accent,
-                      }}
-                    />
-                    {modal.statLabel}
-                  </span>
-                  <div
-                    style={{
-                      marginTop: "13px",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "7px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: "12px",
-                        fontSize: "12.5px",
-                      }}
-                    >
-                      <span style={{ color: "var(--text-muted)" }}>
-                        Aktueller Wert
-                      </span>
-                      <span
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          fontWeight: 600,
-                          color: "var(--text-strong)",
-                        }}
-                      >
-                        {modal.value}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: "12px",
-                        fontSize: "12.5px",
-                      }}
-                    >
-                      <span style={{ color: "var(--text-muted)" }}>
-                        Referenz
-                      </span>
-                      <span
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          color: "var(--text-body)",
-                        }}
-                      >
-                        {modal.ref}
-                      </span>
-                    </div>
-                  </div>
-                  <p
-                    style={{
-                      margin: "12px 0 0",
-                      fontSize: "12.5px",
-                      lineHeight: 1.5,
-                      color: "var(--text-muted)",
-                    }}
-                  >
-                    {modal.summaryTxt}
-                  </p>
-                </div>
-              </div>
-              <div style={{ marginTop: "22px" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "10px",
-                    flexWrap: "wrap",
-                    marginBottom: "10px",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "10px",
-                      letterSpacing: "0.12em",
-                      textTransform: "uppercase",
-                      color: "var(--text-faint)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    Verlauf
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "3px",
-                      background: "var(--surface-sunken)",
-                      borderRadius: "999px",
-                      padding: "3px",
-                    }}
-                  >
-                    {HIST_TABS.map(([key, label]) => {
-                      const active = histRange === key;
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => setHistRange(key)}
-                          className="vb-tab-text"
-                          style={{
-                            border: "none",
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                            borderRadius: "999px",
-                            padding: "5px 11px",
-                            fontFamily: "var(--font-text)",
-                            fontSize: "11.5px",
-                            fontWeight: 600,
-                            background: active
-                              ? "var(--surface-card)"
-                              : "transparent",
-                            color: active
-                              ? "var(--text-strong)"
-                              : "var(--text-muted)",
-                            boxShadow: active ? "var(--shadow-xs)" : "none",
-                          }}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <svg
-                  viewBox="0 0 520 150"
-                  style={{ display: "block", width: "100%", height: "auto" }}
-                >
-                  {modal.hasRefLine && (
-                    <line
-                      x1="12"
-                      y1={modal.refY}
-                      x2="508"
-                      y2={modal.refY}
-                      stroke="var(--text-faint)"
-                      strokeWidth="1"
-                      strokeDasharray="4 4"
-                    />
-                  )}
-                  <path
-                    d={modal.chartArea}
-                    fill={modal.accent}
-                    fillOpacity="0.12"
-                  />
-                  <path
-                    d={modal.chartLine}
-                    fill="none"
-                    stroke={modal.accent}
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  {modal.dots.map((d, i) => (
-                    <circle
-                      key={i}
-                      cx={d.cx}
-                      cy={d.cy}
-                      r={d.r}
-                      fill={d.fill}
-                      stroke={d.stroke}
-                      strokeWidth="2"
-                    />
-                  ))}
-                </svg>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginTop: "3px",
-                    padding: "0 6px",
-                  }}
-                >
-                  {modal.dateLabels.map((dl, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "9.5px",
-                        color: "var(--text-faint)",
-                      }}
-                    >
-                      {dl}
-                    </span>
-                  ))}
-                </div>
-                <div
+                <span
                   style={{
                     fontFamily: "var(--font-mono)",
-                    fontSize: "10px",
-                    color: "var(--text-faint)",
-                    marginTop: "8px",
-                  }}
-                >
-                  {modal.refCaption}
-                </div>
-              </div>
-              <div style={{ marginTop: "22px" }}>
-                <div
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "10px",
-                    letterSpacing: "0.12em",
-                    textTransform: "uppercase",
-                    color: "var(--text-faint)",
+                    fontSize: "22px",
                     fontWeight: 600,
-                    marginBottom: "6px",
+                    color: "var(--text-strong)",
                   }}
                 >
-                  Frühere Tests
+                  {openMarker.current}
+                </span>
+                <LagePill pos={openMarker.lagePosition} />
+              </div>
+              <div style={{ marginBottom: "16px" }}>
+                <ReferenceBar marker={openMarker} />
+              </div>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "7px" }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    fontSize: "12.5px",
+                  }}
+                >
+                  <span style={{ color: "var(--text-muted)" }}>Referenz</span>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--text-body)",
+                    }}
+                  >
+                    {openMarker.reference}
+                  </span>
                 </div>
                 <div
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 90px 78px 18px",
-                    gap: "14px",
-                    padding: "0 4px 8px",
-                    borderBottom: "1px solid var(--border-subtle)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    fontSize: "12.5px",
                   }}
                 >
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "9.5px",
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      color: "var(--text-faint)",
-                    }}
-                  >
-                    Datum
+                  <span style={{ color: "var(--text-muted)" }}>
+                    Veränderung
                   </span>
                   <span
                     style={{
                       fontFamily: "var(--font-mono)",
-                      fontSize: "9.5px",
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      color: "var(--text-faint)",
-                      textAlign: "right",
+                      color: "var(--text-body)",
                     }}
                   >
-                    Wert
+                    {openMarker.change}
                   </span>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "9.5px",
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      color: "var(--text-faint)",
-                      textAlign: "right",
-                    }}
-                  >
-                    Δ
-                  </span>
-                  <span />
                 </div>
-                {modal.rows.map((r, i) => (
-                  <div
-                    key={i}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    fontSize: "12.5px",
+                  }}
+                >
+                  <span style={{ color: "var(--text-muted)" }}>
+                    Quelle / Code
+                  </span>
+                  <span
                     style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 90px 78px 18px",
-                      alignItems: "center",
-                      gap: "14px",
-                      padding: "9px 4px",
-                      borderBottom: "1px solid var(--border-subtle)",
-                      background: r.highlight
-                        ? "color-mix(in oklch, " +
-                          modal.accent +
-                          " 9%, var(--surface-card))"
-                        : "transparent",
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--text-body)",
                     }}
                   >
-                    <span
-                      style={{ fontSize: "12.5px", color: "var(--text-body)" }}
-                    >
-                      {r.date}
-                    </span>
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "12.5px",
-                        fontWeight: 600,
-                        color: "var(--text-strong)",
-                        textAlign: "right",
-                      }}
-                    >
-                      {r.val}
-                    </span>
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "11.5px",
-                        color: "var(--text-muted)",
-                        textAlign: "right",
-                      }}
-                    >
-                      {r.delta}
-                    </span>
-                    <span
-                      style={{
-                        display: "block",
-                        width: "7px",
-                        height: "7px",
-                        borderRadius: "999px",
-                        margin: "0 auto",
-                        background: r.dotColor,
-                      }}
-                    />
-                  </div>
-                ))}
+                    {openMarker.code}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    fontSize: "12.5px",
+                  }}
+                >
+                  <span style={{ color: "var(--text-muted)" }}>
+                    Review-Status
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--text-body)",
+                    }}
+                  >
+                    {openMarker.status}
+                  </span>
+                </div>
               </div>
+              {openMarker.comparabilityFull && (
+                <p
+                  style={{
+                    margin: "14px 0 0",
+                    fontSize: "12px",
+                    lineHeight: 1.5,
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  {openMarker.comparabilityFull}
+                </p>
+              )}
+              <p
+                style={{
+                  margin: "14px 0 0",
+                  fontSize: "11.5px",
+                  lineHeight: 1.5,
+                  color: "var(--text-faint)",
+                }}
+              >
+                Lage relativ zum Quellreferenzintervall — keine Diagnose, keine
+                Bewertung. {lageLabel(openMarker.lagePosition).sentence}.
+              </p>
             </div>
           </div>
         </div>

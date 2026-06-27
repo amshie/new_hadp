@@ -260,17 +260,6 @@ export function VitaShell({
               </>,
             )}
             label="Patienten"
-            trailing={
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "10px",
-                  color: "var(--slate-400)",
-                }}
-              >
-                148
-              </span>
-            }
           />
           <NavItem
             implemented={false}
@@ -282,23 +271,6 @@ export function VitaShell({
               </>,
             )}
             label="Importe"
-            trailing={
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "10px",
-                  fontWeight: 600,
-                  minWidth: "18px",
-                  textAlign: "center",
-                  padding: "2px 6px",
-                  borderRadius: "999px",
-                  background: "var(--vital-400)",
-                  color: "var(--slate-900)",
-                }}
-              >
-                2
-              </span>
-            }
           />
           <NavItem
             implemented={false}
