@@ -235,11 +235,24 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
   const lastFocusedRef = useRef<HTMLElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
+  // Sign/Freigabe workflow (inline; Gate G2 boundary preserved — see the dialog copy).
+  const [signOpen, setSignOpen] = useState(false);
+  const [signChecked, setSignChecked] = useState(false);
+  const [signed, setSigned] = useState(false);
+  const signTriggerRef = useRef<HTMLElement | null>(null);
+  const signCloseRef = useRef<HTMLButtonElement>(null);
+
   const openObs = (m: MarkerView) => {
     lastFocusedRef.current = document.activeElement as HTMLElement | null;
     setOpenMarker(m);
   };
   const closeObs = () => setOpenMarker(null);
+  const openSign = () => {
+    signTriggerRef.current = document.activeElement as HTMLElement | null;
+    setSignChecked(false);
+    setSignOpen(true);
+  };
+  const closeSign = () => setSignOpen(false);
 
   useEffect(() => {
     if (!openMarker) return;
@@ -253,6 +266,19 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
       lastFocusedRef.current?.focus?.();
     };
   }, [openMarker]);
+
+  useEffect(() => {
+    if (!signOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeSign();
+    };
+    document.addEventListener("keydown", onKey);
+    signCloseRef.current?.focus();
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      signTriggerRef.current?.focus?.();
+    };
+  }, [signOpen]);
 
   const curDomain = domains.find((d) => d.domainAxis === domainAxis) ?? null;
   const evidence = useMemo(() => {
@@ -980,19 +1006,9 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
         )}
       </div>
 
-      {/* report bar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "20px",
-          flexWrap: "wrap",
-          ...cardStyle,
-          padding: "18px 22px",
-        }}
-      >
-        <div style={{ flex: 1, minWidth: "280px" }}>
+      {/* Source-grounded draft + inline Freigabe workflow (Gate G2 boundary preserved) */}
+      {review.status === "none" ? (
+        <div style={{ ...cardStyle, padding: "18px 22px" }}>
           <div
             style={{
               fontSize: "14px",
@@ -1000,62 +1016,317 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
               color: "var(--text-strong)",
             }}
           >
-            {review.status === "none"
-              ? "Kein Berichtsentwurf"
-              : `Bericht v${review.versionNo} · Status: ${idBadge.text}`}
+            Kein Berichtsentwurf
           </div>
           <div
             style={{
               fontSize: "12.5px",
               color: "var(--text-muted)",
               marginTop: "3px",
-              maxWidth: "82ch",
             }}
           >
-            Freigabe & Signatur laufen über die autoritative Review-Ansicht
-            (rollen- und einwilligungsgebunden); hier werden sie nur angezeigt.
+            Für diese Patientin liegt noch kein quellengebundener Entwurf vor.
           </div>
         </div>
-        {view.reportLink && (
-          <a
-            href={view.reportLink}
-            className="vb-btn-next"
+      ) : (
+        <>
+          {(review.status === "draft_generated" ||
+            review.status === "draft_edited") && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                background: "rgba(201,136,28,0.08)",
+                border: "1px solid rgba(201,136,28,0.25)",
+                borderRadius: "var(--radius-lg)",
+                padding: "12px 18px",
+                marginBottom: "16px",
+              }}
+            >
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--amber-500)"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span style={{ fontSize: "13px", color: "var(--text-body)" }}>
+                <strong style={{ color: "var(--text-strong)" }}>
+                  Systementwurf – nicht freigegeben.
+                </strong>{" "}
+                Aussagen müssen anhand der Quellen geprüft und vom klinischen
+                Team signiert werden.
+              </span>
+            </div>
+          )}
+
+          <div
+            style={{ ...cardStyle, marginBottom: "16px", overflow: "hidden" }}
+          >
+            <div
+              style={{
+                padding: "18px 22px 6px",
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 800,
+                    fontSize: "var(--text-xl)",
+                    color: "var(--text-strong)",
+                    margin: "0 0 3px",
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  Quellengebundener Entwurf
+                </h3>
+                <p
+                  style={{
+                    fontSize: "12.5px",
+                    color: "var(--text-muted)",
+                    margin: 0,
+                  }}
+                >
+                  Jede Aussage bleibt auf die zugrunde liegenden Beobachtungen
+                  zurückführbar.
+                </p>
+              </div>
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "10px",
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: idBadge.fg,
+                  background: idBadge.bg,
+                  border: "1px solid " + idBadge.bd,
+                  padding: "4px 9px",
+                  borderRadius: "999px",
+                  fontWeight: 600,
+                }}
+              >
+                {idBadge.text}
+              </span>
+            </div>
+            <div
+              style={{
+                padding: "10px 22px 18px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+              }}
+            >
+              {review.statements.length === 0 && (
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: "var(--text-muted)",
+                    margin: 0,
+                  }}
+                >
+                  Für diesen Bericht liegen keine Aussagen vor.
+                </p>
+              )}
+              {review.statements.map((s) => (
+                <div
+                  key={s.id}
+                  style={{
+                    border: "1px solid var(--border-subtle)",
+                    borderRadius: "var(--radius-md)",
+                    padding: "14px 16px",
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: "0 0 10px",
+                      fontSize: "13.5px",
+                      lineHeight: 1.55,
+                      color: "var(--text-body)",
+                    }}
+                  >
+                    {s.text}
+                  </p>
+                  <div
+                    style={{ display: "flex", flexWrap: "wrap", gap: "7px" }}
+                  >
+                    {s.evidence.map((e, i) => (
+                      <span
+                        key={i}
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "11px",
+                          padding: "3px 9px",
+                          borderRadius: "999px",
+                          border:
+                            "1px solid " +
+                            (e.missing
+                              ? "var(--rose-400)"
+                              : "var(--border-subtle)"),
+                          color: e.missing
+                            ? "var(--rose-500)"
+                            : "var(--text-muted)",
+                          background: e.missing
+                            ? "rgba(194,74,74,0.08)"
+                            : "var(--surface-sunken)",
+                        }}
+                      >
+                        {e.label}
+                        {e.status && e.status !== "published"
+                          ? ` · ${e.status}`
+                          : ""}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* action bar — sign workflow (Gate G2 honest) */}
+          <div
             style={{
-              display: "inline-flex",
+              display: "flex",
               alignItems: "center",
-              gap: "8px",
-              height: "40px",
-              padding: "0 16px",
-              whiteSpace: "nowrap",
-              borderRadius: "var(--radius-sm)",
-              border: "1px solid var(--border-default)",
-              background: "var(--surface-card)",
-              color: "var(--text-strong)",
-              fontFamily: "var(--font-text)",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: "pointer",
-              textDecoration: "none",
+              justifyContent: "space-between",
+              gap: "20px",
+              flexWrap: "wrap",
+              ...cardStyle,
+              padding: "18px 22px",
             }}
           >
-            Zur Review-Ansicht
-            <svg
-              aria-hidden="true"
-              focusable="false"
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.9"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </a>
-        )}
-      </div>
+            <div style={{ flex: 1, minWidth: "280px" }}>
+              <div
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: "var(--text-strong)",
+                }}
+              >
+                Bericht v{review.versionNo} · Status: {idBadge.text}
+              </div>
+              <div
+                style={{
+                  fontSize: "12.5px",
+                  color: "var(--text-muted)",
+                  marginTop: "3px",
+                  maxWidth: "82ch",
+                }}
+              >
+                {signed
+                  ? "Signatur erfasst (Demo). Die Anbindung an den Freigabe-Lifecycle (Genehmigung/Freigabe an die Patientin) folgt nach Gate G2."
+                  : "Die Signatur ist noch nicht an den Freigabe-Lifecycle angebunden (Gate G2); sie veröffentlicht keinen Bericht an die Patientin."}
+                {view.reportLink && (
+                  <>
+                    {" · "}
+                    <a
+                      href={view.reportLink}
+                      className="vb-crumblink"
+                      style={{
+                        color: "var(--brand)",
+                        textDecoration: "none",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Vollständige Review-Ansicht (CIS · Actionability ·
+                      Tri-State)
+                    </a>
+                  </>
+                )}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "10px", flexShrink: 0 }}>
+              {signed ? (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    height: "40px",
+                    padding: "0 16px",
+                    borderRadius: "var(--radius-sm)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "var(--vital-500)",
+                    background: "rgba(20,169,130,0.12)",
+                    border: "1px solid rgba(20,169,130,0.30)",
+                  }}
+                >
+                  <svg
+                    aria-hidden="true"
+                    focusable="false"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Signiert (Demo)
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openSign}
+                  className="vb-btn-pri"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    height: "40px",
+                    padding: "0 18px",
+                    whiteSpace: "nowrap",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--brand)",
+                    background: "var(--brand)",
+                    color: "var(--text-on-brand)",
+                    fontFamily: "var(--font-text)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    boxShadow: "0 1px 2px rgba(12,18,20,0.12)",
+                  }}
+                >
+                  <svg
+                    aria-hidden="true"
+                    focusable="false"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Review signieren
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Marker modal — compliant (lab reference bar + positional Lage; no severity gauge) */}
       {openMarker && (
@@ -1293,6 +1564,189 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
                 Diagnose oder Therapieempfehlung.{" "}
                 {lageLabel(openMarker.lagePosition).sentence}.
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sign dialog — Gate-G2 honest (no server-side approve/release; that's the separate G2 step) */}
+      {signOpen && (
+        <div
+          onClick={closeSign}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 60,
+            background: "rgba(12,18,20,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="vb-sign-title"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "520px",
+              maxWidth: "100%",
+              background: "var(--surface-card)",
+              border: "1px solid var(--border-subtle)",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-xl)",
+              padding: "22px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: "16px",
+              }}
+            >
+              <h3
+                id="vb-sign-title"
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 800,
+                  fontSize: "var(--text-xl)",
+                  color: "var(--text-strong)",
+                  margin: 0,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Klinischen Review signieren?
+              </h3>
+              <button
+                type="button"
+                ref={signCloseRef}
+                onClick={closeSign}
+                aria-label="Schließen"
+                className="vb-closebtn"
+                style={{
+                  width: "34px",
+                  height: "34px",
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "8px",
+                  border: "1px solid var(--border-subtle)",
+                  background: "var(--surface-card)",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                }}
+              >
+                <svg
+                  aria-hidden="true"
+                  focusable="false"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p
+              style={{
+                margin: "10px 0 0",
+                fontSize: "12.5px",
+                lineHeight: 1.5,
+                color: "var(--text-muted)",
+              }}
+            >
+              Sie bestätigen, dass Sie die sichtbaren Beobachtungen,
+              Referenzintervalle und Quellen geprüft haben. Hinweis: Die
+              Anbindung an den Freigabe-Lifecycle ist noch nicht freigegeben
+              (Gate G2) — die Signatur wird derzeit nicht serverseitig
+              geschrieben.
+            </p>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "10px",
+                marginTop: "16px",
+                fontSize: "13px",
+                color: "var(--text-body)",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={signChecked}
+                onChange={(e) => setSignChecked(e.target.checked)}
+                style={{ marginTop: "2px" }}
+              />
+              <span>
+                Ich habe die offenen Hinweise geprüft und bestätige die
+                klinische Dokumentation.
+              </span>
+            </label>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "10px",
+                marginTop: "20px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={closeSign}
+                className="vb-btn-sec"
+                style={{
+                  height: "38px",
+                  padding: "0 15px",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border-default)",
+                  background: "var(--surface-card)",
+                  color: "var(--text-strong)",
+                  fontFamily: "var(--font-text)",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                disabled={!signChecked}
+                onClick={() => {
+                  setSigned(true);
+                  setSignOpen(false);
+                }}
+                className="vb-btn-pri"
+                style={{
+                  height: "38px",
+                  padding: "0 16px",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--brand)",
+                  background: signChecked
+                    ? "var(--brand)"
+                    : "var(--surface-sunken)",
+                  color: signChecked
+                    ? "var(--text-on-brand)"
+                    : "var(--text-faint)",
+                  fontFamily: "var(--font-text)",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: signChecked ? "pointer" : "not-allowed",
+                  opacity: signChecked ? 1 : 0.7,
+                }}
+              >
+                Signieren und weiterleiten
+              </button>
             </div>
           </div>
         </div>
