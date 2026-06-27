@@ -4,7 +4,7 @@
 // codes/raw fields/timestamps. Everything here is a deterministic count/format over real
 // data — no score, no risk, no quality engine (those have no backend; see ADR-0006).
 
-import type { Patient, WorklistRow } from "@/lib/api";
+import type { Coverage, Patient, WorklistRow } from "@/lib/api";
 
 export interface BadgeMeta {
   label: string;
@@ -112,6 +112,7 @@ export interface OverviewView {
     patients: number;
   };
   rows: WorkRowView[];
+  statusSnapshot: StatusSnapshotView;
 }
 
 export function presentOverview(
@@ -145,6 +146,98 @@ export function presentOverview(
       patients: patients.length,
     },
     rows: work,
+    statusSnapshot: presentStatusSnapshot(rows),
+  };
+}
+
+// --- Berichtsstatus snapshot (real, from the worklist we already load) -----------------------
+// A current-bestand distribution of the latest report status across the tenant's patients. This
+// is a SNAPSHOT (Momentaufnahme), deliberately NOT a throughput time series — a true rate over
+// time needs report_versions timestamps (a deferred backend slice). Honest label, real counts.
+
+export interface StatusBucket {
+  key: string;
+  label: string;
+  count: number;
+  share: number; // 0..1 of all rows; 0 when there are no rows
+  color: string;
+}
+
+export interface StatusSnapshotView {
+  total: number;
+  buckets: StatusBucket[];
+}
+
+export function presentStatusSnapshot(rows: WorklistRow[]): StatusSnapshotView {
+  const total = rows.length;
+  const count = (pred: (r: WorklistRow) => boolean) => rows.filter(pred).length;
+  const raw: { key: string; label: string; count: number; color: string }[] = [
+    {
+      key: "offen",
+      label: "In Prüfung",
+      count: count((r) => DRAFT(r.report_status)),
+      color: "var(--amber-500)",
+    },
+    {
+      key: "genehmigt",
+      label: "Genehmigt",
+      count: count((r) => r.report_status === "approved"),
+      color: "var(--brand)",
+    },
+    {
+      key: "freigegeben",
+      label: "Freigegeben",
+      count: count((r) => r.report_status === "released"),
+      color: "var(--vital-500)",
+    },
+    {
+      key: "abgelehnt",
+      label: "Abgelehnt",
+      count: count((r) => r.report_status === "rejected"),
+      color: "var(--rose-500)",
+    },
+    {
+      key: "kein",
+      label: "Kein Entwurf",
+      count: count((r) => r.report_id == null),
+      color: "var(--text-faint)",
+    },
+  ];
+  return {
+    total,
+    buckets: raw.map((b) => ({
+      ...b,
+      share: total > 0 ? b.count / total : 0,
+    })),
+  };
+}
+
+// --- Datenlage / coverage (real, tenant-wide observation counts; ADR-0006) -------------------
+// Deterministic counts + freshness over real observations. NOT a clinical data-quality score
+// (no quality model exists — Gate G1). publishedPct/referencePct are coverage ratios, never a
+// merged "quality %".
+
+export interface CoverageView {
+  total: number;
+  published: number;
+  withReference: number;
+  publishedPct: number; // 0..100, rounded
+  referencePct: number; // 0..100, rounded
+  latestAgeLabel: string;
+}
+
+export function presentCoverage(c: Coverage): CoverageView {
+  const pct = (n: number) =>
+    c.total > 0 ? Math.round((n * 100) / c.total) : 0;
+  return {
+    total: c.total,
+    published: c.published,
+    withReference: c.with_reference,
+    publishedPct: pct(c.published),
+    referencePct: pct(c.with_reference),
+    latestAgeLabel: c.latest_observed_at
+      ? relativeTime(c.latest_observed_at)
+      : "—",
   };
 }
 

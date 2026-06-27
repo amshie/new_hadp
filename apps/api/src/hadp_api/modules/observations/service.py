@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from hadp_api.modules.enums import ComparabilityState, KpiComparisonPolicy, ReviewStatus
@@ -47,6 +47,45 @@ class TimelinePoint:
     # set). None for the first point of a series (nothing to compare). Verdict-free.
     comparability: str | None
     comparability_reason: str | None
+
+
+@dataclass
+class CoverageSummary:
+    """Tenant-wide observation COVERAGE — deterministic counts + freshness over real observations.
+
+    Explicitly NOT a clinical data-quality score: there is no tenant-wide quality/rules model
+    (Gate G1, see worklist_routes + ADR-0006). These are plain counts (how many observations are
+    published / carry a source reference interval) and the newest observation timestamp. The UI
+    renders them as coverage, never as a merged quality %.
+    """
+
+    total: int
+    published: int
+    with_reference: int
+    latest_observed_at: datetime | None
+
+
+def coverage_summary(db: Session, tenant_id: uuid.UUID) -> CoverageSummary:
+    """Aggregate observation coverage for one tenant in a single query (tenant-scoped; RLS is
+    defense-in-depth on top of the explicit tenant filter, matching the worklist aggregate)."""
+    row = db.execute(
+        select(
+            func.count().label("total"),
+            func.count()
+            .filter(Observation.review_status == ReviewStatus.PUBLISHED)
+            .label("published"),
+            func.count()
+            .filter(or_(Observation.reference_low.is_not(None), Observation.reference_high.is_not(None)))
+            .label("with_reference"),
+            func.max(Observation.observed_at).label("latest_observed_at"),
+        ).where(Observation.tenant_id == tenant_id)
+    ).one()
+    return CoverageSummary(
+        total=row.total or 0,
+        published=row.published or 0,
+        with_reference=row.with_reference or 0,
+        latest_observed_at=row.latest_observed_at,
+    )
 
 
 def list_observations(db: Session, patient_id: uuid.UUID) -> list[Observation]:

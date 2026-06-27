@@ -84,3 +84,29 @@ the real `/api/v1` surface provides.
 - **Follow-ups (each its own register-gated slice):** the three deferred read endpoints
   (throughput / audit-feed / imports), a copy-language re-point covering the new German strings
   (ADR-0003 consequence), and web route-smoke tests (the repo has none today).
+
+## Addendum (2026-06-27) — two Übersicht panels made real
+
+Two of the four gated Übersicht panels are now backed by **real, tenant-scoped data**; the other
+two (activity feed, imports) stay gated.
+
+- **Datenlage (was the gated "Datenqualität" gauge)** → a new tenant-scoped read endpoint
+  `GET /api/v1/worklist/coverage` (`CoverageOut`: `total`, `published`, `with_reference`,
+  `latest_observed_at`) aggregates **observation coverage** in one query under `OBSERVATION_READ`,
+  audited (`worklist.coverage.read`), tenant-filtered with RLS as defense-in-depth. The tile shows
+  the **published share** + reference-interval coverage + freshness. These are **plain counts /
+  ratios over real observations — explicitly NOT a clinical data-quality score.** The quality/rules
+  model the comp's "94 %" gauge implied still does **not** exist (**Gate G1 remains open**); the UI
+  caption says "keine Qualitätsbewertung". This is the same data-completeness idea already shown
+  per-patient on the Detail screen, now aggregated tenant-wide.
+- **Berichtsstatus (was the gated "Review-Durchsatz" chart)** → a **real status snapshot**
+  (Momentaufnahme) of the latest report status across the worklist we already load — no new data.
+  It is deliberately **not** a throughput time series; a true rate-over-time still needs a
+  `report_versions`-by-status endpoint and **remains deferred**. The heading + subtitle say
+  "Momentaufnahme", not "Durchsatz", to avoid implying a rate we do not have.
+- **Unchanged:** synthetic-seed-only; no schema/migration; the activity-feed and imports panels
+  stay honestly gated (their read endpoints are still deferred slices); A–E grade stays deleted;
+  Risiko + normal/abnormal verdicts remain gated/substituted (beyond founder authority to ship real).
+- **Tests:** `apps/api/tests/test_coverage.py` pins the counts and proves cross-tenant isolation
+  (a fresh tenant sees all-zero coverage). OpenAPI re-exported + client regenerated (contract, not
+  a hand-typed shape).

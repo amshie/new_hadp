@@ -10,6 +10,7 @@ export type TenantMembership = Schemas["TenantMembershipOut"];
 export type LoginResponse = Schemas["LoginResponse"];
 export type ReleaseOut = Schemas["ReleaseOut"];
 export type WorklistRow = Schemas["WorklistRowOut"];
+export type Coverage = Schemas["CoverageOut"];
 
 // The report view endpoints return an open dict (no response_model); typed locally.
 export interface ReportEvidenceItem {
@@ -180,6 +181,8 @@ export const worklist = (params?: { status?: string; q?: string }) => {
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   return request<WorklistRow[]>(`/api/v1/worklist${suffix}`);
 };
+
+export const coverage = () => request<Coverage>("/api/v1/worklist/coverage");
 
 export const timeline = (patientId: string) =>
   request<TimelinePoint[]>(`/api/v1/patients/${patientId}/observations`);

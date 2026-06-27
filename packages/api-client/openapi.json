@@ -345,6 +345,27 @@
         }
       }
     },
+    "/api/v1/worklist/coverage": {
+      "get": {
+        "tags": [
+          "worklist"
+        ],
+        "summary": "Get Coverage",
+        "operationId": "get_coverage_api_v1_worklist_coverage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverageOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/patients/{patient_id}/documents": {
       "post": {
         "tags": [
@@ -844,6 +865,43 @@
           "file"
         ],
         "title": "Body_upload_document_api_v1_patients__patient_id__documents_post"
+      },
+      "CoverageOut": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "published": {
+            "type": "integer",
+            "title": "Published"
+          },
+          "with_reference": {
+            "type": "integer",
+            "title": "With Reference"
+          },
+          "latest_observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Observed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "published",
+          "with_reference",
+          "latest_observed_at"
+        ],
+        "title": "CoverageOut",
+        "description": "Tenant-wide observation coverage counts for the dashboard \"Datenlage\" tile (ADR-0006).\n\nPlain counts + freshness over real observations \u2014 NOT a clinical data-quality score. The\nquality/rules model that the comp's \"94 %\" gauge implied does not exist (Gate G1); these are\nthe honest coverage figures the UI renders instead of a fabricated percentage."
       },
       "CreatePatientRequest": {
         "properties": {

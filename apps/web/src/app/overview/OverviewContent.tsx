@@ -4,7 +4,12 @@ import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { clickable } from "@/components/vitabahn/interactive";
-import type { OverviewView, WorkRowView } from "@/lib/presenters/dashboard";
+import type {
+  CoverageView,
+  OverviewView,
+  StatusSnapshotView,
+  WorkRowView,
+} from "@/lib/presenters/dashboard";
 
 // VitaBahn Übersicht (ADR-0006, real-data path). Consumes the governed OverviewView (real,
 // deterministic counts + work-list over the API). The comp's data-quality gauge, review-throughput
@@ -103,6 +108,248 @@ function GatedPanel({ title, reason }: { title: string; reason: string }) {
   );
 }
 
+// Real status snapshot (current bestand by latest report status). A momentaufnahme, NOT a
+// throughput time series — the heading says so. Bars are share-of-total over real worklist rows.
+function StatusSnapshotTile({ snapshot }: { snapshot: StatusSnapshotView }) {
+  return (
+    <div style={{ ...cardStyle, padding: "20px 22px" }}>
+      <h3 style={sectionTitle}>Berichtsstatus</h3>
+      <p
+        style={{
+          fontSize: "12.5px",
+          color: "var(--text-muted)",
+          margin: "0 0 16px",
+        }}
+      >
+        Aktueller Bestand · Momentaufnahme · {snapshot.total}{" "}
+        {snapshot.total === 1 ? "Patient" : "Patienten"}
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        {snapshot.buckets.map((b) => (
+          <div key={b.key}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+                marginBottom: "5px",
+              }}
+            >
+              <span style={{ fontSize: "12.5px", color: "var(--text-body)" }}>
+                {b.label}
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "var(--text-strong)",
+                }}
+              >
+                {b.count}
+              </span>
+            </div>
+            <div
+              style={{
+                height: "7px",
+                borderRadius: "999px",
+                background: "var(--surface-sunken)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${Math.round(b.share * 100)}%`,
+                  background: b.color,
+                  borderRadius: "999px",
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Real tenant-wide observation coverage (ADR-0006). Counts/freshness, explicitly NOT a quality
+// score — the caption says so. The donut shows the PUBLISHED share (a workflow state), never a
+// merged "quality %".
+function CoverageBar({
+  label,
+  pct,
+  detail,
+  color,
+}: {
+  label: string;
+  pct: number;
+  detail: string;
+  color: string;
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          marginBottom: "5px",
+        }}
+      >
+        <span style={{ fontSize: "12.5px", color: "var(--text-body)" }}>
+          {label}
+        </span>
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "12px",
+            fontWeight: 600,
+            color: "var(--text-strong)",
+          }}
+        >
+          {detail}
+        </span>
+      </div>
+      <div
+        style={{
+          height: "7px",
+          borderRadius: "999px",
+          background: "var(--surface-sunken)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            height: "100%",
+            width: `${pct}%`,
+            background: color,
+            borderRadius: "999px",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function CoverageTile({ coverage }: { coverage: CoverageView }) {
+  return (
+    <div style={{ ...cardStyle, padding: "20px 22px" }}>
+      <h3 style={sectionTitle}>Datenlage</h3>
+      <p
+        style={{
+          fontSize: "12.5px",
+          color: "var(--text-muted)",
+          margin: "0 0 16px",
+        }}
+      >
+        Abdeckung über {coverage.total} reale{" "}
+        {coverage.total === 1 ? "Beobachtung" : "Beobachtungen"} · keine
+        Qualitätsbewertung
+      </p>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "18px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div
+          style={{
+            width: "118px",
+            height: "118px",
+            borderRadius: "50%",
+            flexShrink: 0,
+            background: `conic-gradient(var(--vital-500) ${coverage.publishedPct}%, var(--surface-sunken) ${coverage.publishedPct}% 100%)`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              width: "88px",
+              height: "88px",
+              borderRadius: "50%",
+              background: "var(--surface-card)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontWeight: 700,
+                fontSize: "26px",
+                lineHeight: 1,
+                color: "var(--text-strong)",
+              }}
+            >
+              {coverage.publishedPct}%
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "9px",
+                letterSpacing: "0.1em",
+                color: "var(--text-faint)",
+                marginTop: "4px",
+              }}
+            >
+              PUBLIZIERT
+            </div>
+          </div>
+        </div>
+        <div
+          style={{
+            flex: 1,
+            minWidth: "150px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "11px",
+          }}
+        >
+          <CoverageBar
+            label="Publiziert"
+            pct={coverage.publishedPct}
+            detail={`${coverage.published}/${coverage.total}`}
+            color="var(--vital-500)"
+          />
+          <CoverageBar
+            label="Mit Referenzintervall"
+            pct={coverage.referencePct}
+            detail={`${coverage.withReference}/${coverage.total}`}
+            color="var(--brand)"
+          />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: "12.5px",
+            }}
+          >
+            <span style={{ color: "var(--text-body)" }}>
+              Neueste Beobachtung
+            </span>
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "12px",
+                color: "var(--text-muted)",
+              }}
+            >
+              {coverage.latestAgeLabel}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const TABS: { key: string; label: string }[] = [
   { key: "offen", label: "Offene Reviews" },
   { key: "genehmigt", label: "Genehmigt" },
@@ -117,7 +364,13 @@ function rowGroup(r: WorkRowView): string {
   return "andere";
 }
 
-export function OverviewContent({ view }: { view: OverviewView }) {
+export function OverviewContent({
+  view,
+  coverage,
+}: {
+  view: OverviewView;
+  coverage: CoverageView | null;
+}) {
   const router = useRouter();
   const [tab, setTab] = useState("alle");
   const [term, setTerm] = useState("");
@@ -634,14 +887,15 @@ export function OverviewContent({ view }: { view: OverviewView }) {
           gap: "16px",
         }}
       >
-        <GatedPanel
-          title="Review-Durchsatz"
-          reason="Zeitreihe benötigt einen Durchsatz-Endpoint (report_versions nach Status). Eigener Backend-Slice."
-        />
-        <GatedPanel
-          title="Datenqualität"
-          reason="Kein tenant-weites Datenqualitätsmodell (Gate G1). Pro Patient zeigt die Detailansicht die reale Datenlage."
-        />
+        <StatusSnapshotTile snapshot={view.statusSnapshot} />
+        {coverage ? (
+          <CoverageTile coverage={coverage} />
+        ) : (
+          <GatedPanel
+            title="Datenlage"
+            reason="Abdeckung über die Beobachtungen ist derzeit nicht abrufbar. Pro Patient zeigt die Detailansicht die reale Datenlage."
+          />
+        )}
         <GatedPanel
           title="Letzte Aktivität"
           reason="Audit-Feed benötigt einen tenant-scoped Lese-Endpoint über die Append-only-Events. Eigener Backend-Slice."
