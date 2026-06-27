@@ -69,7 +69,7 @@ function NavLink({
 function Sidebar({ active }: { active: NavKey }) {
   return (
     <aside className="sidebar" aria-label="Hauptnavigation">
-      <Link className="brand" href="/worklist" aria-label="HADP Übersicht">
+      <Link className="brand" href="/overview" aria-label="HADP Übersicht">
         <span className="brand-mark" aria-hidden="true" />
         <span className="brand-copy">
           <strong>HADP</strong>
@@ -84,7 +84,7 @@ function Sidebar({ active }: { active: NavKey }) {
           label="Übersicht"
           count={3}
           active={active === "overview"}
-          href="/worklist"
+          href="/overview"
         />
         <NavLink
           icon="patients"
@@ -217,7 +217,7 @@ function Topbar({ breadcrumbs }: { breadcrumbs: ReactNode }) {
     <header className="topbar">
       <Link
         className="brand mobile-brand"
-        href="/worklist"
+        href="/overview"
         aria-label="HADP Übersicht"
       >
         <span className="brand-mark" aria-hidden="true" />

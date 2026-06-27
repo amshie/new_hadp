@@ -12,10 +12,11 @@ from __future__ import annotations
 
 import secrets
 import uuid
-from datetime import UTC, datetime, timedelta
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from hadp_api.auth.sessions import hash_token
@@ -70,6 +71,78 @@ def version_no_for(db: Session, report: Report) -> int | None:
         return None
     version = db.get(ReportVersion, report.current_version_id)
     return version.version_no if version else None
+
+
+@dataclass
+class ThroughputBucket:
+    day: date
+    created: int  # report versions created that day (a "draft" produced)
+    signed: int  # report versions whose clinician approval (sign-off) landed that day
+
+
+@dataclass
+class ThroughputSummary:
+    days: int
+    buckets: list[ThroughputBucket]
+    total_created: int
+    total_signed: int
+
+
+def throughput_daily(db: Session, tenant_id: uuid.UUID, days: int) -> ThroughputSummary:
+    """Real per-day report-version throughput for the dashboard "Review-Durchsatz" chart.
+
+    "Erstellt" = report versions by `created_at` day; "Signiert" = report versions by
+    `approved_at` day (the clinician sign-off timestamp). Both are REAL persisted timestamps —
+    no fabricated rate. Tenant-scoped (explicit filter + RLS defense-in-depth). Days are bucketed
+    by **UTC calendar day** — pinned via `timezone('UTC', ...)` so the grouping matches the UTC
+    window below regardless of the DB session time zone. Zero-activity days are present so the
+    series has no gaps.
+    """
+    days = max(1, min(days, 90))
+    today = datetime.now(UTC).date()
+    start = today - timedelta(days=days - 1)
+    start_dt = datetime(start.year, start.month, start.day, tzinfo=UTC)
+
+    # `date(timestamptz)` truncates in the *session* time zone; pin to UTC so a near-midnight
+    # version cannot land in a neighbouring local-day bucket and miss the UTC-keyed window.
+    created_day = func.date(func.timezone("UTC", ReportVersion.created_at))
+    signed_day = func.date(func.timezone("UTC", ReportVersion.approved_at))
+    created_rows = db.execute(
+        select(created_day, func.count())
+        .where(
+            ReportVersion.tenant_id == tenant_id,
+            ReportVersion.created_at >= start_dt,
+        )
+        .group_by(created_day)
+    ).all()
+    signed_rows = db.execute(
+        select(signed_day, func.count())
+        .where(
+            ReportVersion.tenant_id == tenant_id,
+            ReportVersion.approved_at.is_not(None),
+            ReportVersion.approved_at >= start_dt,
+        )
+        .group_by(signed_day)
+    ).all()
+    created_by_day: dict[date, int] = {row[0]: row[1] for row in created_rows}
+    signed_by_day: dict[date, int] = {row[0]: row[1] for row in signed_rows}
+
+    buckets: list[ThroughputBucket] = []
+    total_created = 0
+    total_signed = 0
+    for i in range(days):
+        d = start + timedelta(days=i)
+        created = int(created_by_day.get(d, 0))
+        signed = int(signed_by_day.get(d, 0))
+        total_created += created
+        total_signed += signed
+        buckets.append(ThroughputBucket(day=d, created=created, signed=signed))
+    return ThroughputSummary(
+        days=days,
+        buckets=buckets,
+        total_created=total_created,
+        total_signed=total_signed,
+    )
 
 
 def _get_report(db: Session, report_id: uuid.UUID, tenant_id: uuid.UUID) -> Report:

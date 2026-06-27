@@ -1,0 +1,166 @@
+/* ============================================================
+   VitaBahn dashboard — interaction styles (ADR-0005).
+   The Claude Design comp expressed hover/focus via `style-hover`
+   / `style-focus` attributes (its runtime), which don't exist in
+   React. Those states live here as classes applied in the new
+   dashboard components. Everything is scoped to .vb-scope so it
+   never affects the existing login/worklist/review screens.
+   Base layout/colour stay as inline styles on the components
+   (faithful 1:1 port of the comp), matching the repo's existing
+   inline-style idiom for dynamic styling.
+   ============================================================ */
+
+.vb-scope ::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+.vb-scope ::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.vb-scope ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.vb-scope input::placeholder {
+  color: var(--text-faint);
+}
+
+@keyframes vb-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  70%,
+  100% {
+    transform: scale(2.7);
+    opacity: 0;
+  }
+}
+@keyframes vb-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Keyboard focus inside the dashboard. */
+.vb-scope :focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---- Hover / focus states (named after the comp's style-hover values) ----
+   Prefixed with .vb-scope so the file's "everything is scoped" guarantee is
+   structural, not coincidental on the vb- naming. */
+.vb-scope .vb-nav {
+  transition:
+    background var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+.vb-scope .vb-nav:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #fff !important;
+}
+.vb-scope .vb-iconbtn {
+  transition: border-color var(--dur-fast) var(--ease-standard);
+}
+.vb-scope .vb-iconbtn:hover {
+  border-color: var(--border-strong) !important;
+}
+.vb-scope .vb-userchip {
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.vb-scope .vb-userchip:hover {
+  background: var(--surface-sunken) !important;
+}
+.vb-scope .vb-btn-sec {
+  transition:
+    border-color var(--dur-fast) var(--ease-standard),
+    background var(--dur-fast) var(--ease-standard);
+}
+.vb-scope .vb-btn-sec:hover {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-sunken) !important;
+}
+.vb-scope .vb-btn-pri {
+  transition:
+    background var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard);
+}
+.vb-scope .vb-btn-pri:hover {
+  background: var(--brand-hover) !important;
+  border-color: var(--brand-hover) !important;
+}
+.vb-scope .vb-btn-next {
+  transition:
+    border-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+.vb-scope .vb-btn-next:hover {
+  border-color: var(--brand) !important;
+  color: var(--brand) !important;
+}
+.vb-scope .vb-crumblink {
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+.vb-scope .vb-crumblink:hover {
+  color: var(--brand) !important;
+}
+.vb-scope .vb-tab-text {
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+.vb-scope .vb-tab-text:hover {
+  color: var(--text-strong) !important;
+}
+.vb-scope .vb-input {
+  transition:
+    border-color var(--dur-fast) var(--ease-standard),
+    background var(--dur-fast) var(--ease-standard);
+}
+.vb-scope .vb-input:focus {
+  border-color: var(--brand) !important;
+  background: var(--surface-card) !important;
+}
+.vb-scope .vb-row {
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.vb-scope .vb-row:hover {
+  background: var(--surface-sunken) !important;
+}
+.vb-scope .vb-erow {
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.vb-scope .vb-erow:hover {
+  background: var(--bg-subtle) !important;
+}
+.vb-scope .vb-domaincard {
+  transition:
+    border-color var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard);
+}
+.vb-scope .vb-closebtn {
+  transition:
+    background var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+.vb-scope .vb-closebtn:hover {
+  background: var(--surface-sunken) !important;
+  color: var(--text-strong) !important;
+}
+
+/* Übersicht: wide Review-Durchsatz + Datenlage, collapsing to one column on narrow viewports. */
+.vb-scope .vb-dash-split {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+}
+@media (max-width: 900px) {
+  .vb-scope .vb-dash-split {
+    grid-template-columns: 1fr;
+  }
+}

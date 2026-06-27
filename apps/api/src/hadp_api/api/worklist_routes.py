@@ -11,12 +11,13 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from hadp_api.auth.authz import Action
 from hadp_api.auth.dependencies import TenantContext, require
 from hadp_api.modules.audit.service import record_audit
+from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.patients import service as patients_service
 from hadp_api.modules.reports import service as reports_service
 
@@ -32,6 +33,40 @@ class WorklistRowOut(BaseModel):
     report_status: str | None
     version_no: int | None
     updated_at: datetime
+
+
+class ThroughputBucketOut(BaseModel):
+    date: date
+    created: int
+    signed: int
+
+
+class ThroughputOut(BaseModel):
+    """Real per-day report-version throughput for the dashboard "Review-Durchsatz" chart.
+
+    `created` = versions created that day; `signed` = versions approved (signed off) that day —
+    both from persisted `ReportVersion` timestamps, tenant-scoped. A real rate over time, NOT a
+    fabricated trend; zero-activity days are included so the series has no gaps.
+    """
+
+    days: int
+    buckets: list[ThroughputBucketOut]
+    total_created: int
+    total_signed: int
+
+
+class CoverageOut(BaseModel):
+    """Tenant-wide observation coverage counts for the dashboard "Datenlage" tile (ADR-0006).
+
+    Plain counts + freshness over real observations — NOT a clinical data-quality score. The
+    quality/rules model that the comp's "94 %" gauge implied does not exist (Gate G1); these are
+    the honest coverage figures the UI renders instead of a fabricated percentage.
+    """
+
+    total: int
+    published: int
+    with_reference: int
+    latest_observed_at: datetime | None
 
 
 @router.get("", response_model=list[WorklistRowOut])
@@ -76,3 +111,49 @@ def get_worklist(
         detail={"count": len(rows)},
     )
     return rows
+
+
+@router.get("/coverage", response_model=CoverageOut)
+def get_coverage(
+    ctx: TenantContext = Depends(require(Action.OBSERVATION_READ)),
+) -> CoverageOut:
+    summary = obs_service.coverage_summary(ctx.db, ctx.tenant_id)
+    record_audit(
+        ctx.db,
+        action="worklist.coverage.read",
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        correlation_id=ctx.correlation_id,
+        detail={"total": summary.total},
+    )
+    return CoverageOut(
+        total=summary.total,
+        published=summary.published,
+        with_reference=summary.with_reference,
+        latest_observed_at=summary.latest_observed_at,
+    )
+
+
+@router.get("/throughput", response_model=ThroughputOut)
+def get_throughput(
+    days: int = Query(default=30, ge=1, le=90),
+    ctx: TenantContext = Depends(require(Action.PATIENT_READ)),
+) -> ThroughputOut:
+    summary = reports_service.throughput_daily(ctx.db, ctx.tenant_id, days)
+    record_audit(
+        ctx.db,
+        action="worklist.throughput.read",
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        correlation_id=ctx.correlation_id,
+        detail={"days": summary.days},
+    )
+    return ThroughputOut(
+        days=summary.days,
+        buckets=[
+            ThroughputBucketOut(date=b.day, created=b.created, signed=b.signed)
+            for b in summary.buckets
+        ],
+        total_created=summary.total_created,
+        total_signed=summary.total_signed,
+    )
