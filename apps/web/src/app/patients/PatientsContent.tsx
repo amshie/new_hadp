@@ -9,11 +9,11 @@ import type {
   DirectoryRowView,
 } from "@/lib/presenters/dashboard";
 
-// VitaBahn Patienten directory (ADR-0005, real-data path). Consumes the governed DirectoryView
+// VitaBahn Patienten directory (ADR-0006, real-data path). Consumes the governed DirectoryView
 // (real patients + worklist). Patient name/age/status/last-assessment are real. The founder-approved
 // Risiko and Datenqualität columns are kept VISIBLE but honestly GATED — there is no compliant real
 // source (an autonomous patient risk score is register-BLOCKED; no data-quality engine exists), so
-// they show "n. v." rather than fabricated values (ADR-0005). Programm/cohort tabs are dropped (no field).
+// they show "n. v." rather than fabricated values (ADR-0006). Programm/cohort tabs are dropped (no field).
 
 const PGRID = "minmax(220px,2fr) 70px 96px 110px minmax(150px,1.3fr) 120px";
 
@@ -34,7 +34,7 @@ const colLabel: CSSProperties = {
 
 const GATED = (
   <span
-    title="Kein zugelassener Echtdaten-Indikator (ADR-0005)"
+    title="Kein zugelassener Echtdaten-Indikator (ADR-0006)"
     style={{
       fontFamily: "var(--font-mono)",
       fontSize: "11px",
@@ -246,7 +246,7 @@ export function PatientsContent({ view }: { view: DirectoryView }) {
             Pseudonymisiert · keine automatische Diagnose oder
             Therapieempfehlung. Risiko- und Datenqualitäts-Spalten sind in der
             Echtdaten-Ansicht deaktiviert (kein zugelassener Quell-/Modellwert —
-            ADR-0005).
+            ADR-0006).
           </p>
           <div
             style={{

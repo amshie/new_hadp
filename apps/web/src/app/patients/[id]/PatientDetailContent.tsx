@@ -15,7 +15,7 @@ import type { ReferencePosition } from "@/lib/referencePosition";
 import type { DetailView } from "@/lib/presenters/patientDetail";
 import type { MarkerView } from "@/lib/presenters/review";
 
-// VitaBahn patient Detail (ADR-0005, real-data path). Consumes the governed DetailView
+// VitaBahn patient Detail (ADR-0006, real-data path). Consumes the governed DetailView
 // (presentReview + a real data-completeness stat). NO A–E grade (doctrine). Observation Status
 // is the verdict-free positional Lage (Über/Unter Referenz · Im Intervall · Keine Referenz),
 // NOT a Normal/Grenzwertig/Auffällig verdict — that has no real source and crosses the MDR
@@ -109,7 +109,9 @@ function lageVita(pos: ReferencePosition): {
 }
 
 function initialsOf(name: string): string {
-  return (name.match(/[A-ZÀ-Þ]/g) || [name[0] ?? "–"]).slice(0, 2).join("");
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const letters = parts.slice(0, 2).map((p) => p[0] ?? "");
+  return letters.join("").toUpperCase() || "–";
 }
 
 function ReferenceBar({ marker }: { marker: MarkerView }) {
@@ -255,9 +257,13 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
   const curDomain = domains.find((d) => d.domainAxis === domainAxis) ?? null;
   const evidence = useMemo(() => {
     if (!curDomain) return [];
+    // Mirror the authoritative review surface: primary membership by the domain's marker
+    // codes, secondary membership by the KPI's secondary-domain links — never a fuzzy
+    // label match (which could pull markers not actually in this domain's evidence).
     const codes = new Set(curDomain.markerCodes);
     return review.markers.filter(
-      (m) => codes.has(m.code) || m.primaryDomainLabel === curDomain.axisLabel,
+      (m) =>
+        codes.has(m.code) || m.secondaryDomains.includes(curDomain.domainAxis),
     );
   }, [curDomain, review.markers]);
 
@@ -712,7 +718,8 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
             }}
           >
             Quellengebundene Beobachtungen · Lage relativ zum
-            Quellreferenzintervall (keine Diagnose, keine Bewertung).
+            Quellreferenzintervall · keine automatische Diagnose oder
+            Therapieempfehlung.
           </p>
         </div>
         <div style={{ overflowX: "auto", marginTop: "10px" }}>
@@ -852,116 +859,125 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
           Fortschritt von Datenerfassung bis Patientenfreigabe (aus dem
           Berichtsstatus abgeleitet).
         </p>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            minWidth: "560px",
-          }}
-        >
-          {review.auditSteps.map((s, i, a) => {
-            const done = s.state === "done";
-            const active = s.state === "active";
-            const dotBg = done
-              ? "var(--vital-500)"
-              : active
-                ? "var(--amber-400)"
-                : "var(--surface-sunken)";
-            const dotFg = done || active ? "#fff" : "var(--text-faint)";
-            return (
-              <div
-                key={s.label}
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  textAlign: "center",
-                }}
-              >
+        {review.status === "none" ? (
+          <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+            Noch kein Berichtsentwurf — der Audit-Lifecycle beginnt mit der
+            Entwurfserstellung.
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              minWidth: "560px",
+            }}
+          >
+            {review.auditSteps.map((s, i, a) => {
+              const done = s.state === "done";
+              const active = s.state === "active";
+              const dotBg = done
+                ? "var(--vital-500)"
+                : active
+                  ? "var(--amber-400)"
+                  : "var(--surface-sunken)";
+              const dotFg = done || active ? "#fff" : "var(--text-faint)";
+              return (
                 <div
+                  key={s.label}
                   style={{
+                    flex: 1,
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
-                    width: "100%",
+                    textAlign: "center",
                   }}
                 >
                   <div
                     style={{
-                      flex: 1,
-                      height: "2px",
-                      background: i === 0 ? "transparent" : "var(--teal-300)",
-                    }}
-                  />
-                  <div
-                    style={{
-                      width: "26px",
-                      height: "26px",
-                      flexShrink: 0,
-                      borderRadius: "999px",
-                      background: dotBg,
-                      color: dotFg,
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "12px",
-                      fontWeight: 600,
+                      width: "100%",
                     }}
                   >
-                    {done ? (
-                      <svg
-                        aria-hidden="true"
-                        focusable="false"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#fff"
-                        strokeWidth="2.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M20 6L9 17l-5-5" />
-                      </svg>
-                    ) : (
-                      s.dot
-                    )}
+                    <div
+                      style={{
+                        flex: 1,
+                        height: "2px",
+                        background: i === 0 ? "transparent" : "var(--teal-300)",
+                      }}
+                    />
+                    <div
+                      style={{
+                        width: "26px",
+                        height: "26px",
+                        flexShrink: 0,
+                        borderRadius: "999px",
+                        background: dotBg,
+                        color: dotFg,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {done ? (
+                        <svg
+                          aria-hidden="true"
+                          focusable="false"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#fff"
+                          strokeWidth="2.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                      ) : (
+                        s.dot
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        flex: 1,
+                        height: "2px",
+                        background:
+                          i === a.length - 1
+                            ? "transparent"
+                            : "var(--teal-300)",
+                      }}
+                    />
                   </div>
-                  <div
-                    style={{
-                      flex: 1,
-                      height: "2px",
-                      background:
-                        i === a.length - 1 ? "transparent" : "var(--teal-300)",
-                    }}
-                  />
+                  <div style={{ marginTop: "9px" }}>
+                    <div
+                      style={{
+                        fontSize: "12.5px",
+                        fontWeight: 600,
+                        color: "var(--text-strong)",
+                      }}
+                    >
+                      {s.label}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "10.5px",
+                        color: "var(--text-muted)",
+                        marginTop: "2px",
+                      }}
+                    >
+                      {s.sub}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ marginTop: "9px" }}>
-                  <div
-                    style={{
-                      fontSize: "12.5px",
-                      fontWeight: 600,
-                      color: "var(--text-strong)",
-                    }}
-                  >
-                    {s.label}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "10.5px",
-                      color: "var(--text-muted)",
-                      marginTop: "2px",
-                    }}
-                  >
-                    {s.sub}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* report bar */}
@@ -1273,8 +1289,9 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
                   color: "var(--text-faint)",
                 }}
               >
-                Lage relativ zum Quellreferenzintervall — keine Diagnose, keine
-                Bewertung. {lageLabel(openMarker.lagePosition).sentence}.
+                Lage relativ zum Quellreferenzintervall · keine automatische
+                Diagnose oder Therapieempfehlung.{" "}
+                {lageLabel(openMarker.lagePosition).sentence}.
               </p>
             </div>
           </div>

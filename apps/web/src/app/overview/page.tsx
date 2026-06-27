@@ -6,7 +6,7 @@ import { presentOverview, type OverviewView } from "@/lib/presenters/dashboard";
 
 import { OverviewContent } from "./OverviewContent";
 
-// VitaBahn Übersicht (ADR-0005, real-data path): governed server load over the real
+// VitaBahn Übersicht (ADR-0006, real-data path): governed server load over the real
 // tenant-scoped API (authenticated principal + active tenant via the session cookie + RLS),
 // deny-by-default — ApiError 401/403 → /login.
 async function loadView(): Promise<OverviewView> {

@@ -15,7 +15,7 @@ import { isUuid } from "@/lib/uuid";
 
 import { PatientDetailContent } from "./PatientDetailContent";
 
-// VitaBahn patient Detail (ADR-0005, real-data path): governed server load over the real
+// VitaBahn patient Detail (ADR-0006, real-data path): governed server load over the real
 // tenant-scoped API — authenticated principal + active tenant (enforced by the API session
 // cookie + RLS), deny-by-default, UUID-guarded. The patient's latest report is resolved via
 // the worklist; a patient without a draft renders an early-lifecycle "Kein Entwurf" state.
@@ -28,7 +28,14 @@ async function loadView(patientId: string): Promise<DetailView> {
       getPatient(patientId),
       timeline(patientId),
       interpretation(patientId),
-      reportId ? getReport(reportId) : Promise.resolve(null),
+      // A stale/RLS-filtered report id must not 404 the whole patient — fall through to the
+      // no-report state. Only the patient/timeline/interpretation loads gate the page.
+      reportId
+        ? getReport(reportId).catch((e) => {
+            if (e instanceof ApiError && e.status === 404) return null;
+            throw e;
+          })
+        : Promise.resolve(null),
     ]);
     const resolved: ReportView = report ?? {
       report_id: "",

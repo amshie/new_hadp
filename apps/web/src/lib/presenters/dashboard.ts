@@ -1,8 +1,8 @@
-// VitaBahn dashboard presenters (ADR-0005 / real-data path). Maps the REAL, tenant-scoped
+// VitaBahn dashboard presenters (ADR-0006 / real-data path). Maps the REAL, tenant-scoped
 // API responses (WorklistRow[] + PatientOut[]) into render-ready view shapes for the
 // /overview and /patients screens. ALL display formatting lives here; the API returns
 // codes/raw fields/timestamps. Everything here is a deterministic count/format over real
-// data — no score, no risk, no quality engine (those have no backend; see ADR-0005).
+// data — no score, no risk, no quality engine (those have no backend; see ADR-0006).
 
 import type { Patient, WorklistRow } from "@/lib/api";
 
@@ -67,6 +67,7 @@ function initials(name: string): string {
 function ageYears(dob: string | null | undefined): string {
   if (!dob) return "—";
   const birth = new Date(dob);
+  if (!Number.isFinite(birth.getTime())) return "—";
   const now = new Date();
   let age = now.getFullYear() - birth.getFullYear();
   const m = now.getMonth() - birth.getMonth();
@@ -76,6 +77,7 @@ function ageYears(dob: string | null | undefined): string {
 
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return "—";
   const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
   if (mins < 1) return "gerade eben";
   if (mins < 60) return `vor ${mins} Min.`;
@@ -155,7 +157,6 @@ export interface DirectoryRowView {
   statusLabel: string;
   statusBadge: BadgeMeta;
   lastAssessment: string;
-  synthetic: boolean;
 }
 
 export interface DirectoryView {
@@ -183,7 +184,6 @@ export function presentDirectory(
       statusLabel: sm.label,
       statusBadge: sm,
       lastAssessment: r ? relativeTime(r.updated_at) : "—",
-      synthetic: p.is_synthetic,
     };
   });
   return {

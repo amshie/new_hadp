@@ -1,4 +1,4 @@
-// VitaBahn patient Detail presenter (ADR-0005 / real-data path). Reuses presentReview (the
+// VitaBahn patient Detail presenter (ADR-0006 / real-data path). Reuses presentReview (the
 // authoritative interpretation + observation + report mapping) and adds a real, deterministic
 // DATA-COMPLETENESS stat over the observation timeline. This is the compliant, real replacement
 // for the comp's invented "data-quality 94%" gauge: counts/freshness over real observations, NOT
@@ -37,10 +37,11 @@ export function dataCompleteness(points: TimelinePoint[]): Completeness {
     (p) => p.reference_low != null || p.reference_high != null,
   ).length;
   let latestAgeDays: number | null = null;
-  if (points.length) {
-    const newest = Math.max(
-      ...points.map((p) => new Date(p.observed_at).getTime()),
-    );
+  const times = points
+    .map((p) => new Date(p.observed_at).getTime())
+    .filter((t) => Number.isFinite(t));
+  if (times.length) {
+    const newest = Math.max(...times);
     latestAgeDays = Math.max(0, Math.round((Date.now() - newest) / 86400000));
   }
   return { total, published, withReference, latestAgeDays };

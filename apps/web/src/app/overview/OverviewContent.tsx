@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { clickable } from "@/components/vitabahn/interactive";
 import type { OverviewView, WorkRowView } from "@/lib/presenters/dashboard";
 
-// VitaBahn Übersicht (ADR-0005, real-data path). Consumes the governed OverviewView (real,
+// VitaBahn Übersicht (ADR-0006, real-data path). Consumes the governed OverviewView (real,
 // deterministic counts + work-list over the API). The comp's data-quality gauge, review-throughput
-// chart, activity feed and imports panel have NO backend source (see ADR-0005 / register) and are
+// chart, activity feed and imports panel have NO backend source (see ADR-0006 / register) and are
 // shown as honest gated states, not fabricated values.
 
 const cardStyle: CSSProperties = {
@@ -626,7 +626,7 @@ export function OverviewContent({ view }: { view: OverviewView }) {
         </div>
       </div>
 
-      {/* Panels with no backend source — honest gated states (ADR-0005; deferred backend slices) */}
+      {/* Panels with no backend source — honest gated states (ADR-0006; deferred backend slices) */}
       <div
         style={{
           display: "grid",
