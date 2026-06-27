@@ -1,14 +1,9 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 
+import { Dialog } from "@/components/vitabahn/Dialog";
 import { clickable } from "@/components/vitabahn/interactive";
 import { lageLabel } from "@/lib/lageCopy";
 import type { ReferencePosition } from "@/lib/referencePosition";
@@ -232,53 +227,22 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
     "";
   const [domainAxis, setDomainAxis] = useState(firstWithMarkers);
   const [openMarker, setOpenMarker] = useState<MarkerView | null>(null);
-  const lastFocusedRef = useRef<HTMLElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   // Sign/Freigabe workflow (inline; Gate G2 boundary preserved — see the dialog copy).
   const [signOpen, setSignOpen] = useState(false);
   const [signChecked, setSignChecked] = useState(false);
   const [signed, setSigned] = useState(false);
-  const signTriggerRef = useRef<HTMLElement | null>(null);
   const signCloseRef = useRef<HTMLButtonElement>(null);
 
-  const openObs = (m: MarkerView) => {
-    lastFocusedRef.current = document.activeElement as HTMLElement | null;
-    setOpenMarker(m);
-  };
+  // The shared Dialog handles Escape, the focus trap, and focus capture/restore to the trigger.
+  const openObs = (m: MarkerView) => setOpenMarker(m);
   const closeObs = () => setOpenMarker(null);
   const openSign = () => {
-    signTriggerRef.current = document.activeElement as HTMLElement | null;
     setSignChecked(false);
     setSignOpen(true);
   };
   const closeSign = () => setSignOpen(false);
-
-  useEffect(() => {
-    if (!openMarker) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeObs();
-    };
-    document.addEventListener("keydown", onKey);
-    closeBtnRef.current?.focus();
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      lastFocusedRef.current?.focus?.();
-    };
-  }, [openMarker]);
-
-  useEffect(() => {
-    if (!signOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeSign();
-    };
-    document.addEventListener("keydown", onKey);
-    signCloseRef.current?.focus();
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      signTriggerRef.current?.focus?.();
-    };
-  }, [signOpen]);
 
   const curDomain = domains.find((d) => d.domainAxis === domainAxis) ?? null;
   const evidence = useMemo(() => {
@@ -1330,9 +1294,11 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
 
       {/* Marker modal — compliant (lab reference bar + positional Lage; no severity gauge) */}
       {openMarker && (
-        <div
-          onClick={closeObs}
-          style={{
+        <Dialog
+          onClose={closeObs}
+          labelledBy="vb-marker-title"
+          initialFocusRef={closeBtnRef}
+          backdropStyle={{
             position: "fixed",
             inset: 0,
             zIndex: 60,
@@ -1342,414 +1308,399 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
             justifyContent: "center",
             padding: "24px",
           }}
+          dialogStyle={{
+            width: "560px",
+            maxWidth: "100%",
+            maxHeight: "90vh",
+            overflowY: "auto",
+            background: "var(--surface-card)",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-xl)",
+          }}
         >
           <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="vb-marker-title"
-            onClick={(e) => e.stopPropagation()}
             style={{
-              width: "560px",
-              maxWidth: "100%",
-              maxHeight: "90vh",
-              overflowY: "auto",
-              background: "var(--surface-card)",
-              border: "1px solid var(--border-subtle)",
-              borderRadius: "var(--radius-lg)",
-              boxShadow: "var(--shadow-xl)",
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: "16px",
+              padding: "20px 22px 16px",
+              borderBottom: "1px solid var(--border-subtle)",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
-                gap: "16px",
-                padding: "20px 22px 16px",
-                borderBottom: "1px solid var(--border-subtle)",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "10px",
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
-                    color: "var(--text-faint)",
-                    marginBottom: "6px",
-                  }}
-                >
-                  Marker-Detail ·{" "}
-                  {openMarker.primaryDomainLabel ?? openMarker.code}
-                </div>
-                <h3
-                  id="vb-marker-title"
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 800,
-                    fontSize: "var(--text-2xl)",
-                    color: "var(--text-strong)",
-                    margin: 0,
-                    letterSpacing: "-0.02em",
-                  }}
-                >
-                  {openMarker.name}
-                </h3>
-              </div>
-              <button
-                type="button"
-                ref={closeBtnRef}
-                onClick={closeObs}
-                aria-label="Schließen"
-                className="vb-closebtn"
-                style={{
-                  width: "34px",
-                  height: "34px",
-                  flexShrink: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: "8px",
-                  border: "1px solid var(--border-subtle)",
-                  background: "var(--surface-card)",
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                }}
-              >
-                <svg
-                  aria-hidden="true"
-                  focusable="false"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div style={{ padding: "20px 22px 22px" }}>
+            <div>
               <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  flexWrap: "wrap",
-                  marginBottom: "16px",
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "22px",
-                    fontWeight: 600,
-                    color: "var(--text-strong)",
-                  }}
-                >
-                  {openMarker.current}
-                </span>
-                <LagePill pos={openMarker.lagePosition} />
-              </div>
-              <div style={{ marginBottom: "16px" }}>
-                <ReferenceBar marker={openMarker} />
-              </div>
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: "7px" }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "12px",
-                    fontSize: "12.5px",
-                  }}
-                >
-                  <span style={{ color: "var(--text-muted)" }}>Referenz</span>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      color: "var(--text-body)",
-                    }}
-                  >
-                    {openMarker.reference}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "12px",
-                    fontSize: "12.5px",
-                  }}
-                >
-                  <span style={{ color: "var(--text-muted)" }}>
-                    Veränderung
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      color: "var(--text-body)",
-                    }}
-                  >
-                    {openMarker.change}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "12px",
-                    fontSize: "12.5px",
-                  }}
-                >
-                  <span style={{ color: "var(--text-muted)" }}>
-                    Quelle / Code
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      color: "var(--text-body)",
-                    }}
-                  >
-                    {openMarker.code}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "12px",
-                    fontSize: "12.5px",
-                  }}
-                >
-                  <span style={{ color: "var(--text-muted)" }}>
-                    Review-Status
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      color: "var(--text-body)",
-                    }}
-                  >
-                    {openMarker.status}
-                  </span>
-                </div>
-              </div>
-              {openMarker.comparabilityFull && (
-                <p
-                  style={{
-                    margin: "14px 0 0",
-                    fontSize: "12px",
-                    lineHeight: 1.5,
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  {openMarker.comparabilityFull}
-                </p>
-              )}
-              <p
-                style={{
-                  margin: "14px 0 0",
-                  fontSize: "11.5px",
-                  lineHeight: 1.5,
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "10px",
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
                   color: "var(--text-faint)",
+                  marginBottom: "6px",
                 }}
               >
-                Lage relativ zum Quellreferenzintervall · keine automatische
-                Diagnose oder Therapieempfehlung.{" "}
-                {lageLabel(openMarker.lagePosition).sentence}.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Sign dialog — Gate-G2 honest (no server-side approve/release; that's the separate G2 step) */}
-      {signOpen && (
-        <div
-          onClick={closeSign}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 60,
-            background: "rgba(12,18,20,0.45)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "24px",
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="vb-sign-title"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "520px",
-              maxWidth: "100%",
-              background: "var(--surface-card)",
-              border: "1px solid var(--border-subtle)",
-              borderRadius: "var(--radius-lg)",
-              boxShadow: "var(--shadow-xl)",
-              padding: "22px",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
-                gap: "16px",
-              }}
-            >
+                Marker-Detail ·{" "}
+                {openMarker.primaryDomainLabel ?? openMarker.code}
+              </div>
               <h3
-                id="vb-sign-title"
+                id="vb-marker-title"
                 style={{
                   fontFamily: "var(--font-display)",
                   fontWeight: 800,
-                  fontSize: "var(--text-xl)",
+                  fontSize: "var(--text-2xl)",
                   color: "var(--text-strong)",
                   margin: 0,
                   letterSpacing: "-0.02em",
                 }}
               >
-                Klinischen Review signieren?
+                {openMarker.name}
               </h3>
-              <button
-                type="button"
-                ref={signCloseRef}
-                onClick={closeSign}
-                aria-label="Schließen"
-                className="vb-closebtn"
-                style={{
-                  width: "34px",
-                  height: "34px",
-                  flexShrink: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: "8px",
-                  border: "1px solid var(--border-subtle)",
-                  background: "var(--surface-card)",
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                }}
-              >
-                <svg
-                  aria-hidden="true"
-                  focusable="false"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
             </div>
-            <p
+            <button
+              type="button"
+              ref={closeBtnRef}
+              onClick={closeObs}
+              aria-label="Schließen"
+              className="vb-closebtn"
               style={{
-                margin: "10px 0 0",
-                fontSize: "12.5px",
-                lineHeight: 1.5,
-                color: "var(--text-muted)",
-              }}
-            >
-              Sie bestätigen, dass Sie die sichtbaren Beobachtungen,
-              Referenzintervalle und Quellen geprüft haben. Hinweis: Die
-              Anbindung an den Freigabe-Lifecycle ist noch nicht freigegeben
-              (Gate G2) — die Signatur wird derzeit nicht serverseitig
-              geschrieben.
-            </p>
-            <label
-              style={{
+                width: "34px",
+                height: "34px",
+                flexShrink: 0,
                 display: "flex",
-                alignItems: "flex-start",
-                gap: "10px",
-                marginTop: "16px",
-                fontSize: "13px",
-                color: "var(--text-body)",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "8px",
+                border: "1px solid var(--border-subtle)",
+                background: "var(--surface-card)",
+                color: "var(--text-muted)",
                 cursor: "pointer",
               }}
             >
-              <input
-                type="checkbox"
-                checked={signChecked}
-                onChange={(e) => setSignChecked(e.target.checked)}
-                style={{ marginTop: "2px" }}
-              />
-              <span>
-                Ich habe die offenen Hinweise geprüft und bestätige die
-                klinische Dokumentation.
-              </span>
-            </label>
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div style={{ padding: "20px 22px 22px" }}>
             <div
               style={{
                 display: "flex",
-                justifyContent: "flex-end",
-                gap: "10px",
-                marginTop: "20px",
+                alignItems: "center",
+                gap: "12px",
+                flexWrap: "wrap",
+                marginBottom: "16px",
               }}
             >
-              <button
-                type="button"
-                onClick={closeSign}
-                className="vb-btn-sec"
+              <span
                 style={{
-                  height: "38px",
-                  padding: "0 15px",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--border-default)",
-                  background: "var(--surface-card)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "22px",
+                  fontWeight: 600,
                   color: "var(--text-strong)",
-                  fontFamily: "var(--font-text)",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  cursor: "pointer",
                 }}
               >
-                Abbrechen
-              </button>
-              <button
-                type="button"
-                disabled={!signChecked}
-                onClick={() => {
-                  setSigned(true);
-                  setSignOpen(false);
-                }}
-                className="vb-btn-pri"
-                style={{
-                  height: "38px",
-                  padding: "0 16px",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--brand)",
-                  background: signChecked
-                    ? "var(--brand)"
-                    : "var(--surface-sunken)",
-                  color: signChecked
-                    ? "var(--text-on-brand)"
-                    : "var(--text-faint)",
-                  fontFamily: "var(--font-text)",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  cursor: signChecked ? "pointer" : "not-allowed",
-                  opacity: signChecked ? 1 : 0.7,
-                }}
-              >
-                Signieren und weiterleiten
-              </button>
+                {openMarker.current}
+              </span>
+              <LagePill pos={openMarker.lagePosition} />
             </div>
+            <div style={{ marginBottom: "16px" }}>
+              <ReferenceBar marker={openMarker} />
+            </div>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "7px" }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  fontSize: "12.5px",
+                }}
+              >
+                <span style={{ color: "var(--text-muted)" }}>Referenz</span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--text-body)",
+                  }}
+                >
+                  {openMarker.reference}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  fontSize: "12.5px",
+                }}
+              >
+                <span style={{ color: "var(--text-muted)" }}>Veränderung</span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--text-body)",
+                  }}
+                >
+                  {openMarker.change}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  fontSize: "12.5px",
+                }}
+              >
+                <span style={{ color: "var(--text-muted)" }}>
+                  Quelle / Code
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--text-body)",
+                  }}
+                >
+                  {openMarker.code}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  fontSize: "12.5px",
+                }}
+              >
+                <span style={{ color: "var(--text-muted)" }}>
+                  Review-Status
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--text-body)",
+                  }}
+                >
+                  {openMarker.status}
+                </span>
+              </div>
+            </div>
+            {openMarker.comparabilityFull && (
+              <p
+                style={{
+                  margin: "14px 0 0",
+                  fontSize: "12px",
+                  lineHeight: 1.5,
+                  color: "var(--text-muted)",
+                }}
+              >
+                {openMarker.comparabilityFull}
+              </p>
+            )}
+            <p
+              style={{
+                margin: "14px 0 0",
+                fontSize: "11.5px",
+                lineHeight: 1.5,
+                color: "var(--text-faint)",
+              }}
+            >
+              Lage relativ zum Quellreferenzintervall · keine automatische
+              Diagnose oder Therapieempfehlung.{" "}
+              {lageLabel(openMarker.lagePosition).sentence}.
+            </p>
           </div>
-        </div>
+        </Dialog>
+      )}
+
+      {/* Sign dialog — Gate-G2 honest (no server-side approve/release; that's the separate G2 step) */}
+      {signOpen && (
+        <Dialog
+          onClose={closeSign}
+          labelledBy="vb-sign-title"
+          initialFocusRef={signCloseRef}
+          backdropStyle={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 60,
+            background: "rgba(12,18,20,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+          }}
+          dialogStyle={{
+            width: "520px",
+            maxWidth: "100%",
+            background: "var(--surface-card)",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-xl)",
+            padding: "22px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: "16px",
+            }}
+          >
+            <h3
+              id="vb-sign-title"
+              style={{
+                fontFamily: "var(--font-display)",
+                fontWeight: 800,
+                fontSize: "var(--text-xl)",
+                color: "var(--text-strong)",
+                margin: 0,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Klinischen Review signieren?
+            </h3>
+            <button
+              type="button"
+              ref={signCloseRef}
+              onClick={closeSign}
+              aria-label="Schließen"
+              className="vb-closebtn"
+              style={{
+                width: "34px",
+                height: "34px",
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "8px",
+                border: "1px solid var(--border-subtle)",
+                background: "var(--surface-card)",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+              }}
+            >
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <p
+            style={{
+              margin: "10px 0 0",
+              fontSize: "12.5px",
+              lineHeight: 1.5,
+              color: "var(--text-muted)",
+            }}
+          >
+            Sie bestätigen, dass Sie die sichtbaren Beobachtungen,
+            Referenzintervalle und Quellen geprüft haben. Hinweis: Die Anbindung
+            an den Freigabe-Lifecycle ist noch nicht freigegeben (Gate G2) — die
+            Signatur wird derzeit nicht serverseitig geschrieben.
+          </p>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "10px",
+              marginTop: "16px",
+              fontSize: "13px",
+              color: "var(--text-body)",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={signChecked}
+              onChange={(e) => setSignChecked(e.target.checked)}
+              style={{ marginTop: "2px" }}
+            />
+            <span>
+              Ich habe die offenen Hinweise geprüft und bestätige die klinische
+              Dokumentation.
+            </span>
+          </label>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: "10px",
+              marginTop: "20px",
+            }}
+          >
+            <button
+              type="button"
+              onClick={closeSign}
+              className="vb-btn-sec"
+              style={{
+                height: "38px",
+                padding: "0 15px",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--border-default)",
+                background: "var(--surface-card)",
+                color: "var(--text-strong)",
+                fontFamily: "var(--font-text)",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              disabled={!signChecked}
+              onClick={() => {
+                setSigned(true);
+                setSignOpen(false);
+              }}
+              className="vb-btn-pri"
+              style={{
+                height: "38px",
+                padding: "0 16px",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--brand)",
+                background: signChecked
+                  ? "var(--brand)"
+                  : "var(--surface-sunken)",
+                color: signChecked
+                  ? "var(--text-on-brand)"
+                  : "var(--text-faint)",
+                fontFamily: "var(--font-text)",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: signChecked ? "pointer" : "not-allowed",
+                opacity: signChecked ? 1 : 0.7,
+              }}
+            >
+              Signieren und weiterleiten
+            </button>
+          </div>
+        </Dialog>
       )}
     </>
   );

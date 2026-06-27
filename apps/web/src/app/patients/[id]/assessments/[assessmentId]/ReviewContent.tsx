@@ -1,7 +1,8 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 
+import { Dialog } from "@/components/vitabahn/Dialog";
 import { Icon } from "@/components/Icon";
 import { useToast } from "@/components/Toaster";
 import { lageLabel } from "@/lib/lageCopy";
@@ -10,7 +11,8 @@ import type { MarkerView, ReviewView } from "@/lib/presenters/review";
 // "Veränderung" cell: the withheld-delta comparability note (text-carried, no color-alone) when the
 // comparison was suppressed (§9), else the normal delta. Shared by both observation tables.
 function ChangeCell({ marker }: { marker: MarkerView }) {
-  if (!marker.comparabilityShort) return <span className="num">{marker.change}</span>;
+  if (!marker.comparabilityShort)
+    return <span className="num">{marker.change}</span>;
   return (
     <span
       className="comparability-note"
@@ -48,7 +50,9 @@ function LageCell({ marker }: { marker: MarkerView }) {
   const l = lageLabel(marker.lagePosition);
   const bar = marker.lageBar;
   const intervalText =
-    marker.reference === "—" ? "kein Referenzintervall hinterlegt" : marker.reference;
+    marker.reference === "—"
+      ? "kein Referenzintervall hinterlegt"
+      : marker.reference;
   return (
     <div className="lage-cell">
       <span className={`badge ${l.badge} no-dot lage-pill`}>
@@ -60,12 +64,18 @@ function LageCell({ marker }: { marker: MarkerView }) {
           <div className="pos-bar-track">
             <div
               className="pos-bar-band"
-              style={{ left: `${bar.bandStartPct}%`, right: `${100 - bar.bandEndPct}%` }}
+              style={{
+                left: `${bar.bandStartPct}%`,
+                right: `${100 - bar.bandEndPct}%`,
+              }}
             />
           </div>
           <div className="pos-bar-tick" style={{ left: `${bar.midPct}%` }} />
           {marker.referenceRange && (
-            <div className="pos-bar-refrange" style={{ left: `${bar.midPct}%` }}>
+            <div
+              className="pos-bar-refrange"
+              style={{ left: `${bar.midPct}%` }}
+            >
               Referenz {marker.referenceRange}
             </div>
           )}
@@ -122,6 +132,7 @@ export function ReviewContent({ view }: { view: ReviewView }) {
   const toast = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [confirmChecked, setConfirmChecked] = useState(false);
+  const confirmRef = useRef<HTMLInputElement>(null);
   const [selectedDomain, setSelectedDomain] = useState<number | null>(null);
   // Transient view filter on the value's position vs. its reference interval. No counts (a count
   // across markers would read as a severity tally — out of bounds, founder decision 2026-06-24);
@@ -146,16 +157,6 @@ export function ReviewContent({ view }: { view: ReviewView }) {
           !selected.markerCodes.includes(m.code),
       )
     : [];
-
-  useEffect(() => {
-    document.body.classList.toggle("modal-open", dialogOpen);
-    if (!dialogOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setDialogOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [dialogOpen]);
 
   return (
     <>
@@ -288,7 +289,9 @@ export function ReviewContent({ view }: { view: ReviewView }) {
           </p>
         </div>
         {view.runNumber != null && (
-          <span className="badge badge-brand no-dot">Run #{view.runNumber}</span>
+          <span className="badge badge-brand no-dot">
+            Run #{view.runNumber}
+          </span>
         )}
       </div>
       {view.domains.length === 0 ? (
@@ -362,7 +365,11 @@ export function ReviewContent({ view }: { view: ReviewView }) {
                     <span className="source-link">{d.actionabilityLabel}</span>
                   </div>
                   <p
-                    style={{ margin: 0, fontSize: "12px", color: "var(--muted)" }}
+                    style={{
+                      margin: 0,
+                      fontSize: "12px",
+                      color: "var(--muted)",
+                    }}
                   >
                     Follow-up-Adäquanz: {d.adequacyLabel}
                   </p>
@@ -491,8 +498,8 @@ export function ReviewContent({ view }: { view: ReviewView }) {
             <div>
               <h2>Sekundär relevant</h2>
               <p>
-                Auch für {selected.axisLabel} relevant. Zur Übersicht angezeigt –
-                geführt und bewertet wird jeder Wert in seiner Primärdomäne;
+                Auch für {selected.axisLabel} relevant. Zur Übersicht angezeigt
+                – geführt und bewertet wird jeder Wert in seiner Primärdomäne;
                 hieraus wird keine Domänen-Bewertung abgeleitet.
               </p>
             </div>
@@ -602,77 +609,71 @@ export function ReviewContent({ view }: { view: ReviewView }) {
       </div>
 
       {dialogOpen && (
-        <div
-          className="dialog-backdrop"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setDialogOpen(false);
-          }}
+        <Dialog
+          onClose={() => setDialogOpen(false)}
+          labelledBy="review-dialog-title"
+          describedBy="review-dialog-copy"
+          initialFocusRef={confirmRef}
+          lockScroll
+          backdropClassName="dialog-backdrop"
+          dialogClassName="dialog"
         >
-          <section
-            className="dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="review-dialog-title"
-            aria-describedby="review-dialog-copy"
-          >
-            <div className="dialog-head">
-              <div>
-                <h2 id="review-dialog-title">Klinischen Review signieren?</h2>
-                <p id="review-dialog-copy">
-                  Sie bestätigen, dass Sie die sichtbaren Beobachtungen,
-                  Referenzintervalle und Quellen geprüft haben. Hinweis: Die
-                  Anbindung an den Freigabe-Lifecycle ist noch nicht freigegeben
-                  (Gate G2) — die Signatur wird derzeit nicht serverseitig
-                  geschrieben.
-                </p>
-              </div>
-              <button
-                className="icon-btn"
-                type="button"
-                aria-label="Dialog schließen"
-                onClick={() => setDialogOpen(false)}
-              >
-                <Icon name="close" />
-              </button>
+          <div className="dialog-head">
+            <div>
+              <h2 id="review-dialog-title">Klinischen Review signieren?</h2>
+              <p id="review-dialog-copy">
+                Sie bestätigen, dass Sie die sichtbaren Beobachtungen,
+                Referenzintervalle und Quellen geprüft haben. Hinweis: Die
+                Anbindung an den Freigabe-Lifecycle ist noch nicht freigegeben
+                (Gate G2) — die Signatur wird derzeit nicht serverseitig
+                geschrieben.
+              </p>
             </div>
-            <label className="checkbox" style={{ marginTop: "17px" }}>
-              <input
-                type="checkbox"
-                autoFocus
-                checked={confirmChecked}
-                onChange={(e) => setConfirmChecked(e.target.checked)}
-              />
-              <span>
-                Ich habe die offenen Hinweise geprüft und bestätige die
-                klinische Dokumentation.
-              </span>
-            </label>
-            <div className="dialog-actions">
-              <button
-                className="btn btn-secondary"
-                type="button"
-                onClick={() => setDialogOpen(false)}
-              >
-                Abbrechen
-              </button>
-              <button
-                className="btn btn-primary"
-                type="button"
-                disabled={!confirmChecked}
-                onClick={() => {
-                  setDialogOpen(false);
-                  setConfirmChecked(false);
-                  toast(
-                    "Signatur erfasst (Demo). Anbindung an Genehmigung/Freigabe folgt nach Gate G2.",
-                  );
-                }}
-              >
-                Signieren und weiterleiten
-              </button>
-            </div>
-          </section>
-        </div>
+            <button
+              className="icon-btn"
+              type="button"
+              aria-label="Dialog schließen"
+              onClick={() => setDialogOpen(false)}
+            >
+              <Icon name="close" />
+            </button>
+          </div>
+          <label className="checkbox" style={{ marginTop: "17px" }}>
+            <input
+              ref={confirmRef}
+              type="checkbox"
+              checked={confirmChecked}
+              onChange={(e) => setConfirmChecked(e.target.checked)}
+            />
+            <span>
+              Ich habe die offenen Hinweise geprüft und bestätige die klinische
+              Dokumentation.
+            </span>
+          </label>
+          <div className="dialog-actions">
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => setDialogOpen(false)}
+            >
+              Abbrechen
+            </button>
+            <button
+              className="btn btn-primary"
+              type="button"
+              disabled={!confirmChecked}
+              onClick={() => {
+                setDialogOpen(false);
+                setConfirmChecked(false);
+                toast(
+                  "Signatur erfasst (Demo). Anbindung an Genehmigung/Freigabe folgt nach Gate G2.",
+                );
+              }}
+            >
+              Signieren und weiterleiten
+            </button>
+          </div>
+        </Dialog>
       )}
     </>
   );
