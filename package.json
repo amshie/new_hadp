@@ -17,7 +17,7 @@
     "gen:client": "node packages/api-client/scripts/generate.mjs"
   },
   "devDependencies": {
-    "prettier": "3.3.3",
+    "prettier": "3.9.4",
     "openapi-typescript": "7.4.1",
     "typescript": "5.6.3"
   }
