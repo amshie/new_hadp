@@ -52,6 +52,21 @@ def main() -> int:
         assert "nicht oder nicht mehr gültig" in r.text
         assert "Pilotumgebung" in r.text, "disclaimer missing on /patient-view"
 
+        # Cookie-exchange entry: the token-bearing link 303-redirects to a clean,
+        # tokenless /patient-view and stashes the credential in an httpOnly cookie, so the
+        # bearer token never lands in the address bar or browser history.
+        oeffnen = "/patient-view/oeffnen?tenant=00000000-0000-0000-0000-000000000000&token=synthetic-smoke"
+        r = web.get(oeffnen)
+        assert r.status_code in REDIRECT, ("/patient-view/oeffnen", r.status_code)
+        loc = r.headers["location"]
+        assert loc.endswith("/patient-view"), ("oeffnen redirect target", loc)
+        assert "synthetic-smoke" not in loc, "token leaked into the redirect URL"
+        set_cookie = "; ".join(r.headers.get_list("set-cookie"))
+        assert "hadp_pv=" in set_cookie and "HttpOnly" in set_cookie, (
+            "pv cookie not set httpOnly",
+            set_cookie,
+        )
+
     # Real session via the API (same path the login action uses), then authed pages.
     with httpx.Client(base_url=API, timeout=60.0) as api:
         r = api.post("/auth/dev-login", json={"email": "clinician@demo.synthetic"})

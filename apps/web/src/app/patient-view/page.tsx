@@ -1,18 +1,21 @@
+import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 
 import { Disclaimer } from "@/components/Disclaimer";
 import { patientView } from "@/lib/api";
+import { decodePv, PV_COOKIE } from "@/lib/patientView";
 import { isUuid } from "@/lib/uuid";
 
 // Patient-facing report view (released content only). de-DE like every other surface;
 // the four-part disclaimer renders on every state. The failure state is neutral — it
 // never reveals whether a link is wrong, expired, revoked, or unreleased.
-export default async function PatientViewPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tenant?: string; token?: string }>;
-}) {
-  const { tenant, token } = await searchParams;
+//
+// The token is read ONLY from the httpOnly hadp_pv cookie set by /patient-view/oeffnen —
+// never from the URL — so it stays out of the address bar, history, and referrers.
+export const dynamic = "force-dynamic";
+
+export default async function PatientViewPage() {
+  const creds = decodePv((await cookies()).get(PV_COOKIE)?.value);
 
   const shell = (children: ReactNode) => (
     <main
@@ -29,11 +32,11 @@ export default async function PatientViewPage({
   );
 
   // UUID-guard the tenant BEFORE any request (mirrors /einladung).
-  if (!tenant || !token || !isUuid(tenant)) {
+  if (!creds || !isUuid(creds.tenant)) {
     return shell(<p>Dieser Link ist nicht oder nicht mehr gültig.</p>);
   }
   try {
-    const view = await patientView(tenant, token);
+    const view = await patientView(creds.tenant, creds.token);
     return shell(
       <div>
         <h1 style={{ fontSize: "22px", marginBottom: "6px" }}>Ihr Bericht</h1>

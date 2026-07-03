@@ -178,7 +178,7 @@ def test_cross_tenant_token_replay_is_404(client, admin_session) -> None:  # typ
     tenant_b = make_tenant(admin_session, name="Clinic TKB", slug="clinic-tkb")
     admin_session.commit()
 
-    correct = client.get(f"/api/v1/patient-view?tenant={tenant_a.id}&token={token}")
+    correct = client.post("/api/v1/patient-view", json={"tenant": str(tenant_a.id), "token": token})
     assert correct.status_code == 200  # sanity: correct tenant + token works
-    replay = client.get(f"/api/v1/patient-view?tenant={tenant_b.id}&token={token}")
+    replay = client.post("/api/v1/patient-view", json={"tenant": str(tenant_b.id), "token": token})
     assert replay.status_code == 404

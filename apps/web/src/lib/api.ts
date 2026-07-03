@@ -276,8 +276,11 @@ export const releaseReport = (reportId: string) =>
     method: "POST",
   });
 
+// Token travels in the POST body, never the URL: it must not land in a query string,
+// browser history, referrer, or an intermediary access log.
 export const patientView = (tenant: string, token: string) =>
-  request<PatientView>(
-    `/api/v1/patient-view?tenant=${encodeURIComponent(tenant)}&token=${encodeURIComponent(token)}`,
-    { auth: false },
-  );
+  request<PatientView>("/api/v1/patient-view", {
+    method: "POST",
+    body: JSON.stringify({ tenant, token }),
+    auth: false,
+  });

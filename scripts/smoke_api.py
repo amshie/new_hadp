@@ -67,12 +67,17 @@ def main() -> int:
         release = md.post(f"/reports/{report_id}/release").json()
         token = release["patient_access_token"]
 
-    # patient view: separate client (no staff cookie)
+    # patient view: separate client (no staff cookie). Token travels in the POST body,
+    # never the URL — so it stays out of query strings, history, and access logs.
     with httpx.Client(base_url=BASE, timeout=10.0) as anon:
-        view = anon.get("/patient-view", params={"tenant": tenant["tenant_id"], "token": token})
+        view = anon.post(
+            "/patient-view", json={"tenant": tenant["tenant_id"], "token": token}
+        )
         assert view.status_code == 200, view.text
         assert view.json()["status"] == "released"
-        bad = anon.get("/patient-view", params={"tenant": tenant["tenant_id"], "token": "nope"})
+        bad = anon.post(
+            "/patient-view", json={"tenant": tenant["tenant_id"], "token": "nope"}
+        )
         assert bad.status_code == 404, bad.text
 
     print("SMOKE OK: full happy path passed over live HTTP")
