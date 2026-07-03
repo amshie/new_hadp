@@ -174,9 +174,11 @@ def release_report(
         target_id=report.id,
         correlation_id=ctx.correlation_id,
     )
-    # Link targets the web patient-view page (not the JSON API endpoint).
+    # Link targets the web cookie-exchange entry (not the JSON API endpoint): opening it
+    # stashes the token in an httpOnly cookie and redirects to a clean, tokenless URL, so
+    # the patient bearer token never persists in the address bar or browser history.
     base = get_settings().web_base_url
-    url = f"{base}/patient-view?tenant={ctx.tenant_id}&token={raw_token}"
+    url = f"{base}/patient-view/oeffnen?tenant={ctx.tenant_id}&token={raw_token}"
     return ReleaseOut(
         report_id=report.id,
         status=report.status.value,

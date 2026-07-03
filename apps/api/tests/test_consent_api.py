@@ -108,7 +108,12 @@ def test_consent_withdraw_via_api_revokes_access(client, admin_session) -> None:
         role=Role.MEDICAL_DIRECTOR,
     )
     token = client.post(f"/api/v1/reports/{rid}/release").json()["patient_access_token"]
-    assert client.get(f"/api/v1/patient-view?tenant={tenant.id}&token={token}").status_code == 200
+    assert (
+        client.post(
+            "/api/v1/patient-view", json={"tenant": str(tenant.id), "token": token}
+        ).status_code
+        == 200
+    )
 
     # Withdrawal via the API (clinician records it): access stops immediately.
     switch_role(
@@ -124,7 +129,12 @@ def test_consent_withdraw_via_api_revokes_access(client, admin_session) -> None:
     )
     assert withdrawn.status_code == 201, withdrawn.text
     assert withdrawn.json()["event_type"] == "withdrawn"
-    assert client.get(f"/api/v1/patient-view?tenant={tenant.id}&token={token}").status_code == 404
+    assert (
+        client.post(
+            "/api/v1/patient-view", json={"tenant": str(tenant.id), "token": token}
+        ).status_code
+        == 404
+    )
 
     # Both events persist append-only; the withdrawal is audited with the purpose only.
     events = admin_session.execute(select(ConsentEvent)).scalars().all()

@@ -90,7 +90,8 @@ def create_app() -> FastAPI:
     # requests must prove same-origin — an allow-listed Origin/Referer OR the
     # double-submit token (x-csrf-token header matching the non-httpOnly csrf cookie,
     # issued at login). Exempt: login (no auth cookie is required to reach it; it is
-    # rate-limited instead) and the token-credentialed patient surface (GET-only).
+    # rate-limited instead). The token-credentialed patient surface is anonymous (no
+    # session cookie), so the guard below never triggers on it.
     _CSRF_EXEMPT = {f"{API_PREFIX}/auth/dev-login"}
     _UNSAFE = {"POST", "PUT", "PATCH", "DELETE"}
 

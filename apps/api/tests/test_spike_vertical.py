@@ -126,14 +126,17 @@ def test_full_happy_path_crosses_every_module(client, admin_session) -> None:  #
     token = release.json()["patient_access_token"]
 
     # 8) patient view: RELEASED content only, via the scoped link
-    view = client.get(f"/api/v1/patient-view?tenant={tenant.id}&token={token}")
+    view = client.post("/api/v1/patient-view", json={"tenant": str(tenant.id), "token": token})
     assert view.status_code == 200, view.text
     assert view.json()["status"] == "released"
     assert view.json()["synthetic"] is True
     assert len(view.json()["statements"]) >= 1
 
     # 9) a wrong token reveals nothing
-    bad = client.get(f"/api/v1/patient-view?tenant={tenant.id}&token=not-a-real-token")
+    bad = client.post(
+        "/api/v1/patient-view",
+        json={"tenant": str(tenant.id), "token": "not-a-real-token"},
+    )
     assert bad.status_code == 404
 
 
@@ -175,7 +178,12 @@ def test_editing_a_released_report_revokes_patient_access(client, admin_session)
     token = client.post(f"/api/v1/reports/{rid}/release").json()["patient_access_token"]
 
     # The released report is viewable by the patient.
-    assert client.get(f"/api/v1/patient-view?tenant={tenant.id}&token={token}").status_code == 200
+    assert (
+        client.post(
+            "/api/v1/patient-view", json={"tenant": str(tenant.id), "token": token}
+        ).status_code
+        == 200
+    )
 
     # Edit after release (as the clinician) -> new draft version, prior approval
     # invalidated, access retracted.
@@ -194,4 +202,9 @@ def test_editing_a_released_report_revokes_patient_access(client, admin_session)
     assert edited.json()["status"] == "draft_edited"
 
     # The previously valid patient link no longer works.
-    assert client.get(f"/api/v1/patient-view?tenant={tenant.id}&token={token}").status_code == 404
+    assert (
+        client.post(
+            "/api/v1/patient-view", json={"tenant": str(tenant.id), "token": token}
+        ).status_code
+        == 404
+    )

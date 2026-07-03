@@ -46,9 +46,9 @@ def test_patient_view_token_surface_is_rate_limited(client, admin_session) -> No
     # 30/min per IP on the public, brute-forceable token surface: the guesses 404,
     # the 31st attempt is throttled before touching the database.
     for _ in range(30):
-        resp = client.get(f"/api/v1/patient-view?tenant={tenant}&token=guess")
+        resp = client.post("/api/v1/patient-view", json={"tenant": str(tenant), "token": "guess"})
         assert resp.status_code == 404
-    blocked = client.get(f"/api/v1/patient-view?tenant={tenant}&token=guess")
+    blocked = client.post("/api/v1/patient-view", json={"tenant": str(tenant), "token": "guess"})
     assert blocked.status_code == 429, blocked.text
     events = (
         admin_session.execute(select(AuditEvent).where(AuditEvent.action == "rate_limited"))

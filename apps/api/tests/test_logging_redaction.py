@@ -27,9 +27,12 @@ def test_redacting_filter_scrubs_log_record(caplog) -> None:  # type: ignore[no-
 
 
 def test_uvicorn_access_log_scrubs_query_tokens() -> None:
-    """P-pre-3 (docs/notes/0010): the patient token travels as a ?token= query param;
-    the access-log line must never carry it — while uvicorn's positional
-    AccessFormatter (which unpacks record.args) keeps working."""
+    """P-pre-3 (docs/notes/0010): the access log must never carry a token/code. The
+    patient bearer token no longer rides the API URL (it moved to the POST body, and the
+    web link exchanges it into an httpOnly cookie), but the redaction filter stays as
+    belt-and-suspenders — any residual ?token=/?code= (e.g. the web /oeffnen entry URL) is
+    scrubbed — while uvicorn's positional AccessFormatter (which unpacks record.args) keeps
+    working."""
     from hadp_api.logging import configure_logging
 
     configure_logging()  # attaches ArgsRedactingFilter to the uvicorn.access logger

@@ -143,7 +143,12 @@ def test_withdrawal_is_a_new_event_and_revokes_access(client, admin_session) -> 
         role=Role.MEDICAL_DIRECTOR,
     )
     token = client.post(f"/api/v1/reports/{rid}/release").json()["patient_access_token"]
-    assert client.get(f"/api/v1/patient-view?tenant={tenant.id}&token={token}").status_code == 200
+    assert (
+        client.post(
+            "/api/v1/patient-view", json={"tenant": str(tenant.id), "token": token}
+        ).status_code
+        == 200
+    )
 
     # Withdraw consent via the service (no HTTP route in P0); on its own tenant-bound session.
     session = get_sessionmaker()()
@@ -162,7 +167,12 @@ def test_withdrawal_is_a_new_event_and_revokes_access(client, admin_session) -> 
         session.close()
 
     # The live patient link is revoked the moment consent is withdrawn.
-    assert client.get(f"/api/v1/patient-view?tenant={tenant.id}&token={token}").status_code == 404
+    assert (
+        client.post(
+            "/api/v1/patient-view", json={"tenant": str(tenant.id), "token": token}
+        ).status_code
+        == 404
+    )
 
     # Withdrawal is a NEW event: both rows exist, the GRANTED row is unchanged, state is inactive.
     check = get_sessionmaker()()

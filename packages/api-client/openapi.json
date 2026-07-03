@@ -1254,42 +1254,31 @@
       }
     },
     "/api/v1/patient-view": {
-      "get": {
+      "post": {
         "tags": [
           "patient-view"
         ],
         "summary": "Patient View",
-        "operationId": "patient_view_api_v1_patient_view_get",
-        "parameters": [
-          {
-            "name": "tenant",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Tenant"
+        "operationId": "patient_view_api_v1_patient_view_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientViewRequest"
+              }
             }
           },
-          {
-            "name": "token",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Token"
-            }
-          }
-        ],
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Patient View Api V1 Patient View Get"
+                  "type": "object",
+                  "title": "Response Patient View Api V1 Patient View Post"
                 }
               }
             }
@@ -2167,6 +2156,25 @@
           "is_synthetic"
         ],
         "title": "PatientOut"
+      },
+      "PatientViewRequest": {
+        "properties": {
+          "tenant": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Tenant"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenant",
+          "token"
+        ],
+        "title": "PatientViewRequest"
       },
       "RedeemIn": {
         "properties": {
