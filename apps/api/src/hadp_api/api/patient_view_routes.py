@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from hadp_api.db.engine import set_tenant_context
@@ -18,6 +18,7 @@ from hadp_api.db.session import get_db
 from hadp_api.errors import NotFound
 from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.reports import service as reports_service
+from hadp_api.security.rate_limit import check_rate_limit
 
 router = APIRouter(tags=["patient-view"])
 
@@ -26,8 +27,18 @@ router = APIRouter(tags=["patient-view"])
 def patient_view(
     tenant: uuid.UUID,
     token: str,
+    request: Request,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
+    # The token surface is public and brute-forceable — throttle per client IP
+    # (P-pre-1) before touching the database.
+    check_rate_limit(
+        action="patient_view",
+        key=request.client.host if request.client else "unknown",
+        limit=30,
+        window_seconds=60,
+        correlation_id=getattr(request.state, "correlation_id", None),
+    )
     # Bind tenant scope from the URL (non-secret); the token is the actual credential.
     set_tenant_context(db, tenant)
     try:

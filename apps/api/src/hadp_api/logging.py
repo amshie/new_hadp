@@ -15,7 +15,7 @@ from typing import Any
 
 # Patterns scrubbed from every emitted log record as defense-in-depth.
 _EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
-_BEARER = re.compile(r"(?i)\b(bearer|token|secret|password|authorization)\b\s*[=:]?\s*\S+")
+_BEARER = re.compile(r"(?i)\b(bearer|token|code|secret|password|authorization)\b\s*[=:]?\s*\S+")
 _DECIMAL = re.compile(r"\b\d+\.\d+\b")  # decimal values (lab-value-shaped numbers)
 _LONG_DIGITS = re.compile(r"\b\d[\d,]{5,}\b")  # long integer runs (possible values/ids)
 
@@ -56,6 +56,11 @@ def configure_logging(level: int = logging.INFO) -> None:
     root = logging.getLogger()
     root.handlers = [handler]
     root.setLevel(level)
+    # P-pre-3 (docs/notes/0010): the patient token travels as a query parameter on
+    # /patient-view links, and uvicorn's access log renders the raw request line through
+    # its OWN handlers (the root-handler filter does not apply). A logger-level filter
+    # runs before any handler, so the token never reaches the access log.
+    logging.getLogger("uvicorn.access").addFilter(RedactingFilter())
     _CONFIGURED = True
 
 

@@ -83,6 +83,8 @@ export interface DomainMatrixView {
 
 const API_BASE = process.env.API_BASE_URL ?? "http://127.0.0.1:8000";
 const COOKIE = "hadp_session";
+const CSRF_COOKIE = "hadp_csrf";
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export class ApiError extends Error {
   constructor(
@@ -101,8 +103,19 @@ async function request<T>(
   const headers = new Headers(init?.headers);
   if (init?.body) headers.set("content-type", "application/json");
   if (init?.auth !== false) {
-    const token = (await cookies()).get(COOKIE)?.value;
-    if (token) headers.set("cookie", `${COOKIE}=${token}`);
+    const jar = await cookies();
+    const token = jar.get(COOKIE)?.value;
+    const csrf = jar.get(CSRF_COOKIE)?.value;
+    // Forward BOTH cookies: the API's double-submit check compares the x-csrf-token
+    // header against the csrf COOKIE, so the cookie itself must travel too.
+    const cookieParts = [
+      ...(token ? [`${COOKIE}=${token}`] : []),
+      ...(csrf ? [`${CSRF_COOKIE}=${csrf}`] : []),
+    ];
+    if (cookieParts.length) headers.set("cookie", cookieParts.join("; "));
+    if (csrf && UNSAFE_METHODS.has((init?.method ?? "GET").toUpperCase())) {
+      headers.set("x-csrf-token", csrf);
+    }
   }
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -135,13 +148,22 @@ export async function devLogin(email: string): Promise<LoginResponse> {
     cache: "no-store",
   });
   if (!res.ok) throw new ApiError(res.status, "login_failed", "login failed");
-  // Persist the session cookie issued by the API on this app's domain.
+  // Persist the session + CSRF cookies issued by the API on this app's domain.
   const setCookies = res.headers.getSetCookie?.() ?? [];
   for (const c of setCookies) {
-    const match = c.match(new RegExp(`${COOKIE}=([^;]+)`));
-    if (match?.[1]) {
-      (await cookies()).set(COOKIE, match[1], {
+    const session = c.match(new RegExp(`^${COOKIE}=([^;]+)`));
+    if (session?.[1]) {
+      (await cookies()).set(COOKIE, session[1], {
         httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+      });
+    }
+    const csrf = c.match(new RegExp(`^${CSRF_COOKIE}=([^;]+)`));
+    if (csrf?.[1]) {
+      // Deliberately NOT httpOnly (double-submit token, readable by the client).
+      (await cookies()).set(CSRF_COOKIE, csrf[1], {
+        httpOnly: false,
         sameSite: "lax",
         path: "/",
       });

@@ -44,6 +44,8 @@ def main() -> int:
     with httpx.Client(base_url=API, timeout=60.0) as api:
         r = api.post("/auth/dev-login", json={"email": "clinician@demo.synthetic"})
         assert r.status_code == 200, ("dev-login", r.status_code, r.text)
+        # Double-submit CSRF (P-pre-2): unsafe calls carry the token issued at login.
+        api.headers["x-csrf-token"] = api.cookies.get("hadp_csrf") or ""
         tenants = api.get("/tenancy/my-tenants").json()
         tenant = next(t for t in tenants if t["tenant_slug"] == "demo-clinic")
         r = api.post("/tenancy/select-tenant", json={"tenant_id": tenant["tenant_id"]})

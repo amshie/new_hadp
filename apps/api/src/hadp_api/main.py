@@ -6,6 +6,7 @@ handling (no echoing of request bodies), and the /api/v1 routers.
 
 from __future__ import annotations
 
+import hmac
 import uuid
 from collections.abc import Awaitable, Callable
 
@@ -29,6 +30,7 @@ from hadp_api.api import (
 from hadp_api.config import get_settings
 from hadp_api.errors import AppError, app_error_handler
 from hadp_api.logging import configure_logging
+from hadp_api.modules.audit.service import record_security_event
 
 API_PREFIX = "/api/v1"
 
@@ -79,7 +81,56 @@ def create_app() -> FastAPI:
         response.headers["x-frame-options"] = "DENY"
         response.headers["referrer-policy"] = "no-referrer"
         response.headers["content-security-policy"] = "default-src 'none'; frame-ancestors 'none'"
+        if get_settings().is_production:
+            response.headers["strict-transport-security"] = "max-age=63072000; includeSubDomains"
         return response
+
+    # CSRF guard (P-pre-2, docs/notes/0010): unsafe methods on cookie-authenticated
+    # requests must prove same-origin — an allow-listed Origin/Referer OR the
+    # double-submit token (x-csrf-token header matching the non-httpOnly csrf cookie,
+    # issued at login). Exempt: login (no auth cookie is required to reach it; it is
+    # rate-limited instead) and the token-credentialed patient surface (GET-only).
+    _CSRF_EXEMPT = {f"{API_PREFIX}/auth/dev-login"}
+    _UNSAFE = {"POST", "PUT", "PATCH", "DELETE"}
+
+    @app.middleware("http")
+    async def csrf_guard(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        settings = get_settings()
+        if (
+            request.method in _UNSAFE
+            and settings.session_cookie_name in request.cookies
+            and request.url.path not in _CSRF_EXEMPT
+        ):
+            allowed = {settings.web_base_url.rstrip("/"), settings.api_base_url.rstrip("/")}
+            origin = request.headers.get("origin")
+            referer = request.headers.get("referer")
+            ok = False
+            if origin is not None:
+                ok = origin.rstrip("/") in allowed
+            elif referer is not None:
+                ok = any(referer == a or referer.startswith(a + "/") for a in allowed)
+            if not ok:
+                header = request.headers.get("x-csrf-token", "")
+                cookie = request.cookies.get(settings.csrf_cookie_name, "")
+                ok = bool(header) and bool(cookie) and hmac.compare_digest(header, cookie)
+            if not ok:
+                record_security_event(
+                    action="csrf.denied",
+                    correlation_id=request.headers.get("x-correlation-id"),
+                    detail={"method": request.method},
+                )
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "error": {
+                            "code": "csrf_rejected",
+                            "detail": "cross-site request rejected",
+                        }
+                    },
+                )
+        return await call_next(request)
 
     app.add_exception_handler(AppError, app_error_handler)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, _validation_error_handler)

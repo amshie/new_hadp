@@ -24,3 +24,39 @@ def test_redacting_filter_scrubs_log_record(caplog) -> None:  # type: ignore[no-
     rendered = "\n".join(r.getMessage() for r in caplog.records)
     assert "secret@example.com" not in rendered
     assert "tok_abcdef123456" not in rendered
+
+
+def test_uvicorn_access_log_scrubs_query_tokens() -> None:
+    """P-pre-3 (docs/notes/0010): the patient token travels as a ?token= query param;
+    the access-log line must never carry it. Captured via a handler on the access
+    logger itself (logger-level filters run before logger handlers)."""
+    from hadp_api.logging import configure_logging
+
+    configure_logging()  # attaches RedactingFilter to the uvicorn.access logger
+    access = logging.getLogger("uvicorn.access")
+    # Pin the logger state: other tests/plugins may disable or level-filter it; the
+    # subject under test is the FILTER, which runs regardless once the record flows.
+    access.disabled = False
+    access.setLevel(logging.INFO)
+    captured: list[str] = []
+
+    class _Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            captured.append(record.getMessage())
+
+    handler = _Capture()
+    access.addHandler(handler)
+    try:
+        access.info(
+            '%s - "%s %s HTTP/1.1" %d',
+            "127.0.0.1:5000",
+            "GET",
+            "/api/v1/patient-view?tenant=70a6e3eb&token=ZfiTR8X4WHV47zNVdMURza",
+            200,
+        )
+    finally:
+        access.removeHandler(handler)
+    rendered = "\n".join(captured)
+    assert rendered, "access record was not captured"
+    assert "ZfiTR8X4WHV47zNVdMURza" not in rendered
+    assert "patient-view" in rendered  # the path itself stays diagnosable

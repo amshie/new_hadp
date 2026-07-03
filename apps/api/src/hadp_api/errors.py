@@ -44,6 +44,16 @@ class ValidationFailed(AppError):
     http_status = 422
 
 
+class TooManyRequests(AppError):
+    code = "too_many_requests"
+    http_status = 429
+
+
+class ServiceUnavailable(AppError):
+    code = "service_unavailable"
+    http_status = 503
+
+
 class IntendedUseViolation(AppError):
     """Raised when an operation would cross the documented intended-use boundary."""
 

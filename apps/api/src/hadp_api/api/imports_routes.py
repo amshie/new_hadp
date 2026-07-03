@@ -16,6 +16,7 @@ from hadp_api.modules.enums import ReviewDecision
 from hadp_api.modules.imports import service as imports_service
 from hadp_api.modules.imports.service import ValueInput, ingest_values
 from hadp_api.modules.patients import service as patients_service
+from hadp_api.security.rate_limit import check_rate_limit
 
 router = APIRouter(tags=["imports"])
 
@@ -59,6 +60,13 @@ async def upload_document(
     file: UploadFile = File(...),
     ctx: TenantContext = Depends(require(Action.DOCUMENT_UPLOAD)),
 ) -> DocumentOut:
+    check_rate_limit(
+        action="document.upload",
+        key=str(ctx.user.id),
+        limit=30,
+        window_seconds=60,
+        correlation_id=ctx.correlation_id,
+    )
     patients_service.get_patient(ctx.db, ctx.tenant_id, patient_id)
     data = await file.read()
     document, created = store_source_document(
