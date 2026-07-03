@@ -22,6 +22,7 @@ class Action(str, Enum):
     REPORT_DRAFT = "report.draft"
     REPORT_EDIT = "report.edit"
     REPORT_APPROVE = "report.approve"
+    REPORT_REJECT = "report.reject"
     REPORT_RELEASE = "report.release"
 
 
@@ -46,6 +47,9 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.REPORT_DRAFT: _CARE_STAFF,
     Action.REPORT_EDIT: _CARE_STAFF,
     Action.REPORT_APPROVE: frozenset({Role.CLINICIAN}),
+    # Either gate tier may refuse: the clinician withdraws a draft/their approval;
+    # the medical director refuses at the release gate.
+    Action.REPORT_REJECT: frozenset({Role.CLINICIAN, Role.MEDICAL_DIRECTOR}),
     Action.REPORT_RELEASE: frozenset({Role.MEDICAL_DIRECTOR}),
 }
 

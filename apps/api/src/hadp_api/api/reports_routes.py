@@ -126,6 +126,28 @@ def approve_report(
     return reports_service.assemble_report_view(ctx.db, report)
 
 
+@router.post("/reports/{report_id}/reject")
+def reject_report(
+    report_id: uuid.UUID,
+    ctx: TenantContext = Depends(require(Action.REPORT_REJECT)),
+) -> dict[str, Any]:
+    version = reports_service.reject_report(
+        ctx.db, report_id=report_id, tenant_id=ctx.tenant_id, rejected_by_user_id=ctx.user.id
+    )
+    record_audit(
+        ctx.db,
+        action="report.rejected",
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        target_type="report_version",
+        target_id=version.id,
+        correlation_id=ctx.correlation_id,
+        detail={"version_no": version.version_no},
+    )
+    report = _get_report(ctx.db, report_id, ctx.tenant_id)
+    return reports_service.assemble_report_view(ctx.db, report)
+
+
 @router.post("/reports/{report_id}/release", response_model=ReleaseOut)
 def release_report(
     report_id: uuid.UUID,

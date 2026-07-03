@@ -73,6 +73,11 @@ class ReportVersion(UUIDPrimaryKey, TimestampCreated, Base):
     )
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Rejection carries the same first-class attribution as approval (Gate G2 slice).
+    rejected_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class ReportEvidence(UUIDPrimaryKey, TimestampCreated, Base):

@@ -208,6 +208,10 @@ export const approveReport = (reportId: string) =>
   request<ReportView>(`/api/v1/reports/${reportId}/approve`, {
     method: "POST",
   });
+export const rejectReport = (reportId: string) =>
+  request<ReportView>(`/api/v1/reports/${reportId}/reject`, {
+    method: "POST",
+  });
 export const releaseReport = (reportId: string) =>
   request<ReleaseOut>(`/api/v1/reports/${reportId}/release`, {
     method: "POST",

@@ -81,8 +81,12 @@ def test_two_tier_physician_gate_matrix() -> None:
     assert can(Role.MEDICAL_DIRECTOR, Action.OBSERVATION_READ) is True
     assert can(Role.MEDICAL_DIRECTOR, Action.PATIENT_CREATE) is False
     assert can(Role.MEDICAL_DIRECTOR, Action.REPORT_DRAFT) is False
+    # Either gate tier may refuse (reject); operational staff may not.
+    assert can(Role.CLINICIAN, Action.REPORT_REJECT) is True
+    assert can(Role.MEDICAL_DIRECTOR, Action.REPORT_REJECT) is True
     for role in (Role.ASSISTANT, Role.OWNER):
         assert can(role, Action.REPORT_APPROVE) is False
+        assert can(role, Action.REPORT_REJECT) is False
         assert can(role, Action.REPORT_RELEASE) is False
         assert can(role, Action.INTERPRETATION_AUTHOR) is False
 

@@ -139,3 +139,18 @@ for, and the comp's create-patient affordance is wired.
 - **Tests:** `apps/api/tests/test_throughput.py` pins the day-bucketing (created vs signed, today vs
   yesterday), the `days` boundary (422 on out-of-range), and cross-tenant isolation (a fresh tenant
   sees an all-zero series). OpenAPI re-exported + client regenerated.
+
+## Addendum 3 (2026-07-03) — Gate G2 closed: the real Freigabe lifecycle in the UI
+
+The demo sign stub is gone on both surfaces. The assessment-review page and the patient
+Detail call the real `approve` / `reject` / `release` endpoints through `"use server"`
+actions (`app/reports/actions.ts`), role-aware under the two-tier physician gate: the
+**clinician** approves (with the evidence-confirmation checkbox — meaningful approval on
+the surface where the evidence is viewable), the **medical director** releases
+(consent-gated, fail-closed; the patient link is shown exactly once with the
+manual-secure-delivery note), and **either tier may reject** (`REJECTED` is now reachable,
+attributable via `rejected_by_user_id`/`rejected_at`, migration `0010`; editing a rejected
+report opens a NEW version — the rejected version is a preserved record). The Addendum-2
+honesty note above is thereby resolved: "Signiert" now also counts approvals performed
+through the UI. Status copy is role-aware and honest (`statusHint`, shared by both
+surfaces); actions the role may not perform do not render — hiding is UX, the API enforces.

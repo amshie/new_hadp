@@ -1,14 +1,25 @@
 "use client";
 
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type CSSProperties,
+} from "react";
 import { useRouter } from "next/navigation";
 
+import {
+  approveReportAction,
+  rejectReportAction,
+  releaseReportAction,
+} from "@/app/reports/actions";
 import { Dialog } from "@/components/vitabahn/Dialog";
 import { clickable } from "@/components/vitabahn/interactive";
 import { lageLabel } from "@/lib/lageCopy";
 import type { ReferencePosition } from "@/lib/referencePosition";
 import type { DetailView } from "@/lib/presenters/patientDetail";
-import type { MarkerView } from "@/lib/presenters/review";
+import { statusHint, type MarkerView } from "@/lib/presenters/review";
 
 // VitaBahn patient Detail (ADR-0006, real-data path). Consumes the governed DetailView
 // (presentReview + a real data-completeness stat). NO A–E grade (doctrine). Observation Status
@@ -216,7 +227,15 @@ function LagePill({ pos }: { pos: ReferencePosition }) {
   );
 }
 
-export function PatientDetailContent({ view }: { view: DetailView }) {
+export function PatientDetailContent({
+  view,
+  sessionRole,
+  path,
+}: {
+  view: DetailView;
+  sessionRole: string | null;
+  path: string;
+}) {
   const router = useRouter();
   const { review, completeness } = view;
   const domains = review.domains;
@@ -229,20 +248,62 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
   const [openMarker, setOpenMarker] = useState<MarkerView | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
-  // Sign/Freigabe workflow (inline; Gate G2 boundary preserved — see the dialog copy).
-  const [signOpen, setSignOpen] = useState(false);
+  // Real Freigabe lifecycle (Gate G2 closed): role-appropriate actions; the API enforces
+  // role + lifecycle + consent server-side. Hiding here is UX, never a control.
+  const [gateDialog, setGateDialog] = useState<
+    "approve" | "reject" | "release" | null
+  >(null);
   const [signChecked, setSignChecked] = useState(false);
-  const [signed, setSigned] = useState(false);
+  const [releasedUrl, setReleasedUrl] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [gateError, setGateError] = useState<string | null>(null);
+  const [gatePending, startGateTransition] = useTransition();
   const signCloseRef = useRef<HTMLButtonElement>(null);
+
+  const isDraft =
+    review.status === "draft_generated" || review.status === "draft_edited";
+  const isApproved = review.status === "approved";
+  const canApprove = sessionRole === "clinician" && isDraft;
+  const canRelease = sessionRole === "medical_director" && isApproved;
+  const canReject =
+    (sessionRole === "clinician" || sessionRole === "medical_director") &&
+    (isDraft || isApproved);
 
   // The shared Dialog handles Escape, the focus trap, and focus capture/restore to the trigger.
   const openObs = (m: MarkerView) => setOpenMarker(m);
   const closeObs = () => setOpenMarker(null);
-  const openSign = () => {
+  const openGate = (kind: "approve" | "reject" | "release") => {
     setSignChecked(false);
-    setSignOpen(true);
+    setGateError(null);
+    setGateDialog(kind);
   };
-  const closeSign = () => setSignOpen(false);
+  const closeGate = () => {
+    setGateDialog(null);
+    setSignChecked(false);
+    setReleasedUrl(null);
+    setLinkCopied(false);
+    setGateError(null);
+  };
+  const runGate = (kind: "approve" | "reject" | "release") => {
+    startGateTransition(async () => {
+      const res =
+        kind === "approve"
+          ? await approveReportAction(review.reportId, path)
+          : kind === "reject"
+            ? await rejectReportAction(review.reportId, path)
+            : await releaseReportAction(review.reportId, path);
+      if (!res.ok) {
+        setGateError(res.error);
+        return;
+      }
+      if (kind === "release" && res.patientViewUrl) {
+        // Keep the dialog open: the link is shown exactly once (token is not re-readable).
+        setReleasedUrl(res.patientViewUrl);
+        return;
+      }
+      closeGate();
+    });
+  };
 
   const curDomain = domains.find((d) => d.domainAxis === domainAxis) ?? null;
   const evidence = useMemo(() => {
@@ -1162,7 +1223,7 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
             </div>
           </div>
 
-          {/* action bar — sign workflow (Gate G2 honest) */}
+          {/* action bar — real Freigabe lifecycle (Gate G2 closed; server-enforced) */}
           <div
             style={{
               display: "flex",
@@ -1192,9 +1253,7 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
                   maxWidth: "82ch",
                 }}
               >
-                {signed
-                  ? "Signatur erfasst (Demo). Die Anbindung an den Freigabe-Lifecycle (Genehmigung/Freigabe an die Patientin) folgt nach Gate G2."
-                  : "Die Signatur ist noch nicht an den Freigabe-Lifecycle angebunden (Gate G2); sie veröffentlicht keinen Bericht an die Patientin."}
+                {statusHint(review.status, sessionRole)}
                 {view.reportLink && (
                   <>
                     {" · "}
@@ -1215,42 +1274,34 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
               </div>
             </div>
             <div style={{ display: "flex", gap: "10px", flexShrink: 0 }}>
-              {signed ? (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    height: "40px",
-                    padding: "0 16px",
-                    borderRadius: "var(--radius-sm)",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    color: "var(--vital-500)",
-                    background: "rgba(20,169,130,0.12)",
-                    border: "1px solid rgba(20,169,130,0.30)",
-                  }}
-                >
-                  <svg
-                    aria-hidden="true"
-                    focusable="false"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                  Signiert (Demo)
-                </span>
-              ) : (
+              {canReject && (
                 <button
                   type="button"
-                  onClick={openSign}
+                  disabled={gatePending}
+                  onClick={() => openGate("reject")}
+                  className="vb-btn-sec"
+                  style={{
+                    height: "40px",
+                    padding: "0 16px",
+                    whiteSpace: "nowrap",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--border-default)",
+                    background: "var(--surface-card)",
+                    color: "var(--text-strong)",
+                    fontFamily: "var(--font-text)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Zurückweisen
+                </button>
+              )}
+              {(canApprove || canRelease) && (
+                <button
+                  type="button"
+                  disabled={gatePending}
+                  onClick={() => openGate(canApprove ? "approve" : "release")}
                   className="vb-btn-pri"
                   style={{
                     display: "inline-flex",
@@ -1284,7 +1335,7 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
                   >
                     <path d="M20 6L9 17l-5-5" />
                   </svg>
-                  Review signieren
+                  {canApprove ? "Bericht genehmigen" : "An Patientin freigeben"}
                 </button>
               )}
             </div>
@@ -1526,10 +1577,10 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
         </Dialog>
       )}
 
-      {/* Sign dialog — Gate-G2 honest (no server-side approve/release; that's the separate G2 step) */}
-      {signOpen && (
+      {/* Gate dialog — real approve/reject/release against the governed API (audited) */}
+      {gateDialog && (
         <Dialog
-          onClose={closeSign}
+          onClose={closeGate}
           labelledBy="vb-sign-title"
           initialFocusRef={signCloseRef}
           backdropStyle={{
@@ -1571,12 +1622,17 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
                 letterSpacing: "-0.02em",
               }}
             >
-              Klinischen Review signieren?
+              {gateDialog === "approve" && "Bericht genehmigen?"}
+              {gateDialog === "reject" && "Bericht zurückweisen?"}
+              {gateDialog === "release" &&
+                (releasedUrl
+                  ? "Freigegeben — Zugriffslink"
+                  : "An Patientin freigeben?")}
             </h3>
             <button
               type="button"
               ref={signCloseRef}
-              onClick={closeSign}
+              onClick={closeGate}
               aria-label="Schließen"
               className="vb-closebtn"
               style={{
@@ -1617,33 +1673,81 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
               color: "var(--text-muted)",
             }}
           >
-            Sie bestätigen, dass Sie die sichtbaren Beobachtungen,
-            Referenzintervalle und Quellen geprüft haben. Hinweis: Die Anbindung
-            an den Freigabe-Lifecycle ist noch nicht freigegeben (Gate G2) — die
-            Signatur wird derzeit nicht serverseitig geschrieben.
+            {gateDialog === "approve" &&
+              "Sie bestätigen, dass Sie die sichtbaren Beobachtungen, Referenzintervalle und Quellen geprüft haben. Die Genehmigung wird serverseitig geschrieben, ist Ihnen zugeordnet und wird auditiert."}
+            {gateDialog === "reject" &&
+              "Die aktuelle Version wird als zurückgewiesen festgehalten (zugeordnet und auditiert). Eine Überarbeitung erstellt eine neue Version."}
+            {gateDialog === "release" &&
+              (releasedUrl
+                ? "Der Bericht ist freigegeben. Synthetische Demo: Den Link manuell und sicher übermitteln — kein automatischer Versand."
+                : "Die Freigabe ist einwilligungsgebunden (report_release), wird Ihnen zugeordnet und auditiert. Die Patientin sieht ausschließlich die freigegebene Version.")}
           </p>
-          <label
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "10px",
-              marginTop: "16px",
-              fontSize: "13px",
-              color: "var(--text-body)",
-              cursor: "pointer",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={signChecked}
-              onChange={(e) => setSignChecked(e.target.checked)}
-              style={{ marginTop: "2px" }}
-            />
-            <span>
-              Ich habe die offenen Hinweise geprüft und bestätige die klinische
-              Dokumentation.
-            </span>
-          </label>
+          {gateError && (
+            <p
+              role="alert"
+              style={{
+                margin: "12px 0 0",
+                fontSize: "12.5px",
+                lineHeight: 1.5,
+                color: "var(--danger, #b3261e)",
+              }}
+            >
+              {gateError}
+            </p>
+          )}
+          {gateDialog === "approve" && (
+            <label
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "10px",
+                marginTop: "16px",
+                fontSize: "13px",
+                color: "var(--text-body)",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={signChecked}
+                onChange={(e) => setSignChecked(e.target.checked)}
+                style={{ marginTop: "2px" }}
+              />
+              <span>
+                Ich habe die offenen Hinweise geprüft und bestätige die
+                klinische Dokumentation.
+              </span>
+            </label>
+          )}
+          {gateDialog === "release" && releasedUrl && (
+            <label
+              style={{
+                display: "block",
+                marginTop: "16px",
+                fontSize: "12px",
+                color: "var(--text-muted)",
+              }}
+            >
+              Zugriffslink (einmalig angezeigt)
+              <input
+                readOnly
+                value={releasedUrl}
+                onFocus={(e) => e.currentTarget.select()}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  marginTop: "6px",
+                  padding: "9px 11px",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border-default)",
+                  background: "var(--surface-sunken)",
+                  color: "var(--text-body)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "12px",
+                }}
+              />
+            </label>
+          )}
           <div
             style={{
               display: "flex",
@@ -1652,53 +1756,108 @@ export function PatientDetailContent({ view }: { view: DetailView }) {
               marginTop: "20px",
             }}
           >
-            <button
-              type="button"
-              onClick={closeSign}
-              className="vb-btn-sec"
-              style={{
-                height: "38px",
-                padding: "0 15px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-card)",
-                color: "var(--text-strong)",
-                fontFamily: "var(--font-text)",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Abbrechen
-            </button>
-            <button
-              type="button"
-              disabled={!signChecked}
-              onClick={() => {
-                setSigned(true);
-                setSignOpen(false);
-              }}
-              className="vb-btn-pri"
-              style={{
-                height: "38px",
-                padding: "0 16px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--brand)",
-                background: signChecked
-                  ? "var(--brand)"
-                  : "var(--surface-sunken)",
-                color: signChecked
-                  ? "var(--text-on-brand)"
-                  : "var(--text-faint)",
-                fontFamily: "var(--font-text)",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: signChecked ? "pointer" : "not-allowed",
-                opacity: signChecked ? 1 : 0.7,
-              }}
-            >
-              Signieren und weiterleiten
-            </button>
+            {gateDialog === "release" && releasedUrl ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(releasedUrl)
+                      .then(() => setLinkCopied(true));
+                  }}
+                  className="vb-btn-sec"
+                  style={{
+                    height: "38px",
+                    padding: "0 15px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--border-default)",
+                    background: "var(--surface-card)",
+                    color: "var(--text-strong)",
+                    fontFamily: "var(--font-text)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {linkCopied ? "Link kopiert" : "Link kopieren"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeGate}
+                  className="vb-btn-pri"
+                  style={{
+                    height: "38px",
+                    padding: "0 16px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--brand)",
+                    background: "var(--brand)",
+                    color: "var(--text-on-brand)",
+                    fontFamily: "var(--font-text)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Schließen
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={gatePending}
+                  onClick={closeGate}
+                  className="vb-btn-sec"
+                  style={{
+                    height: "38px",
+                    padding: "0 15px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--border-default)",
+                    background: "var(--surface-card)",
+                    color: "var(--text-strong)",
+                    fontFamily: "var(--font-text)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    gatePending || (gateDialog === "approve" && !signChecked)
+                  }
+                  onClick={() => runGate(gateDialog)}
+                  className="vb-btn-pri"
+                  style={{
+                    height: "38px",
+                    padding: "0 16px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--brand)",
+                    background:
+                      gateDialog !== "approve" || signChecked
+                        ? "var(--brand)"
+                        : "var(--surface-sunken)",
+                    color:
+                      gateDialog !== "approve" || signChecked
+                        ? "var(--text-on-brand)"
+                        : "var(--text-faint)",
+                    fontFamily: "var(--font-text)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor:
+                      gateDialog !== "approve" || signChecked
+                        ? "pointer"
+                        : "not-allowed",
+                  }}
+                >
+                  {gateDialog === "approve" && "Genehmigen"}
+                  {gateDialog === "reject" && "Zurückweisen"}
+                  {gateDialog === "release" && "Freigeben"}
+                </button>
+              </>
+            )}
           </div>
         </Dialog>
       )}

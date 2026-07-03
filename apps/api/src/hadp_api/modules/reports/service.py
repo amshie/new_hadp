@@ -265,8 +265,9 @@ def edit_report(
         raise IntendedUseViolation(str(exc)) from exc
 
     current = _current_version(db, report)
-    if current.status in {ReportStatus.APPROVED, ReportStatus.RELEASED}:
+    if current.status in {ReportStatus.APPROVED, ReportStatus.RELEASED, ReportStatus.REJECTED}:
         # Editing after approval creates a NEW version; the prior approval no longer applies.
+        # A REJECTED version is likewise a preserved record — never mutated back into a draft.
         # If the report was released, retract patient access until re-approval + re-release.
         if current.status == ReportStatus.RELEASED:
             _revoke_patient_links(db, report.id)
@@ -356,6 +357,29 @@ def release_report(
     db.add(link)
     db.flush()
     return report, raw_token
+
+
+def reject_report(
+    db: Session, *, report_id: uuid.UUID, tenant_id: uuid.UUID, rejected_by_user_id: uuid.UUID
+) -> ReportVersion:
+    """Attributable refusal of the current version (draft or approved -> REJECTED).
+
+    A RELEASED version cannot be rejected — released content is retracted by editing
+    (which revokes patient links and opens a new draft version), never re-labeled.
+    Rejection is a preserved record: further work happens on a new version via edit.
+    """
+    report = _get_report(db, report_id, tenant_id)
+    version = _current_version(db, report)
+    if version.status == ReportStatus.RELEASED:
+        raise Conflict("a released report cannot be rejected; edit it to retract and revise")
+    if version.status == ReportStatus.REJECTED:
+        raise Conflict("report is already rejected")
+    version.status = ReportStatus.REJECTED
+    version.rejected_by_user_id = rejected_by_user_id
+    version.rejected_at = datetime.now(UTC)
+    report.status = ReportStatus.REJECTED
+    db.flush()
+    return version
 
 
 def _evidence_for_statement(db: Session, statement: dict[str, Any]) -> list[dict[str, Any]]:

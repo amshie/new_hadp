@@ -850,6 +850,51 @@
         }
       }
     },
+    "/api/v1/reports/{report_id}/reject": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Reject Report",
+        "operationId": "reject_report_api_v1_reports__report_id__reject_post",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Reject Report Api V1 Reports  Report Id  Reject Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/reports/{report_id}/release": {
       "post": {
         "tags": [

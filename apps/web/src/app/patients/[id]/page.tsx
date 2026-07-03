@@ -6,6 +6,7 @@ import {
   getPatient,
   getReport,
   interpretation,
+  me,
   timeline,
   worklist,
   type ReportView,
@@ -63,14 +64,22 @@ export default async function PatientDetailPage({
 }) {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const view = await loadView(id);
+  // The session role drives which Freigabe actions render (the API enforces them).
+  const [view, session] = await Promise.all([
+    loadView(id),
+    me().catch(() => null),
+  ]);
   return (
     <VitaShell
       nav="patienten"
       crumb={view.review.patientName}
       crumbParent={{ label: "Patienten", href: "/patients" }}
     >
-      <PatientDetailContent view={view} />
+      <PatientDetailContent
+        view={view}
+        sessionRole={session?.role ?? null}
+        path={`/patients/${id}`}
+      />
     </VitaShell>
   );
 }
