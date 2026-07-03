@@ -85,6 +85,93 @@ jobs:
           cd apps/api && uv run pytest
           cd ../.. && pnpm -r --if-present test
 
+  web-build-smoke:
+    # Production `next build` + a browserless route smoke over the governed path:
+    # API (dev mode, non-superuser hadp_app role, RLS enforced) + `next start` on the
+    # seeded synthetic data set. Catches broken builds, broken route guards, and a
+    # missing synthetic-data banner before merge. Synthetic data only.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_ENV: development
+      # Admin DSN: Alembic migrations + the synthetic seeder only.
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/hadp
+      # App DSN: the API server runs as the non-superuser role, same as production posture.
+      APP_DATABASE_URL: postgresql+psycopg://hadp_app:hadp_app@localhost:5432/hadp
+      SESSION_SECRET: ci-only-not-a-secret
+      API_BASE_URL: http://127.0.0.1:8000
+      WEB_BASE_URL: http://127.0.0.1:3000
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hadp
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install JS dependencies
+        run: pnpm install
+
+      - name: Generate API client
+        run: pnpm gen:client
+
+      - name: Install API dependencies
+        run: cd apps/api && uv sync
+
+      - name: Provision app role
+        run: |
+          export PGPASSWORD=postgres
+          psql -h localhost -U postgres -d hadp -v ON_ERROR_STOP=1 -c \
+            "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='hadp_app') THEN CREATE ROLE hadp_app LOGIN PASSWORD 'hadp_app' NOSUPERUSER NOCREATEDB NOCREATEROLE; END IF; END \$\$;"
+
+      - name: Migrate and seed (synthetic data)
+        run: |
+          cd apps/api
+          uv run alembic upgrade head
+          uv run python -m hadp_api.scripts.seed
+
+      - name: Build web app (next build)
+        run: pnpm --filter @hadp/web build
+
+      - name: Start API and web servers
+        run: |
+          cd apps/api && nohup uv run uvicorn hadp_api.main:app --host 127.0.0.1 --port 8000 > /tmp/api.log 2>&1 &
+          cd "$GITHUB_WORKSPACE" && nohup pnpm --filter @hadp/web start > /tmp/web.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8000/api/v1/health > /dev/null && break; sleep 1;
+          done
+          curl -sf http://127.0.0.1:8000/api/v1/health > /dev/null
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:3000/login > /dev/null && break; sleep 1;
+          done
+          curl -sf http://127.0.0.1:3000/login > /dev/null
+
+      - name: Web route smoke
+        run: cd apps/api && uv run python ../../scripts/smoke_web.py
+
+      - name: Dump server logs on failure
+        if: failure()
+        run: |
+          echo "===== api.log ====="; cat /tmp/api.log || true
+          echo "===== web.log ====="; cat /tmp/web.log || true
+
   secret-scan:
     runs-on: ubuntu-latest
     steps:
