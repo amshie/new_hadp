@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { ApiError, createPatient } from "@/lib/api";
+import { ApiError, createInvitation, createPatient } from "@/lib/api";
+import { isUuid } from "@/lib/uuid";
 
 export type AddPatientResult =
   | { ok: true; id: string }
@@ -40,6 +41,45 @@ export async function addPatient(input: {
     return {
       ok: false,
       error: "Anlegen fehlgeschlagen. Bitte erneut versuchen.",
+    };
+  }
+}
+
+export type InviteResult =
+  | { ok: true; url: string; expiresAt: string }
+  | { ok: false; error: string };
+
+// Mints a single-use synthetic invitation (P1/P3, docs/notes/0010). The one-time URL
+// is shown exactly once in the dialog for MANUAL, secure out-of-band sharing — no
+// automatic delivery exists in the Alpha. The API stores only the token hash.
+export async function createInvitationAction(
+  patientId: string,
+): Promise<InviteResult> {
+  if (!isUuid(patientId))
+    return { ok: false, error: "Ungültige Patientenreferenz." };
+  try {
+    const invitation = await createInvitation(patientId);
+    return {
+      ok: true,
+      url: invitation.invitation_url,
+      expiresAt: invitation.expires_at,
+    };
+  } catch (e) {
+    if (e instanceof ApiError) {
+      if (e.status === 403)
+        return {
+          ok: false,
+          error: "Diese Aktion ist Ihrer Rolle nicht erlaubt.",
+        };
+      if (e.status === 429)
+        return {
+          ok: false,
+          error: "Zu viele Einladungen. Bitte später erneut.",
+        };
+    }
+    return {
+      ok: false,
+      error: "Einladung fehlgeschlagen. Bitte erneut versuchen.",
     };
   }
 }

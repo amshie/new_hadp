@@ -18,6 +18,7 @@ class Action(str, Enum):
     DOCUMENT_UPLOAD = "document.upload"
     IMPORT_RUN = "import.run"
     OBSERVATION_READ = "observation.read"
+    INVITATION_CREATE = "invitation.create"
     REVIEW_RESOLVE = "review.resolve"
     INTERPRETATION_AUTHOR = "interpretation.author"
     REPORT_DRAFT = "report.draft"
@@ -44,6 +45,9 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.DOCUMENT_UPLOAD: _CARE_STAFF,
     Action.IMPORT_RUN: _CARE_STAFF,
     Action.OBSERVATION_READ: _READ_STAFF,
+    # Inviting a patient is operational provisioning (staff-wide), NOT the
+    # clinician-only release gate (docs/notes/0010 §4).
+    Action.INVITATION_CREATE: _CARE_STAFF,
     # Review-queue resolution is a clinical judgement (WORKFLOW §2.2/§2.4: the
     # assistant triages the queue but may not resolve clinically).
     Action.REVIEW_RESOLVE: frozenset({Role.CLINICIAN}),

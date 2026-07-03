@@ -39,6 +39,15 @@ class ValueType(str, Enum):
     CODED = "coded"
 
 
+class InvitationStatus(str, Enum):
+    """Lifecycle of a single-use patient-invitation credential (docs/notes/0010)."""
+
+    PENDING = "pending"
+    REDEEMED = "redeemed"
+    REVOKED = "revoked"
+    EXPIRED = "expired"
+
+
 class ReviewDecision(str, Enum):
     """Closed decision vocabulary for resolving a review item (API layer).
 

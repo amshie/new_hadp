@@ -20,6 +20,7 @@ from hadp_api.api import (
     health,
     imports_routes,
     interpretation_routes,
+    invitations_routes,
     observations_routes,
     patient_view_routes,
     patients_routes,
@@ -141,6 +142,7 @@ def create_app() -> FastAPI:
         tenancy_routes.router,
         patients_routes.router,
         consents_routes.router,
+        invitations_routes.router,
         worklist_routes.router,
         # Milestone 0.5 vertical spike:
         imports_routes.router,

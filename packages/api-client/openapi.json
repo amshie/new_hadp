@@ -382,6 +382,90 @@
         }
       }
     },
+    "/api/v1/patients/{patient_id}/invitations": {
+      "post": {
+        "tags": [
+          "invitations"
+        ],
+        "summary": "Create Invitation",
+        "operationId": "create_invitation_api_v1_patients__patient_id__invitations_post",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invitations/redeem": {
+      "post": {
+        "tags": [
+          "invitations"
+        ],
+        "summary": "Redeem Invitation",
+        "operationId": "redeem_invitation_api_v1_invitations_redeem_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedeemOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/worklist": {
       "get": {
         "tags": [
@@ -1875,6 +1959,46 @@
         ],
         "title": "ImportValueIn"
       },
+      "InvitationOut": {
+        "properties": {
+          "invitation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Invitation Id"
+          },
+          "patient_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Patient Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          },
+          "invitation_token": {
+            "type": "string",
+            "title": "Invitation Token"
+          },
+          "invitation_url": {
+            "type": "string",
+            "title": "Invitation Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "invitation_id",
+          "patient_id",
+          "status",
+          "expires_at",
+          "invitation_token",
+          "invitation_url"
+        ],
+        "title": "InvitationOut"
+      },
       "LoginResponse": {
         "properties": {
           "user": {
@@ -1979,6 +2103,45 @@
           "is_synthetic"
         ],
         "title": "PatientOut"
+      },
+      "RedeemIn": {
+        "properties": {
+          "tenant": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Tenant"
+          },
+          "token": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenant",
+          "token"
+        ],
+        "title": "RedeemIn"
+      },
+      "RedeemOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "purpose"
+        ],
+        "title": "RedeemOut"
       },
       "ReleaseOut": {
         "properties": {

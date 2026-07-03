@@ -40,6 +40,18 @@ def main() -> int:
         assert r.status_code == 404, ("unknown route", r.status_code)
         assert "Seite nicht gefunden" in r.text, "not-found boundary did not render"
 
+        # Patient-facing pages: neutral fail states + the four-part disclaimer, no fetch
+        # on a malformed link (UUID guard), German copy.
+        r = web.get("/einladung?tenant=not-a-uuid&token=x")
+        assert r.status_code == 200, ("/einladung guard", r.status_code)
+        assert "nicht oder nicht mehr gültig" in r.text
+        assert "Pilotumgebung" in r.text, "disclaimer missing on /einladung"
+
+        r = web.get("/patient-view")
+        assert r.status_code == 200, ("/patient-view neutral", r.status_code)
+        assert "nicht oder nicht mehr gültig" in r.text
+        assert "Pilotumgebung" in r.text, "disclaimer missing on /patient-view"
+
     # Real session via the API (same path the login action uses), then authed pages.
     with httpx.Client(base_url=API, timeout=60.0) as api:
         r = api.post("/auth/dev-login", json={"email": "clinician@demo.synthetic"})

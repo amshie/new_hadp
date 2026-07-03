@@ -43,6 +43,23 @@ class RedactingFilter(logging.Filter):
         return True
 
 
+class ArgsRedactingFilter(logging.Filter):
+    """Redacts string args IN PLACE, preserving the args tuple.
+
+    uvicorn's AccessFormatter unpacks `record.args` positionally (client, method,
+    path, http-version, status), so the render-then-clear approach of
+    `RedactingFilter` would crash it. Here the request path (where a `?token=`
+    would live) is scrubbed while the tuple shape survives.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple):
+            record.args = tuple(redact(a) if isinstance(a, str) else a for a in record.args)
+        if isinstance(record.msg, str) and not record.args:
+            record.msg = redact(record.msg)
+        return True
+
+
 _CONFIGURED = False
 
 
@@ -59,8 +76,9 @@ def configure_logging(level: int = logging.INFO) -> None:
     # P-pre-3 (docs/notes/0010): the patient token travels as a query parameter on
     # /patient-view links, and uvicorn's access log renders the raw request line through
     # its OWN handlers (the root-handler filter does not apply). A logger-level filter
-    # runs before any handler, so the token never reaches the access log.
-    logging.getLogger("uvicorn.access").addFilter(RedactingFilter())
+    # runs before any handler; the args-preserving variant keeps uvicorn's positional
+    # AccessFormatter working while the path string is scrubbed.
+    logging.getLogger("uvicorn.access").addFilter(ArgsRedactingFilter())
     _CONFIGURED = True
 
 
