@@ -95,7 +95,9 @@ function AuthInner() {
             <span className="auth-trust-icon" aria-hidden="true">
               <Icon name="lock" />
             </span>
-            <span>Mehrstufige Anmeldung und zeitlich begrenzte Sitzungen</span>
+            <span>
+              Mehrstufige Anmeldung (geplant) und zeitlich begrenzte Sitzungen
+            </span>
           </div>
           <div className="auth-trust-item">
             <span className="auth-trust-icon" aria-hidden="true">
@@ -204,7 +206,7 @@ function AuthInner() {
                   }
                 >
                   <Icon name="building" />
-                  Mit Klinik-SSO fortfahren
+                  Mit Klinik-SSO fortfahren (geplant)
                 </button>
 
                 <div className="notice notice-brand">
@@ -222,11 +224,11 @@ function AuthInner() {
               className={cls("twofactor")}
               aria-labelledby="twofactor-title"
             >
-              <div className="eyebrow">Zwei-Faktor-Bestätigung</div>
+              <div className="eyebrow">Zwei-Faktor-Bestätigung (Demo)</div>
               <h2 id="twofactor-title">Identität bestätigen</h2>
               <p className="auth-sub">
-                Geben Sie den sechsstelligen Code aus Ihrer Authenticator-App
-                ein.
+                Prototyp-Ansicht: Der Code wird in dieser Pilotumgebung nicht
+                geprüft. Die produktive Zwei-Faktor-Anmeldung ist geplant.
               </p>
 
               <form onSubmit={submitCode}>
