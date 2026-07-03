@@ -34,6 +34,7 @@ router = APIRouter(tags=["interpretation"])
 
 
 class EvidenceObsOut(BaseModel):
+    observation_id: str
     original_name: str
     value: str | None
     unit: str | None

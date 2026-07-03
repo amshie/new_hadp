@@ -87,6 +87,10 @@ def main() -> int:
         assert r.status_code == 200, ("/review-queue authed", r.status_code)
         assert "Review-Queue" in r.text, "review queue page did not render"
 
+        r = web.get(f"/patients/{pid}/interpretation/neu")
+        assert r.status_code == 200, ("/interpretation/neu authed", r.status_code)
+        assert "Korrektur-Run erfassen" in r.text or "Interpretation erfassen" in r.text
+
     print("WEB SMOKE OK: guards, redirects, 404 boundary, and authed dashboard render")
     return 0
 

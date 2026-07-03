@@ -529,7 +529,40 @@ export function PatientDetailContent({
               </div>
             </div>
             {canInvite && (
-              <div style={{ marginLeft: "auto", alignSelf: "center" }}>
+              <div
+                style={{
+                  marginLeft: "auto",
+                  alignSelf: "center",
+                  display: "flex",
+                  gap: "10px",
+                }}
+              >
+                {sessionRole === "clinician" && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        `/patients/${view.patientId}/interpretation/neu`,
+                      )
+                    }
+                    className="vb-btn-sec"
+                    style={{
+                      height: "38px",
+                      padding: "0 15px",
+                      whiteSpace: "nowrap",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid var(--border-default)",
+                      background: "var(--surface-card)",
+                      color: "var(--text-strong)",
+                      fontFamily: "var(--font-text)",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Interpretation erfassen
+                  </button>
+                )}
                 <button
                   type="button"
                   disabled={invitePending}

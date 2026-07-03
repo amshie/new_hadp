@@ -52,6 +52,7 @@ export interface PatientView {
 // Interpretation matrix (ADR-0003): six domain verdicts (CIS + Actionability as TWO separate
 // fields) + three verdict-free tri-state cells each. Typed locally (response_model is structured).
 export interface EvidenceObs {
+  observation_id: string;
   original_name: string;
   value: string | null;
   unit: string | null;
@@ -223,6 +224,16 @@ export const timeline = (patientId: string) =>
 
 export const interpretation = (patientId: string) =>
   request<DomainMatrixView>(`/api/v1/patients/${patientId}/interpretation`);
+
+export type RunAuthorIn = Schemas["RunAuthorIn"];
+export const authorInterpretation = (patientId: string, body: RunAuthorIn) =>
+  request<DomainMatrixView>(
+    `/api/v1/patients/${patientId}/interpretation-runs`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+  );
 
 export const createInvitation = (patientId: string) =>
   request<InvitationOut>(`/api/v1/patients/${patientId}/invitations`, {

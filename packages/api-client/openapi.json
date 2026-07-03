@@ -425,6 +425,53 @@
         }
       }
     },
+    "/api/v1/invitations/{invitation_id}/revoke": {
+      "post": {
+        "tags": [
+          "invitations"
+        ],
+        "summary": "Revoke Invitation",
+        "operationId": "revoke_invitation_api_v1_invitations__invitation_id__revoke_post",
+        "parameters": [
+          {
+            "name": "invitation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invitation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Revoke Invitation Api V1 Invitations  Invitation Id  Revoke Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/invitations/redeem": {
       "post": {
         "tags": [
@@ -1674,6 +1721,10 @@
       },
       "EvidenceObsOut": {
         "properties": {
+          "observation_id": {
+            "type": "string",
+            "title": "Observation Id"
+          },
           "original_name": {
             "type": "string",
             "title": "Original Name"
@@ -1733,6 +1784,7 @@
         },
         "type": "object",
         "required": [
+          "observation_id",
           "original_name",
           "value",
           "unit",
