@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse, Response
 
 from hadp_api.api import (
     auth_routes,
+    consents_routes,
     health,
     imports_routes,
     interpretation_routes,
@@ -88,6 +89,7 @@ def create_app() -> FastAPI:
         auth_routes.router,
         tenancy_routes.router,
         patients_routes.router,
+        consents_routes.router,
         worklist_routes.router,
         # Milestone 0.5 vertical spike:
         imports_routes.router,

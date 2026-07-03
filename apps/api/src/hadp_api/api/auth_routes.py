@@ -19,7 +19,7 @@ from hadp_api.auth.sessions import create_session, revoke_session
 from hadp_api.config import get_settings
 from hadp_api.db.session import get_db
 from hadp_api.errors import NotAuthenticated, NotFound
-from hadp_api.modules.audit.service import record_audit
+from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.enums import Role
 from hadp_api.modules.tenancy.service import get_membership, list_memberships
 
@@ -69,6 +69,13 @@ def dev_login(
     provider = get_auth_provider(settings)
     user = provider.resolve_user(db, body.email)
     if user is None:
+        # Failed logins are audited (independent transaction — survives the 401 path).
+        # Detail carries a reason code only, never the attempted identifier.
+        record_security_event(
+            action="login.failed",
+            correlation_id=correlation_id,
+            detail={"reason": "unknown_user"},
+        )
         raise NotAuthenticated("unknown user")
 
     _, raw_token = create_session(db, user_id=user.id, ttl_seconds=settings.session_ttl_seconds)

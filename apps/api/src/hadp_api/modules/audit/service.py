@@ -90,5 +90,12 @@ def record_security_event(
                 detail=detail,
             )
             session.commit()
-    except Exception:  # noqa: BLE001 - audit must never break the request path
-        logger.warning("failed to record security event action=%s", action)
+    except Exception as exc:  # noqa: BLE001 - audit must never break the request path
+        # ERROR (not silent): a failing security-audit write means the denial trail is
+        # being lost — operators must see this. Exception CLASS only (a driver message
+        # could carry statement parameters; the trail may involve health-data rows).
+        logger.error(
+            "failed to record security event action=%s error=%s",
+            action,
+            type(exc).__name__,
+        )
