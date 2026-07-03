@@ -122,6 +122,7 @@ export interface ReviewView {
   patientName: string;
   ref: string;
   ageProfile: string;
+  reportId: string;
   status: string;
   statusBadge: string;
   statusLabel: string;
@@ -155,6 +156,7 @@ function auditSteps(status: string): AuditStepView[] {
   const draft = status === "draft_generated" || status === "draft_edited";
   const released = status === "released";
   const approved = status === "approved";
+  const rejected = status === "rejected";
   const step = (
     label: string,
     state: "done" | "active" | "",
@@ -186,7 +188,7 @@ function auditSteps(status: string): AuditStepView[] {
       "4",
       "Abgeschlossen",
       "In Prüfung",
-      "Ausstehend",
+      rejected ? "Zurückgewiesen" : "Ausstehend",
     ),
     step(
       "Patientenfreigabe",
@@ -194,9 +196,28 @@ function auditSteps(status: string): AuditStepView[] {
       "5",
       "Freigegeben",
       "",
-      "Nicht möglich",
+      rejected ? "Zurückgewiesen — Überarbeitung nötig" : "Nicht möglich",
     ),
   ];
+}
+
+// Honest, role-aware status line under the Freigabe action bar (shared by the review
+// and detail surfaces; the server enforces the actions — this only explains them).
+export function statusHint(status: string, role: string | null): string {
+  if (status === "released")
+    return "Freigegeben — die Patientin sieht ausschließlich diese Version.";
+  if (status === "rejected")
+    return "Zurückgewiesen — eine Überarbeitung erstellt eine neue Version.";
+  if (status === "approved") {
+    return role === "medical_director"
+      ? "Bereit zur Freigabe an die Patientin — einwilligungsgebunden, zugeordnet und auditiert."
+      : "Genehmigt — wartet auf die ärztliche Freigabe.";
+  }
+  if (role === "clinician")
+    return "Genehmigung wird serverseitig geschrieben, ist Ihnen zugeordnet und wird auditiert.";
+  if (role === "medical_director")
+    return "Wartet auf die klinische Genehmigung.";
+  return "Nur-Lese-Ansicht für Ihre Rolle.";
 }
 
 export function presentReview(
@@ -244,6 +265,7 @@ export function presentReview(
     patientName: patient.display_name,
     ref: patient.external_ref ?? "—",
     ageProfile: ageProfile(patient.date_of_birth),
+    reportId: report.report_id,
     status: report.status,
     statusBadge: statusInfo.badge,
     statusLabel: statusInfo.label,

@@ -152,9 +152,11 @@ Per the current decision, both are **parked**; the work below waits for sign-off
 **Update (2026-07-02):** the ungated §5 work was built (login wiring, worklist read endpoint, review
 reads, presenters), then superseded — [ADR-0005](0005-dashboard-product-surfaces.md) retired
 `/worklist` for the VitaBahn `/overview`, and [ADR-0006](0006-dashboard-real-data-path.md) moved the
-surfaces onto the governed real-data path. Gates **G1** (tenant-wide quality/coverage rules) and
-**G2** (release-lifecycle wiring; the inline Freigabe is still a demo stub) remain **open**. This ADR
-is retained as the historical record of the wiring decision.
+surfaces onto the governed real-data path. Gate **G1** (tenant-wide quality/coverage rules) remains
+**open**. **Gate G2 closed 2026-07-03** (Phase 1C): the review and detail surfaces call the real
+approve/reject/release endpoints via server actions, role-aware under the two-tier physician gate
+(clinician approves, medical director releases; either may reject). This ADR is retained as the
+historical record of the wiring decision.
 
 _Original closing line (2026-06-21): "Awaiting: (a) go-ahead to build §5 (ungated), and (b) G1 + G2
 decisions before §6. No code is written under this ADR yet."_

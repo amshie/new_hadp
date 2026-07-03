@@ -1,12 +1,21 @@
 "use client";
 
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useRef, useState, useTransition } from "react";
 
 import { Dialog } from "@/components/vitabahn/Dialog";
 import { Icon } from "@/components/Icon";
 import { useToast } from "@/components/Toaster";
+import {
+  approveReportAction,
+  rejectReportAction,
+  releaseReportAction,
+} from "@/app/reports/actions";
 import { lageLabel } from "@/lib/lageCopy";
-import type { MarkerView, ReviewView } from "@/lib/presenters/review";
+import {
+  statusHint,
+  type MarkerView,
+  type ReviewView,
+} from "@/lib/presenters/review";
 
 // "Veränderung" cell: the withheld-delta comparability note (text-carried, no color-alone) when the
 // comparison was suppressed (§9), else the normal delta. Shared by both observation tables.
@@ -128,11 +137,65 @@ function initials(name: string): string {
   ).toUpperCase();
 }
 
-export function ReviewContent({ view }: { view: ReviewView }) {
+export function ReviewContent({
+  view,
+  sessionRole,
+  path,
+}: {
+  view: ReviewView;
+  sessionRole: string | null;
+  path: string;
+}) {
   const toast = useToast();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialog, setDialog] = useState<"approve" | "reject" | "release" | null>(
+    null,
+  );
   const [confirmChecked, setConfirmChecked] = useState(false);
+  const [releasedUrl, setReleasedUrl] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
   const confirmRef = useRef<HTMLInputElement>(null);
+
+  // Real Freigabe lifecycle (Gate G2 closed): role-appropriate actions only. The API
+  // enforces role + lifecycle + consent server-side; hiding here is UX, never a control.
+  const isDraft =
+    view.status === "draft_generated" || view.status === "draft_edited";
+  const isApproved = view.status === "approved";
+  const canApprove = sessionRole === "clinician" && isDraft;
+  const canRelease = sessionRole === "medical_director" && isApproved;
+  const canReject =
+    (sessionRole === "clinician" || sessionRole === "medical_director") &&
+    (isDraft || isApproved);
+
+  const closeDialog = () => {
+    setDialog(null);
+    setConfirmChecked(false);
+    setReleasedUrl(null);
+  };
+
+  const runAction = (kind: "approve" | "reject" | "release") => {
+    startTransition(async () => {
+      const res =
+        kind === "approve"
+          ? await approveReportAction(view.reportId, path)
+          : kind === "reject"
+            ? await rejectReportAction(view.reportId, path)
+            : await releaseReportAction(view.reportId, path);
+      if (!res.ok) {
+        closeDialog();
+        toast(res.error);
+        return;
+      }
+      if (kind === "release" && res.patientViewUrl) {
+        // Keep the dialog open: the link is shown exactly once (token is not re-readable).
+        setReleasedUrl(res.patientViewUrl);
+        return;
+      }
+      closeDialog();
+      toast(
+        kind === "approve" ? "Bericht genehmigt." : "Bericht zurückgewiesen.",
+      );
+    });
+  };
   const [selectedDomain, setSelectedDomain] = useState<number | null>(null);
   // Transient view filter on the value's position vs. its reference interval. No counts (a count
   // across markers would read as a severity tally — out of bounds, founder decision 2026-06-24);
@@ -584,94 +647,159 @@ export function ReviewContent({ view }: { view: ReviewView }) {
           <strong>
             Bericht v{view.versionNo} · Status: {view.statusLabel}
           </strong>
-          <span>
-            Die Signatur ist noch nicht an den Freigabe-Lifecycle angebunden
-            (Gate G2); sie veröffentlicht keinen Bericht an die Patientin.
-          </span>
+          <span>{statusHint(view.status, sessionRole)}</span>
         </div>
         <div className="action-bar-buttons">
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={() => toast("Der Vorgang wurde nicht verändert.")}
-          >
-            Zurückstellen
-          </button>
-          <button
-            className="btn btn-primary"
-            type="button"
-            onClick={() => setDialogOpen(true)}
-          >
-            <Icon name="check" />
-            Review signieren
-          </button>
+          {canReject && (
+            <button
+              className="btn btn-secondary"
+              type="button"
+              disabled={pending}
+              onClick={() => setDialog("reject")}
+            >
+              Zurückweisen
+            </button>
+          )}
+          {canApprove && (
+            <button
+              className="btn btn-primary"
+              type="button"
+              disabled={pending}
+              onClick={() => setDialog("approve")}
+            >
+              <Icon name="check" />
+              Bericht genehmigen
+            </button>
+          )}
+          {canRelease && (
+            <button
+              className="btn btn-primary"
+              type="button"
+              disabled={pending}
+              onClick={() => setDialog("release")}
+            >
+              <Icon name="check" />
+              An Patientin freigeben
+            </button>
+          )}
         </div>
       </div>
 
-      {dialogOpen && (
+      {dialog && (
         <Dialog
-          onClose={() => setDialogOpen(false)}
+          onClose={closeDialog}
           labelledBy="review-dialog-title"
           describedBy="review-dialog-copy"
-          initialFocusRef={confirmRef}
+          initialFocusRef={dialog === "approve" ? confirmRef : undefined}
           lockScroll
           backdropClassName="dialog-backdrop"
           dialogClassName="dialog"
         >
           <div className="dialog-head">
             <div>
-              <h2 id="review-dialog-title">Klinischen Review signieren?</h2>
+              <h2 id="review-dialog-title">
+                {dialog === "approve" && "Bericht genehmigen?"}
+                {dialog === "reject" && "Bericht zurückweisen?"}
+                {dialog === "release" &&
+                  (releasedUrl
+                    ? "Freigegeben — Zugriffslink"
+                    : "An Patientin freigeben?")}
+              </h2>
               <p id="review-dialog-copy">
-                Sie bestätigen, dass Sie die sichtbaren Beobachtungen,
-                Referenzintervalle und Quellen geprüft haben. Hinweis: Die
-                Anbindung an den Freigabe-Lifecycle ist noch nicht freigegeben
-                (Gate G2) — die Signatur wird derzeit nicht serverseitig
-                geschrieben.
+                {dialog === "approve" &&
+                  "Sie bestätigen, dass Sie die sichtbaren Beobachtungen, Referenzintervalle und Quellen geprüft haben. Die Genehmigung wird serverseitig geschrieben, ist Ihnen zugeordnet und wird auditiert."}
+                {dialog === "reject" &&
+                  "Die aktuelle Version wird als zurückgewiesen festgehalten (zugeordnet und auditiert). Eine Überarbeitung erstellt eine neue Version."}
+                {dialog === "release" &&
+                  (releasedUrl
+                    ? "Der Bericht ist freigegeben. Synthetische Demo: Den Link manuell und sicher übermitteln — kein automatischer Versand."
+                    : "Die Freigabe ist einwilligungsgebunden (report_release), wird Ihnen zugeordnet und auditiert. Die Patientin sieht ausschließlich die freigegebene Version.")}
               </p>
             </div>
             <button
               className="icon-btn"
               type="button"
               aria-label="Dialog schließen"
-              onClick={() => setDialogOpen(false)}
+              onClick={closeDialog}
             >
               <Icon name="close" />
             </button>
           </div>
-          <label className="checkbox" style={{ marginTop: "17px" }}>
-            <input
-              ref={confirmRef}
-              type="checkbox"
-              checked={confirmChecked}
-              onChange={(e) => setConfirmChecked(e.target.checked)}
-            />
-            <span>
-              Ich habe die offenen Hinweise geprüft und bestätige die klinische
-              Dokumentation.
-            </span>
-          </label>
+          {dialog === "approve" && (
+            <label className="checkbox" style={{ marginTop: "17px" }}>
+              <input
+                ref={confirmRef}
+                type="checkbox"
+                checked={confirmChecked}
+                onChange={(e) => setConfirmChecked(e.target.checked)}
+              />
+              <span>
+                Ich habe die offenen Hinweise geprüft und bestätige die
+                klinische Dokumentation.
+              </span>
+            </label>
+          )}
+          {dialog === "release" && releasedUrl && (
+            <div style={{ marginTop: "17px" }}>
+              <label className="field">
+                <span className="field-label">
+                  Zugriffslink (einmalig angezeigt)
+                </span>
+                <input
+                  className="input"
+                  readOnly
+                  value={releasedUrl}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+              </label>
+            </div>
+          )}
           <div className="dialog-actions">
-            <button
-              className="btn btn-secondary"
-              type="button"
-              onClick={() => setDialogOpen(false)}
-            >
-              Abbrechen
-            </button>
-            <button
-              className="btn btn-primary"
-              type="button"
-              disabled={!confirmChecked}
-              onClick={() => {
-                setDialogOpen(false);
-                setConfirmChecked(false);
-                toast(
-                  "Signatur erfasst (Demo). Anbindung an Genehmigung/Freigabe folgt nach Gate G2.",
-                );
-              }}
-            >
-              Signieren und weiterleiten
-            </button>
+            {dialog === "release" && releasedUrl ? (
+              <>
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(releasedUrl)
+                      .then(() => toast("Link kopiert."));
+                  }}
+                >
+                  Link kopieren
+                </button>
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  onClick={closeDialog}
+                >
+                  Schließen
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  disabled={pending}
+                  onClick={closeDialog}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  disabled={
+                    pending || (dialog === "approve" && !confirmChecked)
+                  }
+                  onClick={() => runAction(dialog)}
+                >
+                  {dialog === "approve" && "Genehmigen"}
+                  {dialog === "reject" && "Zurückweisen"}
+                  {dialog === "release" && "Freigeben"}
+                </button>
+              </>
+            )}
           </div>
         </Dialog>
       )}

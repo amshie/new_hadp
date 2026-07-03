@@ -7,6 +7,7 @@ import {
   getPatient,
   getReport,
   interpretation,
+  me,
   timeline,
 } from "@/lib/api";
 import { presentReview, type ReviewView } from "@/lib/presenters/review";
@@ -43,7 +44,11 @@ export default async function AssessmentReviewPage({
   const { id, assessmentId } = await params;
   if (!isUuid(id) || !isUuid(assessmentId)) notFound();
 
-  const view = await loadView(id, assessmentId);
+  // The session role drives which Freigabe actions render (the API enforces them).
+  const [view, session] = await Promise.all([
+    loadView(id, assessmentId),
+    me().catch(() => null),
+  ]);
 
   return (
     <AppShell
@@ -56,7 +61,11 @@ export default async function AssessmentReviewPage({
         </nav>
       }
     >
-      <ReviewContent view={view} />
+      <ReviewContent
+        view={view}
+        sessionRole={session?.role ?? null}
+        path={`/patients/${id}/assessments/${assessmentId}`}
+      />
     </AppShell>
   );
 }
