@@ -10,7 +10,7 @@ import { signOut } from "@/app/login/actions";
 // port of the Claude Design comp's chrome. Wraps the /overview, /patients and
 // /patients/[id] screens. Synthetic Alpha only.
 
-type NavKey = "uebersicht" | "patienten";
+type NavKey = "uebersicht" | "patienten" | "review";
 
 const THEME_KEY = "vb-theme";
 
@@ -262,6 +262,17 @@ export function VitaShell({
               </>,
             )}
             label="Patienten"
+          />
+          <NavItem
+            active={nav === "review"}
+            onClick={() => router.push("/review-queue")}
+            icon={stroke(
+              <>
+                <path d="M9 11l3 3L22 4" />
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </>,
+            )}
+            label="Review-Queue"
           />
           <NavItem
             implemented={false}

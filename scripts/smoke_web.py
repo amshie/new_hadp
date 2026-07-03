@@ -27,7 +27,7 @@ def main() -> int:
         assert r.status_code == 200, ("/login", r.status_code)
         assert "Klinischer Zugang" in r.text, "/login did not render the sign-in card"
 
-        for path in ("/", "/overview"):
+        for path in ("/", "/overview", "/review-queue"):
             r = web.get(path)
             assert r.status_code in REDIRECT, (path, r.status_code)
             assert "/login" in r.headers["location"], (path, r.headers["location"])
@@ -68,6 +68,10 @@ def main() -> int:
 
         r = web.get(f"/patients/{pid}")
         assert r.status_code == 200, ("/patients/[id] authed", r.status_code)
+
+        r = web.get("/review-queue")
+        assert r.status_code == 200, ("/review-queue authed", r.status_code)
+        assert "Review-Queue" in r.text, "review queue page did not render"
 
     print("WEB SMOKE OK: guards, redirects, 404 boundary, and authed dashboard render")
     return 0

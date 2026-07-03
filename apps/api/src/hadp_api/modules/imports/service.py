@@ -11,13 +11,16 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from hadp_api.modules.enums import ImportStatus, ReviewStatus, ValueType
+from hadp_api.errors import Conflict, NotFound
+from hadp_api.modules.enums import ImportStatus, ReviewDecision, ReviewStatus, ValueType
 from hadp_api.modules.imports import normalize as normalize_mod
 from hadp_api.modules.imports.models import ImportJob, ImportRow, ReviewItem
 from hadp_api.modules.kpi.service import resolve_kpi_code
 from hadp_api.modules.observations.models import Observation
+from hadp_api.modules.patients.models import Patient
 
 
 @dataclass
@@ -146,3 +149,93 @@ def ingest_values(
     job.status = ImportStatus.REVIEW_REQUIRED if result.review_count else ImportStatus.PUBLISHED
     db.flush()
     return result
+
+
+def list_open_review_items(db: Session, tenant_id: uuid.UUID) -> list[dict[str, object]]:
+    """Open review items with the observation context a reviewer needs (tenant-scoped).
+
+    Returns source representation only (original name/value/unit + the closed reason) —
+    review happens BEFORE normalization is trusted, so nothing normalized is presented
+    as settled.
+    """
+    rows = db.execute(
+        select(ReviewItem, Observation, Patient)
+        .join(Observation, ReviewItem.observation_id == Observation.id)
+        .join(Patient, Observation.patient_id == Patient.id)
+        .where(
+            ReviewItem.tenant_id == tenant_id,
+            ReviewItem.resolved.is_(False),
+        )
+        .order_by(ReviewItem.created_at.asc())
+    ).all()
+    return [
+        {
+            "review_item_id": item.id,
+            "observation_id": obs.id,
+            "patient_id": obs.patient_id,
+            "patient_display_name": patient.display_name,
+            "patient_external_ref": patient.external_ref,
+            "reason": item.reason,
+            "original_name": obs.original_name,
+            "original_value": obs.original_value,
+            "original_unit": obs.original_unit,
+            "observed_at": obs.observed_at,
+            "observed_at_is_date_only": obs.observed_at_is_date_only,
+            "created_at": item.created_at,
+        }
+        for item, obs, patient in rows
+    ]
+
+
+def resolve_review_item(
+    db: Session,
+    *,
+    tenant_id: uuid.UUID,
+    review_item_id: uuid.UUID,
+    decision: ReviewDecision,
+    resolved_by_user_id: uuid.UUID,
+) -> tuple[ReviewItem, Observation]:
+    """Resolve one review item with an attributable human decision (clinician).
+
+    REJECT is fail-closed and immediate: one refused item rejects the observation.
+    PUBLISH takes effect only when it resolves the LAST open item for the observation —
+    an observation with any other open item stays PENDING (nothing publishes while a
+    conflict is unresolved). Resolution never mutates the observation's source
+    representation; only `review_status` transitions.
+    """
+    item = db.execute(
+        select(ReviewItem).where(
+            ReviewItem.id == review_item_id,
+            ReviewItem.tenant_id == tenant_id,
+        )
+    ).scalar_one_or_none()
+    if item is None:
+        raise NotFound("review item not found")
+    if item.resolved:
+        raise Conflict("review item is already resolved")
+    if item.observation_id is None:
+        raise Conflict("review item has no observation to resolve")
+    observation = db.get(Observation, item.observation_id)
+    if observation is None or observation.tenant_id != tenant_id:
+        raise NotFound("review item not found")
+    if observation.review_status != ReviewStatus.PENDING:
+        raise Conflict("observation is no longer pending review")
+
+    item.resolved = True
+    item.resolved_by_user_id = resolved_by_user_id
+    item.resolved_at = datetime.now(UTC)
+    db.flush()
+
+    if decision == ReviewDecision.REJECT:
+        observation.review_status = ReviewStatus.REJECTED
+    else:
+        open_items = db.execute(
+            select(ReviewItem.id).where(
+                ReviewItem.observation_id == observation.id,
+                ReviewItem.resolved.is_(False),
+            )
+        ).first()
+        if open_items is None:
+            observation.review_status = ReviewStatus.PUBLISHED
+    db.flush()
+    return item, observation

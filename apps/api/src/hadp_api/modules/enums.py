@@ -39,6 +39,17 @@ class ValueType(str, Enum):
     CODED = "coded"
 
 
+class ReviewDecision(str, Enum):
+    """Closed decision vocabulary for resolving a review item (API layer).
+
+    A human either PUBLISHes the observation (it becomes clinical-workflow-visible)
+    or REJECTs it (it never publishes). There is no third outcome.
+    """
+
+    PUBLISH = "publish"
+    REJECT = "reject"
+
+
 class ReviewStatus(str, Enum):
     PENDING = "pending"  # low confidence / conflict — needs human resolution
     PUBLISHED = "published"  # human-resolved and visible

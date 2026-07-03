@@ -12,6 +12,8 @@ export type ReleaseOut = Schemas["ReleaseOut"];
 export type WorklistRow = Schemas["WorklistRowOut"];
 export type Coverage = Schemas["CoverageOut"];
 export type Throughput = Schemas["ThroughputOut"];
+export type ReviewQueueItem = Schemas["ReviewItemOut"];
+export type ResolveReviewOut = Schemas["ResolveReviewOut"];
 
 // The report view endpoints return an open dict (no response_model); typed locally.
 export interface ReportEvidenceItem {
@@ -197,6 +199,17 @@ export const timeline = (patientId: string) =>
 
 export const interpretation = (patientId: string) =>
   request<DomainMatrixView>(`/api/v1/patients/${patientId}/interpretation`);
+
+export const reviewQueue = () =>
+  request<ReviewQueueItem[]>("/api/v1/review-items");
+export const resolveReviewItem = (
+  reviewItemId: string,
+  decision: "publish" | "reject",
+) =>
+  request<ResolveReviewOut>(`/api/v1/review-items/${reviewItemId}/resolve`, {
+    method: "POST",
+    body: JSON.stringify({ decision }),
+  });
 
 export const generateReport = (patientId: string) =>
   request<ReportView>(`/api/v1/patients/${patientId}/reports`, {

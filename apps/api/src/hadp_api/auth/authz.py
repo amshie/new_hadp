@@ -18,6 +18,7 @@ class Action(str, Enum):
     DOCUMENT_UPLOAD = "document.upload"
     IMPORT_RUN = "import.run"
     OBSERVATION_READ = "observation.read"
+    REVIEW_RESOLVE = "review.resolve"
     INTERPRETATION_AUTHOR = "interpretation.author"
     REPORT_DRAFT = "report.draft"
     REPORT_EDIT = "report.edit"
@@ -43,6 +44,9 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.DOCUMENT_UPLOAD: _CARE_STAFF,
     Action.IMPORT_RUN: _CARE_STAFF,
     Action.OBSERVATION_READ: _READ_STAFF,
+    # Review-queue resolution is a clinical judgement (WORKFLOW §2.2/§2.4: the
+    # assistant triages the queue but may not resolve clinically).
+    Action.REVIEW_RESOLVE: frozenset({Role.CLINICIAN}),
     Action.INTERPRETATION_AUTHOR: frozenset({Role.CLINICIAN}),
     Action.REPORT_DRAFT: _CARE_STAFF,
     Action.REPORT_EDIT: _CARE_STAFF,
