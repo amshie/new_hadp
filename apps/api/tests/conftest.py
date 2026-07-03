@@ -98,9 +98,7 @@ def _clean_db(admin_engine) -> None:  # type: ignore[no-untyped-def]
         "kpi_alias",
         "kpi_secondary_domain",
     }
-    tables = ", ".join(
-        t.name for t in Base.metadata.sorted_tables if t.name not in reference
-    )
+    tables = ", ".join(t.name for t in Base.metadata.sorted_tables if t.name not in reference)
     with admin_engine.begin() as conn:
         conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
 

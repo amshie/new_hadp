@@ -234,9 +234,7 @@ def policy_for_measurement_class(measurement_class: KpiMeasurementClass) -> KpiC
     return _CLASS_DEFAULT_POLICY[measurement_class]
 
 
-def resolve_comparison_policies(
-    db: Session, kpi_codes: set[str]
-) -> dict[str, KpiComparisonPolicy]:
+def resolve_comparison_policies(db: Session, kpi_codes: set[str]) -> dict[str, KpiComparisonPolicy]:
     """Resolve each KPI's effective comparison policy: the catalog value if set, else the
     measurement-class default. Batched. Codes not in the catalog are simply absent from the result.
     """
@@ -244,9 +242,9 @@ def resolve_comparison_policies(
         return {}
     out: dict[str, KpiComparisonPolicy] = {}
     for code, measurement_class, policy in db.execute(
-        select(
-            KpiCatalog.code, KpiCatalog.measurement_class, KpiCatalog.comparison_policy
-        ).where(KpiCatalog.code.in_(kpi_codes))
+        select(KpiCatalog.code, KpiCatalog.measurement_class, KpiCatalog.comparison_policy).where(
+            KpiCatalog.code.in_(kpi_codes)
+        )
     ).all():
         out[code] = policy or policy_for_measurement_class(measurement_class)
     return out

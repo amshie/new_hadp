@@ -1,6 +1,10 @@
 # ADR-0002: Wiring the frontend to the backend — contract direction, sequencing, gates
 
-- Status: **Proposed** (planning only — not yet implemented; awaiting go-ahead + two human gates)
+- Status: **Accepted, then superseded** (2026-07-02 update) — the ungated §5 work shipped; the
+  frontend approach was subsequently superseded by [ADR-0005](0005-dashboard-product-surfaces.md)
+  (VitaBahn dashboard; `/worklist` retired) and [ADR-0006](0006-dashboard-real-data-path.md)
+  (governed real-data path). Gates G1 + G2 remain open. _(Originally: Proposed — planning only,
+  not yet implemented.)_
 - Date: 2026-06-21
 - Deciders: Engineering; gates owned by Regulatory Lead + clinical/founder (see §6)
 - Supersedes/relates: ADR-0001 (stack). Reviewed pre-implementation by the CTO-architect
@@ -145,5 +149,12 @@ Per the current decision, both are **parked**; the work below waits for sign-off
 
 ## 8. Status / next step
 
-Awaiting: (a) go-ahead to build §5 (ungated), and (b) G1 + G2 decisions before §6. No code is
-written under this ADR yet.
+**Update (2026-07-02):** the ungated §5 work was built (login wiring, worklist read endpoint, review
+reads, presenters), then superseded — [ADR-0005](0005-dashboard-product-surfaces.md) retired
+`/worklist` for the VitaBahn `/overview`, and [ADR-0006](0006-dashboard-real-data-path.md) moved the
+surfaces onto the governed real-data path. Gates **G1** (tenant-wide quality/coverage rules) and
+**G2** (release-lifecycle wiring; the inline Freigabe is still a demo stub) remain **open**. This ADR
+is retained as the historical record of the wiring decision.
+
+_Original closing line (2026-06-21): "Awaiting: (a) go-ahead to build §5 (ungated), and (b) G1 + G2
+decisions before §6. No code is written under this ADR yet."_

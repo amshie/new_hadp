@@ -10,12 +10,14 @@
 > unified score / no %**, closed vocabularies, and the human gates for real patient data, MDR/SaMD
 > qualification, and GDPR/DPIA. The current intended-use statement of record is
 > [`docs/regulatory/INTENDED_USE.md`](docs/regulatory/INTENDED_USE.md). Where this file conflicts
-> with ADR-0003 on the *product model*, ADR-0003 wins; on *safety/privacy/regulatory invariants*,
+> with ADR-0003 on the _product model_, ADR-0003 wins; on _safety/privacy/regulatory invariants_,
 > both agree and they remain binding.
 
 ## Purpose of this file
 
 This repository contains a greenfield B2B health-data product for longevity and preventive-care clinics in the DACH/EU market. This file is the persistent project contract for Claude Code.
+
+> **Sync note.** [`AGENTS.md`](AGENTS.md) is a Codex-targeted mirror of this file; the two are identical except for tool-name deltas (Claude Code ↔ Codex) and **must be kept in sync — edit both together, or regenerate one from the other.**
 
 Code, identifiers, commits, and technical documentation use English. User-facing copy is localization-ready; the initial default locale is `de-DE`.
 
@@ -66,6 +68,8 @@ The primary business metric is a reduction of median clinician preparation time 
 
 ## Intended use and safety boundary
 
+> **⚠️ SUPERSEDED for the _product model_ — see [ADR-0003](docs/adr/0003-adopt-hadp-governance-doctrine.md) and the intended-use statement of record [`docs/regulatory/INTENDED_USE.md`](docs/regulatory/INTENDED_USE.md).** The lab-analytics "Allowed / Prohibited MVP behavior" lists in this section describe the pre-ADR-0003 model. The **safety/privacy invariants remain binding**: synthetic-data-only, no unified score / no %, closed vocabularies, clinician-in-the-loop, and the human gates for real data / MDR / GDPR.
+
 The MVP is a data aggregation, visualization, workflow, and documentation-support product. It is not an autonomous medical decision-maker.
 
 ### Allowed MVP behavior
@@ -97,6 +101,8 @@ Use neutral terms such as `observation`, `change`, `source reference interval`, 
 ---
 
 ## Regulatory classification and governance
+
+> **⚠️ SUPERSEDED for the _product model_ — see [ADR-0003](docs/adr/0003-adopt-hadp-governance-doctrine.md).** The current regulatory positioning of record is [`docs/regulatory/INTENDED_USE.md`](docs/regulatory/INTENDED_USE.md) and [`docs/regulatory/CLASSIFICATION_REGISTER.md`](docs/regulatory/CLASSIFICATION_REGISTER.md): the HADP governance model's MDR/MDSW qualification is an **open, pending determination** (never "MDR-compliant"). The governance discipline in this section (named Regulatory Lead, classification register, claims discipline) **remains binding.**
 
 This boundary is the product's most important and most fragile asset. The commercial pull of "longevity / healthspan" is toward biological-age, optimal-range, and risk-score features — all of which are likely to qualify the product as Medical Device Software (MDSW) under EU MDR (Annex VIII, Rule 11), triggering a notified body, clinical evaluation, ISO 13485 QMS, and post-market surveillance. The MVP deliberately stays on the documentation-support side of that line.
 

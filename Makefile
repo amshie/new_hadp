@@ -103,8 +103,9 @@ test-db: db-up db-init migrate-test ## Provision infra + test DB, then run DB-ba
 	cd $(API_DIR) && $(UV) run pytest
 
 .PHONY: test-e2e
-test-e2e: ## Playwright end-to-end tests (best-effort; requires servers running)
-	cd $(WEB_DIR) && pnpm test:e2e
+test-e2e: ## Browserless web route smoke (Playwright suite is a tracked later slice)
+	@echo "No Playwright suite yet (tracked follow-up, docs/notes/0006); running the browserless web route smoke."
+	@$(MAKE) smoke-web
 
 .PHONY: secret-scan
 secret-scan: ## Scan working tree for secrets (no-op with a warning if gitleaks is absent)
@@ -140,6 +141,10 @@ web-build: ## Production build of the web app
 .PHONY: smoke
 smoke: ## Live happy-path smoke over HTTP (requires API on :8000 + seeded dev DB)
 	$(API_RUN) python ../../scripts/smoke_api.py
+
+.PHONY: smoke-web
+smoke-web: ## Web route smoke (requires API on :8000 + web on :3000 + seeded dev DB)
+	$(API_RUN) python ../../scripts/smoke_web.py
 
 .PHONY: worker-dev
 worker-dev: ## Run the background worker

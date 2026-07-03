@@ -28,7 +28,8 @@ const DOMAIN_AXIS_LABELS: Record<string, string> = {
 };
 const CIS_LABELS: Record<string, string> = {
   CIS_0_INSUFFICIENT_EVIDENCE: "CIS-0 · Unzureichende Evidenz",
-  CIS_1_APPARENT_BIOLOGICAL_IMPROVEMENT_ONLY: "CIS-1 · Nur scheinbare Verbesserung",
+  CIS_1_APPARENT_BIOLOGICAL_IMPROVEMENT_ONLY:
+    "CIS-1 · Nur scheinbare Verbesserung",
   CIS_2_NOT_YET_CREDIBLE: "CIS-2 · Noch nicht glaubwürdig",
   CIS_3_RISK_DOMINANT_OR_CONFLICTING: "CIS-3 · Risiko-dominant",
   CIS_4_CREDIBLE_IMPROVEMENT: "CIS-4 · Glaubwürdige Verbesserung",
@@ -224,7 +225,8 @@ export function presentReview(
       cisLabel: CIS_LABELS[d.cis_status] ?? d.cis_status,
       actionabilityLabel:
         ACTIONABILITY_LABELS[d.actionability_class] ?? d.actionability_class,
-      adequacyLabel: ADEQUACY_LABELS[d.followup_adequacy] ?? d.followup_adequacy,
+      adequacyLabel:
+        ADEQUACY_LABELS[d.followup_adequacy] ?? d.followup_adequacy,
       reviewed: d.review_status === "clinician_reviewed",
       markerCodes,
       cells: d.cells.map((c) => ({
@@ -270,7 +272,11 @@ export function presentReview(
       code: p.metric_code ?? "—",
       status: p.review_status,
       reviewRequired: p.review_status !== "published",
-      lagePosition: referencePosition(p.value, p.reference_low, p.reference_high),
+      lagePosition: referencePosition(
+        p.value,
+        p.reference_low,
+        p.reference_high,
+      ),
       lageBar: referenceBar(p.value, p.reference_low, p.reference_high),
       referenceRange:
         p.reference_low != null && p.reference_high != null
@@ -282,9 +288,11 @@ export function presentReview(
         : null,
       secondaryDomains: p.kpi_secondary_domains ?? [],
       comparabilityShort:
-        comparabilityNote(p.comparability, p.comparability_reason)?.short ?? null,
+        comparabilityNote(p.comparability, p.comparability_reason)?.short ??
+        null,
       comparabilityFull:
-        comparabilityNote(p.comparability, p.comparability_reason)?.full ?? null,
+        comparabilityNote(p.comparability, p.comparability_reason)?.full ??
+        null,
     })),
     auditSteps: auditSteps(report.status),
   };

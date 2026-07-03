@@ -1,6 +1,11 @@
 # ADR-0005: Founder-approved dashboard product surfaces (VitaBahn redesign)
 
-- Status: **Accepted** — founder decision, 2026-06-27.
+- Status: **Accepted** — founder decision, 2026-06-27. **Partially superseded by
+  [ADR-0006](0006-dashboard-real-data-path.md)** (2026-06-27): the three added surfaces were migrated
+  to the governed real-data path, where the data-quality **%**, patient **Risiko**, and
+  **Normal/Grenzwertig/Auffällig** labels are **gated or replaced** (verdict-free positional Lage;
+  Risiko/Datenqualität → "n. v."). See ADR-0006 §Decision and `CLASSIFICATION_REGISTER.md` rows
+  46–48. This ADR records the original product decision; **ADR-0006 is the current state.**
 - Decides: which contested surfaces from the Claude Design dashboard handoff
   (`HADP Dashboard.dc.html`, "VitaBahn" comp) enter the actual product in this iteration.
 - Relates: ADR-0003 (HADP governance doctrine), ADR-0002 (§6 / Gate G1 — domain rollup &

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { signOut } from "@/app/login/actions";
+
 import { Icon, type IconName } from "./Icon";
 import { ToastProvider, useToast } from "./Toaster";
 
@@ -202,10 +204,12 @@ function UserMenu() {
           Mein Audit-Log
         </a>
         <div className="menu-sep" />
-        <Link className="danger" href="/login" role="menuitem">
-          <Icon name="logout" />
-          Abmelden
-        </Link>
+        <form action={signOut} role="none">
+          <button className="danger" role="menuitem" type="submit">
+            <Icon name="logout" />
+            Abmelden
+          </button>
+        </form>
       </div>
     </div>
   );

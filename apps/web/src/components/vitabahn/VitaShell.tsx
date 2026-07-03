@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type CSSProperties, type ReactNode } from "react";
 
+import { signOut } from "@/app/login/actions";
+
 // VitaBahn dashboard shell (ADR-0005): sidebar + topbar + theme toggle, a faithful
 // port of the Claude Design comp's chrome. Wraps the /overview, /patients and
 // /patients/[id] screens. Synthetic Alpha only.
@@ -407,6 +409,22 @@ export function VitaShell({
                 Clinician
               </div>
             </div>
+            <form action={signOut}>
+              <button
+                type="submit"
+                style={{
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  borderRadius: "8px",
+                  background: "transparent",
+                  color: "var(--slate-400)",
+                  fontSize: "11px",
+                  padding: "5px 8px",
+                  cursor: "pointer",
+                }}
+              >
+                Abmelden
+              </button>
+            </form>
           </div>
         </div>
       </aside>

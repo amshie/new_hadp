@@ -74,7 +74,10 @@ def upgrade() -> None:
         sa.Column("released_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("notes", sa.String(length=500), nullable=True),
         sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
         ),
         sa.PrimaryKeyConstraint("version", name=op.f("pk_kpi_catalog_release")),
     )
@@ -83,9 +86,7 @@ def upgrade() -> None:
         "kpi_catalog",
         sa.Column("code", sa.String(length=80), nullable=False),
         sa.Column("display_name", sa.String(length=200), nullable=False),
-        sa.Column(
-            "primary_domain_axis", _enum(*_DOMAIN_AXES, name="domainaxis"), nullable=False
-        ),
+        sa.Column("primary_domain_axis", _enum(*_DOMAIN_AXES, name="domainaxis"), nullable=False),
         sa.Column(
             "measurement_class",
             _enum(*_MEASUREMENT_CLASS, name="kpimeasurementclass"),
@@ -114,7 +115,10 @@ def upgrade() -> None:
         sa.Column("introduced_in", sa.String(length=40), nullable=True),
         sa.Column("deprecated_in", sa.String(length=40), nullable=True),
         sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
         ),
         sa.CheckConstraint(
             "(is_derived AND formula_id IS NOT NULL) OR (NOT is_derived AND formula_id IS NULL)",
@@ -158,7 +162,10 @@ def upgrade() -> None:
         sa.Column("verified_by", sa.String(length=120), nullable=True),
         sa.Column("id", sa.UUID(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
         ),
         sa.ForeignKeyConstraint(
             ["kpi_code"],
@@ -174,20 +181,23 @@ def upgrade() -> None:
             name=op.f("uq_kpi_external_code_code_system"),
         ),
     )
-    op.create_index(
-        op.f("ix_kpi_external_code_kpi_code"), "kpi_external_code", ["kpi_code"]
-    )
+    op.create_index(op.f("ix_kpi_external_code_kpi_code"), "kpi_external_code", ["kpi_code"])
 
     op.create_table(
         "kpi_alias",
         sa.Column("kpi_code", sa.String(length=80), nullable=False),
         sa.Column("alias_normalized", sa.String(length=200), nullable=False),
         sa.Column("locale", sa.String(length=8), server_default=sa.text("'und'"), nullable=False),
-        sa.Column("source_system", sa.String(length=60), server_default=sa.text("''"), nullable=False),
+        sa.Column(
+            "source_system", sa.String(length=60), server_default=sa.text("''"), nullable=False
+        ),
         sa.Column("priority", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("id", sa.UUID(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
         ),
         sa.ForeignKeyConstraint(
             ["kpi_code"],

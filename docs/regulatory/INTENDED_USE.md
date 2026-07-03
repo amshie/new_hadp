@@ -87,7 +87,7 @@ Per patient interpretation run (ADR-0003 / ADR-0004), authored by a clinician:
 - runs are **append-only** — a correction creates a new run; nothing is overwritten.
 
 CIS, Actionability, and the tri-state axes (including `Risk`) are **closed governance vocabularies**, not
-free-text clinical claims. They record *the clinician's* structured judgement with attribution and
+free-text clinical claims. They record _the clinician's_ structured judgement with attribution and
 provenance. The engine **validates** an authored run against the closed vocabularies and the structural
 rules and **records** it; **no function maps markers/cells → CIS, or CIS → Actionability, or anything →
 a number.** Adequacy is a closed enum, never a numeric confidence.

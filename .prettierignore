@@ -1,5 +1,7 @@
 # Generated / vendored — never hand-format
 pnpm-lock.yaml
+# Point-in-time audit/plan records — kept verbatim as written
+reports/
 packages/api-client/openapi.json
 packages/api-client/src/generated/
 **/.next/

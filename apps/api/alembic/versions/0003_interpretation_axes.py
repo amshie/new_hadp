@@ -118,9 +118,7 @@ def upgrade() -> None:
     op.create_index(
         op.f("ix_interpretation_runs_patient_id"), "interpretation_runs", ["patient_id"]
     )
-    op.create_index(
-        op.f("ix_interpretation_runs_tenant_id"), "interpretation_runs", ["tenant_id"]
-    )
+    op.create_index(op.f("ix_interpretation_runs_tenant_id"), "interpretation_runs", ["tenant_id"])
 
     op.create_table(
         "domain_axis_interpretations",
@@ -220,7 +218,9 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["domain_axis_interpretation_id"],
             ["domain_axis_interpretations.id"],
-            name=op.f("fk_tri_state_cells_domain_axis_interpretation_id_domain_axis_interpretations"),
+            name=op.f(
+                "fk_tri_state_cells_domain_axis_interpretation_id_domain_axis_interpretations"
+            ),
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(

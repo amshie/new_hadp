@@ -28,7 +28,7 @@ patient data, independent of build scope.
   vocabularies (`measurement_class`, `value_kind`, `tier`, `comparison_policy`, `status`, external-code
   `verification_status`, release `status`) go in `modules/enums.py` via the existing `pg_enum` helper.
   Domain columns **reuse the existing `DomainAxis` value set** (`metabolic · immune_inflammation ·
-  cardiovascular · neurocognitive · regenerative_capacity · musculoskeletal`) — no native `domain_axis`
+cardiovascular · neurocognitive · regenerative_capacity · musculoskeletal`) — no native `domain_axis`
   type; the catalog's display labels map onto these values.
 - **M3 — `metric_code` stays the source/LOINC code; add `observations.kpi_code`.** Do not rewrite
   `observations.metric_code`. Add a nullable `observations.kpi_code` (FK → `kpi_catalog.code`), set by
@@ -87,12 +87,13 @@ protocol+software; `omics` → platform); `laboratory`/`vital_sign`/`anthropomet
 `method_aware` (compare on KPI + unit), so existing deltas are unaffected. **Fail-closed:** if a
 policy-required context field is missing or differs, the numeric delta is **withheld** (an incomparable
 delta is a fabricated change) and a verdict-free `comparability` marker (`comparable` / `not_comparable`
-+ reason) is set on the timeline point — disjoint from CIS/Actionability, never a score. The §8 columns are
-**required-to-merge, not required-to-store**: they stay nullable, populated only when a source supplies
-them (never inferred, §9.8); the marker is exposed in the API but its UI rendering is a later gated slice
-(DE/EN labels through the language scan). Slice 3 adds a `CLASSIFICATION_REGISTER` row (provenance +
-comparability gating, documentation-support) with Regulatory-Lead sign-off. Derived-Observation provenance
-(`derived_from` / formula version) remains **Slice 4**.
+
+- reason) is set on the timeline point — disjoint from CIS/Actionability, never a score. The §8 columns are
+  **required-to-merge, not required-to-store**: they stay nullable, populated only when a source supplies
+  them (never inferred, §9.8); the marker is exposed in the API but its UI rendering is a later gated slice
+  (DE/EN labels through the language scan). Slice 3 adds a `CLASSIFICATION_REGISTER` row (provenance +
+  comparability gating, documentation-support) with Regulatory-Lead sign-off. Derived-Observation provenance
+  (`derived_from` / formula version) remains **Slice 4**.
 
 **Slice 4 doctrine — derived values are deterministic, provenance-pinned, fail-closed; not verdicts.** Slice
 4 builds a **versioned formula registry** (pure `Decimal→Decimal` functions, `modules/derivations`) + a
@@ -100,7 +101,7 @@ comparability gating, documentation-support) with Regulatory-Lead sign-off. Deri
 frozen `formula_id`/`formula_version`/`algorithm_name` snapshot, with the immutable input IDs in a new
 tenant-scoped, RLS, **append-only** `observation_derivation` table (ADR-0004 §8). Deterministic arithmetic is
 allowed (CLAUDE.md); a derived value is **never** a verdict, score, CIS/Actionability, "optimal" target, or a
-*measured* value, and never feeds a domain verdict automatically. **§10 no-auto-run:** computation is an
+_measured_ value, and never feeds a domain verdict automatically. **§10 no-auto-run:** computation is an
 explicit controlled call (seed/CLI/clinician-authorized), never on import. **§9.8 fail-closed:** a formula
 runs only if every input is PUBLISHED, correct-unit, non-superseded; a missing input yields NO derived value
 (never inferred, never partial). The Slice-3 placeholders become real: a `formula_version` column on the
@@ -128,7 +129,6 @@ ranges, target ranges, recommendations, CIS, Actionability or any unified score.
 The catalog contains **120 KPI definitions**. Only the **43 Core KPIs** are enabled by default.
 Extended, Specialist and Research KPIs are seeded but disabled by default.
 
-
 | Domain                | Core | Extended | Specialist | Research | Total |
 | --------------------- | ---- | -------- | ---------- | -------- | ----- |
 | Metabolic             | 9    | 10       | 0          | 1        | 20    |
@@ -138,24 +138,23 @@ Extended, Specialist and Research KPIs are seeded but disabled by default.
 | Regenerative Capacity | 9    | 13       | 0          | 0        | 22    |
 | Musculoskeletal       | 5    | 16       | 2          | 0        | 23    |
 
-
 ## 2. Why the current proposal must be changed before implementation
 
 The original proposal correctly identifies the need for a global reference table, but four parts
 would create avoidable data-quality problems:
 
 1. **LOINC must not be the HADP primary key.** A clinically similar KPI can map to multiple LOINC
-  terms depending on specimen, property, timing or method. HADP therefore uses a stable internal
+   terms depending on specimen, property, timing or method. HADP therefore uses a stable internal
    code such as `cardio.apob`; verified LOINC mappings live in a separate mapping table.
 2. **Actual source category belongs to the Observation.** The same KPI can be measured by a clinic,
-  laboratory, imaging system, CPET system or wearable. A singular `source_category` on the KPI
+   laboratory, imaging system, CPET system or wearable. A singular `source_category` on the KPI
    definition would misclassify real observations. For example, directly measured VO₂peak and a
    wearable VO₂max estimate are deliberately separate KPIs.
 3. **Domain membership is many-to-many.** Each KPI has one primary domain for navigation and may
-  have secondary domain links. The same hs-CRP, eGFR or gait-speed Observation is never duplicated
+   have secondary domain links. The same hs-CRP, eGFR or gait-speed Observation is never duplicated
    across domains.
 4. **Versioning must preserve a stable identity.** `code` remains stable. A semantic change creates
-  a new KPI code; non-semantic corrections are migration-controlled. Catalog releases record
+   a new KPI code; non-semantic corrections are migration-controlled. Catalog releases record
    `introduced_in` and `deprecated_in`. Do not duplicate the full row set under a new version while
    also using `code` as the primary key.
 
@@ -164,29 +163,28 @@ would create avoidable data-quality problems:
 The following rules are non-negotiable:
 
 - **Reference data only.** A catalog row is not a diagnosis, clinical recommendation or claim of
-healthspan benefit.
+  healthspan benefit.
 - **No ranges.** Never add `reference_low`, `reference_high`, `optimal`, `target`, `goal` or
-proprietary threshold columns. Laboratory reference intervals remain attached to each
-Observation.
+  proprietary threshold columns. Laboratory reference intervals remain attached to each
+  Observation.
 - **No unified score — by design.** The catalog cannot calculate domain status, biological age,
-Healthspan score, CIS or Actionability.
+  Healthspan score, CIS or Actionability.
 - **No auto-publication.** Unknown, ambiguous, unsupported-unit or low-confidence imports remain
-`PENDING` until reviewed.
+  `PENDING` until reviewed.
 - **No duplicate cross-domain values.** One canonical Observation may have several domain links.
 - **Source preservation.** Original name, original value, original unit, source document and
-measurement context are immutable.
+  measurement context are immutable.
 - **Clinician-first visibility.** All catalog rows default to `patient_visible=false`. Any
-patient-facing display remains physician-gated.
+  patient-facing display remains physician-gated.
 - **No biological-age constructs.** Biological-age scores, methylation-age clocks, telomere-age
-claims, NAD+ scores, vendor readiness scores and unified longevity scores are not production
-catalog KPIs.
+  claims, NAD+ scores, vendor readiness scores and unified longevity scores are not production
+  catalog KPIs.
 
 ## 4. Data model
 
 ### 4.1 `kpi_catalog`
 
 Global reference data; no `tenant_id`; no tenant RLS. `hadp_app` receives `SELECT` only.
-
 
 | Column                | Type                    | Constraint / meaning                                      |
 | --------------------- | ----------------------- | --------------------------------------------------------- |
@@ -209,13 +207,11 @@ Global reference data; no `tenant_id`; no tenant RLS. `hadp_app` receives `SELEC
 | `deprecated_in`       | text nullable FK        | Catalog release                                           |
 | `created_at`          | timestamptz             | Server timestamp                                          |
 
-
 ### 4.2 Supporting KPI-reference tables
 
 These tables remain global and read-only to the application role.
 
 #### `kpi_alias`
-
 
 | Column             | Type          | Meaning                                     |
 | ------------------ | ------------- | ------------------------------------------- |
@@ -227,12 +223,10 @@ These tables remain global and read-only to the application role.
 | `priority`         | smallint      | Deterministic alias preference              |
 | `created_at`       | timestamptz   |                                             |
 
-
 A normalized alias may map to only one active KPI within the same source-system namespace. Any
 collision is a migration failure, not a runtime guess.
 
 #### `kpi_external_code`
-
 
 | Column                | Type                 | Meaning                                            |
 | --------------------- | -------------------- | -------------------------------------------------- |
@@ -244,12 +238,10 @@ collision is a migration failure, not a runtime guess.
 | `verified_at`         | timestamptz nullable |                                                    |
 | `verified_by`         | text nullable        | Named reviewer / controlled process                |
 
-
 Only `verified` mappings are eligible for automatic import mapping. A textual alias can never
 upgrade an unverified external-code mapping.
 
 #### `kpi_secondary_domain`
-
 
 | Column        | Type                      | Meaning     |
 | ------------- | ------------------------- | ----------- |
@@ -257,11 +249,9 @@ upgrade an unverified external-code mapping.
 | `domain_axis` | `domain_axis`             | Closed enum |
 | PK            | `(kpi_code, domain_axis)` |             |
 
-
 The primary domain is stored once in `kpi_catalog`; this table contains only secondary links.
 
 #### `kpi_catalog_release`
-
 
 | Column        | Type                 | Meaning                                |
 | ------------- | -------------------- | -------------------------------------- |
@@ -269,7 +259,6 @@ The primary domain is stored once in `kpi_catalog`; this table contains only sec
 | `status`      | enum                 | `draft`, `active`, `retired`           |
 | `released_at` | timestamptz nullable |                                        |
 | `notes`       | text                 |                                        |
-
 
 ### 4.3 Closed enums
 
@@ -337,7 +326,6 @@ The normalizer resolves a source term to a canonical KPI. It does not create cli
 
 ## 6. Tier semantics
 
-
 | Tier           | Use                                                                                                                               |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | **Core**       | Default MVP loadout. Common, operationally feasible and suitable for routine longitudinal display when provenance is complete.    |
@@ -345,13 +333,11 @@ The normalizer resolves a source term to a canonical KPI. It does not create cli
 | **Specialist** | Specialty-gated KPI. Clinician-only, disabled by default, and not released without the relevant workflow gate.                    |
 | **Research**   | Exploratory or platform-sensitive. Disabled by default; cannot independently drive patient-facing language, CIS or Actionability. |
 
-
 Tier is a product-governance property, not a clinical recommendation or evidence grade.
 
 ## 7. Complete six-domain KPI catalog
 
 ### Metabolic
-
 
 | Tier     | Canonical code                     | KPI                                  | Measurement class  | Canonical unit (UCUM) | Secondary domains               | Default |
 | -------- | ---------------------------------- | ------------------------------------ | ------------------ | --------------------- | ------------------------------- | ------- |
@@ -376,9 +362,7 @@ Tier is a product-governance property, not a clinical recommendation or evidence
 | Extended | `metabolic.waist_height_ratio`     | Waist-to-height ratio                | `derived`          | `1`                   | Cardiovascular                  | No      |
 | Research | `metabolic.homa_ir`                | HOMA-IR                              | `derived`          | `1`                   | —                               | No      |
 
-
 ### Immune / Inflammation
-
 
 | Tier     | Canonical code                         | KPI                                 | Measurement class | Canonical unit (UCUM) | Secondary domains                      | Default |
 | -------- | -------------------------------------- | ----------------------------------- | ----------------- | --------------------- | -------------------------------------- | ------- |
@@ -400,9 +384,7 @@ Tier is a product-governance property, not a clinical recommendation or evidence
 | Research | `immune.il6`                           | Interleukin-6                       | `laboratory`      | `pg/mL`               | —                                      | No      |
 | Research | `immune.tnf_alpha`                     | Tumor necrosis factor alpha         | `laboratory`      | `pg/mL`               | —                                      | No      |
 
-
 ### Cardiovascular
-
 
 | Tier       | Canonical code                  | KPI                                 | Measurement class | Canonical unit (UCUM) | Secondary domains     | Default |
 | ---------- | ------------------------------- | ----------------------------------- | ----------------- | --------------------- | --------------------- | ------- |
@@ -424,9 +406,7 @@ Tier is a product-governance property, not a clinical recommendation or evidence
 | Specialist | `cardio.central_systolic_bp`    | Central systolic blood pressure     | `vital_sign`      | `mm[Hg]`              | —                     | No      |
 | Research   | `cardio.coronary_plaque_volume` | Coronary plaque volume              | `imaging`         | `mm3`                 | —                     | No      |
 
-
 ### Neurocognitive
-
 
 | Tier       | Canonical code                    | KPI                                | Measurement class | Canonical unit (UCUM) | Secondary domains | Default |
 | ---------- | --------------------------------- | ---------------------------------- | ----------------- | --------------------- | ----------------- | ------- |
@@ -452,9 +432,7 @@ Tier is a product-governance property, not a clinical recommendation or evidence
 | Research   | `neuro.nfl`                       | Neurofilament light chain          | `laboratory`      | `pg/mL`               | —                 | No      |
 | Research   | `neuro.wmh_volume`                | White matter hyperintensity volume | `imaging`         | `mL`                  | —                 | No      |
 
-
 ### Regenerative Capacity
-
 
 | Tier     | Canonical code                     | KPI                               | Measurement class | Canonical unit (UCUM) | Secondary domains         | Default |
 | -------- | ---------------------------------- | --------------------------------- | ----------------- | --------------------- | ------------------------- | ------- |
@@ -481,9 +459,7 @@ Tier is a product-governance property, not a clinical recommendation or evidence
 | Extended | `regen.vo2max_estimated`           | VO₂max, estimated                 | `wearable`        | `mL/(kg.min)`         | Cardiovascular            | No      |
 | Extended | `regen.waso`                       | Wake after sleep onset            | `wearable`        | `min`                 | Neurocognitive            | No      |
 
-
 ### Musculoskeletal
-
 
 | Tier       | Canonical code               | KPI                                            | Measurement class  | Canonical unit (UCUM) | Secondary domains                     | Default |
 | ---------- | ---------------------------- | ---------------------------------------------- | ------------------ | --------------------- | ------------------------------------- | ------- |
@@ -511,9 +487,7 @@ Tier is a product-governance property, not a clinical recommendation or evidence
 | Specialist | `msk.ctx`                    | C-terminal telopeptide of type I collagen      | `laboratory`       | `ng/L`                | —                                     | No      |
 | Specialist | `msk.p1np`                   | Procollagen type I N-terminal propeptide       | `laboratory`       | `ug/L`                | —                                     | No      |
 
-
 ## 8. Required provenance by measurement class
-
 
 | Measurement class  | Minimum required provenance                                                                                                                                         |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -527,7 +501,6 @@ Tier is a product-governance property, not a clinical recommendation or evidence
 | `derived`          | formula ID/version and immutable input Observation IDs                                                                                                              |
 | `omics`            | platform, assay/panel version, sample type, batch, normalization pipeline and quality-control metadata                                                              |
 
-
 ## 9. Normalization behavior
 
 1. Prefer a **verified external code** with matching context.
@@ -539,11 +512,12 @@ Tier is a product-governance property, not a clinical recommendation or evidence
 7. Route ambiguous aliases, unsupported units, method conflicts and missing required context to review.
 8. Never infer fasting status, specimen, method, device, instrument or protocol.
 9. Never merge:
-  - generic CRP with hs-CRP;
-  - directly measured VO₂peak with estimated wearable VO₂max;
-  - Lp(a) `mg/dL` with `nmol/L` through a fixed conversion;
-  - cognitive scores across different instruments or versions;
-  - DXA/BIA body-composition values across undocumented device or software changes.
+
+- generic CRP with hs-CRP;
+- directly measured VO₂peak with estimated wearable VO₂max;
+- Lp(a) `mg/dL` with `nmol/L` through a fixed conversion;
+- cognitive scores across different instruments or versions;
+- DXA/BIA body-composition values across undocumented device or software changes.
 
 ## 10. Derived KPI rules
 
@@ -578,7 +552,6 @@ explicitly validated source Observations and a controlled job or clinician-autho
 The production migration should seed only mappings that have been verified against the current
 terminology release. The included starter file contains:
 
-
 | HADP KPI              | System | External code | Context                               |
 | --------------------- | ------ | ------------- | ------------------------------------- |
 | `metabolic.hba1c`     | LOINC  | `4548-4`      | HbA1c, NGSP-aligned reporting         |
@@ -588,7 +561,6 @@ terminology release. The included starter file contains:
 | `cardio.systolic_bp`  | LOINC  | `8480-6`      | Systolic blood pressure               |
 | `cardio.diastolic_bp` | LOINC  | `8462-4`      | Diastolic blood pressure              |
 | `cardio.lpa`          | LOINC  | `43583-4`     | Serum/plasma substance concentration  |
-
 
 All other LOINC mappings remain `pending` until separately verified. Never copy unverified codes
 from a prototype seed into production.
@@ -618,17 +590,19 @@ algorithm provenance. It must not be renamed into an age-reversal or Healthspan 
 
 1. Create the closed enums.
 2. Create `kpi_catalog_release`, `kpi_catalog`, `kpi_alias`,
-  `kpi_external_code` and `kpi_secondary_domain`.
+   `kpi_external_code` and `kpi_secondary_domain`.
 3. Do **not** add any table to `TENANT_TABLES`.
 4. Grant `SELECT` only to `hadp_app`.
 5. Seed `kpi-cat-2.0.0` from `kpi_catalog_v2.json`.
 6. Seed aliases and verified external codes.
 7. Add checks:
-  - derived rows require `formula_id`;
-  - non-derived rows must not have `formula_id`;
-  - panel rows have a null canonical unit;
-  - specialist/research rows have `patient_visible=false`;
-  - secondary domain cannot equal primary domain.
+
+- derived rows require `formula_id`;
+- non-derived rows must not have `formula_id`;
+- panel rows have a null canonical unit;
+- specialist/research rows have `patient_visible=false`;
+- secondary domain cannot equal primary domain.
+
 8. Migration downgrade removes grants, rows, tables and enums in reverse dependency order.
 
 ### Normalizer
@@ -692,7 +666,7 @@ This ADR is complete when:
 - cross-domain links do not duplicate Observations;
 - provenance and review gates remain intact;
 - no catalog field or UI copy introduces a target range, diagnosis, recommendation, unified score
-or biological-age claim.
+  or biological-age claim.
 
 ## 16. Reference basis
 
@@ -701,29 +675,28 @@ functional measures, specialist markers and research-only observations. Implemen
 re-verify external terminology mappings against the current releases before real-data use.
 
 - [HL7 FHIR Observation](https://fhir.hl7.org/fhir/observation-definitions.html) and
-[Provenance](https://fhir.hl7.org/fhir/provenance.html): device, specimen, method and lineage
-belong to the Observation/provenance layer.
+  [Provenance](https://fhir.hl7.org/fhir/provenance.html): device, specimen, method and lineage
+  belong to the Observation/provenance layer.
 - [LOINC mapping guidance](https://loinc.org/kb/users-guide/recommendations-for-best-practices-in-using-and-mapping-to-loinc/)
-and [LOINC term structure](https://loinc.org/kb/users-guide/major-parts-of-a-loinc-term/):
-specimen, property and method can distinguish different observations of the same apparent analyte.
+  and [LOINC term structure](https://loinc.org/kb/users-guide/major-parts-of-a-loinc-term/):
+  specimen, property and method can distinguish different observations of the same apparent analyte.
 - [UCUM specification](https://ucum.org/ucum): canonical machine-readable units.
 - [ADA Standards of Care 2026 — Diagnosis and Classification](https://diabetesjournals.org/care/article/49/Supplement_1/S27/163926/2-Diagnosis-and-Classification-of-Diabetes):
-HbA1c, fasting plasma glucose and OGTT measurement pathways.
+  HbA1c, fasting plasma glucose and OGTT measurement pathways.
 - [2026 ACC/AHA Dyslipidemia Guideline](https://professional.heart.org/en/science-news/2026-guideline-on-the-management-of-dyslipidemia):
-standard lipids, ApoB and Lp(a) context.
+  standard lipids, ApoB and Lp(a) context.
 - [KDIGO 2024 CKD Guideline](https://kdigo.org/guidelines/ckd-evaluation-and-management/):
-eGFR and albuminuria/UACR.
+  eGFR and albuminuria/UACR.
 - [EWGSOP2](https://academic.oup.com/ageing/article/48/1/16/5126243): grip strength, chair stand,
-appendicular lean mass and physical performance.
+  appendicular lean mass and physical performance.
 - [WHO ICOPE](https://www.who.int/teams/maternal-newborn-child-adolescent-health-and-ageing/ageing-and-health/integrated-care-for-older-people-icope):
-functional capacity domains, including cognition and locomotion.
+  functional capacity domains, including cognition and locomotion.
 - [Alzheimer's Association 2025 blood-biomarker guideline](https://aaic.alz.org/releases-2025/clinical-practice-guideline-blood-based-biomarkers.asp):
-blood-based Alzheimer biomarkers remain specialist-context measurements for people with cognitive
-impairment.
+  blood-based Alzheimer biomarkers remain specialist-context measurements for people with cognitive
+  impairment.
 - [CDC hs-CRP laboratory documentation](https://wwwn.cdc.gov/nchs/data/nhanes/public/2021/labmethods/HSCRP-L-MET-508.pdf):
-hs-CRP is sensitive but non-specific and method/context matter.
+  hs-CRP is sensitive but non-specific and method/context matter.
 
 ## 17. Out of scope
 
 - any unified or biological-age score;
-
