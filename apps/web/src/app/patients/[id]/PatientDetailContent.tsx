@@ -1031,7 +1031,7 @@ export function PatientDetailContent({
         )}
       </div>
 
-      {/* Source-grounded draft + inline Freigabe workflow (Gate G2 boundary preserved) */}
+      {/* Source-grounded draft + inline Freigabe workflow (real lifecycle; Gate G2 closed) */}
       {review.status === "none" ? (
         <div style={{ ...cardStyle, padding: "18px 22px" }}>
           <div
