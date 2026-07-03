@@ -11,7 +11,7 @@ import { initialsOf, type ShellIdentity } from "@/lib/identity";
 // port of the Claude Design comp's chrome. Wraps the /overview, /patients and
 // /patients/[id] screens. Synthetic Alpha only.
 
-type NavKey = "uebersicht" | "patienten" | "review";
+type NavKey = "uebersicht" | "patienten" | "review" | "einstellungen";
 
 const THEME_KEY = "vb-theme";
 
@@ -324,7 +324,8 @@ export function VitaShell({
             label="Audit-Protokoll"
           />
           <NavItem
-            implemented={false}
+            active={nav === "einstellungen"}
+            onClick={() => router.push("/einstellungen/mitglieder")}
             icon={stroke(
               <>
                 <circle cx="12" cy="12" r="3" />

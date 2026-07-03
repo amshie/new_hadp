@@ -16,6 +16,9 @@ export type ReviewQueueItem = Schemas["ReviewItemOut"];
 export type ResolveReviewOut = Schemas["ResolveReviewOut"];
 export type InvitationOut = Schemas["InvitationOut"];
 export type RedeemOut = Schemas["RedeemOut"];
+export type StaffInvitationOut = Schemas["StaffInvitationOut"];
+export type StaffInvitationListItem = Schemas["StaffInvitationListItem"];
+export type StaffRole = Schemas["StaffInviteCreateIn"]["role"];
 
 // The report view endpoints return an open dict (no response_model); typed locally.
 export interface ReportEvidenceItem {
@@ -284,3 +287,32 @@ export const patientView = (tenant: string, token: string) =>
     body: JSON.stringify({ tenant, token }),
     auth: false,
   });
+
+// Staff administration (owner-only server-side): invite a colleague, list pending invites,
+// revoke. Redeem is the colleague-side self-onboarding (no staff session).
+export const createStaffInvitation = (role: StaffRole) =>
+  request<StaffInvitationOut>("/api/v1/staff-invitations", {
+    method: "POST",
+    body: JSON.stringify({ role }),
+  });
+export const listStaffInvitations = () =>
+  request<StaffInvitationListItem[]>("/api/v1/staff-invitations");
+export const revokeStaffInvitation = (invitationId: string) =>
+  request<{ status: string }>(
+    `/api/v1/staff-invitations/${invitationId}/revoke`,
+    { method: "POST" },
+  );
+export const redeemStaffInvitation = (input: {
+  tenant: string;
+  token: string;
+  display_name: string;
+  email: string;
+}) =>
+  request<{ status: string; role: StaffRole }>(
+    "/api/v1/staff-invitations/redeem",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+      auth: false,
+    },
+  );

@@ -19,6 +19,9 @@ class Action(str, Enum):
     IMPORT_RUN = "import.run"
     OBSERVATION_READ = "observation.read"
     INVITATION_CREATE = "invitation.create"
+    # Staff administration: inviting a colleague who self-onboards into a role. Owner-only
+    # (a strictly narrower privilege than patient invitation), and gates create/list/revoke.
+    STAFF_INVITE_CREATE = "staff_invite.create"
     REVIEW_RESOLVE = "review.resolve"
     INTERPRETATION_AUTHOR = "interpretation.author"
     REPORT_DRAFT = "report.draft"
@@ -48,6 +51,10 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
     # Inviting a patient is operational provisioning (staff-wide), NOT the
     # clinician-only release gate (docs/notes/0010 §4).
     Action.INVITATION_CREATE: _CARE_STAFF,
+    # Inviting staff is tenant administration: OWNER only. A colleague self-onboards into
+    # the role the owner chose (the redeemer never selects their own role). This grants
+    # broad, cross-patient clinic access, so it is the most restricted provisioning action.
+    Action.STAFF_INVITE_CREATE: frozenset({Role.OWNER}),
     # Review-queue resolution is a clinical judgement (WORKFLOW §2.2/§2.4: the
     # assistant triages the queue but may not resolve clinically).
     Action.REVIEW_RESOLVE: frozenset({Role.CLINICIAN}),
