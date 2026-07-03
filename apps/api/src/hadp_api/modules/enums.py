@@ -1,8 +1,10 @@
 """Closed vocabularies used across modules.
 
-Enum values are stored as their lowercase string `value` via a CHECK constraint
-(`native_enum=False`), so the database enforces the closed set without fragile native
-PostgreSQL enum types, and JSON payloads stay readable.
+Enum values are stored as their lowercase string `value` (`native_enum=False`), which avoids
+fragile native PostgreSQL enum types and keeps JSON payloads readable. `native_enum=False` does
+NOT create a CHECK on its own; the closed set is DB-enforced by explicit CHECK constraints added
+in migrations (0009 memberships.role, 0013 staff_invitations.role, 0014 all remaining enum
+columns) and covered by `tests/test_enum_check_constraints.py`. See docs/notes/0006.
 """
 
 from __future__ import annotations
