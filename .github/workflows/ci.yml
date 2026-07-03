@@ -38,7 +38,7 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 3s --health-timeout 3s --health-retries 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v4
         with:
@@ -122,7 +122,7 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 3s --health-timeout 3s --health-retries 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v4
         with:
@@ -184,7 +184,7 @@ jobs:
   secret-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Install gitleaks
@@ -204,7 +204,7 @@ jobs:
   dependency-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v3
       - name: pip-audit (Python dependencies)
         # Blocking: any advisory fails CI. The allowlist that previously carried the starlette
