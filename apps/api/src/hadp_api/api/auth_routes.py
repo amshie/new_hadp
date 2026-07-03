@@ -22,6 +22,7 @@ from hadp_api.db.session import get_db
 from hadp_api.errors import NotAuthenticated, NotFound
 from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.enums import Role
+from hadp_api.modules.tenancy.models import Tenant
 from hadp_api.modules.tenancy.service import get_membership, list_memberships
 from hadp_api.security.rate_limit import check_rate_limit
 
@@ -40,6 +41,7 @@ class LoginResponse(BaseModel):
 class MeResponse(BaseModel):
     user: UserOut
     active_tenant_id: uuid.UUID | None
+    active_tenant_name: str | None
     role: Role | None
 
 
@@ -149,9 +151,12 @@ def me(
 ) -> MeResponse:
     active = principal.session.active_tenant_id
     role: Role | None = None
+    tenant_name: str | None = None
     if active is not None:
         membership = get_membership(db, principal.user.id, active)
         role = membership.role if membership else None
+        tenant = db.get(Tenant, active)
+        tenant_name = tenant.name if tenant else None
     return MeResponse(
         user=UserOut(
             id=principal.user.id,
@@ -159,5 +164,6 @@ def me(
             display_name=principal.user.display_name,
         ),
         active_tenant_id=active,
+        active_tenant_name=tenant_name,
         role=role,
     )

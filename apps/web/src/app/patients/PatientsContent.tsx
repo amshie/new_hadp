@@ -60,7 +60,13 @@ function rowGroup(r: DirectoryRowView): string {
   return "andere";
 }
 
-export function PatientsContent({ view }: { view: DirectoryView }) {
+export function PatientsContent({
+  view,
+  tenantName,
+}: {
+  view: DirectoryView;
+  tenantName: string;
+}) {
   const router = useRouter();
   const [tab, setTab] = useState("alle");
   const [term, setTerm] = useState("");
@@ -156,7 +162,7 @@ export function PatientsContent({ view }: { view: DirectoryView }) {
               marginBottom: "10px",
             }}
           >
-            Mandant · Meridian Longevity
+            Mandant · {tenantName}
           </div>
           <h1
             style={{

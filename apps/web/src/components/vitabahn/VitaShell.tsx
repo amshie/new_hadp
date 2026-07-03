@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, type CSSProperties, type ReactNode } from "react";
 
 import { signOut } from "@/app/login/actions";
+import { initialsOf, type ShellIdentity } from "@/lib/identity";
 
 // VitaBahn dashboard shell (ADR-0005): sidebar + topbar + theme toggle, a faithful
 // port of the Claude Design comp's chrome. Wraps the /overview, /patients and
@@ -92,13 +93,19 @@ export function VitaShell({
   nav,
   crumb,
   crumbParent,
+  identity,
   children,
 }: {
   nav: NavKey;
   crumb: string;
   crumbParent?: { label: string; href: string };
+  identity?: ShellIdentity | null;
   children: ReactNode;
 }) {
+  const personName = identity?.name ?? "—";
+  const personRole = identity?.roleLabel ?? "—";
+  const clinicName = identity?.tenantName ?? "—";
+  const personInitials = initialsOf(personName);
   const router = useRouter();
   // Lazy-init from localStorage so a returning dark-mode user doesn't get a light flash on
   // client navigations. SSR has no localStorage and renders light; suppressHydrationWarning on
@@ -403,11 +410,11 @@ export function VitaShell({
                 color: "#fff",
               }}
             >
-              SJ
+              {personInitials}
             </div>
             <div style={{ flex: 1, lineHeight: 1.2 }}>
               <div style={{ fontSize: "13px", fontWeight: 600, color: "#fff" }}>
-                Dr. Sarah Johnson
+                {personName}
               </div>
               <div
                 style={{
@@ -417,7 +424,7 @@ export function VitaShell({
                   letterSpacing: "0.04em",
                 }}
               >
-                Clinician
+                {personRole}
               </div>
             </div>
             <form action={signOut}>
@@ -540,7 +547,7 @@ export function VitaShell({
                   whiteSpace: "nowrap",
                 }}
               >
-                Meridian Longevity
+                {clinicName}
               </span>
               <span
                 style={{
@@ -692,7 +699,7 @@ export function VitaShell({
                   color: "#fff",
                 }}
               >
-                SJ
+                {personInitials}
               </div>
               <div style={{ lineHeight: 1.2, paddingRight: "4px" }}>
                 <div
@@ -702,7 +709,7 @@ export function VitaShell({
                     color: "var(--text-strong)",
                   }}
                 >
-                  Dr. Sarah Johnson
+                  {personName}
                 </div>
                 <div
                   style={{
@@ -712,7 +719,7 @@ export function VitaShell({
                     letterSpacing: "0.04em",
                   }}
                 >
-                  Clinician
+                  {personRole}
                 </div>
               </div>
             </div>

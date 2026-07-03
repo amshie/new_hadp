@@ -294,7 +294,7 @@ function AuthInner() {
                   SJ
                 </div>
                 <strong id="locked-title">Dr. Sarah Johnson</strong>
-                <span>Clinician · Meridian Longevity</span>
+                <span>Klinischer Arbeitsbereich · Pilotumgebung</span>
               </div>
               <div
                 className="notice notice-warning"

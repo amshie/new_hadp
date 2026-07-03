@@ -1,7 +1,14 @@
 import { redirect } from "next/navigation";
 
 import { VitaShell } from "@/components/vitabahn/VitaShell";
-import { ApiError, me, reviewQueue, type ReviewQueueItem } from "@/lib/api";
+import {
+  ApiError,
+  me,
+  reviewQueue,
+  type Me,
+  type ReviewQueueItem,
+} from "@/lib/api";
+import { shellIdentity } from "@/lib/identity";
 
 import { ReviewQueueContent } from "./ReviewQueueContent";
 
@@ -10,14 +17,14 @@ import { ReviewQueueContent } from "./ReviewQueueContent";
 // /login). Resolution is clinician-only; the API enforces it (hiding is UX only).
 async function load(): Promise<{
   items: ReviewQueueItem[];
-  role: string | null;
+  session: Me | null;
 }> {
   try {
     const [items, session] = await Promise.all([
       reviewQueue(),
       me().catch(() => null),
     ]);
-    return { items, role: session?.role ?? null };
+    return { items, session };
   } catch (e) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
       redirect("/login");
@@ -27,12 +34,16 @@ async function load(): Promise<{
 }
 
 export default async function ReviewQueuePage() {
-  const { items, role } = await load();
+  const { items, session } = await load();
   return (
-    <VitaShell nav="review" crumb="Review-Queue">
+    <VitaShell
+      nav="review"
+      crumb="Review-Queue"
+      identity={shellIdentity(session)}
+    >
       <ReviewQueueContent
         items={items}
-        sessionRole={role}
+        sessionRole={session?.role ?? null}
         path="/review-queue"
       />
     </VitaShell>

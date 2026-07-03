@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { VitaShell } from "@/components/vitabahn/VitaShell";
 import { ApiError, getPatient, interpretation, me, timeline } from "@/lib/api";
+import { shellIdentity } from "@/lib/identity";
 import { isUuid } from "@/lib/uuid";
 
 import {
@@ -66,6 +67,7 @@ export default async function AuthorRunPage({
         nav="patienten"
         crumb={`Interpretation erfassen · ${patient.display_name}`}
         crumbParent={{ label: patient.display_name, href: `/patients/${id}` }}
+        identity={shellIdentity(session)}
       >
         <AuthorRunContent
           patientId={id}

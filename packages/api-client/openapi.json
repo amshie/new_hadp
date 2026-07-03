@@ -2088,6 +2088,17 @@
             ],
             "title": "Active Tenant Id"
           },
+          "active_tenant_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Tenant Name"
+          },
           "role": {
             "anyOf": [
               {
@@ -2103,6 +2114,7 @@
         "required": [
           "user",
           "active_tenant_id",
+          "active_tenant_name",
           "role"
         ],
         "title": "MeResponse"

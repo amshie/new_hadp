@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { signOut } from "@/app/login/actions";
+import { initialsOf, type ShellIdentity } from "@/lib/identity";
 
 import { Icon, type IconName } from "./Icon";
 import { ToastProvider, useToast } from "./Toaster";
@@ -68,7 +69,13 @@ function NavLink({
   );
 }
 
-function Sidebar({ active }: { active: NavKey }) {
+function Sidebar({
+  active,
+  identity,
+}: {
+  active: NavKey;
+  identity?: ShellIdentity | null;
+}) {
   return (
     <aside className="sidebar" aria-label="Hauptnavigation">
       <Link className="brand" href="/overview" aria-label="HADP Übersicht">
@@ -130,18 +137,18 @@ function Sidebar({ active }: { active: NavKey }) {
       </div>
       <div className="sidebar-user">
         <div className="avatar" aria-hidden="true">
-          SJ
+          {initialsOf(identity?.name ?? "—")}
         </div>
         <div className="meta">
-          <strong>Dr. Sarah Johnson</strong>
-          <span>Clinician</span>
+          <strong>{identity?.name ?? "—"}</strong>
+          <span>{identity?.roleLabel ?? "—"}</span>
         </div>
       </div>
     </aside>
   );
 }
 
-function UserMenu() {
+function UserMenu({ identity }: { identity?: ShellIdentity | null }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -173,11 +180,11 @@ function UserMenu() {
         onClick={() => setOpen((v) => !v)}
       >
         <span className="user-copy">
-          <strong>Dr. Sarah Johnson</strong>
-          <span>Clinician</span>
+          <strong>{identity?.name ?? "—"}</strong>
+          <span>{identity?.roleLabel ?? "—"}</span>
         </span>
         <span className="avatar" aria-hidden="true">
-          SJ
+          {initialsOf(identity?.name ?? "—")}
         </span>
       </button>
       <div className={`menu${open ? "" : " hidden"}`} role="menu">
@@ -215,7 +222,13 @@ function UserMenu() {
   );
 }
 
-function Topbar({ breadcrumbs }: { breadcrumbs: ReactNode }) {
+function Topbar({
+  breadcrumbs,
+  identity,
+}: {
+  breadcrumbs: ReactNode;
+  identity?: ShellIdentity | null;
+}) {
   const toast = useToast();
   return (
     <header className="topbar">
@@ -240,7 +253,7 @@ function Topbar({ breadcrumbs }: { breadcrumbs: ReactNode }) {
         }
       >
         <Icon name="building" />
-        <span>Meridian Longevity</span>
+        <span>{identity?.tenantName ?? "—"}</span>
         <Icon name="chevronDown" style={{ width: "14px", height: "14px" }} />
       </button>
       <button
@@ -253,7 +266,7 @@ function Topbar({ breadcrumbs }: { breadcrumbs: ReactNode }) {
       >
         <Icon name="bell" />
       </button>
-      <UserMenu />
+      <UserMenu identity={identity} />
     </header>
   );
 }
@@ -261,10 +274,12 @@ function Topbar({ breadcrumbs }: { breadcrumbs: ReactNode }) {
 export function AppShell({
   active,
   breadcrumbs,
+  identity,
   children,
 }: {
   active: NavKey;
   breadcrumbs: ReactNode;
+  identity?: ShellIdentity | null;
   children: ReactNode;
 }) {
   return (
@@ -273,9 +288,9 @@ export function AppShell({
         Zum Hauptinhalt springen
       </a>
       <div className="app-shell">
-        <Sidebar active={active} />
+        <Sidebar active={active} identity={identity} />
         <div className="app-main">
-          <Topbar breadcrumbs={breadcrumbs} />
+          <Topbar breadcrumbs={breadcrumbs} identity={identity} />
           <main className="content" id="main-content">
             {children}
           </main>
