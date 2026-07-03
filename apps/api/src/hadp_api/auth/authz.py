@@ -18,27 +18,35 @@ class Action(str, Enum):
     DOCUMENT_UPLOAD = "document.upload"
     IMPORT_RUN = "import.run"
     OBSERVATION_READ = "observation.read"
+    INTERPRETATION_AUTHOR = "interpretation.author"
     REPORT_DRAFT = "report.draft"
     REPORT_EDIT = "report.edit"
     REPORT_APPROVE = "report.approve"
     REPORT_RELEASE = "report.release"
 
 
-_ALL_STAFF = frozenset({Role.OWNER, Role.CLINICIAN, Role.ASSISTANT})
+# Operational care staff (create/upload/import/draft); the medical director is the
+# governance gate, not an operator.
+_CARE_STAFF = frozenset({Role.OWNER, Role.CLINICIAN, Role.ASSISTANT})
+# Read access additionally includes the medical director, who must review content
+# and evidence before releasing it.
+_READ_STAFF = _CARE_STAFF | {Role.MEDICAL_DIRECTOR}
 
-# Only a qualified clinician may approve or release a patient-facing report
-# (CLAUDE.md: "require a qualified clinician to approve patient-facing reports").
+# Two-tier Physician Gate (INTENDED_USE/ADR-0003): a qualified CLINICIAN authors the
+# interpretation and approves the report; only a MEDICAL DIRECTOR locks/releases
+# patient-facing content. The two steps are deliberately held by different roles.
 _PERMISSIONS: dict[Action, frozenset[Role]] = {
-    Action.PATIENT_CREATE: _ALL_STAFF,
-    Action.PATIENT_READ: _ALL_STAFF,
-    Action.CONSENT_RECORD: _ALL_STAFF,
-    Action.DOCUMENT_UPLOAD: _ALL_STAFF,
-    Action.IMPORT_RUN: _ALL_STAFF,
-    Action.OBSERVATION_READ: _ALL_STAFF,
-    Action.REPORT_DRAFT: frozenset({Role.OWNER, Role.CLINICIAN, Role.ASSISTANT}),
-    Action.REPORT_EDIT: frozenset({Role.OWNER, Role.CLINICIAN, Role.ASSISTANT}),
+    Action.PATIENT_CREATE: _CARE_STAFF,
+    Action.PATIENT_READ: _READ_STAFF,
+    Action.CONSENT_RECORD: _CARE_STAFF,
+    Action.DOCUMENT_UPLOAD: _CARE_STAFF,
+    Action.IMPORT_RUN: _CARE_STAFF,
+    Action.OBSERVATION_READ: _READ_STAFF,
+    Action.INTERPRETATION_AUTHOR: frozenset({Role.CLINICIAN}),
+    Action.REPORT_DRAFT: _CARE_STAFF,
+    Action.REPORT_EDIT: _CARE_STAFF,
     Action.REPORT_APPROVE: frozenset({Role.CLINICIAN}),
-    Action.REPORT_RELEASE: frozenset({Role.CLINICIAN}),
+    Action.REPORT_RELEASE: frozenset({Role.MEDICAL_DIRECTOR}),
 }
 
 

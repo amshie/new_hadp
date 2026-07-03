@@ -23,6 +23,13 @@ verification produced 19 confirmed findings. Fixed in this build:
 
 Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
 
+- **DB-level CHECK constraints for enum columns (found 2026-07-03):** SQLAlchemy 2.x
+  creates NO CHECK for `native_enum=False` enum columns by default, so the closed
+  vocabularies (review_status, cis_status, actionability_class, consent purpose, …)
+  are enforced at the Python layer only — contrary to the `pg_enum` docstring's
+  "database enforces the closed set". Migration `0009` adds the CHECK for
+  `memberships.role` (the first properly DB-enforced enum column); extending the same
+  treatment to the remaining enum columns is its own migration slice.
 - **Supersession / corrected-report matching** (CLAUDE.md Ingestion → Corrected reports):
   the `supersedes_observation_id` column exists, but conservative matching + its tests
   are **Milestone 1** ingestion work, not the spike. Implement with M1.

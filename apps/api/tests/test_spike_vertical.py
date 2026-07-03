@@ -8,7 +8,7 @@ NO patient release of unapproved content. Every module is crossed once.
 from __future__ import annotations
 
 from hadp_api.modules.enums import Role
-from tests.helpers import grant_release_consent, login_as
+from tests.helpers import grant_release_consent, login, login_as, select_tenant, switch_role
 
 
 def test_full_happy_path_crosses_every_module(client, admin_session) -> None:  # type: ignore[no-untyped-def]
@@ -97,17 +97,30 @@ def test_full_happy_path_crosses_every_module(client, admin_session) -> None:  #
     for stmt in report["statements"]:
         assert len(stmt["evidence"]) >= 1  # evidence viewable inline
 
-    # 6) SAFETY: a patient cannot receive unapproved content — release before approve fails
+    # 6) SAFETY: the clinician may not release at all (two-tier physician gate) …
+    assert client.post(f"/api/v1/reports/{report_id}/release").status_code == 403
+    # … and even the medical director cannot release unapproved content.
+    switch_role(
+        client,
+        admin_session,
+        email="md@synthetic.example",
+        tenant=tenant,
+        role=Role.MEDICAL_DIRECTOR,
+    )
     early_release = client.post(f"/api/v1/reports/{report_id}/release")
     assert early_release.status_code == 409
 
-    # 7) clinician approval (attributable), then release
+    # 7) clinician approval (attributable), then the medical director's release
+    login(client, "spike@synthetic.example")
+    select_tenant(client, tenant.id)
     approve = client.post(f"/api/v1/reports/{report_id}/approve")
     assert approve.status_code == 200, approve.text
     assert approve.json()["status"] == "approved"
 
     # Release is consent-gated (fail-closed): grant report_release consent for this patient.
     grant_release_consent(admin_session, tenant_id=tenant.id, patient_id=patient_id)
+    login(client, "md@synthetic.example")
+    select_tenant(client, tenant.id)
     release = client.post(f"/api/v1/reports/{report_id}/release")
     assert release.status_code == 200, release.text
     token = release.json()["patient_access_token"]
@@ -152,12 +165,22 @@ def test_editing_a_released_report_revokes_patient_access(client, admin_session)
     rid = report["report_id"]
     client.post(f"/api/v1/reports/{rid}/approve")
     grant_release_consent(admin_session, tenant_id=tenant.id, patient_id=pid)
+    switch_role(
+        client,
+        admin_session,
+        email="edit-md@synthetic.example",
+        tenant=tenant,
+        role=Role.MEDICAL_DIRECTOR,
+    )
     token = client.post(f"/api/v1/reports/{rid}/release").json()["patient_access_token"]
 
     # The released report is viewable by the patient.
     assert client.get(f"/api/v1/patient-view?tenant={tenant.id}&token={token}").status_code == 200
 
-    # Edit after release -> new draft version, prior approval invalidated, access retracted.
+    # Edit after release (as the clinician) -> new draft version, prior approval
+    # invalidated, access retracted.
+    login(client, "edit@synthetic.example")
+    select_tenant(client, tenant.id)
     statements = [
         {
             "id": s["id"],

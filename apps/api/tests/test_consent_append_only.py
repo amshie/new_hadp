@@ -19,7 +19,7 @@ from hadp_api.modules.consents import service as consents_service
 from hadp_api.modules.consents.models import ConsentEvent
 from hadp_api.modules.enums import ConsentEventType, ConsentPurpose, Role
 from hadp_api.modules.patients.models import Patient
-from tests.helpers import grant_release_consent, login_as, make_tenant
+from tests.helpers import grant_release_consent, login_as, make_tenant, switch_role
 
 
 def _grant(
@@ -104,6 +104,14 @@ def test_release_is_consent_gated(client, admin_session) -> None:  # type: ignor
     rid = client.post(f"/api/v1/patients/{pid}/reports").json()["report_id"]
     client.post(f"/api/v1/reports/{rid}/approve")
 
+    # Release is the medical director's step (two-tier physician gate).
+    switch_role(
+        client,
+        admin_session,
+        email="consentgate-md@synthetic.example",
+        tenant=tenant,
+        role=Role.MEDICAL_DIRECTOR,
+    )
     # Fail-closed: an approved report cannot be released without an active report_release consent.
     blocked = client.post(f"/api/v1/reports/{rid}/release")
     assert blocked.status_code == 409, blocked.text
@@ -127,6 +135,13 @@ def test_withdrawal_is_a_new_event_and_revokes_access(client, admin_session) -> 
     rid = client.post(f"/api/v1/patients/{pid}/reports").json()["report_id"]
     client.post(f"/api/v1/reports/{rid}/approve")
     grant_release_consent(admin_session, tenant_id=tenant.id, patient_id=pid)
+    switch_role(
+        client,
+        admin_session,
+        email="withdraw-md@synthetic.example",
+        tenant=tenant,
+        role=Role.MEDICAL_DIRECTOR,
+    )
     token = client.post(f"/api/v1/reports/{rid}/release").json()["patient_access_token"]
     assert client.get(f"/api/v1/patient-view?tenant={tenant.id}&token={token}").status_code == 200
 

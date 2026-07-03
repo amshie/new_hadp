@@ -1,9 +1,10 @@
 """Live smoke test against a running API (uvicorn).
 
 Walks the full vertical-spike happy path over real HTTP against seeded synthetic data:
-login -> select tenant -> list patients -> timeline -> draft -> approve -> release ->
-patient view, plus a negative check that a bad token reveals nothing. Exits non-zero on
-any failure. Synthetic data only.
+clinician login -> select tenant -> list patients -> timeline -> draft -> approve, then
+the TWO-TIER physician gate: the clinician may NOT release (403); the medical director
+releases -> patient view, plus a negative check that a bad token reveals nothing.
+Exits non-zero on any failure. Synthetic data only.
 """
 
 from __future__ import annotations
@@ -42,11 +43,26 @@ def main() -> int:
         assert draft["status"] == "draft_generated"
         assert all(len(s["evidence"]) >= 1 for s in draft["statements"]), draft
 
-        # safety: cannot release before approval
-        assert c.post(f"/reports/{report_id}/release").status_code == 409
-
         assert c.post(f"/reports/{report_id}/approve").json()["status"] == "approved"
-        release = c.post(f"/reports/{report_id}/release").json()
+        # Two-tier physician gate: the clinician approves but may NOT release.
+        assert c.post(f"/reports/{report_id}/release").status_code == 403
+
+    # Release is the medical director's lock (separate session).
+    with httpx.Client(base_url=BASE, timeout=10.0) as md:
+        assert (
+            md.post(
+                "/auth/dev-login", json={"email": "medical.director@demo.synthetic"}
+            ).status_code
+            == 200
+        )
+        md_tenant = next(
+            t for t in md.get("/tenancy/my-tenants").json() if t["tenant_slug"] == "demo-clinic"
+        )
+        assert (
+            md.post("/tenancy/select-tenant", json={"tenant_id": md_tenant["tenant_id"]}).status_code
+            == 200
+        )
+        release = md.post(f"/reports/{report_id}/release").json()
         token = release["patient_access_token"]
 
     # patient view: separate client (no staff cookie)
