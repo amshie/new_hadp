@@ -47,7 +47,7 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -131,7 +131,7 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -205,7 +205,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v7
       - name: pip-audit (Python dependencies)
         # Blocking: any advisory fails CI. The allowlist that previously carried the starlette
         # (via FastAPI) and pytest advisories was cleared by the dependency-upgrade slice
