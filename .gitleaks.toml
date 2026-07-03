@@ -18,4 +18,10 @@ regexes = [
   '''minioadmin''',
   '''postgres:postgres''',
   '''hadp_app:hadp_app''',
+  # A synthetic-Alpha patient-view demo token from a local-only, constantly-reseeded
+  # dev DB (127.0.0.1, 14-day TTL, synthetic patient) that was accidentally pasted
+  # into a test fixture and immediately replaced in the same PR. It has no
+  # real-world value; the exact-string allowlist keeps the history scan green
+  # without a history rewrite and cannot mask any other finding.
+  '''ZfiTR8X4WHV47zNVdMURza''',
 ]

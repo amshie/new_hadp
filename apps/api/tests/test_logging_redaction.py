@@ -51,12 +51,12 @@ def test_uvicorn_access_log_scrubs_query_tokens() -> None:
             '%s - "%s %s HTTP/1.1" %d',
             "127.0.0.1:5000",
             "GET",
-            "/api/v1/patient-view?tenant=70a6e3eb&token=ZfiTR8X4WHV47zNVdMURza",
+            "/api/v1/patient-view?tenant=70a6e3eb&token=synthetic-test-only-value",
             200,
         )
     finally:
         access.removeHandler(handler)
     rendered = "\n".join(captured)
     assert rendered, "access record was not captured"
-    assert "ZfiTR8X4WHV47zNVdMURza" not in rendered
+    assert "synthetic-test-only-value" not in rendered
     assert "patient-view" in rendered  # the path itself stays diagnosable
