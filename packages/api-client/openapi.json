@@ -276,6 +276,112 @@
         }
       }
     },
+    "/api/v1/patients/{patient_id}/consents": {
+      "post": {
+        "tags": [
+          "consents"
+        ],
+        "summary": "Grant Consent",
+        "operationId": "grant_consent_api_v1_patients__patient_id__consents_post",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentEventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/patients/{patient_id}/consents/withdraw": {
+      "post": {
+        "tags": [
+          "consents"
+        ],
+        "summary": "Withdraw Consent",
+        "operationId": "withdraw_consent_api_v1_patients__patient_id__consents_withdraw_post",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentEventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/worklist": {
       "get": {
         "tags": [
@@ -1043,6 +1149,80 @@
         ],
         "title": "CisStatus",
         "description": "Engine 1 \u2014 Credible Improvement Status (closed, one per domain axis)."
+      },
+      "ConsentEventOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "patient_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Patient Id"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "consent_text_version": {
+            "type": "string",
+            "title": "Consent Text Version"
+          },
+          "channel": {
+            "type": "string",
+            "title": "Channel"
+          },
+          "recorded_at": {
+            "type": "string",
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "patient_id",
+          "purpose",
+          "event_type",
+          "consent_text_version",
+          "channel",
+          "recorded_at"
+        ],
+        "title": "ConsentEventOut"
+      },
+      "ConsentIn": {
+        "properties": {
+          "purpose": {
+            "$ref": "#/components/schemas/ConsentPurpose"
+          },
+          "channel": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Channel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "purpose",
+          "channel"
+        ],
+        "title": "ConsentIn"
+      },
+      "ConsentPurpose": {
+        "type": "string",
+        "enum": [
+          "report_release",
+          "analytics",
+          "data_source_connect"
+        ],
+        "title": "ConsentPurpose",
+        "description": "Purpose a consent event scopes \u2014 a CLOSED vocabulary.\n\nThese are SYNTHETIC-ALPHA PLACEHOLDER values. The real, lawful purpose taxonomy and the\nper-purpose Art. 9(2) lawful basis are a DPO/counsel deliverable (PENDING), NOT an engineering\ndefault \u2014 see docs/regulatory (Regulatory-Lead UNASSIGNED). Only `report_release` is enforced as\na gate today (on patient-facing report release); the others name transitions for completeness."
       },
       "CoverageOut": {
         "properties": {
