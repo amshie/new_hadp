@@ -127,6 +127,7 @@ function Sidebar({
           icon="settings"
           label="Einstellungen"
           active={active === "settings"}
+          href="/einstellungen/mitglieder"
         />
       </nav>
 

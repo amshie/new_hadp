@@ -513,6 +513,158 @@
         }
       }
     },
+    "/api/v1/staff-invitations": {
+      "get": {
+        "tags": [
+          "staff-invitations"
+        ],
+        "summary": "List Staff Invitations",
+        "operationId": "list_staff_invitations_api_v1_staff_invitations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StaffInvitationListItem"
+                  },
+                  "type": "array",
+                  "title": "Response List Staff Invitations Api V1 Staff Invitations Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "staff-invitations"
+        ],
+        "summary": "Create Staff Invitation",
+        "operationId": "create_staff_invitation_api_v1_staff_invitations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffInviteCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffInvitationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/staff-invitations/{invitation_id}/revoke": {
+      "post": {
+        "tags": [
+          "staff-invitations"
+        ],
+        "summary": "Revoke Staff Invitation",
+        "operationId": "revoke_staff_invitation_api_v1_staff_invitations__invitation_id__revoke_post",
+        "parameters": [
+          {
+            "name": "invitation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invitation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Revoke Staff Invitation Api V1 Staff Invitations  Invitation Id  Revoke Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/staff-invitations/redeem": {
+      "post": {
+        "tags": [
+          "staff-invitations"
+        ],
+        "summary": "Redeem Staff Invitation",
+        "operationId": "redeem_staff_invitation_api_v1_staff_invitations_redeem_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffRedeemIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffRedeemOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/worklist": {
       "get": {
         "tags": [
@@ -2448,6 +2600,142 @@
           "role"
         ],
         "title": "SelectTenantResponse"
+      },
+      "StaffInvitationListItem": {
+        "properties": {
+          "invitation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Invitation Id"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "invitation_id",
+          "role",
+          "status",
+          "expires_at",
+          "created_at"
+        ],
+        "title": "StaffInvitationListItem"
+      },
+      "StaffInvitationOut": {
+        "properties": {
+          "invitation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Invitation Id"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          },
+          "invitation_token": {
+            "type": "string",
+            "title": "Invitation Token"
+          },
+          "invitation_url": {
+            "type": "string",
+            "title": "Invitation Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "invitation_id",
+          "role",
+          "status",
+          "expires_at",
+          "invitation_token",
+          "invitation_url"
+        ],
+        "title": "StaffInvitationOut"
+      },
+      "StaffInviteCreateIn": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role"
+        ],
+        "title": "StaffInviteCreateIn"
+      },
+      "StaffRedeemIn": {
+        "properties": {
+          "tenant": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Tenant"
+          },
+          "token": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Token"
+          },
+          "display_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name"
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "minLength": 3,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenant",
+          "token",
+          "display_name",
+          "email"
+        ],
+        "title": "StaffRedeemIn"
+      },
+      "StaffRedeemOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "role"
+        ],
+        "title": "StaffRedeemOut"
       },
       "StatementIn": {
         "properties": {
