@@ -15,6 +15,7 @@ from hadp_api.modules.audit.service import record_audit
 from hadp_api.modules.patients import service as patients_service
 from hadp_api.modules.reports import service as reports_service
 from hadp_api.modules.reports.service import _get_report  # internal lookup (tenant-scoped)
+from hadp_api.security.rate_limit import check_rate_limit
 
 router = APIRouter(tags=["reports"])
 
@@ -153,6 +154,14 @@ def release_report(
     report_id: uuid.UUID,
     ctx: TenantContext = Depends(require(Action.REPORT_RELEASE)),
 ) -> ReleaseOut:
+    # Release mints a patient access token — throttle per releasing user (P-pre-1).
+    check_rate_limit(
+        action="report.release",
+        key=str(ctx.user.id),
+        limit=30,
+        window_seconds=60,
+        correlation_id=ctx.correlation_id,
+    )
     report, raw_token = reports_service.release_report(
         ctx.db, report_id=report_id, tenant_id=ctx.tenant_id, released_by_user_id=ctx.user.id
     )

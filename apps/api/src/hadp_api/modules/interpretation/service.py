@@ -290,6 +290,8 @@ def _cell_evidence(
         )
         out.append(
             {
+                # The id lets the authoring UI prefill correction-run evidence refs.
+                "observation_id": str(obs.id),
                 "original_name": obs.original_name,
                 "value": str(obs.normalized_value) if obs.normalized_value is not None else None,
                 "unit": obs.normalized_unit,

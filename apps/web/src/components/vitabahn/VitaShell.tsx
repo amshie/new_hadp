@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { useState, type CSSProperties, type ReactNode } from "react";
 
 import { signOut } from "@/app/login/actions";
+import { initialsOf, type ShellIdentity } from "@/lib/identity";
 
 // VitaBahn dashboard shell (ADR-0005): sidebar + topbar + theme toggle, a faithful
 // port of the Claude Design comp's chrome. Wraps the /overview, /patients and
 // /patients/[id] screens. Synthetic Alpha only.
 
-type NavKey = "uebersicht" | "patienten";
+type NavKey = "uebersicht" | "patienten" | "review";
 
 const THEME_KEY = "vb-theme";
 
@@ -92,13 +93,19 @@ export function VitaShell({
   nav,
   crumb,
   crumbParent,
+  identity,
   children,
 }: {
   nav: NavKey;
   crumb: string;
   crumbParent?: { label: string; href: string };
+  identity?: ShellIdentity | null;
   children: ReactNode;
 }) {
+  const personName = identity?.name ?? "—";
+  const personRole = identity?.roleLabel ?? "—";
+  const clinicName = identity?.tenantName ?? "—";
+  const personInitials = initialsOf(personName);
   const router = useRouter();
   // Lazy-init from localStorage so a returning dark-mode user doesn't get a light flash on
   // client navigations. SSR has no localStorage and renders light; suppressHydrationWarning on
@@ -264,6 +271,17 @@ export function VitaShell({
             label="Patienten"
           />
           <NavItem
+            active={nav === "review"}
+            onClick={() => router.push("/review-queue")}
+            icon={stroke(
+              <>
+                <path d="M9 11l3 3L22 4" />
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </>,
+            )}
+            label="Review-Queue"
+          />
+          <NavItem
             implemented={false}
             icon={stroke(
               <>
@@ -392,11 +410,11 @@ export function VitaShell({
                 color: "#fff",
               }}
             >
-              SJ
+              {personInitials}
             </div>
             <div style={{ flex: 1, lineHeight: 1.2 }}>
               <div style={{ fontSize: "13px", fontWeight: 600, color: "#fff" }}>
-                Dr. Sarah Johnson
+                {personName}
               </div>
               <div
                 style={{
@@ -406,7 +424,7 @@ export function VitaShell({
                   letterSpacing: "0.04em",
                 }}
               >
-                Clinician
+                {personRole}
               </div>
             </div>
             <form action={signOut}>
@@ -529,7 +547,7 @@ export function VitaShell({
                   whiteSpace: "nowrap",
                 }}
               >
-                Meridian Longevity
+                {clinicName}
               </span>
               <span
                 style={{
@@ -681,7 +699,7 @@ export function VitaShell({
                   color: "#fff",
                 }}
               >
-                SJ
+                {personInitials}
               </div>
               <div style={{ lineHeight: 1.2, paddingRight: "4px" }}>
                 <div
@@ -691,7 +709,7 @@ export function VitaShell({
                     color: "var(--text-strong)",
                   }}
                 >
-                  Dr. Sarah Johnson
+                  {personName}
                 </div>
                 <div
                   style={{
@@ -701,7 +719,7 @@ export function VitaShell({
                     letterSpacing: "0.04em",
                   }}
                 >
-                  Clinician
+                  {personRole}
                 </div>
               </div>
             </div>

@@ -49,7 +49,11 @@ class Settings(BaseSettings):
     s3_bucket_source_documents: str = "hadp-source-documents"
 
     session_secret: str = "dev-only-not-a-secret-change-me"
+    # Production config must use the __Host- prefix on BOTH cookies (enforced below):
+    # the prefix pins Secure + Path=/ + host-only at the browser level. Dev (http)
+    # keeps the plain names because __Host- requires HTTPS.
     session_cookie_name: str = "hadp_session"
+    csrf_cookie_name: str = "hadp_csrf"
     session_ttl_seconds: int = 60 * 60 * 8  # 8h
 
     api_base_url: str = "http://127.0.0.1:8000"
@@ -89,6 +93,10 @@ class Settings(BaseSettings):
             problems.append("SESSION_SECRET must be a strong non-default value (>= 32 chars)")
         if _DEV_S3_CREDENTIAL in (self.s3_access_key_id, self.s3_secret_access_key):
             problems.append("S3 credentials must not be the dev default in production")
+        if not self.session_cookie_name.startswith("__Host-"):
+            problems.append("SESSION_COOKIE_NAME must use the __Host- prefix in production")
+        if not self.csrf_cookie_name.startswith("__Host-"):
+            problems.append("CSRF_COOKIE_NAME must use the __Host- prefix in production")
         if problems:
             raise ValueError("unsafe production configuration: " + "; ".join(problems))
         return self

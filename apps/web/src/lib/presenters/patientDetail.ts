@@ -22,6 +22,7 @@ export interface Completeness {
 }
 
 export interface DetailView {
+  patientId: string;
   review: ReviewView;
   completeness: Completeness;
   // Link to the authoritative review surface (where approve/release live); null if no report.
@@ -54,6 +55,7 @@ export function presentDetail(
   matrix: DomainMatrixView | null,
 ): DetailView {
   return {
+    patientId: patient.id,
     review: presentReview(patient, report, points, matrix),
     completeness: dataCompleteness(points),
     reportLink: report.report_id

@@ -11,6 +11,7 @@ import {
   worklist,
   type ReportView,
 } from "@/lib/api";
+import { shellIdentity } from "@/lib/identity";
 import { presentDetail, type DetailView } from "@/lib/presenters/patientDetail";
 import { isUuid } from "@/lib/uuid";
 
@@ -74,6 +75,7 @@ export default async function PatientDetailPage({
       nav="patienten"
       crumb={view.review.patientName}
       crumbParent={{ label: "Patienten", href: "/patients" }}
+      identity={shellIdentity(session)}
     >
       <PatientDetailContent
         view={view}

@@ -19,6 +19,8 @@ def _prod(**overrides):  # type: ignore[no-untyped-def]
         "session_secret": _STRONG_SECRET,
         "s3_access_key_id": "real-key",
         "s3_secret_access_key": "real-secret",
+        "session_cookie_name": "__Host-hadp_session",
+        "csrf_cookie_name": "__Host-hadp_csrf",
     }
     base.update(overrides)
     return Settings(**base)  # type: ignore[arg-type]
@@ -48,6 +50,13 @@ def test_production_rejects_default_session_secret() -> None:
 def test_production_rejects_default_s3_credentials() -> None:
     with pytest.raises(ValueError, match="S3 credentials"):
         _prod(s3_access_key_id="minioadmin")
+
+
+def test_production_requires_host_prefixed_cookies() -> None:
+    with pytest.raises(ValueError, match="SESSION_COOKIE_NAME"):
+        _prod(session_cookie_name="hadp_session")
+    with pytest.raises(ValueError, match="CSRF_COOKIE_NAME"):
+        _prod(csrf_cookie_name="hadp_csrf")
 
 
 def test_development_allows_defaults() -> None:

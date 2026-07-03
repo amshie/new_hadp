@@ -382,6 +382,137 @@
         }
       }
     },
+    "/api/v1/patients/{patient_id}/invitations": {
+      "post": {
+        "tags": [
+          "invitations"
+        ],
+        "summary": "Create Invitation",
+        "operationId": "create_invitation_api_v1_patients__patient_id__invitations_post",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invitations/{invitation_id}/revoke": {
+      "post": {
+        "tags": [
+          "invitations"
+        ],
+        "summary": "Revoke Invitation",
+        "operationId": "revoke_invitation_api_v1_invitations__invitation_id__revoke_post",
+        "parameters": [
+          {
+            "name": "invitation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invitation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Revoke Invitation Api V1 Invitations  Invitation Id  Revoke Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invitations/redeem": {
+      "post": {
+        "tags": [
+          "invitations"
+        ],
+        "summary": "Redeem Invitation",
+        "operationId": "redeem_invitation_api_v1_invitations_redeem_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedeemOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/worklist": {
       "get": {
         "tags": [
@@ -606,6 +737,84 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ImportResultOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review-items": {
+      "get": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "List Review Items",
+        "operationId": "list_review_items_api_v1_review_items_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewItemOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Review Items Api V1 Review Items Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review-items/{review_item_id}/resolve": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Resolve Review Item",
+        "operationId": "resolve_review_item_api_v1_review_items__review_item_id__resolve_post",
+        "parameters": [
+          {
+            "name": "review_item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Review Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveReviewIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolveReviewOut"
                 }
               }
             }
@@ -1512,6 +1721,10 @@
       },
       "EvidenceObsOut": {
         "properties": {
+          "observation_id": {
+            "type": "string",
+            "title": "Observation Id"
+          },
           "original_name": {
             "type": "string",
             "title": "Original Name"
@@ -1571,6 +1784,7 @@
         },
         "type": "object",
         "required": [
+          "observation_id",
           "original_name",
           "value",
           "unit",
@@ -1797,6 +2011,46 @@
         ],
         "title": "ImportValueIn"
       },
+      "InvitationOut": {
+        "properties": {
+          "invitation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Invitation Id"
+          },
+          "patient_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Patient Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          },
+          "invitation_token": {
+            "type": "string",
+            "title": "Invitation Token"
+          },
+          "invitation_url": {
+            "type": "string",
+            "title": "Invitation Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "invitation_id",
+          "patient_id",
+          "status",
+          "expires_at",
+          "invitation_token",
+          "invitation_url"
+        ],
+        "title": "InvitationOut"
+      },
       "LoginResponse": {
         "properties": {
           "user": {
@@ -1834,6 +2088,17 @@
             ],
             "title": "Active Tenant Id"
           },
+          "active_tenant_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Tenant Name"
+          },
           "role": {
             "anyOf": [
               {
@@ -1849,6 +2114,7 @@
         "required": [
           "user",
           "active_tenant_id",
+          "active_tenant_name",
           "role"
         ],
         "title": "MeResponse"
@@ -1902,6 +2168,45 @@
         ],
         "title": "PatientOut"
       },
+      "RedeemIn": {
+        "properties": {
+          "tenant": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Tenant"
+          },
+          "token": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenant",
+          "token"
+        ],
+        "title": "RedeemIn"
+      },
+      "RedeemOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "purpose"
+        ],
+        "title": "RedeemOut"
+      },
       "ReleaseOut": {
         "properties": {
           "report_id": {
@@ -1930,6 +2235,144 @@
           "patient_view_url"
         ],
         "title": "ReleaseOut"
+      },
+      "ResolveReviewIn": {
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/ReviewDecision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision"
+        ],
+        "title": "ResolveReviewIn"
+      },
+      "ResolveReviewOut": {
+        "properties": {
+          "review_item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Review Item Id"
+          },
+          "observation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Observation Id"
+          },
+          "decision": {
+            "type": "string",
+            "title": "Decision"
+          },
+          "observation_review_status": {
+            "type": "string",
+            "title": "Observation Review Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "review_item_id",
+          "observation_id",
+          "decision",
+          "observation_review_status"
+        ],
+        "title": "ResolveReviewOut"
+      },
+      "ReviewDecision": {
+        "type": "string",
+        "enum": [
+          "publish",
+          "reject"
+        ],
+        "title": "ReviewDecision",
+        "description": "Closed decision vocabulary for resolving a review item (API layer).\n\nA human either PUBLISHes the observation (it becomes clinical-workflow-visible)\nor REJECTs it (it never publishes). There is no third outcome."
+      },
+      "ReviewItemOut": {
+        "properties": {
+          "review_item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Review Item Id"
+          },
+          "observation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Observation Id"
+          },
+          "patient_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Patient Id"
+          },
+          "patient_display_name": {
+            "type": "string",
+            "title": "Patient Display Name"
+          },
+          "patient_external_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patient External Ref"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "original_name": {
+            "type": "string",
+            "title": "Original Name"
+          },
+          "original_value": {
+            "type": "string",
+            "title": "Original Value"
+          },
+          "original_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Unit"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "observed_at_is_date_only": {
+            "type": "boolean",
+            "title": "Observed At Is Date Only"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "review_item_id",
+          "observation_id",
+          "patient_id",
+          "patient_display_name",
+          "patient_external_ref",
+          "reason",
+          "original_name",
+          "original_value",
+          "original_unit",
+          "observed_at",
+          "observed_at_is_date_only",
+          "created_at"
+        ],
+        "title": "ReviewItemOut"
       },
       "Role": {
         "type": "string",

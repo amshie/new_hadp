@@ -12,8 +12,11 @@ from hadp_api.auth.authz import Action
 from hadp_api.auth.dependencies import TenantContext, require
 from hadp_api.modules.audit.service import record_audit
 from hadp_api.modules.documents.service import store_source_document
+from hadp_api.modules.enums import ReviewDecision
+from hadp_api.modules.imports import service as imports_service
 from hadp_api.modules.imports.service import ValueInput, ingest_values
 from hadp_api.modules.patients import service as patients_service
+from hadp_api.security.rate_limit import check_rate_limit
 
 router = APIRouter(tags=["imports"])
 
@@ -57,6 +60,13 @@ async def upload_document(
     file: UploadFile = File(...),
     ctx: TenantContext = Depends(require(Action.DOCUMENT_UPLOAD)),
 ) -> DocumentOut:
+    check_rate_limit(
+        action="document.upload",
+        key=str(ctx.user.id),
+        limit=30,
+        window_seconds=60,
+        correlation_id=ctx.correlation_id,
+    )
     patients_service.get_patient(ctx.db, ctx.tenant_id, patient_id)
     data = await file.read()
     document, created = store_source_document(
@@ -134,4 +144,77 @@ def run_import(
         review_count=result.review_count,
         observation_ids=result.observation_ids,
         review_item_ids=result.review_item_ids,
+    )
+
+
+class ReviewItemOut(BaseModel):
+    review_item_id: uuid.UUID
+    observation_id: uuid.UUID
+    patient_id: uuid.UUID
+    patient_display_name: str
+    patient_external_ref: str | None
+    reason: str
+    original_name: str
+    original_value: str
+    original_unit: str | None
+    observed_at: datetime
+    observed_at_is_date_only: bool
+    created_at: datetime
+
+
+class ResolveReviewIn(BaseModel):
+    decision: ReviewDecision
+
+
+class ResolveReviewOut(BaseModel):
+    review_item_id: uuid.UUID
+    observation_id: uuid.UUID
+    decision: str
+    observation_review_status: str
+
+
+@router.get("/review-items", response_model=list[ReviewItemOut])
+def list_review_items(
+    ctx: TenantContext = Depends(require(Action.OBSERVATION_READ)),
+) -> list[ReviewItemOut]:
+    items = imports_service.list_open_review_items(ctx.db, ctx.tenant_id)
+    record_audit(
+        ctx.db,
+        action="review_queue.read",
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        correlation_id=ctx.correlation_id,
+        detail={"open": len(items)},
+    )
+    return [ReviewItemOut(**item) for item in items]
+
+
+@router.post("/review-items/{review_item_id}/resolve", response_model=ResolveReviewOut)
+def resolve_review_item(
+    review_item_id: uuid.UUID,
+    body: ResolveReviewIn,
+    ctx: TenantContext = Depends(require(Action.REVIEW_RESOLVE)),
+) -> ResolveReviewOut:
+    item, observation = imports_service.resolve_review_item(
+        ctx.db,
+        tenant_id=ctx.tenant_id,
+        review_item_id=review_item_id,
+        decision=body.decision,
+        resolved_by_user_id=ctx.user.id,
+    )
+    record_audit(
+        ctx.db,
+        action="review_item.resolved",
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        target_type="review_item",
+        target_id=item.id,
+        correlation_id=ctx.correlation_id,
+        detail={"decision": body.decision.value, "reason": item.reason},
+    )
+    return ResolveReviewOut(
+        review_item_id=item.id,
+        observation_id=observation.id,
+        decision=body.decision.value,
+        observation_review_status=observation.review_status.value,
     )

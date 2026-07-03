@@ -98,6 +98,7 @@ jobs:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/hadp
       # App DSN: the API server runs as the non-superuser role, same as production posture.
       APP_DATABASE_URL: postgresql+psycopg://hadp_app:hadp_app@localhost:5432/hadp
+      REDIS_URL: redis://localhost:6379/0
       SESSION_SECRET: ci-only-not-a-secret
       API_BASE_URL: http://127.0.0.1:8000
       WEB_BASE_URL: http://127.0.0.1:3000
@@ -111,6 +112,14 @@ jobs:
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+      redis:
+        # Rate limiting (P-pre-1) is FAIL-CLOSED: the API refuses throttled surfaces
+        # without a reachable Redis, so the smoke stack must provide one.
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
           --health-interval 3s --health-timeout 3s --health-retries 20
     steps:
       - uses: actions/checkout@v4

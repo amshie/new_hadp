@@ -81,6 +81,11 @@ def grant_release_consent(
 def login(client, email: str):  # type: ignore[no-untyped-def]
     resp = client.post("/api/v1/auth/dev-login", json={"email": email})
     assert resp.status_code == 200, resp.text
+    # Double-submit CSRF (P-pre-2): mirror the real client — send the csrf cookie's
+    # value back as the x-csrf-token header on every subsequent unsafe request.
+    csrf = client.cookies.get("hadp_csrf")
+    if csrf:
+        client.headers["x-csrf-token"] = csrf
     return resp
 
 

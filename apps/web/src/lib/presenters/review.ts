@@ -18,7 +18,7 @@ import type {
   TimelinePoint,
 } from "@/lib/api";
 
-const DOMAIN_AXIS_LABELS: Record<string, string> = {
+export const DOMAIN_AXIS_LABELS: Record<string, string> = {
   metabolic: "Metabolisch",
   immune_inflammation: "Immun / Entzündung",
   cardiovascular: "Kardiovaskulär",
@@ -26,7 +26,7 @@ const DOMAIN_AXIS_LABELS: Record<string, string> = {
   musculoskeletal: "Muskuloskelettal",
   regenerative_capacity: "Regenerationskapazität",
 };
-const CIS_LABELS: Record<string, string> = {
+export const CIS_LABELS: Record<string, string> = {
   CIS_0_INSUFFICIENT_EVIDENCE: "CIS-0 · Unzureichende Evidenz",
   CIS_1_APPARENT_BIOLOGICAL_IMPROVEMENT_ONLY:
     "CIS-1 · Nur scheinbare Verbesserung",
@@ -35,7 +35,7 @@ const CIS_LABELS: Record<string, string> = {
   CIS_4_CREDIBLE_IMPROVEMENT: "CIS-4 · Glaubwürdige Verbesserung",
   CIS_5_STABLE_NO_MATERIAL_CHANGE: "CIS-5 · Stabil",
 };
-const ACTIONABILITY_LABELS: Record<string, string> = {
+export const ACTIONABILITY_LABELS: Record<string, string> = {
   A_DISCOVERY: "A · Erkundung",
   B_SUPPORTIVE: "B · Unterstützend",
   C_CLINICALLY_INTERPRETABLE: "C · Klinisch interpretierbar",
@@ -47,7 +47,7 @@ const TRI_AXIS_LABELS: Record<string, string> = {
   risk: "Risiko",
   functional: "Funktionell",
 };
-const ADEQUACY_LABELS: Record<string, string> = {
+export const ADEQUACY_LABELS: Record<string, string> = {
   adequate: "adäquat",
   inadequate: "inadäquat",
   not_assessed: "nicht bewertet",

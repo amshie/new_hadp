@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
+import { createInvitationAction } from "@/app/patients/actions";
 import {
   approveReportAction,
   rejectReportAction,
@@ -268,6 +269,37 @@ export function PatientDetailContent({
   const canReject =
     (sessionRole === "clinician" || sessionRole === "medical_director") &&
     (isDraft || isApproved);
+  // Inviting is operational provisioning (care staff); the MD is the gate, not an operator.
+  const canInvite =
+    sessionRole === "owner" ||
+    sessionRole === "clinician" ||
+    sessionRole === "assistant";
+
+  // Invitation dialog (P3): the one-time URL renders exactly once, for manual sharing.
+  const [inviteState, setInviteState] = useState<
+    | { phase: "confirm" }
+    | { phase: "done"; url: string; expiresAt: string }
+    | null
+  >(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const [invitePending, startInviteTransition] = useTransition();
+  const closeInvite = () => {
+    setInviteState(null);
+    setInviteError(null);
+    setInviteCopied(false);
+  };
+  const runInvite = () => {
+    startInviteTransition(async () => {
+      const res = await createInvitationAction(view.patientId);
+      if (!res.ok) {
+        setInviteError(res.error);
+        return;
+      }
+      setInviteError(null);
+      setInviteState({ phase: "done", url: res.url, expiresAt: res.expiresAt });
+    });
+  };
 
   // The shared Dialog handles Escape, the focus trap, and focus capture/restore to the trigger.
   const openObs = (m: MarkerView) => setOpenMarker(m);
@@ -496,6 +528,68 @@ export function PatientDetailContent({
                 </span>
               </div>
             </div>
+            {canInvite && (
+              <div
+                style={{
+                  marginLeft: "auto",
+                  alignSelf: "center",
+                  display: "flex",
+                  gap: "10px",
+                }}
+              >
+                {sessionRole === "clinician" && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        `/patients/${view.patientId}/interpretation/neu`,
+                      )
+                    }
+                    className="vb-btn-sec"
+                    style={{
+                      height: "38px",
+                      padding: "0 15px",
+                      whiteSpace: "nowrap",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid var(--border-default)",
+                      background: "var(--surface-card)",
+                      color: "var(--text-strong)",
+                      fontFamily: "var(--font-text)",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Interpretation erfassen
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={invitePending}
+                  onClick={() => {
+                    setInviteError(null);
+                    setInviteCopied(false);
+                    setInviteState({ phase: "confirm" });
+                  }}
+                  className="vb-btn-sec"
+                  style={{
+                    height: "38px",
+                    padding: "0 15px",
+                    whiteSpace: "nowrap",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--border-default)",
+                    background: "var(--surface-card)",
+                    color: "var(--text-strong)",
+                    fontFamily: "var(--font-text)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Patient einladen
+                </button>
+              </div>
+            )}
           </div>
         </div>
         <div
@@ -1341,6 +1435,200 @@ export function PatientDetailContent({
             </div>
           </div>
         </>
+      )}
+
+      {/* Invite dialog (P3, docs/notes/0010) — one-time URL, manual secure sharing only */}
+      {inviteState && (
+        <Dialog
+          onClose={closeInvite}
+          labelledBy="vb-invite-title"
+          lockScroll
+          backdropStyle={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 60,
+            background: "rgba(12,18,20,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+          }}
+          dialogStyle={{
+            width: "520px",
+            maxWidth: "100%",
+            background: "var(--surface-card)",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-xl)",
+            padding: "22px",
+          }}
+        >
+          <h3
+            id="vb-invite-title"
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 800,
+              fontSize: "var(--text-xl)",
+              color: "var(--text-strong)",
+              margin: 0,
+            }}
+          >
+            {inviteState.phase === "done"
+              ? "Einladung erstellt — Einmal-Link"
+              : "Patient einladen?"}
+          </h3>
+          <p
+            style={{
+              margin: "10px 0 0",
+              fontSize: "12.5px",
+              lineHeight: 1.5,
+              color: "var(--text-muted)",
+            }}
+          >
+            {inviteState.phase === "done"
+              ? "Den Link manuell und sicher außerhalb des Systems teilen — kein automatischer Versand. Er ist einmalig einlösbar, zeitlich begrenzt und wird nur jetzt angezeigt. Synthetische Demo: kein realer Patient."
+              : "Erstellt einen einmalig einlösbaren, zeitlich begrenzten Einladungslink, über den die Einwilligung (Berichtsfreigabe) erfasst wird. Der Link wird genau einmal angezeigt. Synthetische Demo: kein realer Patient."}
+          </p>
+          {inviteError && (
+            <p
+              role="alert"
+              style={{
+                margin: "12px 0 0",
+                fontSize: "12.5px",
+                color: "var(--danger, #b3261e)",
+              }}
+            >
+              {inviteError}
+            </p>
+          )}
+          {inviteState.phase === "done" && (
+            <label
+              style={{
+                display: "block",
+                marginTop: "16px",
+                fontSize: "12px",
+                color: "var(--text-muted)",
+              }}
+            >
+              Einladungslink (einmalig angezeigt)
+              <input
+                readOnly
+                value={inviteState.url}
+                onFocus={(e) => e.currentTarget.select()}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  marginTop: "6px",
+                  padding: "9px 11px",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border-default)",
+                  background: "var(--surface-sunken)",
+                  color: "var(--text-body)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "12px",
+                }}
+              />
+            </label>
+          )}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: "10px",
+              marginTop: "20px",
+            }}
+          >
+            {inviteState.phase === "done" ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(inviteState.url)
+                      .then(() => setInviteCopied(true));
+                  }}
+                  className="vb-btn-sec"
+                  style={{
+                    height: "38px",
+                    padding: "0 15px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--border-default)",
+                    background: "var(--surface-card)",
+                    color: "var(--text-strong)",
+                    fontFamily: "var(--font-text)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {inviteCopied ? "Link kopiert" : "Link kopieren"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeInvite}
+                  className="vb-btn-pri"
+                  style={{
+                    height: "38px",
+                    padding: "0 16px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--brand)",
+                    background: "var(--brand)",
+                    color: "var(--text-on-brand)",
+                    fontFamily: "var(--font-text)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Schließen
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={invitePending}
+                  onClick={closeInvite}
+                  className="vb-btn-sec"
+                  style={{
+                    height: "38px",
+                    padding: "0 15px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--border-default)",
+                    background: "var(--surface-card)",
+                    color: "var(--text-strong)",
+                    fontFamily: "var(--font-text)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="button"
+                  disabled={invitePending}
+                  onClick={runInvite}
+                  className="vb-btn-pri"
+                  style={{
+                    height: "38px",
+                    padding: "0 16px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--brand)",
+                    background: "var(--brand)",
+                    color: "var(--text-on-brand)",
+                    fontFamily: "var(--font-text)",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Einladung erstellen
+                </button>
+              </>
+            )}
+          </div>
+        </Dialog>
       )}
 
       {/* Marker modal — compliant (lab reference bar + positional Lage; no severity gauge) */}

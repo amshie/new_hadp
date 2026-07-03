@@ -1,0 +1,351 @@
+"use client";
+
+import { useState, useTransition, type CSSProperties } from "react";
+
+import { Dialog } from "@/components/vitabahn/Dialog";
+import type { ReviewQueueItem } from "@/lib/api";
+
+import { resolveReviewItemAction } from "./actions";
+
+// Closed reason vocabulary (imports/normalize.py) → neutral German labels. No verdict
+// language: a queued value is undecided, never "auffällig" or graded.
+const REASON_LABELS: Record<string, string> = {
+  unmapped_metric: "Kennzahl nicht zugeordnet",
+  unparseable_value: "Wert nicht lesbar",
+  unsupported_unit: "Einheit nicht unterstützt",
+  impossible_value: "Wert außerhalb der plausiblen Spanne",
+};
+
+function reasonLabel(reason: string): string {
+  return REASON_LABELS[reason] ?? reason;
+}
+
+function fmtObserved(iso: string, dateOnly: boolean): string {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("de-DE", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  if (dateOnly) return date;
+  return `${date}, ${d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+const cardStyle: CSSProperties = {
+  background: "var(--surface-card)",
+  border: "1px solid var(--border-subtle)",
+  borderRadius: "var(--radius-lg)",
+  boxShadow: "var(--shadow-sm)",
+};
+
+const thStyle: CSSProperties = {
+  textAlign: "left",
+  padding: "11px 14px",
+  fontFamily: "var(--font-mono)",
+  fontSize: "10.5px",
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  color: "var(--text-faint)",
+  borderBottom: "1px solid var(--border-subtle)",
+};
+
+const tdStyle: CSSProperties = {
+  padding: "12px 14px",
+  fontSize: "13px",
+  color: "var(--text-body)",
+  borderBottom: "1px solid var(--border-subtle)",
+  verticalAlign: "top",
+};
+
+const btnSec: CSSProperties = {
+  height: "32px",
+  padding: "0 12px",
+  borderRadius: "var(--radius-sm)",
+  border: "1px solid var(--border-default)",
+  background: "var(--surface-card)",
+  color: "var(--text-strong)",
+  fontFamily: "var(--font-text)",
+  fontSize: "12.5px",
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
+const btnPri: CSSProperties = {
+  ...btnSec,
+  border: "1px solid var(--brand)",
+  background: "var(--brand)",
+  color: "var(--text-on-brand)",
+};
+
+export function ReviewQueueContent({
+  items,
+  sessionRole,
+  path,
+}: {
+  items: ReviewQueueItem[];
+  sessionRole: string | null;
+  path: string;
+}) {
+  const [confirm, setConfirm] = useState<{
+    item: ReviewQueueItem;
+    decision: "publish" | "reject";
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const canResolve = sessionRole === "clinician";
+
+  const close = () => {
+    setConfirm(null);
+    setError(null);
+  };
+
+  const run = () => {
+    if (!confirm) return;
+    startTransition(async () => {
+      const res = await resolveReviewItemAction(
+        confirm.item.review_item_id,
+        confirm.decision,
+        path,
+      );
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      close();
+    });
+  };
+
+  return (
+    <>
+      <div style={{ marginBottom: "18px" }}>
+        <h1
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 800,
+            fontSize: "var(--text-2xl, 26px)",
+            color: "var(--text-strong)",
+            margin: 0,
+            letterSpacing: "-0.02em",
+          }}
+        >
+          Review-Queue
+        </h1>
+        <p
+          style={{
+            margin: "6px 0 0",
+            fontSize: "13px",
+            color: "var(--text-muted)",
+            maxWidth: "82ch",
+          }}
+        >
+          Offene Prüfaufgaben aus dem Import — kein Wert wird ohne menschliche
+          Entscheidung veröffentlicht. Angezeigt wird die Quellrepräsentation
+          (Originalname, -wert, -einheit).
+          {!canResolve &&
+            " Die Entscheidung ist der klinischen Rolle vorbehalten (Nur-Lese-Ansicht)."}
+        </p>
+      </div>
+
+      {items.length === 0 ? (
+        <div
+          style={{
+            ...cardStyle,
+            padding: "36px 24px",
+            textAlign: "center",
+            color: "var(--text-muted)",
+            fontSize: "13.5px",
+          }}
+        >
+          Keine offenen Prüfaufgaben.
+        </div>
+      ) : (
+        <div style={{ ...cardStyle, overflow: "hidden" }}>
+          <table
+            style={{ width: "100%", borderCollapse: "collapse" }}
+            aria-label="Offene Prüfaufgaben"
+          >
+            <thead>
+              <tr>
+                <th style={thStyle}>Patientin/Patient</th>
+                <th style={thStyle}>Wert (Quelle)</th>
+                <th style={thStyle}>Grund</th>
+                <th style={thStyle}>Beobachtet</th>
+                <th style={thStyle}>Entscheidung</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.review_item_id}>
+                  <td style={tdStyle}>
+                    <div
+                      style={{ fontWeight: 600, color: "var(--text-strong)" }}
+                    >
+                      {item.patient_display_name}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "11px",
+                        color: "var(--text-faint)",
+                      }}
+                    >
+                      {item.patient_external_ref ?? "—"}
+                    </div>
+                  </td>
+                  <td style={tdStyle}>
+                    <div
+                      style={{ fontWeight: 600, color: "var(--text-strong)" }}
+                    >
+                      {item.original_name}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "12px",
+                      }}
+                    >
+                      {item.original_value} {item.original_unit ?? ""}
+                    </div>
+                  </td>
+                  <td style={tdStyle}>{reasonLabel(item.reason)}</td>
+                  <td style={tdStyle}>
+                    {fmtObserved(
+                      item.observed_at,
+                      item.observed_at_is_date_only,
+                    )}
+                  </td>
+                  <td style={tdStyle}>
+                    {canResolve ? (
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          type="button"
+                          style={btnPri}
+                          disabled={pending}
+                          onClick={() =>
+                            setConfirm({ item, decision: "publish" })
+                          }
+                        >
+                          Veröffentlichen
+                        </button>
+                        <button
+                          type="button"
+                          style={btnSec}
+                          disabled={pending}
+                          onClick={() =>
+                            setConfirm({ item, decision: "reject" })
+                          }
+                        >
+                          Ablehnen
+                        </button>
+                      </div>
+                    ) : (
+                      <span
+                        style={{
+                          color: "var(--text-faint)",
+                          fontSize: "12.5px",
+                        }}
+                      >
+                        Klinische Rolle erforderlich
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {confirm && (
+        <Dialog
+          onClose={close}
+          labelledBy="rq-dialog-title"
+          lockScroll
+          backdropStyle={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 60,
+            background: "rgba(12,18,20,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+          }}
+          dialogStyle={{
+            width: "480px",
+            maxWidth: "100%",
+            ...cardStyle,
+            padding: "22px",
+          }}
+        >
+          <h3
+            id="rq-dialog-title"
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 800,
+              fontSize: "var(--text-xl)",
+              color: "var(--text-strong)",
+              margin: 0,
+            }}
+          >
+            {confirm.decision === "publish"
+              ? "Wert veröffentlichen?"
+              : "Wert ablehnen?"}
+          </h3>
+          <p
+            style={{
+              margin: "10px 0 0",
+              fontSize: "12.5px",
+              lineHeight: 1.5,
+              color: "var(--text-muted)",
+            }}
+          >
+            {`${confirm.item.original_name}: ${confirm.item.original_value} ${confirm.item.original_unit ?? ""}`.trim()}
+            {" — "}
+            {reasonLabel(confirm.item.reason)}.{" "}
+            {confirm.decision === "publish"
+              ? "Der Wert wird veröffentlicht und erscheint in der klinischen Zeitleiste. Bleibt eine weitere offene Prüfaufgabe zu diesem Wert bestehen, bleibt er bis zu deren Entscheidung zurückgehalten."
+              : "Der Wert wird abgelehnt und nie veröffentlicht. Die Entscheidung wird Ihnen zugeordnet und auditiert."}
+          </p>
+          {error && (
+            <p
+              role="alert"
+              style={{
+                margin: "12px 0 0",
+                fontSize: "12.5px",
+                color: "var(--danger, #b3261e)",
+              }}
+            >
+              {error}
+            </p>
+          )}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: "10px",
+              marginTop: "20px",
+            }}
+          >
+            <button
+              type="button"
+              style={btnSec}
+              disabled={pending}
+              onClick={close}
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              style={confirm.decision === "publish" ? btnPri : btnSec}
+              disabled={pending}
+              onClick={run}
+            >
+              {confirm.decision === "publish" ? "Veröffentlichen" : "Ablehnen"}
+            </button>
+          </div>
+        </Dialog>
+      )}
+    </>
+  );
+}

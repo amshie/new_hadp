@@ -22,6 +22,7 @@ def main() -> int:
         assert health["status"] == "ok", health
 
         assert c.post("/auth/dev-login", json={"email": "clinician@demo.synthetic"}).status_code == 200
+        c.headers["x-csrf-token"] = c.cookies.get("hadp_csrf") or ""
 
         tenants = c.get("/tenancy/my-tenants").json()
         tenant = next(t for t in tenants if t["tenant_slug"] == "demo-clinic")
@@ -55,6 +56,7 @@ def main() -> int:
             ).status_code
             == 200
         )
+        md.headers["x-csrf-token"] = md.cookies.get("hadp_csrf") or ""
         md_tenant = next(
             t for t in md.get("/tenancy/my-tenants").json() if t["tenant_slug"] == "demo-clinic"
         )

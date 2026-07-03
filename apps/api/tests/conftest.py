@@ -102,6 +102,15 @@ def _clean_db(admin_engine) -> None:  # type: ignore[no-untyped-def]
     with admin_engine.begin() as conn:
         conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
 
+    # Rate-limit counters (P-pre-1) live in Redis and would otherwise leak between tests
+    # (the TestClient always presents the same client IP). Redis is required test infra,
+    # exactly like Postgres — a flush failure is a real misconfiguration.
+    import redis as redis_lib
+
+    from hadp_api.config import get_settings
+
+    redis_lib.Redis.from_url(get_settings().redis_url).flushdb()
+
 
 @pytest.fixture()
 def admin_session(admin_engine) -> Iterator[Session]:  # type: ignore[no-untyped-def]

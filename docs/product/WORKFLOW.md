@@ -62,8 +62,9 @@ surface rather than a clinic-staff role.
   **not** the clinician's step — the medical director holds it (§2.3, two-tier physician gate).
 - Reviews the longitudinal timeline, source reference intervals, deterministic changes, rule
   matches, data gaps, and conflicts.
-- Resolves clinical review-queue items (ambiguous mappings, unit conflicts, impossible values,
-  duplicate/date ambiguity) (planned, Milestone 1).
+- Resolves clinical review-queue items (unmapped metrics, unparseable values, unsupported units,
+  impossible values) attributably via the Review-Queue (`review.resolve`, clinician-only; shipped
+  2026-07-03). Duplicate/supersession ambiguity remains a planned Milestone-1 ingestion case.
 - Edits the report draft, inspects the evidence behind each statement, and performs the meaningful
   approval (§4.3).
 
@@ -120,11 +121,14 @@ PUBLISHED | REJECTED`. Each observation retains **both** the immutable source re
    deterministic and versioned; date-only source values keep their date-only flag (no invented time).
    Structured feeds (LDT/HL7/FHIR/CSV/API) are preferred over PDF; OCR is a last resort. _(planned,
    Milestone 1; data model exists in the `observations` module.)_
-5. **Human review of ambiguous values.** Low-confidence mappings, unit conflicts, impossible values,
-   and duplicate/date ambiguity become review items. **No review-required observation is published
-   until a human resolves it.** Corrections supersede via `supersedes_observation_id` (new version,
-   prior provenance preserved — never silently overwritten); ambiguous correction matches enter
-   review rather than auto-superseding. _(planned, Milestone 1.)_
+5. **Human review of ambiguous values.** Unmapped metrics, unparseable values, unsupported units,
+   and impossible values become review items. **No review-required observation is published until a
+   human resolves it** — resolution is a clinician's attributable, audited decision via the
+   Review-Queue (publish or reject; a reject is immediate and fail-closed, a publish takes effect
+   only with the last open item; shipped 2026-07-03). Corrections supersede via
+   `supersedes_observation_id` (new version, prior provenance preserved — never silently
+   overwritten); ambiguous correction/duplicate matches enter review rather than auto-superseding
+   _(supersession matching: planned, Milestone 1.)_
 6. **Clinician reviews timeline and context.** The clinician sees longitudinal charts (with an
    accessible table/text alternative), source reference intervals, deterministic deltas/percentages,
    data freshness, missing/stale/duplicate/conflicting flags, and rule matches — each reproducible

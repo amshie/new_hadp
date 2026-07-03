@@ -10,6 +10,7 @@ import {
   me,
   timeline,
 } from "@/lib/api";
+import { shellIdentity } from "@/lib/identity";
 import { presentReview, type ReviewView } from "@/lib/presenters/review";
 import { isUuid } from "@/lib/uuid";
 
@@ -53,6 +54,7 @@ export default async function AssessmentReviewPage({
   return (
     <AppShell
       active="patients"
+      identity={shellIdentity(session)}
       breadcrumbs={
         <nav className="breadcrumbs" aria-label="Brotkrümelnavigation">
           <Link href="/worklist">Arbeitsliste</Link>

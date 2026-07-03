@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { VitaShell } from "@/components/vitabahn/VitaShell";
-import { ApiError, listPatients, worklist } from "@/lib/api";
+import { ApiError, listPatients, me, worklist } from "@/lib/api";
+import { shellIdentity } from "@/lib/identity";
 import {
   presentDirectory,
   type DirectoryView,
@@ -24,10 +25,14 @@ async function loadView(): Promise<DirectoryView> {
 }
 
 export default async function PatientsPage() {
-  const view = await loadView();
+  const [view, session] = await Promise.all([
+    loadView(),
+    me().catch(() => null),
+  ]);
+  const identity = shellIdentity(session);
   return (
-    <VitaShell nav="patienten" crumb="Patienten">
-      <PatientsContent view={view} />
+    <VitaShell nav="patienten" crumb="Patienten" identity={identity}>
+      <PatientsContent view={view} tenantName={identity?.tenantName ?? "—"} />
     </VitaShell>
   );
 }

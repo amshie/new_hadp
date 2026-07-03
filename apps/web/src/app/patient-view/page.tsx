@@ -1,37 +1,71 @@
-import { patientView } from "@/lib/api";
+import type { ReactNode } from "react";
 
+import { Disclaimer } from "@/components/Disclaimer";
+import { patientView } from "@/lib/api";
+import { isUuid } from "@/lib/uuid";
+
+// Patient-facing report view (released content only). de-DE like every other surface;
+// the four-part disclaimer renders on every state. The failure state is neutral — it
+// never reveals whether a link is wrong, expired, revoked, or unreleased.
 export default async function PatientViewPage({
   searchParams,
 }: {
   searchParams: Promise<{ tenant?: string; token?: string }>;
 }) {
   const { tenant, token } = await searchParams;
-  if (!tenant || !token) {
-    return <p>Invalid link.</p>;
+
+  const shell = (children: ReactNode) => (
+    <main
+      style={{
+        maxWidth: "640px",
+        margin: "0 auto",
+        padding: "56px 24px",
+        fontFamily: "var(--font-sans, system-ui, sans-serif)",
+      }}
+    >
+      {children}
+      <Disclaimer />
+    </main>
+  );
+
+  // UUID-guard the tenant BEFORE any request (mirrors /einladung).
+  if (!tenant || !token || !isUuid(tenant)) {
+    return shell(<p>Dieser Link ist nicht oder nicht mehr gültig.</p>);
   }
   try {
     const view = await patientView(tenant, token);
-    return (
+    return shell(
       <div>
-        <h1>Your report</h1>
-        <p className="muted">
-          Released {view.released_at ? view.released_at.slice(0, 10) : ""} ·
-          synthetic demo content
+        <h1 style={{ fontSize: "22px", marginBottom: "6px" }}>Ihr Bericht</h1>
+        <p style={{ color: "var(--text-muted, #5b6b70)", fontSize: "13px" }}>
+          Ärztlich freigegeben
+          {view.released_at ? ` am ${view.released_at.slice(0, 10)}` : ""} ·
+          synthetische Demo-Inhalte
         </p>
-        <p className="muted">
-          This summary reflects your laboratory results and the reference ranges
-          your laboratory provided. It is not a diagnosis or treatment advice.
-          Please discuss it with your clinician.
+        <p style={{ lineHeight: 1.55, fontSize: "14px" }}>
+          Diese Zusammenfassung gibt Ihre Laborwerte und die von Ihrem Labor
+          bereitgestellten Referenzintervalle wieder. Bitte besprechen Sie die
+          Inhalte mit Ihrem klinischen Team.
         </p>
         {view.statements.map((s) => (
-          <div key={s.id} className="card">
-            <p>{s.text}</p>
+          <div
+            key={s.id}
+            style={{
+              margin: "12px 0",
+              padding: "14px 16px",
+              border: "1px solid var(--border-subtle, #dfe5e7)",
+              borderRadius: "10px",
+              lineHeight: 1.55,
+              fontSize: "14px",
+            }}
+          >
+            <p style={{ margin: 0 }}>{s.text}</p>
           </div>
         ))}
-      </div>
+      </div>,
     );
   } catch {
-    // Do not reveal whether the link is wrong, expired, or unreleased.
-    return <p>This report is not available.</p>;
+    // Do not reveal whether the link is wrong, expired, revoked, or unreleased.
+    return shell(<p>Dieser Bericht ist nicht verfügbar.</p>);
   }
 }

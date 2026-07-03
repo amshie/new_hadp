@@ -1,14 +1,16 @@
 # 0010 — Patient-invitation workflow (plan)
 
-> **Status: PLAN ONLY — not implemented.** Forward-looking design for the full patient-invitation
-> workflow (staff invite endpoint → patient-side consent capture → secure delivery). Drafted
-> 2026-06-26. **Synthetic identities only.** Pointing any part of this at a real patient stays
-> **BLOCKED** behind the go-live gates in §6. This note is engineering planning, **not legal or
-> regulatory advice.**
+> **Status: IMPLEMENTED (2026-07-03, Phase 1C).** Originally a plan-only note (drafted
+> 2026-06-26). P-pre-1/2/3, P1, P2 and P3 shipped; the migration landed as
+> `0012_patient_invitations` (the `0009` name below was a forward reference). Deliberate
+> deviations, chosen for scope: **no** `Idempotency-Key` on invite-create (a retried create mints
+> a second single-use, TTL'd, revocable token — harmless; revisit with real ingestion), and **no**
+> separate `patient_invitation_event` ledger (this note's named lighter alternative — audit
+> events — was taken: create/revoke/redeem/denied are all audited). **Synthetic identities
+> only** — §7's real-patient go-live gates are UNCHANGED and remain open. This note is retained
+> as the design record; engineering planning, **not legal or regulatory advice.**
 >
-> _Audit note (2026-07-02): still plan-only. The proposed migration `0009_patient_invitations.py`
-> (§ below) is a forward reference and **does not yet exist** — the repo is currently at
-> `0008_consent_events`._
+> _Audit note (2026-07-02): still plan-only at that date; repo was at `0008_consent_events`._
 
 Every claim below was ground-truthed against the codebase by the relevant specialist agents
 (security, backend-data, regulatory, fullstack) before drafting; file:line citations are theirs.

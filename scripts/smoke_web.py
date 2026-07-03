@@ -27,7 +27,7 @@ def main() -> int:
         assert r.status_code == 200, ("/login", r.status_code)
         assert "Klinischer Zugang" in r.text, "/login did not render the sign-in card"
 
-        for path in ("/", "/overview"):
+        for path in ("/", "/overview", "/review-queue"):
             r = web.get(path)
             assert r.status_code in REDIRECT, (path, r.status_code)
             assert "/login" in r.headers["location"], (path, r.headers["location"])
@@ -40,10 +40,24 @@ def main() -> int:
         assert r.status_code == 404, ("unknown route", r.status_code)
         assert "Seite nicht gefunden" in r.text, "not-found boundary did not render"
 
+        # Patient-facing pages: neutral fail states + the four-part disclaimer, no fetch
+        # on a malformed link (UUID guard), German copy.
+        r = web.get("/einladung?tenant=not-a-uuid&token=x")
+        assert r.status_code == 200, ("/einladung guard", r.status_code)
+        assert "nicht oder nicht mehr gültig" in r.text
+        assert "Pilotumgebung" in r.text, "disclaimer missing on /einladung"
+
+        r = web.get("/patient-view")
+        assert r.status_code == 200, ("/patient-view neutral", r.status_code)
+        assert "nicht oder nicht mehr gültig" in r.text
+        assert "Pilotumgebung" in r.text, "disclaimer missing on /patient-view"
+
     # Real session via the API (same path the login action uses), then authed pages.
     with httpx.Client(base_url=API, timeout=60.0) as api:
         r = api.post("/auth/dev-login", json={"email": "clinician@demo.synthetic"})
         assert r.status_code == 200, ("dev-login", r.status_code, r.text)
+        # Double-submit CSRF (P-pre-2): unsafe calls carry the token issued at login.
+        api.headers["x-csrf-token"] = api.cookies.get("hadp_csrf") or ""
         tenants = api.get("/tenancy/my-tenants").json()
         tenant = next(t for t in tenants if t["tenant_slug"] == "demo-clinic")
         r = api.post("/tenancy/select-tenant", json={"tenant_id": tenant["tenant_id"]})
@@ -68,6 +82,14 @@ def main() -> int:
 
         r = web.get(f"/patients/{pid}")
         assert r.status_code == 200, ("/patients/[id] authed", r.status_code)
+
+        r = web.get("/review-queue")
+        assert r.status_code == 200, ("/review-queue authed", r.status_code)
+        assert "Review-Queue" in r.text, "review queue page did not render"
+
+        r = web.get(f"/patients/{pid}/interpretation/neu")
+        assert r.status_code == 200, ("/interpretation/neu authed", r.status_code)
+        assert "Korrektur-Run erfassen" in r.text or "Interpretation erfassen" in r.text
 
     print("WEB SMOKE OK: guards, redirects, 404 boundary, and authed dashboard render")
     return 0

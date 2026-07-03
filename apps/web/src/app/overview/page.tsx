@@ -5,9 +5,11 @@ import {
   ApiError,
   coverage,
   listPatients,
+  me,
   throughput,
   worklist,
 } from "@/lib/api";
+import { shellIdentity } from "@/lib/identity";
 import {
   presentCoverage,
   presentOverview,
@@ -49,9 +51,14 @@ async function loadView(): Promise<{
 }
 
 export default async function OverviewPage() {
-  const { overview, coverage: cov, throughput: thru } = await loadView();
+  const [{ overview, coverage: cov, throughput: thru }, session] =
+    await Promise.all([loadView(), me().catch(() => null)]);
   return (
-    <VitaShell nav="uebersicht" crumb="Übersicht">
+    <VitaShell
+      nav="uebersicht"
+      crumb="Übersicht"
+      identity={shellIdentity(session)}
+    >
       <OverviewContent view={overview} coverage={cov} throughput={thru} />
     </VitaShell>
   );
