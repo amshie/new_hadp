@@ -33,14 +33,19 @@ def create_run(
     *,
     tenant_id: uuid.UUID,
     patient_id: uuid.UUID,
-    created_by_user_id: uuid.UUID | None,
+    created_by_user_id: uuid.UUID,
     run: RunInput,
     reason: str,
 ) -> InterpretationRun:
-    """Validate a whole draft run and record it (run + 6 verdicts + 18 cells). Append-only."""
+    """Validate a whole draft run and record it (run + 6 verdicts + 18 cells). Append-only.
+
+    Authorship is required: every run is attributable to the authoring clinician
+    ("a clinician authors" is an enforced property, not a nullable field).
+    """
     shape_error = validate_run_input(run)
     if shape_error is not None:
         raise IntendedUseViolation(f"invalid run shape: {shape_error.code}: {shape_error.detail}")
+    _validate_evidence_refs(db, tenant_id=tenant_id, patient_id=patient_id, run=run)
 
     last_number = db.execute(
         select(func.max(InterpretationRun.run_number)).where(
@@ -98,6 +103,50 @@ def create_run(
     return run_row
 
 
+def _validate_evidence_refs(
+    db: Session, *, tenant_id: uuid.UUID, patient_id: uuid.UUID, run: RunInput
+) -> None:
+    """Fail-closed evidence resolution (closes run_shape.py's documented deferral).
+
+    Every cell evidence ref must cite a PUBLISHED observation of THIS patient in THIS
+    tenant. Unknown kinds, unparseable ids, foreign-patient, cross-tenant, or
+    unreviewed observations are refused — a verdict must not rest on evidence the
+    case does not own or a human has not resolved.
+    """
+    obs_ids: set[uuid.UUID] = set()
+    for d in run.domains:
+        for c in d.cells:
+            for ref in c.evidence_refs:
+                if ref.kind != "observation":
+                    raise IntendedUseViolation(
+                        f"unresolvable evidence ref kind {ref.kind!r}: only 'observation' refs "
+                        "are resolvable today"
+                    )
+                try:
+                    obs_ids.add(uuid.UUID(str(ref.id)))
+                except (TypeError, ValueError) as exc:
+                    raise IntendedUseViolation(
+                        "evidence ref id is not a valid observation id"
+                    ) from exc
+    if not obs_ids:
+        return
+    found = set(
+        db.execute(
+            select(Observation.id).where(
+                Observation.id.in_(obs_ids),
+                Observation.tenant_id == tenant_id,
+                Observation.patient_id == patient_id,
+                Observation.review_status == ReviewStatus.PUBLISHED,
+            )
+        ).scalars()
+    )
+    missing = len(obs_ids - found)
+    if missing:
+        raise IntendedUseViolation(
+            f"{missing} evidence ref(s) do not resolve to published observations of this patient"
+        )
+
+
 def latest_matrix(
     db: Session, tenant_id: uuid.UUID, patient_id: uuid.UUID
 ) -> dict[str, Any] | None:
@@ -140,7 +189,9 @@ def latest_matrix(
             cells_by_verdict.setdefault(cell.domain_axis_interpretation_id, []).append(cell)
             all_cells.append(cell)
 
-    obs_map = _resolve_evidence_observations(db, all_cells)
+    obs_map = _resolve_evidence_observations(
+        db, all_cells, tenant_id=tenant_id, patient_id=patient_id
+    )
 
     return {
         "run_id": str(run.id),
@@ -185,12 +236,28 @@ def _evidence_obs_ids(cells: list[TriStateCell]) -> set[uuid.UUID]:
 
 
 def _resolve_evidence_observations(
-    db: Session, cells: list[TriStateCell]
+    db: Session,
+    cells: list[TriStateCell],
+    *,
+    tenant_id: uuid.UUID,
+    patient_id: uuid.UUID,
 ) -> dict[uuid.UUID, Observation]:
     ids = _evidence_obs_ids(cells)
     if not ids:
         return {}
-    rows = db.execute(select(Observation).where(Observation.id.in_(ids))).scalars().all()
+    # Defense-in-depth: resolve only within this tenant AND patient, so a legacy ref
+    # pointing at another patient's observation renders as unresolved, never as evidence.
+    rows = (
+        db.execute(
+            select(Observation).where(
+                Observation.id.in_(ids),
+                Observation.tenant_id == tenant_id,
+                Observation.patient_id == patient_id,
+            )
+        )
+        .scalars()
+        .all()
+    )
     return {o.id: o for o in rows}
 
 

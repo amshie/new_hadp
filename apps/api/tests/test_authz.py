@@ -67,14 +67,24 @@ def test_validation_error_does_not_echo_input(client, admin_session) -> None:  #
     assert resp.json()["error"]["code"] == "validation_failed"
 
 
-def test_clinician_only_can_approve_and_release() -> None:
-    # The clinician-in-the-loop doctrine encoded in the authz matrix.
+def test_two_tier_physician_gate_matrix() -> None:
+    # The two-tier physician gate (INTENDED_USE/ADR-0003): the clinician authors the
+    # interpretation and approves the report; ONLY the medical director releases.
     assert can(Role.CLINICIAN, Action.REPORT_APPROVE) is True
-    assert can(Role.CLINICIAN, Action.REPORT_RELEASE) is True
-    assert can(Role.ASSISTANT, Action.REPORT_APPROVE) is False
-    assert can(Role.OWNER, Action.REPORT_APPROVE) is False
-    assert can(Role.ASSISTANT, Action.REPORT_RELEASE) is False
-    assert can(Role.OWNER, Action.REPORT_RELEASE) is False
+    assert can(Role.CLINICIAN, Action.INTERPRETATION_AUTHOR) is True
+    assert can(Role.CLINICIAN, Action.REPORT_RELEASE) is False
+    assert can(Role.MEDICAL_DIRECTOR, Action.REPORT_RELEASE) is True
+    assert can(Role.MEDICAL_DIRECTOR, Action.REPORT_APPROVE) is False
+    assert can(Role.MEDICAL_DIRECTOR, Action.INTERPRETATION_AUTHOR) is False
+    # The medical director reviews before releasing: read access, no operational writes.
+    assert can(Role.MEDICAL_DIRECTOR, Action.PATIENT_READ) is True
+    assert can(Role.MEDICAL_DIRECTOR, Action.OBSERVATION_READ) is True
+    assert can(Role.MEDICAL_DIRECTOR, Action.PATIENT_CREATE) is False
+    assert can(Role.MEDICAL_DIRECTOR, Action.REPORT_DRAFT) is False
+    for role in (Role.ASSISTANT, Role.OWNER):
+        assert can(role, Action.REPORT_APPROVE) is False
+        assert can(role, Action.REPORT_RELEASE) is False
+        assert can(role, Action.INTERPRETATION_AUTHOR) is False
 
 
 def test_assistant_cannot_approve_via_api(client, admin_session) -> None:  # type: ignore[no-untyped-def]

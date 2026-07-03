@@ -28,6 +28,9 @@ class Role(str, Enum):
     OWNER = "owner"  # clinic owner / tenant administrator
     CLINICIAN = "clinician"
     ASSISTANT = "assistant"  # clinical assistant / care coordinator
+    # Governance gate (INTENDED_USE/ADR-0003): reviews authored content against its
+    # evidence and is the ONLY role that releases patient-facing content.
+    MEDICAL_DIRECTOR = "medical_director"
 
 
 class ValueType(str, Enum):

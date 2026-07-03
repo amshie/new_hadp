@@ -41,8 +41,9 @@ the documented product/clinical/privacy/regulatory review process instead.
 
 Roles are enforced server-side by a deny-by-default role matrix in
 `apps/api/src/hadp_api/auth/`; client-side hiding is never an authorization control. The implemented
-roles are **owner**, **clinician**, and **assistant**; **patient** is a workflow actor who consumes
-released content through a separate, narrowly-scoped surface rather than a clinic-staff role.
+roles are **owner**, **clinician**, **assistant**, and **medical_director** (the governance gate);
+**patient** is a workflow actor who consumes released content through a separate, narrowly-scoped
+surface rather than a clinic-staff role.
 
 ### 2.1 Clinic owner / tenant administrator (`owner`)
 
@@ -56,8 +57,9 @@ released content through a separate, narrowly-scoped surface rather than a clini
 
 ### 2.2 Clinician (`clinician`)
 
-- The clinical decision-maker in the workflow and the **only** role permitted to approve and release
-  a patient-facing report.
+- The clinical decision-maker in the workflow: the **only** role permitted to author the per-axis
+  interpretation (`interpretation.author`) and to approve a patient-facing report. Release is
+  **not** the clinician's step — the medical director holds it (§2.3, two-tier physician gate).
 - Reviews the longitudinal timeline, source reference intervals, deterministic changes, rule
   matches, data gaps, and conflicts.
 - Resolves clinical review-queue items (ambiguous mappings, unit conflicts, impossible values,
@@ -65,7 +67,17 @@ released content through a separate, narrowly-scoped surface rather than a clini
 - Edits the report draft, inspects the evidence behind each statement, and performs the meaningful
   approval (§4.3).
 
-### 2.3 Clinical assistant / care coordinator (`assistant`)
+### 2.3 Medical director (`medical_director`)
+
+- The governance gate (INTENDED_USE/ADR-0003): reviews authored interpretations and approved
+  reports against their evidence, and is the **only** role permitted to release patient-facing
+  content (`report.release`). Only released content reaches a patient.
+- Holds read access to patients, observations, and reports for that review; performs no
+  operational writes (no patient create, upload, import, drafting, or interpretation authoring).
+- Release remains consent-gated and fail-closed regardless of role (the consent gate checks after
+  the approval invariant).
+
+### 2.4 Clinical assistant / care coordinator (`assistant`)
 
 - Operational support: creates/invites patients, records consent status, uploads laboratory files,
   enters manual observations, and triages the import review queue.
@@ -73,7 +85,7 @@ released content through a separate, narrowly-scoped surface rather than a clini
   clinician's judgement.
 - Operates entirely within tenant scope; all actions are audited with actor and correlation ID.
 
-### 2.4 Patient
+### 2.5 Patient
 
 - Records versioned, purpose-scoped consent (`ConsentRecord`; `consents` module) and may optionally
   connect a data source (wearables are Phase 2 / planned).

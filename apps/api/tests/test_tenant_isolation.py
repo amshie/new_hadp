@@ -13,6 +13,7 @@ from tests.helpers import (
     login_as,
     provision_staff,
     select_tenant,
+    switch_role,
 )
 
 
@@ -162,6 +163,13 @@ def test_cross_tenant_token_replay_is_404(client, admin_session) -> None:  # typ
     rid = client.post(f"/api/v1/patients/{pid}/reports").json()["report_id"]
     client.post(f"/api/v1/reports/{rid}/approve")
     grant_release_consent(admin_session, tenant_id=tenant_a.id, patient_id=pid)
+    switch_role(
+        client,
+        admin_session,
+        email="tka-md@synthetic.example",
+        tenant=tenant_a,
+        role=Role.MEDICAL_DIRECTOR,
+    )
     token = client.post(f"/api/v1/reports/{rid}/release").json()["patient_access_token"]
 
     # Clinic B exists; presenting A's valid token under B's tenant reveals nothing.

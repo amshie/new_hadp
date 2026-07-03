@@ -1,6 +1,6 @@
 # Data Flow
 
-This document describes how data moves through the Longevity Health Analytics Platform end to end, from a clinic creating a patient to a clinician releasing an approved report. It names the ingestion pipeline states, identifies the trust boundaries, states where health data lives, records the EU/EEA residency requirement, and states the rule that logs, traces, and error reports contain no health data.
+This document describes how data moves through the Longevity Health Analytics Platform end to end, from a clinic creating a patient to a medical director releasing a clinician-approved report. It names the ingestion pipeline states, identifies the trust boundaries, states where health data lives, records the EU/EEA residency requirement, and states the rule that logs, traces, and error reports contain no health data.
 
 It reflects the **as-built** system at Milestone 0 + 0.5. Anything not yet built — or held behind a founder/counsel/regulatory gate — is labeled **pending/gated**, not done.
 
@@ -72,7 +72,7 @@ Trust boundaries are marked `===║===` in the diagrams below. Every crossing in
 6. **Timeline / charts** — the clinician sees longitudinal observations, source reference intervals, deterministic changes/freshness, and data gaps. Only `published` observations are displayed.
 7. **Source-grounded draft** — the `reports` service builds an evidence payload and produces a draft. AI is a constrained, **draft-only** narrative component: it converts verified facts to readable text, references observation/rule-evaluation IDs for every statement, and cannot publish or invent values. A deterministic fake provider is used locally/in tests; any real provider is a gated EU-residency vendor decision.
 8. **Clinician approval** — a clinician reviews evidence inline; a statement whose evidence is not viewable cannot be approved. Approval is attributable (user + timestamp). Report lifecycle: `DRAFT_GENERATED → DRAFT_EDITED → APPROVED → RELEASED` (or `REJECTED`). Editing after approval creates a new version and invalidates the prior approval.
-9. **Patient release** — the patient sees **only** the `RELEASED` version. No AI-generated report reaches a patient without a clinician approval event.
+9. **Patient release** — a **medical director** performs the release (two-tier physician gate: `report.release` is granted to `medical_director` only; the clinician's step is approval). The patient sees **only** the `RELEASED` version. No AI-generated report reaches a patient without a clinician approval event and a medical-director release.
 
 ---
 
@@ -149,7 +149,7 @@ Redaction is covered by tests asserting no name, email, value, token, or documen
 ## 7. Cross-cutting controls on every flow
 
 - **Authentication** — server-side sessions: a random token in an httpOnly cookie; only its SHA-256 hash is stored; revocable. OIDC in production is gated.
-- **Authorization** — deny-by-default role matrix (`owner`, `clinician`, `assistant`) in `apps/api/src/hadp_api/auth/authz.py`; only a clinician may approve/release a patient-facing report.
+- **Authorization** — deny-by-default role matrix (`owner`, `clinician`, `assistant`, `medical_director`) in `apps/api/src/hadp_api/auth/authz.py`; only a clinician may author/approve, and only a medical director may release, a patient-facing report (two-tier physician gate).
 - **Tenant isolation** — enforced in app code **and** by PostgreSQL RLS; cross-tenant reads return nothing and an unset tenant context denies all rows (tested).
 - **Audit** — every sensitive transition (login, failed authZ, patient access, import, review, edit, approval, release, export, deletion, admin change) is appended to `audit_events`.
 - **HTTP hardening** — `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and a restrictive CSP on responses.

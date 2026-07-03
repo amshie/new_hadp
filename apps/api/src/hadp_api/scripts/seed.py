@@ -41,6 +41,8 @@ _STAFF = [
     ("owner@demo.synthetic", "Synthetic Owner", Role.OWNER),
     ("clinician@demo.synthetic", "Synthetic Clinician", Role.CLINICIAN),
     ("assistant@demo.synthetic", "Synthetic Assistant", Role.ASSISTANT),
+    # Two-tier physician gate: only the medical director may release patient-facing content.
+    ("medical.director@demo.synthetic", "Synthetic Medical Director", Role.MEDICAL_DIRECTOR),
     # The clinician persona shown in the UI prototype, so its sign-in email works for real.
     ("s.johnson@meridian-health.eu", "Dr. Sarah Johnson", Role.CLINICIAN),
 ]
@@ -282,13 +284,17 @@ def _ensure_interpretation_run(db: Session, tenant_id: uuid.UUID, patient_id: uu
     clinician = db.execute(
         select(User).where(User.email == "s.johnson@meridian-health.eu")
     ).scalar_one_or_none()
+    if clinician is None:
+        raise RuntimeError("seed: clinician user missing — runs require an authoring clinician")
 
     def refs_for(*codes: str) -> list[EvidenceRef]:
+        # Only PUBLISHED observations may back a verdict (create_run enforces this).
         ids = (
             db.execute(
                 select(Observation.id).where(
                     Observation.patient_id == patient_id,
                     Observation.metric_code.in_(codes),
+                    Observation.review_status == ReviewStatus.PUBLISHED,
                 )
             )
             .scalars()
@@ -396,7 +402,7 @@ def _ensure_interpretation_run(db: Session, tenant_id: uuid.UUID, patient_id: uu
         db,
         tenant_id=tenant_id,
         patient_id=patient_id,
-        created_by_user_id=clinician.id if clinician else None,
+        created_by_user_id=clinician.id,
         run=RunInput(domains=domains),
         reason="Synthetic baseline interpretation.",
     )

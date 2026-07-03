@@ -98,3 +98,17 @@ def login_as(
     login(client, email)
     select_tenant(client, tenant.id)
     return user, tenant
+
+
+def switch_role(client, admin_session, *, email, tenant, role) -> User:  # type: ignore[no-untyped-def]
+    """Provision `email` with `role` in an EXISTING tenant and log the client in as them.
+
+    Used by two-tier-gate tests: e.g. the clinician approves, then the session switches
+    to the medical director for the release step.
+    """
+    user = make_user(admin_session, email=email)
+    make_membership(admin_session, user_id=user.id, tenant_id=tenant.id, role=role)
+    admin_session.commit()
+    login(client, email)
+    select_tenant(client, tenant.id)
+    return user
