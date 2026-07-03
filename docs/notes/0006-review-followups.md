@@ -37,7 +37,7 @@ Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
   happy-path e2e for the upload→approve→patient-view workflow is the documented
   follow-up (the live `make smoke` covers the API path today).
 - **Broad static forbidden-language scan over all UI copy**: ✅ DONE — `apps/api/tests/
-  test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restricted
+test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restricted
   intended-use terms (stem-matched to catch plurals + German inflections), strips comments
   and the two sanctioned negated disclaimers, and runs in `make check` / `make test-db`.
   Closes the ADR-0004 §0 "DE/EN labels through the language scan before any UI ships" gate.

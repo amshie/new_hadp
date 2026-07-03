@@ -1,4 +1,4 @@
-# CLAUDE.md — Longevity Health Analytics Platform
+# AGENTS.md — Longevity Health Analytics Platform
 
 > **Product model superseded — see [ADR-0003](docs/adr/0003-adopt-hadp-governance-doctrine.md)
 > (founder decision, 2026-06-22).** This file's original **lab-analytics** intended use, prohibited
@@ -15,9 +15,9 @@
 
 ## Purpose of this file
 
-This repository contains a greenfield B2B health-data product for longevity and preventive-care clinics in the DACH/EU market. This file is the persistent project contract for Claude Code.
+This repository contains a greenfield B2B health-data product for longevity and preventive-care clinics in the DACH/EU market. This file is the persistent project contract for Codex.
 
-> **Sync note.** [`AGENTS.md`](AGENTS.md) is a Codex-targeted mirror of this file; the two are identical except for tool-name deltas (Claude Code ↔ Codex) and **must be kept in sync — edit both together, or regenerate one from the other.**
+> **Sync note.** This file is a Codex-targeted mirror of [`CLAUDE.md`](CLAUDE.md); the two are identical except for tool-name deltas (Codex ↔ Claude Code) and **must be kept in sync — edit both together, or regenerate one from the other.**
 
 Code, identifiers, commits, and technical documentation use English. User-facing copy is localization-ready; the initial default locale is `de-DE`.
 
@@ -243,7 +243,7 @@ Use dependency versions pinned by lockfiles. Never perform an unrequested major-
 │   └── security/
 ├── Makefile
 ├── docker-compose.yml
-└── CLAUDE.md
+└── AGENTS.md
 ```
 
 Do not create empty abstraction layers merely to match this tree. Add directories when the first real implementation requires them.
@@ -659,7 +659,7 @@ Create and maintain these commands during foundation work. CI uses the same comm
 
 ---
 
-## Claude Code working protocol
+## Codex working protocol
 
 For each implementation task:
 
@@ -681,7 +681,7 @@ Additional rules:
 - A temporary stub must fail visibly or be clearly labeled; it must not impersonate a real integration.
 - External APIs are wrapped behind an interface and covered by contract tests or recorded synthetic fixtures.
 - A feature that would cross the intended-use boundary is not implemented; it is raised for the documented review process instead.
-- Update this file only for durable project-wide facts. Put detailed procedures in `docs/` or a future `.claude/skills/` entry.
+- Update this file only for durable project-wide facts. Put detailed procedures in `docs/` or a future `.Codex/skills/` entry.
 
 ---
 

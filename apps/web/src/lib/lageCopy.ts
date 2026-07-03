@@ -68,13 +68,15 @@ const LABELS: Record<ReferencePosition, Record<Locale, LageLabel>> = {
       glyph: "⊘",
       label: "Keine Referenz",
       badge: "badge-neutral",
-      sentence: "kein Quellreferenzintervall hinterlegt — Lage nicht bestimmbar",
+      sentence:
+        "kein Quellreferenzintervall hinterlegt — Lage nicht bestimmbar",
     },
     en: {
       glyph: "⊘",
       label: "No reference",
       badge: "badge-neutral",
-      sentence: "no source reference interval on file — position not determinable",
+      sentence:
+        "no source reference interval on file — position not determinable",
     },
   },
   not_evaluable: {

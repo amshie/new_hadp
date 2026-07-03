@@ -47,7 +47,10 @@ def upgrade() -> None:
         sa.Column("role", sa.String(length=60), nullable=False),
         sa.Column("id", sa.UUID(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
         ),
         sa.ForeignKeyConstraint(
             ["tenant_id"],
@@ -124,9 +127,7 @@ def downgrade() -> None:
     op.execute("DROP POLICY IF EXISTS tenant_isolation ON observation_derivation")
     op.execute("ALTER TABLE observation_derivation NO FORCE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE observation_derivation DISABLE ROW LEVEL SECURITY")
-    op.drop_index(
-        op.f("ix_observation_derivation_tenant_id"), table_name="observation_derivation"
-    )
+    op.drop_index(op.f("ix_observation_derivation_tenant_id"), table_name="observation_derivation")
     op.drop_index(
         op.f("ix_observation_derivation_input_observation_id"), table_name="observation_derivation"
     )

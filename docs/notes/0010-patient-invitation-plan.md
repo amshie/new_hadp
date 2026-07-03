@@ -5,6 +5,10 @@
 > 2026-06-26. **Synthetic identities only.** Pointing any part of this at a real patient stays
 > **BLOCKED** behind the go-live gates in §6. This note is engineering planning, **not legal or
 > regulatory advice.**
+>
+> _Audit note (2026-07-02): still plan-only. The proposed migration `0009_patient_invitations.py`
+> (§ below) is a forward reference and **does not yet exist** — the repo is currently at
+> `0008_consent_events`._
 
 Every claim below was ground-truthed against the codebase by the relevant specialist agents
 (security, backend-data, regulatory, fullstack) before drafting; file:line citations are theirs.
@@ -20,14 +24,14 @@ The P0 consent gate is **shipped** (merged PR #16, `23f09cd`):
   trigger, FKs `ON DELETE RESTRICT`) — `apps/api/.../modules/consents/{models,service}.py`,
   `alembic/versions/0008_consent_events.py`.
 - `consents.service.has_active_consent` is **fail-closed** (no event ⇒ not active) and gates
-  patient-facing **report release** (`reports/service.py:251-267`, checked *after* the approval
+  patient-facing **report release** (`reports/service.py:251-267`, checked _after_ the approval
   invariant). `withdraw_consent` appends a WITHDRAWN event **and** revokes all live
   `PatientAccessLink`s in the same transaction.
 - `ConsentPurpose` values (`report_release`, `analytics`, `data_source_connect`) are **synthetic
   placeholders**; the real taxonomy + per-purpose Art. 9(2) lawful basis + consent text are a
   **DPO/counsel deliverable (PENDING)** — `modules/enums.py:77-89`.
 
-What this plan adds is the **front half** of the gate: how a consent grant gets *created* — a staff
+What this plan adds is the **front half** of the gate: how a consent grant gets _created_ — a staff
 member invites a (synthetic) patient, the patient redeems a one-time link, and that redemption
 writes the `report_release` GRANT the P0 release path already consumes. `DATA_FLOW.md` step 1 already
 says "the patient starts in an invited/inactive state," but **nothing writes an invitation today** —
@@ -59,6 +63,7 @@ invite/redeem endpoints inherit exactly that exposure.
 ## 3. P-pre — security prerequisites (the red-team gaps)
 
 ### What exists today (grounded)
+
 - **One** inline middleware only — `main.py:67-81` `context_and_security` (correlation-id + security
   headers + restrictive CSP). **No rate-limit, no CSRF.**
 - **No rate-limiting** anywhere (no `slowapi`/`limits`; grep-clean). **Redis is already a dependency**
@@ -72,6 +77,7 @@ invite/redeem endpoints inherit exactly that exposure.
   travels in a **query string** (`?token=`), so the raw token can leak to access logs / Referer.
 
 ### Build
+
 - **P-pre-1 — rate limiting.** A small Redis-backed `rate_limit(key, limit, window)` FastAPI
   dependency (mirror the `Depends(get_db)` DI pattern), keyed **per-IP and per-credential/token**.
   Apply to: dev-login, the new invite-create + token-redeem + consent-capture endpoints, uploads,
@@ -89,6 +95,7 @@ invite/redeem endpoints inherit exactly that exposure.
   the generic digit patterns deliberately can't scrub bare ids; see `0006-review-followups`).
 
 ### Tests
+
 Negative rate-limit (N+1 → 429 + `rate_limited` event, per-IP **and** per-token); brute-force
 resistance (wrong tokens stay 404, no timing oracle); CSRF negatives (cross-origin POST → 403; valid
 double-submit → ok) across logout/select-tenant/release/upload/invite/consent; cookie/transport
@@ -97,9 +104,10 @@ the new surfaces incl. `uvicorn.access`. **All negatives must run on the real un
 `hadp_app` path** — a pass under a privileged/bypass test client proves nothing.
 
 ### Register / DATA_FLOW
+
 Three new register rows (rate-limiting, CSRF/cookie hardening, token-in-URL redaction), each
-*Touches clinical meaning? = No* (security/governance controls), *stays within
-documentation-support*, *Shipped (synthetic Alpha)*. Flip `THREAT_MODEL.md` §5 rate-limiting + CSRF
+_Touches clinical meaning? = No_ (security/governance controls), _stays within
+documentation-support_, _Shipped (synthetic Alpha)_. Flip `THREAT_MODEL.md` §5 rate-limiting + CSRF
 bullets from pending → shipped in the same PRs. These are **prerequisites** for the row-52
 patient-invitation gate — they harden the surface but **do not unblock real-patient use**.
 
@@ -111,6 +119,7 @@ patient-invitation gate — they harden the surface but **do not unblock real-pa
 returns a one-time token **in the HTTP response for the synthetic demo only** (like `ReleaseOut`).
 
 ### Build (mirror the shipped patterns)
+
 - **Migration `0009_patient_invitations.py`** (`down_revision='0008_consent_events'`) mirroring 0008
   verbatim: RLS ENABLE+FORCE + `tenant_isolation` policy on `_TENANT_PREDICATE`; FKs `tenant_id` /
   `patient_id` `ON DELETE RESTRICT`, `created_by_user_id` `ON DELETE SET NULL`; additive + fully
@@ -119,7 +128,7 @@ returns a one-time token **in the HTTP response for the synthetic demo only** (l
   `reports/service.py:275`): raw `secrets.token_urlsafe(32)`, store **only** `hash_token(...)`
   (SHA-256), short TTL, **single-use** (consume-on-redeem — the key delta vs the multi-use access
   link), revocable.
-- **Append-only decision (design choice — recommend the split):** the invitation is a *credential*
+- **Append-only decision (design choice — recommend the split):** the invitation is a _credential_
   with lifecycle state (accept/revoke/expire), so the **row must stay operationally mutable**
   (`accepted_at`/`revoked_at`/`redeemed_at`). Putting the row itself under an append-only trigger
   would abort accept/revoke. **Recommended:** mutable `patient_invitation` row **+** a separate
@@ -129,9 +138,9 @@ returns a one-time token **in the HTTP response for the synthetic demo only** (l
 - **Module** `modules/invitations/{__init__,models,service}.py` (mirror `consents/` + `reports/`):
   `create_invitation(...) -> (row, raw_token)`, `revoke_invitation(...)`, `record_invitation_event(...)`.
 - **Authz** — add `Action.INVITATION_CREATE = "invitation.create"` to `authz.py` and map it to
-  **all staff** (invite is staff-wide, *not* the clinician-only release gate). Endpoint resolves the
+  **all staff** (invite is staff-wide, _not_ the clinician-only release gate). Endpoint resolves the
   patient via the RLS-bound `ctx.db` (404 on cross-tenant), `record_audit(action="invitation.create",
-  …)` with **non-sensitive detail only — never the token**. Register the router in `main.py`.
+…)` with **non-sensitive detail only — never the token**. Register the router in `main.py`.
 - **Closed vocab** — add `InvitationStatus` (`pending/accepted/revoked/expired`) and, if the ledger
   is chosen, `InvitationEventType` as closed `pg_enum`s. **Reuse `ConsentPurpose`; never invent a
   purpose value.**
@@ -139,6 +148,7 @@ returns a one-time token **in the HTTP response for the synthetic demo only** (l
   returns the same row without minting a second token.
 
 ### Tests
+
 Append-only ledger under `hadp_app` (UPDATE/DELETE → permission denied + trigger raise); RLS
 fail-closed (0 rows without bound tenant); cross-tenant 404; authz matrix (staff ok / wrong-role 403 /
 unauth 401); token-hygiene (DB stores only the hash; raw token never in `audit_events.detail` or
@@ -146,8 +156,9 @@ logs); idempotency (same key → same id, no second token); rate-limit 429; migr
 round-trip leaves no orphan trigger/function/policy. **RLS tested under `hadp_app`, not superuser.**
 
 ### Register / DATA_FLOW
-Update the row-52 gate: *Staff patient-invitation endpoint* — *Touches clinical meaning? = No*
-(governance/provisioning control), *stays within boundary*, *Shipped (synthetic Alpha)* for the staff
+
+Update the row-52 gate: _Staff patient-invitation endpoint_ — _Touches clinical meaning? = No_
+(governance/provisioning control), _stays within boundary_, _Shipped (synthetic Alpha)_ for the staff
 endpoint; real-patient cutover stays BLOCKED. Realize `DATA_FLOW.md` step 1 ("invited/inactive") by
 actually writing the invitation row + ledger event.
 
@@ -160,14 +171,15 @@ patient-side half of the gate the P0 release path already enforces; **no change 
 is needed.**
 
 ### Build (mirror `patient_view_routes.py:25-51` exactly)
+
 - Body `{tenant: uuid (Pydantic-validated), token: str}`. Bind RLS via `set_tenant_context(db, tenant)`
   (tenant is non-secret; the **token is the credential**). Resolve by `hash_token(token)`.
 - **Fail-closed to `NotFound` with an identical body** when the token is unknown / revoked / expired /
   **already redeemed** (single-use) — no oracle distinguishing them. Audit each failure via
   `record_security_event(action="invitation.redeem_denied", …)` on an independent transaction.
 - On success, in **one transaction**: `record_consent(db, tenant_id=…, patient_id=<from invitation>,
-  purpose=ConsentPurpose.REPORT_RELEASE, channel="synthetic_invite_redeem", recorded_by_user_id=None,
-  consent_text_version=SYNTHETIC_CONSENT_TEXT_VERSION)` → a GRANTED event; then mark the invitation
+purpose=ConsentPurpose.REPORT_RELEASE, channel="synthetic_invite_redeem", recorded_by_user_id=None,
+consent_text_version=SYNTHETIC_CONSENT_TEXT_VERSION)` → a GRANTED event; then mark the invitation
   `redeemed_at`. `has_active_consent(...REPORT_RELEASE)` then returns True and a subsequent
   `release_report` succeeds where it previously raised `Conflict`.
 - **Patient-principal gap (write it down):** there is no patient principal — `recorded_by_user_id`
@@ -178,6 +190,7 @@ is needed.**
   multiplicity (`analytics`/`data_source_connect`) stays out until the DPO taxonomy lands.
 
 ### Tests
+
 RLS/tenant isolation (token minted under A unusable under B); fail-closed negatives (unknown/expired/
 revoked/redeemed → identical `NotFound` + `redeem_denied` event); consent-write correctness (exactly
 one GRANTED event, `recorded_by_user_id IS NULL`, then release succeeds); append-only (redeem never
@@ -185,6 +198,7 @@ UPDATE/DELETEs a consent row; re-redeem appends no duplicate grant); withdrawal 
 P0 test: WITHDRAWN revokes links → `/patient-view` 404s); redaction; language scan on any patient copy.
 
 ### Doctrine / register
+
 Planning note only — adds no register row itself, but directs any real slice to split/extend row 52
 (staff-invite / patient-redeem / delivery) keeping real patients Pending(gated), and to reaffirm the
 **named (not fixed) divergence**: `REPORT_RELEASE` is enforceable by `Role.CLINICIAN` while
@@ -197,10 +211,11 @@ invite→redeem→consent edge across the UNTRUSTED→APPLICATION boundary into 
 ## 6. P3 — web
 
 ### Build (mirror `apps/web/.../patient-view/page.tsx`)
+
 - **Staff "Patient einladen" action** — add `createInvitation(patientId)` to `lib/api.ts`
   (cookie-auth) returning the raw link; a button in `ReviewContent.tsx` page-actions opens a dialog
   (reuse the existing dialog pattern) showing the **one-time URL with a copy button** and an explicit
-  *"manuell und sicher außerhalb des Systems teilen — kein automatischer Versand"* note. URL preserves
+  _"manuell und sicher außerhalb des Systems teilen — kein automatischer Versand"_ note. URL preserves
   tenant context: `/einladung?tenant={tenantId}&token=…`. **Never** wire email/SMS in the Alpha.
 - **Patient route** `apps/web/src/app/einladung/page.tsx` — unauthenticated RSC. **`isUuid(tenant)`
   before any fetch** (the guard `/patient-view` currently lacks — `lib/uuid.ts`); single try/catch
@@ -220,6 +235,7 @@ invite→redeem→consent edge across the UNTRUSTED→APPLICATION boundary into 
   `escapeJsonForScript()` (`/</g → <`) and use it.
 
 ### Tests
+
 Web UUID guard (`/einladung` with non-UUID tenant renders the neutral invalid shell, issues **no**
 fetch); patient-side no-info-leak (bad/expired/redeemed → 404, no patient identity in body);
 one-time semantics (second redeem fails closed); consent-gate wiring (grant ⇒ `has_active_consent`
@@ -256,7 +272,7 @@ invitation row carries `is_synthetic`.
 - **Order:** P-pre-1/2/3 → P1 → P2 → P3. P-pre is load-bearing because the brute-forceable
   token-in-URL surface (`/patient-view`) already exists; do not add invite/redeem endpoints on top of
   an unthrottled, log-leaking surface.
-- **P2 depends on** the DPO/counsel consent-text + lawful-basis deliverable for *real* use — the
+- **P2 depends on** the DPO/counsel consent-text + lawful-basis deliverable for _real_ use — the
   synthetic redeem path can be authored/tested against a directly-seeded synthetic invitation first,
   but real patient-authored consent stays gated.
 - **Per slice:** run the relevant agents first (security / backend-data / clinical-regulatory /

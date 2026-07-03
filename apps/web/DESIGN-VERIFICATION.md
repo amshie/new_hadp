@@ -1,5 +1,13 @@
 # Design verification — real frontend vs. HADP-UI-Optimiert-v2 previews
 
+> **⚠️ SUPERSEDED (2026-07-02) — historical record; does not describe the current UI.**
+> This document verifies the retired `HADP-UI-Optimiert-v2` prototype generation: `/worklist` as the
+> authenticated home and the `lib/synthetic.ts` fixture wiring. That generation was **retired by** > [ADR-0005](../../docs/adr/0005-dashboard-product-surfaces.md) — `/worklist` is now a redirect to
+> `/overview` and `synthetic.ts` was removed — and **replaced by** the VitaBahn real-data surfaces
+> (`/overview`, `/patients`, `/patients/[id]`) per
+> [ADR-0006](../../docs/adr/0006-dashboard-real-data-path.md). The parity checks below are kept as
+> history; a refreshed verification against the current VitaBahn surfaces is a separate task.
+
 Method: render the build with Playwright (Chromium, deviceScaleFactor 1) at the prototype's
 exact widths (desktop 1440px, mobile 390px), full-page, and compare side-by-side with
 `HADP-UI-Optimiert-v2/previews/*.png`. Shots are written to `apps/web/.shots/`.
@@ -66,8 +74,10 @@ Evidence: `.shots/review-desktop.png`, `.shots/review-mobile.png`, `.shots/revie
 - [x] Real login wiring verified: `POST /api/v1/auth/dev-login {s.johnson@meridian-health.eu}` → 200 (seeded persona).
 
 ## §5 — Wired to the real backend (ADR-0002)
+
 Evidence: `.shots/worklist-live-{desktop,mobile}.png`, `.shots/review-live-{desktop,mobile}.png`
 (captured by `scripts/shoot-live.mjs`, which performs the real UI login first).
+
 - [x] Login flow wired end-to-end: UI login (dev-login + 2FA) → session cookie → `/worklist`;
       `app/login/actions.ts` no longer swallows failures (returns an error toast); pages map
       `ApiError` 401/403 → redirect `/login` (verified: `/worklist` without session → 307).

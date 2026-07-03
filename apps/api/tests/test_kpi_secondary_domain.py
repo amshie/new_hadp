@@ -38,9 +38,7 @@ def test_rows_are_34_kpis_44_links_and_never_equal_primary() -> None:
 
 
 def test_secondary_domains_seeded(admin_session: Session) -> None:
-    total = admin_session.execute(
-        select(func.count()).select_from(KpiSecondaryDomain)
-    ).scalar()
+    total = admin_session.execute(select(func.count()).select_from(KpiSecondaryDomain)).scalar()
     distinct_kpis = admin_session.execute(
         select(func.count(func.distinct(KpiSecondaryDomain.kpi_code)))
     ).scalar()
@@ -84,9 +82,7 @@ def test_duplicate_link_is_blocked_by_the_composite_pk(admin_session: Session) -
 def test_seed_secondary_domains_is_idempotent(admin_session: Session) -> None:
     # Already seeded once at session scope; a re-run is a no-op and leaves the count unchanged.
     seeded = seed_secondary_domains(admin_session)
-    total = admin_session.execute(
-        select(func.count()).select_from(KpiSecondaryDomain)
-    ).scalar()
+    total = admin_session.execute(select(func.count()).select_from(KpiSecondaryDomain)).scalar()
     assert seeded is False
     assert total == 44
 

@@ -88,9 +88,7 @@ def _bp(
     _input(db, t, p, kpi_code="cardio.diastolic_bp", value=dia, unit="mm[Hg]", observed_at=at)
 
 
-def _compute(
-    db: Session, t: Tenant, p: Patient, formula_id: str = "map.v1"
-) -> Observation | None:
+def _compute(db: Session, t: Tenant, p: Patient, formula_id: str = "map.v1") -> Observation | None:
     return compute_derived(db, tenant_id=t.id, patient_id=p.id, formula_id=formula_id)
 
 

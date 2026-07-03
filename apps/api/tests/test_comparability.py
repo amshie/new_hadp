@@ -40,9 +40,10 @@ def test_method_aware_needs_no_context() -> None:
 
 def test_instrument_version_match_differ_missing() -> None:
     policy = KpiComparisonPolicy.SAME_INSTRUMENT_VERSION_REQUIRED
-    assert is_comparable(
-        _obs(instrument_version="A"), _obs(instrument_version="A"), policy
-    ) == (True, None)
+    assert is_comparable(_obs(instrument_version="A"), _obs(instrument_version="A"), policy) == (
+        True,
+        None,
+    )
     assert is_comparable(_obs(instrument_version="A"), _obs(instrument_version="B"), policy) == (
         False,
         ComparabilityReason.CONTEXT_DIFFERS,
@@ -173,15 +174,27 @@ def test_timeline_withholds_incomparable_body_composition_delta(admin_session: S
     tenant, patient = _patient(admin_session)
     # Same KPI + unit, but a DXA device + software change between visits (body_composition policy).
     _add_obs(
-        admin_session, tenant, patient, kpi_code="msk.appendicular_lean_mass", value="21.0",
-        unit="kg", observed_at=datetime(2025, 1, 20, tzinfo=UTC),
-        source_category=KpiMeasurementClass.BODY_COMPOSITION, device_model="DXA-A",
+        admin_session,
+        tenant,
+        patient,
+        kpi_code="msk.appendicular_lean_mass",
+        value="21.0",
+        unit="kg",
+        observed_at=datetime(2025, 1, 20, tzinfo=UTC),
+        source_category=KpiMeasurementClass.BODY_COMPOSITION,
+        device_model="DXA-A",
         firmware_or_algorithm_version="sw-3.1",
     )
     _add_obs(
-        admin_session, tenant, patient, kpi_code="msk.appendicular_lean_mass", value="21.6",
-        unit="kg", observed_at=datetime(2025, 6, 12, tzinfo=UTC),
-        source_category=KpiMeasurementClass.BODY_COMPOSITION, device_model="DXA-B",
+        admin_session,
+        tenant,
+        patient,
+        kpi_code="msk.appendicular_lean_mass",
+        value="21.6",
+        unit="kg",
+        observed_at=datetime(2025, 6, 12, tzinfo=UTC),
+        source_category=KpiMeasurementClass.BODY_COMPOSITION,
+        device_model="DXA-B",
         firmware_or_algorithm_version="sw-4.0",
     )
     latest = obs_service.build_timeline(admin_session, patient.id)[-1]
@@ -194,11 +207,21 @@ def test_timeline_keeps_comparable_lab_delta_with_null_context(admin_session: Se
     tenant, patient = _patient(admin_session)
     # Laboratory KPI -> method_aware: NULL context must NOT suppress the delta (regression guard).
     _add_obs(
-        admin_session, tenant, patient, kpi_code="cardio.ldl_c", value="3.6", unit="mmol/L",
+        admin_session,
+        tenant,
+        patient,
+        kpi_code="cardio.ldl_c",
+        value="3.6",
+        unit="mmol/L",
         observed_at=datetime(2025, 1, 15, tzinfo=UTC),
     )
     _add_obs(
-        admin_session, tenant, patient, kpi_code="cardio.ldl_c", value="2.8", unit="mmol/L",
+        admin_session,
+        tenant,
+        patient,
+        kpi_code="cardio.ldl_c",
+        value="2.8",
+        unit="mmol/L",
         observed_at=datetime(2025, 6, 10, tzinfo=UTC),
     )
     latest = obs_service.build_timeline(admin_session, patient.id)[-1]

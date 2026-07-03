@@ -10,7 +10,8 @@ import type { MarkerView, ReviewView } from "@/lib/presenters/review";
 // "Veränderung" cell: the withheld-delta comparability note (text-carried, no color-alone) when the
 // comparison was suppressed (§9), else the normal delta. Shared by both observation tables.
 function ChangeCell({ marker }: { marker: MarkerView }) {
-  if (!marker.comparabilityShort) return <span className="num">{marker.change}</span>;
+  if (!marker.comparabilityShort)
+    return <span className="num">{marker.change}</span>;
   return (
     <span
       className="comparability-note"
@@ -48,7 +49,9 @@ function LageCell({ marker }: { marker: MarkerView }) {
   const l = lageLabel(marker.lagePosition);
   const bar = marker.lageBar;
   const intervalText =
-    marker.reference === "—" ? "kein Referenzintervall hinterlegt" : marker.reference;
+    marker.reference === "—"
+      ? "kein Referenzintervall hinterlegt"
+      : marker.reference;
   return (
     <div className="lage-cell">
       <span className={`badge ${l.badge} no-dot lage-pill`}>
@@ -60,12 +63,18 @@ function LageCell({ marker }: { marker: MarkerView }) {
           <div className="pos-bar-track">
             <div
               className="pos-bar-band"
-              style={{ left: `${bar.bandStartPct}%`, right: `${100 - bar.bandEndPct}%` }}
+              style={{
+                left: `${bar.bandStartPct}%`,
+                right: `${100 - bar.bandEndPct}%`,
+              }}
             />
           </div>
           <div className="pos-bar-tick" style={{ left: `${bar.midPct}%` }} />
           {marker.referenceRange && (
-            <div className="pos-bar-refrange" style={{ left: `${bar.midPct}%` }}>
+            <div
+              className="pos-bar-refrange"
+              style={{ left: `${bar.midPct}%` }}
+            >
               Referenz {marker.referenceRange}
             </div>
           )}
@@ -288,7 +297,9 @@ export function ReviewContent({ view }: { view: ReviewView }) {
           </p>
         </div>
         {view.runNumber != null && (
-          <span className="badge badge-brand no-dot">Run #{view.runNumber}</span>
+          <span className="badge badge-brand no-dot">
+            Run #{view.runNumber}
+          </span>
         )}
       </div>
       {view.domains.length === 0 ? (
@@ -362,7 +373,11 @@ export function ReviewContent({ view }: { view: ReviewView }) {
                     <span className="source-link">{d.actionabilityLabel}</span>
                   </div>
                   <p
-                    style={{ margin: 0, fontSize: "12px", color: "var(--muted)" }}
+                    style={{
+                      margin: 0,
+                      fontSize: "12px",
+                      color: "var(--muted)",
+                    }}
                   >
                     Follow-up-Adäquanz: {d.adequacyLabel}
                   </p>
@@ -491,8 +506,8 @@ export function ReviewContent({ view }: { view: ReviewView }) {
             <div>
               <h2>Sekundär relevant</h2>
               <p>
-                Auch für {selected.axisLabel} relevant. Zur Übersicht angezeigt –
-                geführt und bewertet wird jeder Wert in seiner Primärdomäne;
+                Auch für {selected.axisLabel} relevant. Zur Übersicht angezeigt
+                – geführt und bewertet wird jeder Wert in seiner Primärdomäne;
                 hieraus wird keine Domänen-Bewertung abgeleitet.
               </p>
             </div>

@@ -36,18 +36,22 @@ def _latest_input(
         )
         .scalar_subquery()
     )
-    return db.execute(
-        select(Observation)
-        .where(
-            Observation.patient_id == patient_id,
-            Observation.kpi_code == kpi_code,
-            Observation.review_status == ReviewStatus.PUBLISHED,
-            Observation.normalized_value.is_not(None),
-            Observation.normalized_unit == unit,
-            Observation.id.not_in(superseded),
+    return (
+        db.execute(
+            select(Observation)
+            .where(
+                Observation.patient_id == patient_id,
+                Observation.kpi_code == kpi_code,
+                Observation.review_status == ReviewStatus.PUBLISHED,
+                Observation.normalized_value.is_not(None),
+                Observation.normalized_unit == unit,
+                Observation.id.not_in(superseded),
+            )
+            .order_by(Observation.observed_at.desc())
         )
-        .order_by(Observation.observed_at.desc())
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
 
 
 def _resolve_inputs(
@@ -93,14 +97,18 @@ def compute_derived(
     input_ids = {obs.id for obs in inputs.values()}
 
     # Idempotency: an identical (kpi, formula_version, input set) derived value already exists.
-    existing = db.execute(
-        select(Observation).where(
-            Observation.patient_id == patient_id,
-            Observation.kpi_code == formula.output_kpi_code,
-            Observation.formula_version == formula.formula_version,
-            Observation.source_category == KpiMeasurementClass.DERIVED,
+    existing = (
+        db.execute(
+            select(Observation).where(
+                Observation.patient_id == patient_id,
+                Observation.kpi_code == formula.output_kpi_code,
+                Observation.formula_version == formula.formula_version,
+                Observation.source_category == KpiMeasurementClass.DERIVED,
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     prior_for_supersession: Observation | None = None
     for candidate in existing:
         candidate_inputs = set(
