@@ -19,6 +19,7 @@ export type RedeemOut = Schemas["RedeemOut"];
 export type StaffInvitationOut = Schemas["StaffInvitationOut"];
 export type StaffInvitationListItem = Schemas["StaffInvitationListItem"];
 export type StaffRole = Schemas["StaffInviteCreateIn"]["role"];
+export type MemberOut = Schemas["MemberOut"];
 
 // The report view endpoints return an open dict (no response_model); typed locally.
 export interface ReportEvidenceItem {
@@ -302,6 +303,18 @@ export const revokeStaffInvitation = (invitationId: string) =>
     `/api/v1/staff-invitations/${invitationId}/revoke`,
     { method: "POST" },
   );
+// Member administration (owner-only server-side): list the team, change a role, remove.
+export const listMembers = () => request<MemberOut[]>("/api/v1/members");
+export const changeMemberRole = (membershipId: string, role: StaffRole) =>
+  request<MemberOut>(`/api/v1/members/${membershipId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  });
+export const removeMember = (membershipId: string) =>
+  request<{ status: string }>(`/api/v1/members/${membershipId}`, {
+    method: "DELETE",
+  });
+
 export const redeemStaffInvitation = (input: {
   tenant: string;
   token: string;

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { VitaShell } from "@/components/vitabahn/VitaShell";
-import { ApiError, listStaffInvitations, me } from "@/lib/api";
+import { ApiError, listMembers, listStaffInvitations, me } from "@/lib/api";
 import { shellIdentity } from "@/lib/identity";
 
 import { MitgliederContent } from "./MitgliederContent";
@@ -30,9 +30,12 @@ export default async function MitgliederPage() {
     );
   }
 
-  let invitations;
+  let members, invitations;
   try {
-    invitations = await listStaffInvitations();
+    [members, invitations] = await Promise.all([
+      listMembers(),
+      listStaffInvitations(),
+    ]);
   } catch (e) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403))
       redirect("/login");
@@ -41,7 +44,11 @@ export default async function MitgliederPage() {
 
   return (
     <VitaShell nav="einstellungen" crumb="Mitglieder" identity={identity}>
-      <MitgliederContent invitations={invitations} />
+      <MitgliederContent
+        members={members}
+        invitations={invitations}
+        selfUserId={session.user.id}
+      />
     </VitaShell>
   );
 }

@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 
 import {
   ApiError,
+  changeMemberRole,
   createStaffInvitation,
+  removeMember,
   revokeStaffInvitation,
   type StaffRole,
 } from "@/lib/api";
@@ -50,11 +52,47 @@ export async function revokeStaffInviteAction(
   }
 }
 
+export type MemberActionResult = { ok: true } | { ok: false; error: string };
+
+export async function changeMemberRoleAction(
+  membershipId: string,
+  role: string,
+): Promise<MemberActionResult> {
+  if (!isUuid(membershipId) || !ROLES.has(role))
+    return { ok: false, error: "Ungültige Eingabe." };
+  try {
+    await changeMemberRole(membershipId, role as StaffRole);
+    revalidatePath("/einstellungen/mitglieder");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: safeMessage(e) };
+  }
+}
+
+export async function removeMemberAction(
+  membershipId: string,
+): Promise<MemberActionResult> {
+  if (!isUuid(membershipId)) return { ok: false, error: "Ungültige Eingabe." };
+  try {
+    await removeMember(membershipId);
+    revalidatePath("/einstellungen/mitglieder");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: safeMessage(e) };
+  }
+}
+
 function safeMessage(e: unknown): string {
   if (e instanceof ApiError) {
     if (e.status === 401 || e.status === 403)
       return "Diese Aktion ist Ihrer Rolle nicht erlaubt.";
-    if (e.status === 409) return "Diese Einladung ist nicht mehr ausstehend.";
+    if (e.status === 409) {
+      if (e.message.includes("own membership"))
+        return "Die eigene Mitgliedschaft kann nicht geändert werden.";
+      if (e.message.includes("at least one owner"))
+        return "Die Klinik benötigt mindestens einen Inhaber.";
+      return "Diese Einladung ist nicht mehr ausstehend.";
+    }
     if (e.status === 429)
       return "Zu viele Anfragen. Bitte später erneut versuchen.";
   }
