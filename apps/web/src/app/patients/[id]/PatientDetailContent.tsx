@@ -20,7 +20,11 @@ import { clickable } from "@/components/vitabahn/interactive";
 import { lageLabel } from "@/lib/lageCopy";
 import type { ReferencePosition } from "@/lib/referencePosition";
 import type { DetailView } from "@/lib/presenters/patientDetail";
-import { statusHint, type MarkerView } from "@/lib/presenters/review";
+import {
+  DOMAIN_AXIS_LABELS,
+  statusHint,
+  type MarkerView,
+} from "@/lib/presenters/review";
 
 // VitaBahn patient Detail (ADR-0006, real-data path). Consumes the governed DetailView
 // (presentReview + a real data-completeness stat). NO A–E grade (doctrine). Observation Status
@@ -239,7 +243,35 @@ export function PatientDetailContent({
 }) {
   const router = useRouter();
   const { review, completeness } = view;
-  const domains = review.domains;
+
+  // The six domain axes are the fixed canonical structure (ADR-0003) — the page ALWAYS shows
+  // all six. Axes that an interpretation run has scored render with their adequacy + evidence;
+  // axes without a run-verdict render as honest "noch nicht bewertet" placeholders (never an
+  // invented verdict). Order is the founder-approved ADR-0003 order.
+  const DOMAIN_ORDER = [
+    "metabolic",
+    "immune_inflammation",
+    "cardiovascular",
+    "neurocognitive",
+    "musculoskeletal",
+    "regenerative_capacity",
+  ];
+  type DomainCard = (typeof review.domains)[number] & { assessed: boolean };
+  const domains: DomainCard[] = DOMAIN_ORDER.map((axis) => {
+    const real = review.domains.find((d) => d.domainAxis === axis);
+    if (real) return { ...real, assessed: true };
+    return {
+      axisLabel: DOMAIN_AXIS_LABELS[axis] ?? axis,
+      domainAxis: axis,
+      cisLabel: "",
+      actionabilityLabel: "",
+      adequacyLabel: "",
+      reviewed: false,
+      markerCodes: [],
+      cells: [],
+      assessed: false,
+    };
+  });
 
   const firstWithMarkers =
     domains.find((d) => d.markerCodes.length > 0)?.domainAxis ??
@@ -698,146 +730,145 @@ export function PatientDetailContent({
         </div>
       </div>
 
-      {/* domain cards (no A–E grade — doctrine) */}
-      {domains.length > 0 ? (
-        <div
+      {/* domain cards — the six canonical axes always (no A–E grade — doctrine) */}
+      {review.runNumber == null && (
+        <p
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(258px, 1fr))",
-            gap: "14px",
-            marginBottom: "20px",
+            fontSize: "12.5px",
+            color: "var(--text-muted)",
+            margin: "0 0 12px",
+            lineHeight: 1.5,
           }}
         >
-          {domains.map((d) => {
-            const sel = d.domainAxis === domainAxis;
-            return (
+          Noch kein Interpretationslauf — die sechs Domänen-Achsen werden als
+          Entwurf angezeigt.
+        </p>
+      )}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(258px, 1fr))",
+          gap: "14px",
+          marginBottom: "20px",
+        }}
+      >
+        {domains.map((d) => {
+          const sel = d.domainAxis === domainAxis;
+          return (
+            <div
+              key={d.domainAxis}
+              className="vb-domaincard"
+              {...clickable(
+                () => setDomainAxis(d.domainAxis),
+                `Domäne ${d.axisLabel} auswählen`,
+              )}
+              aria-pressed={sel}
+              style={{
+                background: "var(--surface-card)",
+                borderRadius: "var(--radius-lg)",
+                padding: "16px 18px",
+                border:
+                  "1.5px solid " +
+                  (sel ? "var(--brand)" : "var(--border-subtle)"),
+                boxShadow: sel
+                  ? "0 0 0 3px var(--brand-soft)"
+                  : "var(--shadow-xs)",
+                cursor: "pointer",
+              }}
+            >
               <div
-                key={d.domainAxis}
-                className="vb-domaincard"
-                {...clickable(
-                  () => setDomainAxis(d.domainAxis),
-                  `Domäne ${d.axisLabel} auswählen`,
-                )}
-                aria-pressed={sel}
                 style={{
-                  background: "var(--surface-card)",
-                  borderRadius: "var(--radius-lg)",
-                  padding: "16px 18px",
-                  border:
-                    "1.5px solid " +
-                    (sel ? "var(--brand)" : "var(--border-subtle)"),
-                  boxShadow: sel
-                    ? "0 0 0 3px var(--brand-soft)"
-                    : "var(--shadow-xs)",
-                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                  marginBottom: "11px",
                 }}
               >
-                <div
+                <span
                   style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    justifyContent: "space-between",
-                    gap: "10px",
-                    marginBottom: "11px",
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 700,
+                    fontSize: "var(--text-md)",
+                    color: "var(--text-strong)",
+                    letterSpacing: "-0.01em",
                   }}
                 >
-                  <span
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontWeight: 700,
-                      fontSize: "var(--text-md)",
-                      color: "var(--text-strong)",
-                      letterSpacing: "-0.01em",
-                    }}
-                  >
-                    {d.axisLabel}
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "10px",
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                      color: "var(--text-faint)",
-                      flexShrink: 0,
-                      marginTop: "4px",
-                    }}
-                  >
-                    {d.reviewed ? "Geprüft" : "Entwurf"}
-                  </span>
-                </div>
-                <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                  Follow-up-Adäquanz: {d.adequacyLabel}
-                </div>
-                {sel ? (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      marginTop: "10px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "var(--vital-500)",
-                    }}
-                  >
-                    <svg
-                      aria-hidden="true"
-                      focusable="false"
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
-                    Biomarker im Beobachtungsnachweis
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      marginTop: "10px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "var(--brand)",
-                    }}
-                  >
-                    Biomarker ansehen ({d.markerCodes.length})
-                  </div>
-                )}
+                  {d.axisLabel}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "10px",
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    color: "var(--text-faint)",
+                    flexShrink: 0,
+                    marginTop: "4px",
+                  }}
+                >
+                  {d.assessed
+                    ? d.reviewed
+                      ? "Geprüft"
+                      : "Entwurf"
+                    : "Kein Lauf"}
+                </span>
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div
-          style={{
-            ...cardStyle,
-            padding: "28px 22px",
-            marginBottom: "20px",
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 700,
-              fontSize: "var(--text-md)",
-              color: "var(--text-strong)",
-              marginBottom: "4px",
-            }}
-          >
-            Keine Interpretation vorhanden
-          </div>
-          <div style={{ fontSize: "12.5px", color: "var(--text-muted)" }}>
-            Für diese Patientin liegt noch kein Interpretationslauf vor.
-          </div>
-        </div>
-      )}
+              {d.assessed ? (
+                <>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                    Follow-up-Adäquanz: {d.adequacyLabel}
+                  </div>
+                  {sel ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        marginTop: "10px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: "var(--vital-500)",
+                      }}
+                    >
+                      <svg
+                        aria-hidden="true"
+                        focusable="false"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                      Biomarker im Beobachtungsnachweis
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        marginTop: "10px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: "var(--brand)",
+                      }}
+                    >
+                      Biomarker ansehen ({d.markerCodes.length})
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ fontSize: "12px", color: "var(--text-faint)" }}>
+                  Noch nicht interpretiert
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       {/* Beobachtungsnachweis (real observations, positional Lage status) */}
       <div style={{ ...cardStyle, marginBottom: "16px", overflow: "hidden" }}>
