@@ -65,7 +65,8 @@ export default async function PatientDetailPage({
 }) {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  // The session role drives which Freigabe actions render (the API enforces them).
+  // The session role drives which staff actions render (invite); the API enforces them.
+  // The report draft + Freigabe workflow lives on the dedicated review page, not here.
   const [view, session] = await Promise.all([
     loadView(id),
     me().catch(() => null),
@@ -77,11 +78,7 @@ export default async function PatientDetailPage({
       crumbParent={{ label: "Patienten", href: "/patients" }}
       identity={shellIdentity(session)}
     >
-      <PatientDetailContent
-        view={view}
-        sessionRole={session?.role ?? null}
-        path={`/patients/${id}`}
-      />
+      <PatientDetailContent view={view} sessionRole={session?.role ?? null} />
     </VitaShell>
   );
 }
