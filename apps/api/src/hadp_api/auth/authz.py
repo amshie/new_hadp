@@ -22,6 +22,10 @@ class Action(str, Enum):
     # Staff administration: inviting a colleague who self-onboards into a role. Owner-only
     # (a strictly narrower privilege than patient invitation), and gates create/list/revoke.
     STAFF_INVITE_CREATE = "staff_invite.create"
+    # Member administration: list the clinic team, change a member's role, remove a member.
+    MEMBER_LIST = "member.list"
+    MEMBER_ROLE_CHANGE = "member.role_change"
+    MEMBER_REMOVE = "member.remove"
     REVIEW_RESOLVE = "review.resolve"
     INTERPRETATION_AUTHOR = "interpretation.author"
     REPORT_DRAFT = "report.draft"
@@ -55,6 +59,12 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
     # the role the owner chose (the redeemer never selects their own role). This grants
     # broad, cross-patient clinic access, so it is the most restricted provisioning action.
     Action.STAFF_INVITE_CREATE: frozenset({Role.OWNER}),
+    # Member administration is tenant administration: OWNER only, like staff invites.
+    # Role assignment is orthogonal to the two-tier Physician Gate — the gate is enforced
+    # at action time by the assigned role; nothing here touches report approve/release.
+    Action.MEMBER_LIST: frozenset({Role.OWNER}),
+    Action.MEMBER_ROLE_CHANGE: frozenset({Role.OWNER}),
+    Action.MEMBER_REMOVE: frozenset({Role.OWNER}),
     # Review-queue resolution is a clinical judgement (WORKFLOW §2.2/§2.4: the
     # assistant triages the queue but may not resolve clinically).
     Action.REVIEW_RESOLVE: frozenset({Role.CLINICIAN}),

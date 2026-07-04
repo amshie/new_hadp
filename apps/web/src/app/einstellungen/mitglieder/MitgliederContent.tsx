@@ -3,9 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import type { StaffInvitationListItem } from "@/lib/api";
+import type { MemberOut, StaffInvitationListItem } from "@/lib/api";
 
-import { createStaffInviteAction, revokeStaffInviteAction } from "./actions";
+import {
+  changeMemberRoleAction,
+  createStaffInviteAction,
+  removeMemberAction,
+  revokeStaffInviteAction,
+} from "./actions";
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Inhaber",
@@ -24,9 +29,13 @@ const card: React.CSSProperties = {
 };
 
 export function MitgliederContent({
+  members,
   invitations,
+  selfUserId,
 }: {
+  members: MemberOut[];
   invitations: StaffInvitationListItem[];
+  selfUserId: string;
 }) {
   const router = useRouter();
   const [role, setRole] = useState("clinician");
@@ -51,6 +60,23 @@ export function MitgliederContent({
       else setError(res.error);
     });
 
+  const changeRole = (membershipId: string, newRole: string) =>
+    startTransition(async () => {
+      setError(null);
+      const res = await changeMemberRoleAction(membershipId, newRole);
+      if (res.ok) router.refresh();
+      else setError(res.error);
+    });
+
+  const remove = (membershipId: string, name: string) =>
+    startTransition(async () => {
+      setError(null);
+      if (!window.confirm(`${name} aus dem Team entfernen?`)) return;
+      const res = await removeMemberAction(membershipId);
+      if (res.ok) router.refresh();
+      else setError(res.error);
+    });
+
   return (
     <div style={{ maxWidth: "760px" }}>
       <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>Mitglieder</h1>
@@ -66,6 +92,97 @@ export function MitgliederContent({
         eingeladene Person richtet ihren Zugang selbst über einen einmaligen
         Link ein. Die Rolle legen Sie hier fest.
       </p>
+
+      <section aria-label="Team" style={{ marginBottom: "26px" }}>
+        <strong style={{ display: "block", margin: "6px 0 12px" }}>Team</strong>
+        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {members.map((m) => {
+            const isSelf = m.user_id === selfUserId;
+            return (
+              <li
+                key={m.membership_id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  padding: "12px 14px",
+                  border: "1px solid var(--border-subtle, #dfe5e7)",
+                  borderRadius: "9px",
+                  marginBottom: "8px",
+                }}
+              >
+                <span style={{ fontSize: "14px", minWidth: 0 }}>
+                  <strong>{m.display_name}</strong>
+                  <span
+                    style={{
+                      color: "var(--text-muted, #5b6b70)",
+                      marginLeft: "10px",
+                      fontSize: "12px",
+                    }}
+                  >
+                    {m.email}
+                    {isSelf ? " · Sie" : ""}
+                  </span>
+                </span>
+                <span
+                  style={{ display: "flex", gap: "8px", alignItems: "center" }}
+                >
+                  {isSelf ? (
+                    <span style={{ fontSize: "13px", fontWeight: 600 }}>
+                      {ROLE_LABELS[m.role] ?? m.role}
+                    </span>
+                  ) : (
+                    <>
+                      <label
+                        style={{ fontSize: "12px" }}
+                        aria-label={`Rolle von ${m.display_name}`}
+                      >
+                        <select
+                          value={m.role}
+                          disabled={pending}
+                          onChange={(e) =>
+                            changeRole(m.membership_id, e.target.value)
+                          }
+                          style={{
+                            padding: "6px 8px",
+                            borderRadius: "7px",
+                            border: "1px solid var(--border-subtle, #dfe5e7)",
+                            fontSize: "13px",
+                          }}
+                        >
+                          {ROLE_ORDER.map((r) => (
+                            <option key={r} value={r}>
+                              {ROLE_LABELS[r]}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => remove(m.membership_id, m.display_name)}
+                        disabled={pending}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: "8px",
+                          border: "1px solid #b3261e",
+                          background: "transparent",
+                          color: "#b3261e",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                          cursor: pending ? "wait" : "pointer",
+                        }}
+                      >
+                        Entfernen
+                      </button>
+                    </>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
       <section style={card} aria-label="Kolleg:in einladen">
         <strong style={{ display: "block", marginBottom: "12px" }}>
