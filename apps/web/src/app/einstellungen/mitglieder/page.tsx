@@ -19,7 +19,12 @@ export default async function MitgliederPage() {
 
   if (session.role !== "owner") {
     return (
-      <VitaShell nav="einstellungen" crumb="Mitglieder" identity={identity}>
+      <VitaShell
+        nav="einstellungen"
+        crumb="Mitglieder"
+        crumbParent={{ label: "Einstellungen", href: "/einstellungen" }}
+        identity={identity}
+      >
         <div style={{ maxWidth: "620px" }}>
           <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>Mitglieder</h1>
           <p style={{ lineHeight: 1.55, color: "var(--text-muted, #5b6b70)" }}>
@@ -43,7 +48,12 @@ export default async function MitgliederPage() {
   }
 
   return (
-    <VitaShell nav="einstellungen" crumb="Mitglieder" identity={identity}>
+    <VitaShell
+      nav="einstellungen"
+      crumb="Mitglieder"
+      crumbParent={{ label: "Einstellungen", href: "/einstellungen" }}
+      identity={identity}
+    >
       <MitgliederContent
         members={members}
         invitations={invitations}

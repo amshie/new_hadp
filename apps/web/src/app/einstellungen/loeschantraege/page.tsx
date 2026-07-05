@@ -21,7 +21,12 @@ export default async function LoeschantraegePage() {
   const role = session.role ?? "";
   if (!ALLOWED.has(role)) {
     return (
-      <VitaShell nav="einstellungen" crumb="Löschanträge" identity={identity}>
+      <VitaShell
+        nav="einstellungen"
+        crumb="Löschanträge"
+        crumbParent={{ label: "Einstellungen", href: "/einstellungen" }}
+        identity={identity}
+      >
         <div style={{ maxWidth: "620px" }}>
           <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>
             Löschanträge
@@ -45,7 +50,12 @@ export default async function LoeschantraegePage() {
   }
 
   return (
-    <VitaShell nav="einstellungen" crumb="Löschanträge" identity={identity}>
+    <VitaShell
+      nav="einstellungen"
+      crumb="Löschanträge"
+      crumbParent={{ label: "Einstellungen", href: "/einstellungen" }}
+      identity={identity}
+    >
       <LoeschantraegeContent
         requests={requests}
         role={role}
