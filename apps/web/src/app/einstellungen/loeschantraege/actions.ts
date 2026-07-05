@@ -6,6 +6,7 @@ import {
   ApiError,
   approveDeletionRequest,
   cancelDeletionRequest,
+  executeDeletionRequest,
   rejectDeletionRequest,
 } from "@/lib/api";
 import { isUuid } from "@/lib/uuid";
@@ -44,6 +45,21 @@ export async function cancelDeletionAction(
   id: string,
 ): Promise<DecisionResult> {
   return run(id, cancelDeletionRequest);
+}
+export async function executeDeletionAction(
+  id: string,
+): Promise<DecisionResult> {
+  if (!isUuid(id)) return { ok: false, error: "Ungültige Anfrage." };
+  try {
+    await executeDeletionRequest(id);
+    // The erasure changes patient counts/listings across the app.
+    revalidatePath("/einstellungen/loeschantraege");
+    revalidatePath("/patients");
+    revalidatePath("/overview");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: safeMessage(e) };
+  }
 }
 
 function safeMessage(e: unknown): string {

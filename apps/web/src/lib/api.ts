@@ -354,6 +354,11 @@ export const cancelDeletionRequest = (requestId: string) =>
     `/api/v1/deletion-requests/${requestId}/cancel`,
     { method: "POST" },
   );
+export const executeDeletionRequest = (requestId: string) =>
+  request<DeletionRequestView>(
+    `/api/v1/deletion-requests/${requestId}/execute`,
+    { method: "POST" },
+  );
 
 export const redeemStaffInvitation = (input: {
   tenant: string;

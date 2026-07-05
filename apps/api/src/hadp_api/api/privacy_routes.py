@@ -1,16 +1,18 @@
 """Patient-erasure request routes (tenant-scoped, RLS enforced, audited).
 
-The request lifecycle of the two-person erasure gate (docs/notes/0012): an owner opens a
-request, a medical director approves or rejects it, the requester may cancel a pending one.
-The irreversible execution of an approved request is a SEPARATE slice — no execute route
-exists here yet.
+The two-person erasure gate (docs/notes/0012): an owner opens a request, a medical director
+approves or rejects it, the requester may cancel a pending one, and an owner or medical
+director EXECUTES an approved request — the irreversible, gated tombstone erasure (the DB work
+runs in this request's transaction; object storage is purged after commit).
 
-Every transition is audited with the request status / reason code only — never the patient's
-name or any identity detail (the audit service's forbidden-key guard also rejects those keys).
+Every transition is audited with the request status / reason code (and, for execution, a
+count-only manifest) — never the patient's name or any identity detail (the audit service's
+forbidden-key guard also rejects those keys).
 """
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends
@@ -19,11 +21,15 @@ from sqlalchemy import select
 
 from hadp_api.auth.authz import Action
 from hadp_api.auth.dependencies import TenantContext, require
-from hadp_api.modules.audit.service import record_audit
+from hadp_api.config import get_settings
+from hadp_api.modules.audit.service import record_audit, record_security_event
+from hadp_api.modules.documents.blob import get_blob_store
 from hadp_api.modules.enums import DeletionReasonCategory
 from hadp_api.modules.patients.models import Patient
 from hadp_api.modules.privacy import service as privacy_service
 from hadp_api.modules.privacy.models import DeletionRequest
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["privacy"])
 
@@ -173,6 +179,63 @@ def reject_deletion_request(
         correlation_id=ctx.correlation_id,
     )
     return _out(req, _patient(ctx, req.patient_id))
+
+
+@router.post("/deletion-requests/{request_id}/execute", response_model=DeletionRequestOut)
+def execute_deletion_request(
+    request_id: uuid.UUID,
+    ctx: TenantContext = Depends(require(Action.PRIVACY_REQUEST_EXECUTE)),
+) -> DeletionRequestOut:
+    """Irreversibly erase the patient of an APPROVED request (gated tombstone).
+
+    The DB work (anonymize the patient, hard-delete PII artifacts, withdraw consents, redact
+    the append-only interpretation free text) runs in this request's single transaction. We
+    commit it, then purge object storage AFTER commit — an S3 delete is not transactional, so
+    it must not run before the DB is durable, and it is idempotent/re-runnable if it fails.
+    """
+    result = privacy_service.execute_request(
+        ctx.db,
+        tenant_id=ctx.tenant_id,
+        request_id=request_id,
+        executing_user_id=ctx.user.id,
+    )
+    record_audit(
+        ctx.db,
+        action="privacy.erasure_executed",
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        target_type="deletion_request",
+        target_id=result.request.id,
+        correlation_id=ctx.correlation_id,
+        # Count-only manifest — no identifiers or values.
+        detail=dict(result.manifest),
+    )
+    # Build the response while the tenant-scoped transaction is still open (RLS context is
+    # transaction-local, so a post-commit re-read would be unscoped/blocked).
+    patient = _patient(ctx, result.request.patient_id)
+    out = _out(result.request, patient)
+
+    ctx.db.commit()
+
+    # Post-commit: purge source-document objects. Idempotent; a failure is logged + audited on
+    # its own transaction, never fatal (the DB erasure already committed).
+    store = get_blob_store(get_settings())
+    failures = 0
+    for key in result.storage_keys:
+        try:
+            store.delete(key)
+        except Exception as exc:  # noqa: BLE001 - purge must not resurrect a committed erasure
+            failures += 1
+            logger.error("erasure storage purge failed error=%s", type(exc).__name__)
+    if failures:
+        record_security_event(
+            action="privacy.erasure_storage_incomplete",
+            actor_user_id=ctx.user.id,
+            tenant_id=ctx.tenant_id,
+            correlation_id=ctx.correlation_id,
+            detail={"failed_objects": failures},
+        )
+    return out
 
 
 @router.post("/deletion-requests/{request_id}/cancel", response_model=DeletionRequestOut)

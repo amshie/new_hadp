@@ -274,14 +274,18 @@ export function PatientDetailContent({
   const [openMarker, setOpenMarker] = useState<MarkerView | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
+  // A tombstoned (erased) record shows a banner and hides all staff actions — its artifacts
+  // are gone and it must never accept a new invitation, interpretation, or deletion request.
+  const erased = view.erased;
   // Inviting is operational provisioning (care staff); the MD is the gate, not an operator.
   const canInvite =
-    sessionRole === "owner" ||
-    sessionRole === "clinician" ||
-    sessionRole === "assistant";
+    !erased &&
+    (sessionRole === "owner" ||
+      sessionRole === "clinician" ||
+      sessionRole === "assistant");
   // Requesting erasure is tenant administration (owner). It only FILES a request; a medical
   // director decides it, and execution is separate — nothing is deleted here.
-  const canRequestDeletion = sessionRole === "owner";
+  const canRequestDeletion = !erased && sessionRole === "owner";
 
   const [deletionState, setDeletionState] = useState<
     { phase: "confirm" } | { phase: "done" } | null
@@ -397,6 +401,61 @@ export function PatientDetailContent({
         </svg>
         Zurück zu Patienten
       </button>
+
+      {erased && (
+        <div
+          role="status"
+          style={{
+            display: "flex",
+            gap: "12px",
+            alignItems: "flex-start",
+            padding: "14px 16px",
+            marginBottom: "20px",
+            borderRadius: "var(--radius-md)",
+            border: "1px solid var(--border-default)",
+            background: "var(--surface-sunken)",
+          }}
+        >
+          <svg
+            aria-hidden="true"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="var(--text-muted)"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ flexShrink: 0, marginTop: "1px" }}
+          >
+            <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+          </svg>
+          <div>
+            <div
+              style={{
+                fontSize: "13.5px",
+                fontWeight: 700,
+                color: "var(--text-strong)",
+                marginBottom: "3px",
+              }}
+            >
+              Dieser Datensatz wurde gelöscht
+            </div>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "12.5px",
+                lineHeight: 1.55,
+                color: "var(--text-muted)",
+              }}
+            >
+              Die Daten dieser Person wurden anonymisiert und unwiderruflich
+              entfernt (Beobachtungen, Dokumente und Berichte). Der Eintrag
+              bleibt nur als Nachweis im Prüfprotokoll bestehen.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* identity */}
       <div
