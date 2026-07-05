@@ -5,9 +5,11 @@ import { revalidatePath } from "next/cache";
 import {
   ApiError,
   checkDuplicates,
+  createDeletionRequest,
   createInvitation,
   createPatient,
   type CreatePatientInput,
+  type DeletionReason,
 } from "@/lib/api";
 import { isUuid } from "@/lib/uuid";
 
@@ -139,6 +141,51 @@ export async function checkPatientDuplicates(
     if (e instanceof ApiError && (e.status === 401 || e.status === 403))
       return { ok: false, error: "Nicht berechtigt. Bitte erneut anmelden." };
     return { ok: false, error: "Duplikatprüfung derzeit nicht verfügbar." };
+  }
+}
+
+const DELETION_REASONS = new Set<DeletionReason>([
+  "patient_request",
+  "withdrawn_consent",
+  "data_minimization",
+]);
+
+export type RequestDeletionResult = { ok: true } | { ok: false; error: string };
+
+// Owner-only: open a patient-erasure request (the medical director then decides it on the
+// Löschanträge queue). Server-side authorization is the control — the API gates
+// PRIVACY_REQUEST_CREATE to owners. No data is deleted here; this only files the request.
+export async function requestPatientDeletion(
+  patientId: string,
+  reason: DeletionReason,
+): Promise<RequestDeletionResult> {
+  if (!isUuid(patientId))
+    return { ok: false, error: "Ungültige Patientenreferenz." };
+  if (!DELETION_REASONS.has(reason))
+    return { ok: false, error: "Ungültiger Grund." };
+  try {
+    await createDeletionRequest(patientId, reason);
+    revalidatePath("/einstellungen/loeschantraege");
+    revalidatePath(`/patients/${patientId}`);
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof ApiError) {
+      if (e.status === 401 || e.status === 403)
+        return {
+          ok: false,
+          error: "Diese Aktion ist Ihrer Rolle nicht erlaubt.",
+        };
+      if (e.status === 409)
+        return {
+          ok: false,
+          error:
+            "Für diesen Patienten besteht bereits ein offener Löschantrag.",
+        };
+    }
+    return {
+      ok: false,
+      error: "Löschantrag fehlgeschlagen. Bitte erneut versuchen.",
+    };
   }
 }
 

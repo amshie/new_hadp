@@ -127,6 +127,37 @@ class ConsentPurpose(str, Enum):
     DATA_SOURCE_CONNECT = "data_source_connect"
 
 
+class DeletionRequestStatus(str, Enum):
+    """Lifecycle of a patient-erasure request — a CLOSED vocabulary (docs/notes/0012).
+
+    A two-person gate: an owner REQUESTS (`pending`), a medical director DECIDES
+    (`approved` / `rejected`), and an approved request is later EXECUTED (`executed`,
+    the irreversible gated erasure — PR B). The requester may `cancelled` a still-pending
+    request. `pending` and `approved` are the two NON-TERMINAL states (at most one per
+    patient); `rejected` / `cancelled` / `executed` are terminal.
+    """
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"
+    EXECUTED = "executed"
+
+
+class DeletionReasonCategory(str, Enum):
+    """Why an erasure is requested — a CLOSED vocabulary, never free text.
+
+    SYNTHETIC-ALPHA PLACEHOLDER values (like ConsentPurpose): the real, counsel-authored
+    erasure-basis taxonomy — and the balance against clinical retention duties (e.g.
+    § 630f BGB / Art. 17(3) exemptions) — is a pending DPO/counsel deliverable. A closed
+    enum (not free text) so the request itself can never carry PII.
+    """
+
+    PATIENT_REQUEST = "patient_request"  # data-subject Art. 17 erasure request
+    WITHDRAWN_CONSENT = "withdrawn_consent"  # processing basis withdrawn
+    DATA_MINIMIZATION = "data_minimization"  # no longer necessary for the purpose
+
+
 # --- HADP interpretation doctrine (ADR-0003): six axes, two engines, tri-state ---
 #
 # The domain axis is the canonical unit: ONE CIS + ONE Actionability per axis per run, with three

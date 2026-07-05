@@ -16,6 +16,7 @@ from hadp_api.modules.invitations import models as invitation_models  # noqa: F4
 from hadp_api.modules.kpi import models as kpi_models  # noqa: F401
 from hadp_api.modules.observations import models as observation_models  # noqa: F401
 from hadp_api.modules.patients import models as patient_models  # noqa: F401
+from hadp_api.modules.privacy import models as privacy_models  # noqa: F401
 from hadp_api.modules.reports import models as report_models  # noqa: F401
 from hadp_api.modules.staff_invitations import models as staff_invitation_models  # noqa: F401
 from hadp_api.modules.tenancy import models as tenancy_models  # noqa: F401

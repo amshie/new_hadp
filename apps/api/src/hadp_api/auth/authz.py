@@ -26,6 +26,13 @@ class Action(str, Enum):
     MEMBER_LIST = "member.list"
     MEMBER_ROLE_CHANGE = "member.role_change"
     MEMBER_REMOVE = "member.remove"
+    # Patient erasure (GDPR Art. 17) — a two-person gate. Requesting is tenant administration
+    # (owner); deciding is the governance tier (medical director, like report release); executing
+    # the approved, irreversible erasure is permitted to either administrative principal.
+    PRIVACY_REQUEST_CREATE = "privacy_request.create"
+    PRIVACY_REQUEST_LIST = "privacy_request.list"
+    PRIVACY_REQUEST_DECIDE = "privacy_request.decide"
+    PRIVACY_REQUEST_EXECUTE = "privacy_request.execute"
     REVIEW_RESOLVE = "review.resolve"
     INTERPRETATION_AUTHOR = "interpretation.author"
     REPORT_DRAFT = "report.draft"
@@ -65,6 +72,17 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.MEMBER_LIST: frozenset({Role.OWNER}),
     Action.MEMBER_ROLE_CHANGE: frozenset({Role.OWNER}),
     Action.MEMBER_REMOVE: frozenset({Role.OWNER}),
+    # Erasure two-person gate. Requesting (and cancelling one's own request) is owner-only,
+    # like the other tenant-administration actions. Deciding is medical-director-only — the
+    # governance tier, deliberately a DIFFERENT role than the requester so no single person can
+    # both request and approve an irreversible erasure. Executing an approved request is allowed
+    # to either administrative principal (owner or medical director).
+    Action.PRIVACY_REQUEST_CREATE: frozenset({Role.OWNER}),
+    # Both gate tiers see the queue: the owner tracks their requests, the medical director
+    # decides them.
+    Action.PRIVACY_REQUEST_LIST: frozenset({Role.OWNER, Role.MEDICAL_DIRECTOR}),
+    Action.PRIVACY_REQUEST_DECIDE: frozenset({Role.MEDICAL_DIRECTOR}),
+    Action.PRIVACY_REQUEST_EXECUTE: frozenset({Role.OWNER, Role.MEDICAL_DIRECTOR}),
     # Review-queue resolution is a clinical judgement (WORKFLOW §2.2/§2.4: the
     # assistant triages the queue but may not resolve clinically).
     Action.REVIEW_RESOLVE: frozenset({Role.CLINICIAN}),
