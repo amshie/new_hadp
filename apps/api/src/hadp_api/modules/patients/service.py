@@ -71,8 +71,11 @@ def find_duplicate_candidates(
     name_norm = _normalize_name(display_name)
     ref_norm = external_ref.strip() if external_ref and external_ref.strip() else None
     candidates: list[DuplicateCandidate] = []
+    # Tombstoned (erased) patients carry no identity and must never match a new patient.
     rows = db.execute(
-        select(Patient).where(Patient.tenant_id == tenant_id).order_by(Patient.created_at)
+        select(Patient)
+        .where(Patient.tenant_id == tenant_id, Patient.erased_at.is_(None))
+        .order_by(Patient.created_at)
     ).scalars()
     for row in rows:
         basis: DuplicateMatchBasis | None = None
@@ -105,9 +108,12 @@ def find_duplicate_candidates(
 
 def list_patients(db: Session, tenant_id: uuid.UUID) -> list[Patient]:
     # tenant_id is redundant with RLS but kept explicit so the scope is obvious at call sites.
+    # Erased (tombstoned) patients are hidden from the directory listing.
     return list(
         db.execute(
-            select(Patient).where(Patient.tenant_id == tenant_id).order_by(Patient.created_at)
+            select(Patient)
+            .where(Patient.tenant_id == tenant_id, Patient.erased_at.is_(None))
+            .order_by(Patient.created_at)
         )
         .scalars()
         .all()

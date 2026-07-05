@@ -995,6 +995,50 @@
         }
       }
     },
+    "/api/v1/deletion-requests/{request_id}/execute": {
+      "post": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "Execute Deletion Request",
+        "description": "Irreversibly erase the patient of an APPROVED request (gated tombstone).\n\nThe DB work (anonymize the patient, hard-delete PII artifacts, withdraw consents, redact\nthe append-only interpretation free text) runs in this request's single transaction. We\ncommit it, then purge object storage AFTER commit \u2014 an S3 delete is not transactional, so\nit must not run before the DB is durable, and it is idempotent/re-runnable if it fails.",
+        "operationId": "execute_deletion_request_api_v1_deletion_requests__request_id__execute_post",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/deletion-requests/{request_id}/cancel": {
       "post": {
         "tags": [
@@ -2976,6 +3020,11 @@
           "is_synthetic": {
             "type": "boolean",
             "title": "Is Synthetic"
+          },
+          "erased": {
+            "type": "boolean",
+            "title": "Erased",
+            "default": false
           }
         },
         "type": "object",

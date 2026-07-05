@@ -27,6 +27,8 @@ export interface DetailView {
   completeness: Completeness;
   // Link to the authoritative review surface (where approve/release live); null if no report.
   reportLink: string | null;
+  // True once a gated erasure has tombstoned this record (identity blanked, artifacts deleted).
+  erased: boolean;
 }
 
 export function dataCompleteness(points: TimelinePoint[]): Completeness {
@@ -61,5 +63,6 @@ export function presentDetail(
     reportLink: report.report_id
       ? `/patients/${patient.id}/assessments/${report.report_id}`
       : null,
+    erased: patient.erased === true,
   };
 }

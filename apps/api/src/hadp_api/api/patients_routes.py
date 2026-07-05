@@ -90,6 +90,8 @@ class PatientOut(BaseModel):
     external_ref: str | None
     date_of_birth: date | None
     is_synthetic: bool
+    # True once a gated erasure has tombstoned (anonymized) this record.
+    erased: bool = False
 
 
 class DuplicateCheckRequest(BaseModel):
@@ -129,6 +131,7 @@ def _to_out(patient: object) -> PatientOut:
         external_ref=p.external_ref,  # type: ignore[attr-defined]
         date_of_birth=p.date_of_birth,  # type: ignore[attr-defined]
         is_synthetic=p.is_synthetic,  # type: ignore[attr-defined]
+        erased=p.erased_at is not None,  # type: ignore[attr-defined]
     )
 
 

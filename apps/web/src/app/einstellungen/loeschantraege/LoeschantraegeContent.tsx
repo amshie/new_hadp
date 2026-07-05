@@ -8,6 +8,7 @@ import type { DeletionRequestView } from "@/lib/api";
 import {
   approveDeletionAction,
   cancelDeletionAction,
+  executeDeletionAction,
   rejectDeletionAction,
 } from "./actions";
 
@@ -155,16 +156,41 @@ export function LoeschantraegeContent({
                   >
                     {sm.label}
                   </span>
-                  {r.status === "approved" && (
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        color: "var(--text-muted, #5b6b70)",
-                      }}
-                    >
-                      Ausführung ausstehend
-                    </span>
-                  )}
+                  {r.status === "approved" &&
+                    (isMedicalDirector || isOwner ? (
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() =>
+                          act(
+                            executeDeletionAction,
+                            r.id,
+                            `Daten von „${r.patient_display_name}" jetzt endgültig und unwiderruflich löschen? Der Datensatz wird anonymisiert; abgeleitete Daten, Dokumente und Berichte werden gelöscht. Dies kann nicht rückgängig gemacht werden.`,
+                          )
+                        }
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: "8px",
+                          border: "1px solid #b3261e",
+                          background: "#b3261e",
+                          color: "#fff",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                          cursor: pending ? "wait" : "pointer",
+                        }}
+                      >
+                        Endgültig löschen
+                      </button>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          color: "var(--text-muted, #5b6b70)",
+                        }}
+                      >
+                        Ausführung ausstehend
+                      </span>
+                    ))}
                   {canDecide && (
                     <>
                       <button

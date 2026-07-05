@@ -1,6 +1,6 @@
 # 0012 — Patient erasure: DeletionRequest gate + gated tombstone
 
-Date: 2026-07-05 · Status: **PR A shipped (request lifecycle); PR B planned (execution).**
+Date: 2026-07-05 · Status: **PR A shipped (request lifecycle); PR B shipped (execution).**
 
 Answers the question "who can delete a patient?" — which, before this work, was _nobody_,
 because the DB actively blocks it. This note records why erasure must be a **tombstone**, not
@@ -40,31 +40,37 @@ enums. This satisfies GDPR data-minimization without violating the immutability 
   deletes nothing) and an owner + medical-director queue at
   `/einstellungen/loeschantraege` (approve / reject / withdraw).
 
-## PR B — the erasure engine (planned)
+## PR B — the erasure engine (shipped)
 
 `POST /deletion-requests/{id}/execute` (owner or medical director) consumes an **approved**
-request in one request transaction:
+request in one request transaction (guards: approved-only, not-already-erased, tenant-scoped):
 
-1. Append a `WITHDRAWN` consent event for each currently-active purpose (reuses
-   `consents.withdraw_consent`, which also revokes live report links for `report_release`).
-2. Revoke open invitations; revoke any remaining patient access links.
-3. Hard-delete PII-bearing child artifacts (observations, imports/review-items, documents
-   rows, reports + versions/statements/evidence). These tables carry app DML (no trigger).
-4. **Redact** free-text rationale on the append-only interpretation tables to NULL. Because
-   those tables have `REVOKE UPDATE` + an unconditional trigger, this needs a **GUC-gated
-   redaction path** added in a **separate migration 0016** (a `SECURITY DEFINER` scrub
-   function + a trigger change that permits _only_ a rationale→NULL redaction when an
-   `app.erasure` GUC is set — never a general update/delete). This is the one immutability-
-   adjacent change; it is isolated to PR B and reviewed alongside the engine. **consent_events
-   and audit_events triggers are never touched.**
-5. Tombstone the patient row: blank `display_name` (placeholder), NULL `date_of_birth` /
+1. **Gated append-only work** via the `SECURITY DEFINER` primitive
+   `hadp_execute_patient_erasure(tenant, patient)` (migration 0016): delete the append-only
+   `observation_derivation` lineage that references the patient's observations (else the
+   observations delete would cascade into it and its trigger would abort), and redact the
+   free text on the append-only interpretation tables (`interpretation_runs.reason` →
+   `[erased]`, `domain_axis_interpretations.rationale` / `tri_state_cells.rationale` → NULL).
+   This is the ONE immutability-adjacent change: migration 0016 adds a single guarded branch to
+   the interpretation trigger (permit UPDATE only) and the derivation trigger (permit DELETE
+   only), active solely while a transaction-local `app.erasure` GUC — set nowhere but inside
+   this SECURITY DEFINER function — is `on`. Verdicts are never altered, interpretation rows
+   are never deleted, and **consent_events / audit_events triggers are never touched.** A test
+   asserts consent immutability still holds after an erasure.
+2. Append a `WITHDRAWN` consent event for each currently-active purpose (reuses
+   `consents.withdraw_consent`, which also revokes live report links for `report_release`);
+   revoke open invitations.
+3. Hard-delete PII-bearing child artifacts (reports → versions/evidence/access-links,
+   observations, import jobs → rows/review-items, source-document rows). These tables carry app
+   DML (no trigger); DB FK cascades handle the children.
+4. Tombstone the patient row: blank `display_name` (placeholder), NULL `date_of_birth` /
    `external_ref`, set `erased_at`. Directory/worklist/duplicate-probe filter out `erased_at`;
    the detail page shows a tombstone banner instead of 404 (audit links stay resolvable).
-6. Record a **count-only** `erasure_manifest` (per-artifact-type counts, never identifiers)
+5. Record a **count-only** `erasure_manifest` (per-artifact-type counts, never identifiers)
    and audit `privacy.erasure_executed`.
-7. After commit, purge the source-document objects from storage (S3-delete is not
+6. After commit, purge the source-document objects from storage (S3-delete is not
    transactional — keys are collected pre-commit and purged idempotently after; a partial
-   failure is its own audit event).
+   failure is logged + audited `privacy.erasure_storage_incomplete`, never fatal).
 
 ## Open gates (Counsel / DPO — not engineering defaults)
 

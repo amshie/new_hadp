@@ -19,6 +19,9 @@ class BlobStore(Protocol):
 
     def exists(self, key: str) -> bool: ...
 
+    # Idempotent: deleting a missing key is a no-op (GDPR erasure purge; re-runnable).
+    def delete(self, key: str) -> None: ...
+
 
 class InMemoryBlobStore:
     """Process-local fake for tests. Not for production use."""
@@ -34,6 +37,9 @@ class InMemoryBlobStore:
 
     def exists(self, key: str) -> bool:
         return key in self._store
+
+    def delete(self, key: str) -> None:
+        self._store.pop(key, None)
 
 
 class S3BlobStore:
@@ -67,6 +73,11 @@ class S3BlobStore:
             return True
         except ClientError:
             return False
+
+    def delete(self, key: str) -> None:
+        # S3 delete_object is idempotent (deleting a missing key succeeds), which suits the
+        # re-runnable erasure purge.
+        self._client.delete_object(Bucket=self._bucket, Key=key)
 
 
 _in_memory_singleton: InMemoryBlobStore | None = None
