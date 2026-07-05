@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, ForeignKey, String
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,3 +26,6 @@ class Patient(UUIDPrimaryKey, TimestampCreated, Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     is_synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Set when a gated erasure has anonymized this row (tombstone). Non-null means the patient
+    # is erased: identity fields are blanked and it is hidden from directory/worklist listings.
+    erased_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

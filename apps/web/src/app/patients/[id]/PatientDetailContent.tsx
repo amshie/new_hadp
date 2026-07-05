@@ -9,7 +9,11 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
-import { createInvitationAction } from "@/app/patients/actions";
+import {
+  createInvitationAction,
+  requestPatientDeletion,
+} from "@/app/patients/actions";
+import type { DeletionReason } from "@/lib/api";
 import { Dialog } from "@/components/vitabahn/Dialog";
 import { clickable } from "@/components/vitabahn/interactive";
 import { lageLabel } from "@/lib/lageCopy";
@@ -275,6 +279,29 @@ export function PatientDetailContent({
     sessionRole === "owner" ||
     sessionRole === "clinician" ||
     sessionRole === "assistant";
+  // Requesting erasure is tenant administration (owner). It only FILES a request; a medical
+  // director decides it, and execution is separate — nothing is deleted here.
+  const canRequestDeletion = sessionRole === "owner";
+
+  const [deletionState, setDeletionState] = useState<
+    { phase: "confirm" } | { phase: "done" } | null
+  >(null);
+  const [deletionReason, setDeletionReason] =
+    useState<DeletionReason>("patient_request");
+  const [deletionError, setDeletionError] = useState<string | null>(null);
+  const [deletionPending, startDeletionTransition] = useTransition();
+  const closeDeletion = () => {
+    setDeletionState(null);
+    setDeletionError(null);
+  };
+  const runDeletion = () => {
+    startDeletionTransition(async () => {
+      setDeletionError(null);
+      const res = await requestPatientDeletion(view.patientId, deletionReason);
+      if (res.ok) setDeletionState({ phase: "done" });
+      else setDeletionError(res.error);
+    });
+  };
 
   // Invitation dialog (P3): the one-time URL renders exactly once, for manual sharing.
   const [inviteState, setInviteState] = useState<
@@ -557,6 +584,32 @@ export function PatientDetailContent({
                 >
                   Patient einladen
                 </button>
+                {canRequestDeletion && (
+                  <button
+                    type="button"
+                    disabled={deletionPending}
+                    onClick={() => {
+                      setDeletionError(null);
+                      setDeletionReason("patient_request");
+                      setDeletionState({ phase: "confirm" });
+                    }}
+                    style={{
+                      height: "38px",
+                      padding: "0 15px",
+                      whiteSpace: "nowrap",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid rgba(165,72,64,0.45)",
+                      background: "transparent",
+                      color: "var(--rose-500)",
+                      fontFamily: "var(--font-text)",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Löschung beantragen
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1518,6 +1571,220 @@ export function PatientDetailContent({
               {lageLabel(openMarker.lagePosition).sentence}.
             </p>
           </div>
+        </Dialog>
+      )}
+
+      {deletionState && (
+        <Dialog
+          onClose={closeDeletion}
+          labelledBy="del-title"
+          describedBy="del-desc"
+          backdropStyle={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 60,
+            background: "rgba(15,23,28,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+          }}
+          dialogStyle={{
+            width: "100%",
+            maxWidth: "440px",
+            background: "var(--surface-card)",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-lg)",
+            padding: "24px",
+          }}
+        >
+          {deletionState.phase === "done" ? (
+            <div>
+              <h2
+                id="del-title"
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 700,
+                  fontSize: "var(--text-xl)",
+                  color: "var(--text-strong)",
+                  margin: "0 0 6px",
+                }}
+              >
+                Löschantrag gestellt
+              </h2>
+              <p
+                id="del-desc"
+                style={{
+                  fontSize: "13px",
+                  color: "var(--text-muted)",
+                  lineHeight: 1.55,
+                  margin: "0 0 18px",
+                }}
+              >
+                Die Ärztliche Leitung prüft den Antrag (Vier-Augen-Prinzip). Bis
+                zur Freigabe und gesonderten Ausführung bleibt der Datensatz
+                unverändert. Sie finden den Antrag unter Einstellungen →
+                Löschanträge.
+              </p>
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={closeDeletion}
+                  style={{
+                    height: "38px",
+                    padding: "0 18px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--brand-border)",
+                    background: "var(--brand)",
+                    color: "var(--text-on-brand)",
+                    fontFamily: "var(--font-text)",
+                    fontSize: "13.5px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Schließen
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <h2
+                id="del-title"
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 700,
+                  fontSize: "var(--text-xl)",
+                  color: "var(--text-strong)",
+                  margin: "0 0 6px",
+                }}
+              >
+                Löschung beantragen
+              </h2>
+              <p
+                id="del-desc"
+                style={{
+                  fontSize: "12.5px",
+                  color: "var(--text-muted)",
+                  lineHeight: 1.55,
+                  margin: "0 0 16px",
+                }}
+              >
+                Dies stellt einen Antrag auf endgültige Löschung der Daten von{" "}
+                <strong style={{ color: "var(--text-strong)" }}>
+                  {review.patientName}
+                </strong>
+                . Es wird nichts sofort gelöscht — die Ärztliche Leitung muss
+                den Antrag freigeben (Vier-Augen-Prinzip), die Ausführung
+                erfolgt gesondert und ist unwiderruflich.
+              </p>
+              <label
+                htmlFor="del-reason"
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color: "var(--text-body)",
+                  marginBottom: "5px",
+                }}
+              >
+                Grund
+              </label>
+              <select
+                id="del-reason"
+                value={deletionReason}
+                onChange={(e) =>
+                  setDeletionReason(e.target.value as DeletionReason)
+                }
+                style={{
+                  width: "100%",
+                  height: "38px",
+                  padding: "0 10px",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border-default)",
+                  background: "var(--surface-sunken)",
+                  color: "var(--text-strong)",
+                  fontFamily: "var(--font-text)",
+                  fontSize: "13.5px",
+                  marginBottom: "16px",
+                }}
+              >
+                <option value="patient_request">
+                  Betroffenenanfrage (Art. 17)
+                </option>
+                <option value="withdrawn_consent">
+                  Einwilligung widerrufen
+                </option>
+                <option value="data_minimization">Datenminimierung</option>
+              </select>
+
+              {deletionError && (
+                <div
+                  role="alert"
+                  style={{
+                    fontSize: "12.5px",
+                    color: "var(--rose-500)",
+                    background: "rgba(194,74,74,0.10)",
+                    border: "1px solid rgba(194,74,74,0.30)",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "9px 12px",
+                    marginBottom: "14px",
+                  }}
+                >
+                  {deletionError}
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "10px",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={closeDeletion}
+                  disabled={deletionPending}
+                  style={{
+                    height: "38px",
+                    padding: "0 16px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--border-default)",
+                    background: "transparent",
+                    color: "var(--text-body)",
+                    fontFamily: "var(--font-text)",
+                    fontSize: "13.5px",
+                    fontWeight: 600,
+                    cursor: deletionPending ? "default" : "pointer",
+                  }}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="button"
+                  onClick={runDeletion}
+                  disabled={deletionPending}
+                  style={{
+                    height: "38px",
+                    padding: "0 18px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid rgba(165,72,64,0.5)",
+                    background: "rgba(194,74,74,0.10)",
+                    color: "var(--rose-500)",
+                    fontFamily: "var(--font-text)",
+                    fontSize: "13.5px",
+                    fontWeight: 600,
+                    cursor: deletionPending ? "default" : "pointer",
+                    opacity: deletionPending ? 0.7 : 1,
+                  }}
+                >
+                  {deletionPending ? "Wird beantragt …" : "Löschung beantragen"}
+                </button>
+              </div>
+            </div>
+          )}
         </Dialog>
       )}
     </>

@@ -322,6 +322,39 @@ export const removeMember = (membershipId: string) =>
     method: "DELETE",
   });
 
+// Patient erasure requests (GDPR Art. 17) — the two-person gate lifecycle. Server-side
+// authorization is the control: create/cancel are owner-only, decide is medical-director-only,
+// list is owner + medical director. Execution is a separate (not-yet-wired) capability.
+export type DeletionRequestView = Schemas["DeletionRequestOut"];
+export type DeletionReason =
+  Schemas["DeletionRequestCreateIn"]["reason_category"];
+
+export const createDeletionRequest = (
+  patientId: string,
+  reason_category: DeletionReason,
+) =>
+  request<DeletionRequestView>(
+    `/api/v1/patients/${patientId}/deletion-requests`,
+    { method: "POST", body: JSON.stringify({ reason_category }) },
+  );
+export const listDeletionRequests = () =>
+  request<DeletionRequestView[]>("/api/v1/deletion-requests");
+export const approveDeletionRequest = (requestId: string) =>
+  request<DeletionRequestView>(
+    `/api/v1/deletion-requests/${requestId}/approve`,
+    { method: "POST" },
+  );
+export const rejectDeletionRequest = (requestId: string) =>
+  request<DeletionRequestView>(
+    `/api/v1/deletion-requests/${requestId}/reject`,
+    { method: "POST" },
+  );
+export const cancelDeletionRequest = (requestId: string) =>
+  request<DeletionRequestView>(
+    `/api/v1/deletion-requests/${requestId}/cancel`,
+    { method: "POST" },
+  );
+
 export const redeemStaffInvitation = (input: {
   tenant: string;
   token: string;

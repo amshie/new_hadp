@@ -831,6 +831,213 @@
         }
       }
     },
+    "/api/v1/patients/{patient_id}/deletion-requests": {
+      "post": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "Create Deletion Request",
+        "operationId": "create_deletion_request_api_v1_patients__patient_id__deletion_requests_post",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeletionRequestCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deletion-requests": {
+      "get": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "List Deletion Requests",
+        "operationId": "list_deletion_requests_api_v1_deletion_requests_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DeletionRequestOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Deletion Requests Api V1 Deletion Requests Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deletion-requests/{request_id}/approve": {
+      "post": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "Approve Deletion Request",
+        "operationId": "approve_deletion_request_api_v1_deletion_requests__request_id__approve_post",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deletion-requests/{request_id}/reject": {
+      "post": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "Reject Deletion Request",
+        "operationId": "reject_deletion_request_api_v1_deletion_requests__request_id__reject_post",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deletion-requests/{request_id}/cancel": {
+      "post": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "Cancel Deletion Request",
+        "operationId": "cancel_deletion_request_api_v1_deletion_requests__request_id__cancel_post",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/worklist": {
       "get": {
         "tags": [
@@ -1847,6 +2054,123 @@
           "display_name"
         ],
         "title": "CreatePatientRequest"
+      },
+      "DeletionReasonCategory": {
+        "type": "string",
+        "enum": [
+          "patient_request",
+          "withdrawn_consent",
+          "data_minimization"
+        ],
+        "title": "DeletionReasonCategory",
+        "description": "Why an erasure is requested \u2014 a CLOSED vocabulary, never free text.\n\nSYNTHETIC-ALPHA PLACEHOLDER values (like ConsentPurpose): the real, counsel-authored\nerasure-basis taxonomy \u2014 and the balance against clinical retention duties (e.g.\n\u00a7 630f BGB / Art. 17(3) exemptions) \u2014 is a pending DPO/counsel deliverable. A closed\nenum (not free text) so the request itself can never carry PII."
+      },
+      "DeletionRequestCreateIn": {
+        "properties": {
+          "reason_category": {
+            "$ref": "#/components/schemas/DeletionReasonCategory"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason_category"
+        ],
+        "title": "DeletionRequestCreateIn"
+      },
+      "DeletionRequestOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "patient_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Patient Id"
+          },
+          "patient_display_name": {
+            "type": "string",
+            "title": "Patient Display Name"
+          },
+          "patient_erased": {
+            "type": "boolean",
+            "title": "Patient Erased"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "reason_category": {
+            "type": "string",
+            "title": "Reason Category"
+          },
+          "requested_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By User Id"
+          },
+          "requested_at": {
+            "type": "string",
+            "title": "Requested At"
+          },
+          "decided_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By User Id"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "executed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Executed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "patient_id",
+          "patient_display_name",
+          "patient_erased",
+          "status",
+          "reason_category",
+          "requested_by_user_id",
+          "requested_at",
+          "decided_by_user_id",
+          "decided_at",
+          "executed_at"
+        ],
+        "title": "DeletionRequestOut"
       },
       "DevLoginRequest": {
         "properties": {
