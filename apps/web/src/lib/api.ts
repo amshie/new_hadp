@@ -4,6 +4,9 @@ import type { components } from "@hadp/api-client";
 
 type Schemas = components["schemas"];
 export type Patient = Schemas["PatientOut"];
+export type CreatePatientInput = Schemas["CreatePatientRequest"];
+export type DuplicateCheck = Schemas["DuplicateCheckOut"];
+export type DuplicateCandidate = Schemas["DuplicateCandidateOut"];
 export type TimelinePoint = Schemas["TimelinePointOut"];
 export type Me = Schemas["MeResponse"];
 export type TenantMembership = Schemas["TenantMembershipOut"];
@@ -197,12 +200,16 @@ export const selectTenant = (tenant_id: string) =>
   });
 
 export const listPatients = () => request<Patient[]>("/api/v1/patients");
-export const createPatient = (input: {
-  display_name: string;
-  external_ref?: string | null;
-  date_of_birth?: string | null;
-}) =>
+export const createPatient = (input: CreatePatientInput) =>
   request<Patient>("/api/v1/patients", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+
+// POST, not GET: identity details travel in the body so they never land in a query
+// string, browser history, or an access log (same rule as the patient-view token).
+export const checkDuplicates = (input: Schemas["DuplicateCheckRequest"]) =>
+  request<DuplicateCheck>("/api/v1/patients/duplicate-check", {
     method: "POST",
     body: JSON.stringify(input),
   });

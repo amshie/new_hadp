@@ -169,6 +169,48 @@
         }
       }
     },
+    "/api/v1/patients/duplicate-check": {
+      "post": {
+        "tags": [
+          "patients"
+        ],
+        "summary": "Duplicate Check",
+        "description": "Probe THIS tenant for likely-duplicate patients before creating one.\n\nRead-only and tenant-scoped (explicit filter + RLS): an identical patient in another\ntenant is invisible by construction. Audited with the candidate COUNT only \u2014 the\naudit service's forbidden-key guard rejects names outright.",
+        "operationId": "duplicate_check_api_v1_patients_duplicate_check_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DuplicateCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateCheckOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/patients": {
       "get": {
         "tags": [
@@ -198,6 +240,7 @@
           "patients"
         ],
         "summary": "Create Patient",
+        "description": "Create a synthetic patient; optionally record onboarding consents atomically.\n\nDuplicate guard: a STRONG candidate (same external_ref, or same normalized name +\ndate of birth in this tenant) rejects the create with 409 `duplicate_patient` unless\nthe client passes `allow_duplicate=true` after showing the candidates to the user \u2014\na duplicate can be created deliberately, never silently. Weak (name-only) matches\nnever block. The 409 rolls the transaction back; nothing persists for a rejected\nattempt.",
         "operationId": "create_patient_api_v1_patients_post",
         "requestBody": {
           "content": {
@@ -1668,6 +1711,26 @@
         ],
         "title": "ConsentEventOut"
       },
+      "ConsentGrantIn": {
+        "properties": {
+          "purpose": {
+            "$ref": "#/components/schemas/ConsentPurpose"
+          },
+          "channel": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Channel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "purpose",
+          "channel"
+        ],
+        "title": "ConsentGrantIn",
+        "description": "A consent granted at onboarding, recorded by the creating staff member.\n\nPurposes are the existing CLOSED vocabulary (synthetic-Alpha placeholders pending the\nDPO/counsel taxonomy) \u2014 onboarding never invents one."
+      },
       "ConsentIn": {
         "properties": {
           "purpose": {
@@ -1765,6 +1828,18 @@
               }
             ],
             "title": "Date Of Birth"
+          },
+          "consents": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentGrantIn"
+            },
+            "type": "array",
+            "title": "Consents"
+          },
+          "allow_duplicate": {
+            "type": "boolean",
+            "title": "Allow Duplicate",
+            "default": false
           }
         },
         "type": "object",
@@ -1965,6 +2040,124 @@
           "cells"
         ],
         "title": "DomainVerdictOut"
+      },
+      "DuplicateCandidateOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "external_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Ref"
+          },
+          "date_of_birth": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Of Birth"
+          },
+          "match_basis": {
+            "$ref": "#/components/schemas/DuplicateMatchBasis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "external_ref",
+          "date_of_birth",
+          "match_basis"
+        ],
+        "title": "DuplicateCandidateOut"
+      },
+      "DuplicateCheckOut": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/DuplicateCandidateOut"
+            },
+            "type": "array",
+            "title": "Candidates"
+          },
+          "has_strong_match": {
+            "type": "boolean",
+            "title": "Has Strong Match"
+          }
+        },
+        "type": "object",
+        "required": [
+          "candidates",
+          "has_strong_match"
+        ],
+        "title": "DuplicateCheckOut"
+      },
+      "DuplicateCheckRequest": {
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name"
+          },
+          "date_of_birth": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Of Birth"
+          },
+          "external_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Ref"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_name"
+        ],
+        "title": "DuplicateCheckRequest"
+      },
+      "DuplicateMatchBasis": {
+        "type": "string",
+        "enum": [
+          "external_ref",
+          "name_dob",
+          "name"
+        ],
+        "title": "DuplicateMatchBasis",
+        "description": "How an existing patient matched a pre-create duplicate probe \u2014 a CLOSED vocabulary.\n\nResponse-only (never stored in a column, so no CHECK-constraint migration). The matching\nheuristic is deliberately conservative and documented (docs/notes/0011): exact matches on\nnormalized fields only, never fuzzy similarity \u2014 an over-eager matcher would train staff\nto click through the warning."
       },
       "EditReportRequest": {
         "properties": {
