@@ -99,6 +99,20 @@ class ConsentEventType(str, Enum):
     WITHDRAWN = "withdrawn"
 
 
+class DuplicateMatchBasis(str, Enum):
+    """How an existing patient matched a pre-create duplicate probe — a CLOSED vocabulary.
+
+    Response-only (never stored in a column, so no CHECK-constraint migration). The matching
+    heuristic is deliberately conservative and documented (docs/notes/0011): exact matches on
+    normalized fields only, never fuzzy similarity — an over-eager matcher would train staff
+    to click through the warning.
+    """
+
+    EXTERNAL_REF = "external_ref"  # same clinic-assigned reference (strong)
+    NAME_DOB = "name_dob"  # same normalized name AND same date of birth (strong)
+    NAME = "name"  # same normalized name only (weak — surfaced, never blocking)
+
+
 class ConsentPurpose(str, Enum):
     """Purpose a consent event scopes — a CLOSED vocabulary.
 

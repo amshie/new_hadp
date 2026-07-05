@@ -61,6 +61,17 @@ class IntendedUseViolation(AppError):
     http_status = 409
 
 
+class DuplicatePatient(AppError):
+    """Raised when creating a patient would silently duplicate an existing record.
+
+    The client resolves it by opening the existing record or re-submitting with an
+    explicit `allow_duplicate` override — never by the server guessing.
+    """
+
+    code = "duplicate_patient"
+    http_status = 409
+
+
 async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.http_status,
