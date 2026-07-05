@@ -325,7 +325,7 @@ export function VitaShell({
           />
           <NavItem
             active={nav === "einstellungen"}
-            onClick={() => router.push("/einstellungen/mitglieder")}
+            onClick={() => router.push("/einstellungen")}
             icon={stroke(
               <>
                 <circle cx="12" cy="12" r="3" />
