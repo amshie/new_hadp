@@ -322,6 +322,36 @@ export const removeMember = (membershipId: string) =>
     method: "DELETE",
   });
 
+// Per-tenant KPI configuration (owner-only server-side): view the global catalog with THIS
+// clinic's effective settings, toggle enable/visibility, or reset a KPI to the catalog default.
+// The global catalog is never mutated — only this tenant's override rows.
+export type KpiConfig = Schemas["KpiConfigOut"];
+export type KpiConfigUpdate = Schemas["KpiConfigUpdateIn"];
+export const listKpiConfig = () => request<KpiConfig[]>("/api/v1/kpi-config");
+export const updateKpiConfig = (kpiCode: string, body: KpiConfigUpdate) =>
+  request<KpiConfig>(`/api/v1/kpi-config/${encodeURIComponent(kpiCode)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+export const resetKpiConfig = (kpiCode: string) =>
+  request<KpiConfig>(`/api/v1/kpi-config/${encodeURIComponent(kpiCode)}`, {
+    method: "DELETE",
+  });
+
+// Clinic-defined reference interval per KPI (fallback-only, position-only). Decimals travel as
+// strings to preserve exactness; the unit is fixed server-side to the KPI's canonical unit.
+export type KpiReferenceInput = Schemas["KpiReferenceIn"];
+export const setKpiReference = (kpiCode: string, body: KpiReferenceInput) =>
+  request<KpiConfig>(
+    `/api/v1/kpi-config/${encodeURIComponent(kpiCode)}/reference`,
+    { method: "PUT", body: JSON.stringify(body) },
+  );
+export const clearKpiReference = (kpiCode: string) =>
+  request<KpiConfig>(
+    `/api/v1/kpi-config/${encodeURIComponent(kpiCode)}/reference`,
+    { method: "DELETE" },
+  );
+
 // Patient erasure requests (GDPR Art. 17) — the two-person gate lifecycle. Server-side
 // authorization is the control: create/cancel are owner-only, decide is medical-director-only,
 // list is owner + medical director. Execution is a separate (not-yet-wired) capability.

@@ -831,6 +831,215 @@
         }
       }
     },
+    "/api/v1/kpi-config": {
+      "get": {
+        "tags": [
+          "kpi-config"
+        ],
+        "summary": "List Kpi Config",
+        "operationId": "list_kpi_config_api_v1_kpi_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/KpiConfigOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Kpi Config Api V1 Kpi Config Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kpi-config/{kpi_code}": {
+      "patch": {
+        "tags": [
+          "kpi-config"
+        ],
+        "summary": "Update Kpi Config",
+        "operationId": "update_kpi_config_api_v1_kpi_config__kpi_code__patch",
+        "parameters": [
+          {
+            "name": "kpi_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kpi Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KpiConfigUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KpiConfigOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "kpi-config"
+        ],
+        "summary": "Reset Kpi Config",
+        "operationId": "reset_kpi_config_api_v1_kpi_config__kpi_code__delete",
+        "parameters": [
+          {
+            "name": "kpi_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kpi Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KpiConfigOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/kpi-config/{kpi_code}/reference": {
+      "put": {
+        "tags": [
+          "kpi-config"
+        ],
+        "summary": "Set Kpi Reference",
+        "operationId": "set_kpi_reference_api_v1_kpi_config__kpi_code__reference_put",
+        "parameters": [
+          {
+            "name": "kpi_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kpi Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KpiReferenceIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KpiConfigOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "kpi-config"
+        ],
+        "summary": "Clear Kpi Reference",
+        "operationId": "clear_kpi_reference_api_v1_kpi_config__kpi_code__reference_delete",
+        "parameters": [
+          {
+            "name": "kpi_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kpi Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KpiConfigOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/patients/{patient_id}/deletion-requests": {
       "post": {
         "tags": [
@@ -2876,6 +3085,213 @@
         ],
         "title": "InvitationOut"
       },
+      "KpiCatalogTier": {
+        "type": "string",
+        "enum": [
+          "core",
+          "extended",
+          "specialist",
+          "research"
+        ],
+        "title": "KpiCatalogTier"
+      },
+      "KpiConfigOut": {
+        "properties": {
+          "kpi_code": {
+            "type": "string",
+            "title": "Kpi Code"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "primary_domain_axis": {
+            "$ref": "#/components/schemas/DomainAxis"
+          },
+          "tier": {
+            "$ref": "#/components/schemas/KpiCatalogTier"
+          },
+          "measurement_class": {
+            "$ref": "#/components/schemas/KpiMeasurementClass"
+          },
+          "catalog_default_enabled": {
+            "type": "boolean",
+            "title": "Catalog Default Enabled"
+          },
+          "catalog_patient_visible": {
+            "type": "boolean",
+            "title": "Catalog Patient Visible"
+          },
+          "catalog_clinician_visible": {
+            "type": "boolean",
+            "title": "Catalog Clinician Visible"
+          },
+          "effective_enabled": {
+            "type": "boolean",
+            "title": "Effective Enabled"
+          },
+          "effective_patient_visible": {
+            "type": "boolean",
+            "title": "Effective Patient Visible"
+          },
+          "effective_clinician_visible": {
+            "type": "boolean",
+            "title": "Effective Clinician Visible"
+          },
+          "is_overridden": {
+            "type": "boolean",
+            "title": "Is Overridden"
+          },
+          "reference_low": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Low"
+          },
+          "reference_high": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference High"
+          },
+          "reference_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Unit"
+          },
+          "canonical_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonical Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kpi_code",
+          "display_name",
+          "primary_domain_axis",
+          "tier",
+          "measurement_class",
+          "catalog_default_enabled",
+          "catalog_patient_visible",
+          "catalog_clinician_visible",
+          "effective_enabled",
+          "effective_patient_visible",
+          "effective_clinician_visible",
+          "is_overridden",
+          "reference_low",
+          "reference_high",
+          "reference_unit",
+          "canonical_unit"
+        ],
+        "title": "KpiConfigOut"
+      },
+      "KpiConfigUpdateIn": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "patient_visible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patient Visible"
+          },
+          "clinician_visible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clinician Visible"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "KpiConfigUpdateIn"
+      },
+      "KpiMeasurementClass": {
+        "type": "string",
+        "enum": [
+          "laboratory",
+          "vital_sign",
+          "anthropometric",
+          "body_composition",
+          "functional_test",
+          "wearable",
+          "imaging",
+          "derived",
+          "omics"
+        ],
+        "title": "KpiMeasurementClass"
+      },
+      "KpiReferenceIn": {
+        "properties": {
+          "reference_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Reference Low"
+          },
+          "reference_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Reference High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reference_low",
+          "reference_high"
+        ],
+        "title": "KpiReferenceIn"
+      },
       "LoginResponse": {
         "properties": {
           "user": {
@@ -3749,6 +4165,39 @@
               }
             ],
             "title": "Comparability Reason"
+          },
+          "reference_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Source"
+          },
+          "clinic_reference_low": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clinic Reference Low"
+          },
+          "clinic_reference_high": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clinic Reference High"
           }
         },
         "type": "object",
@@ -3769,7 +4218,10 @@
           "kpi_primary_domain",
           "kpi_secondary_domains",
           "comparability",
-          "comparability_reason"
+          "comparability_reason",
+          "reference_source",
+          "clinic_reference_low",
+          "clinic_reference_high"
         ],
         "title": "TimelinePointOut"
       },

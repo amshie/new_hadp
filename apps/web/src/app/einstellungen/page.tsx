@@ -24,6 +24,12 @@ const SECTIONS: {
     roles: ["owner"],
   },
   {
+    href: "/einstellungen/kpi",
+    title: "Kennzahlen",
+    desc: "Festlegen, welche Kennzahlen für Ihre Klinik aktiv und sichtbar sind.",
+    roles: ["owner"],
+  },
+  {
     href: "/einstellungen/loeschantraege",
     title: "Löschanträge",
     desc: "Anträge auf Patientenlöschung prüfen und ausführen (Vier-Augen-Prinzip).",
