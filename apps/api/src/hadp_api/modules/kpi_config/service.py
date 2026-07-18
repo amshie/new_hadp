@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from hadp_api.errors import IntendedUseViolation, NotFound, ValidationFailed
@@ -174,17 +174,26 @@ def set_kpi_config(
     return _row(catalog, setting)
 
 
-def reset_kpi_config(db: Session, *, tenant_id: uuid.UUID, kpi_code: str) -> KpiConfigRow:
-    """Remove this tenant's override for one KPI (idempotent) → back to the catalog default."""
+def reset_kpi_config(
+    db: Session, *, tenant_id: uuid.UUID, kpi_code: str
+) -> tuple[KpiConfigRow, ClinicReference | None]:
+    """Remove this tenant's override for one KPI (idempotent) → back to the catalog default.
+
+    Also returns the clinic reference the deleted row carried (None if it carried none): the row
+    is gone afterwards, so the caller must put those bounds into the audit trail or they are lost.
+    """
     catalog = _get_catalog(db, kpi_code)
-    db.execute(
-        delete(TenantKpiSetting).where(
+    setting = db.execute(
+        select(TenantKpiSetting).where(
             TenantKpiSetting.tenant_id == tenant_id,
             TenantKpiSetting.kpi_code == kpi_code,
         )
-    )
+    ).scalar_one_or_none()
+    previous = _previous_reference(setting)
+    if setting is not None:
+        db.delete(setting)
     db.flush()
-    return _row(catalog, None)
+    return _row(catalog, None), previous
 
 
 def _get_or_create_setting(
@@ -214,6 +223,24 @@ def _get_or_create_setting(
     return setting
 
 
+def _previous_reference(setting: TenantKpiSetting | None) -> ClinicReference | None:
+    """The complete clinic reference a write is about to replace/remove (None = none was set).
+
+    Captured BEFORE mutation so the caller can audit it — the settings row is updated in place,
+    so the audit trail is the only place the replaced interval survives.
+    """
+    if (
+        setting is None
+        or setting.reference_low is None
+        or setting.reference_high is None
+        or setting.reference_unit is None
+    ):
+        return None
+    return ClinicReference(
+        low=setting.reference_low, high=setting.reference_high, unit=setting.reference_unit
+    )
+
+
 def set_kpi_reference(
     db: Session,
     *,
@@ -222,12 +249,13 @@ def set_kpi_reference(
     reference_low: Decimal,
     reference_high: Decimal,
     updated_by_user_id: uuid.UUID,
-) -> KpiConfigRow:
+) -> tuple[KpiConfigRow, ClinicReference | None]:
     """Set this tenant's clinic-defined reference interval for one KPI (in its canonical unit).
 
     A neutral, fallback-only reference: it is applied to the within/above/below marker ONLY when a
     lab result carries no reference of its own and the units match. It is never an "optimal" target
     and never a verdict. Requires a two-sided ordered interval on a KPI that has a canonical unit.
+    Also returns the interval this write replaced (None on first set), for the audit trail.
     """
     catalog = _get_catalog(db, kpi_code)
     unit = catalog.canonical_unit_ucum
@@ -245,19 +273,23 @@ def set_kpi_reference(
         default_enabled=catalog.default_enabled,
         updated_by_user_id=updated_by_user_id,
     )
+    previous = _previous_reference(setting)
     setting.reference_low = reference_low
     setting.reference_high = reference_high
     setting.reference_unit = unit
     setting.updated_by_user_id = updated_by_user_id
     setting.updated_at = datetime.now(UTC)
     db.flush()
-    return _row(catalog, setting)
+    return _row(catalog, setting), previous
 
 
 def clear_kpi_reference(
     db: Session, *, tenant_id: uuid.UUID, kpi_code: str, updated_by_user_id: uuid.UUID
-) -> KpiConfigRow:
-    """Remove this tenant's clinic reference for one KPI (idempotent). Other overrides are kept."""
+) -> tuple[KpiConfigRow, ClinicReference | None]:
+    """Remove this tenant's clinic reference for one KPI (idempotent). Other overrides are kept.
+
+    Also returns the removed interval (None if none was set), for the audit trail.
+    """
     catalog = _get_catalog(db, kpi_code)
     setting = db.execute(
         select(TenantKpiSetting).where(
@@ -265,6 +297,7 @@ def clear_kpi_reference(
             TenantKpiSetting.kpi_code == kpi_code,
         )
     ).scalar_one_or_none()
+    previous = _previous_reference(setting)
     if setting is not None:
         setting.reference_low = None
         setting.reference_high = None
@@ -272,7 +305,7 @@ def clear_kpi_reference(
         setting.updated_by_user_id = updated_by_user_id
         setting.updated_at = datetime.now(UTC)
         db.flush()
-    return _row(catalog, setting)
+    return _row(catalog, setting), previous
 
 
 def clinic_references(db: Session, *, tenant_id: uuid.UUID) -> dict[str, ClinicReference]:

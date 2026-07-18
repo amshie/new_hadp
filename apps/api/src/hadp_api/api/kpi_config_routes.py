@@ -3,7 +3,8 @@ are active and visible for THEIR clinic.
 
 OWNER-only via the deny-by-default matrix (KPI_CONFIG_READ / KPI_CONFIG_WRITE), tenant-scoped
 (explicit filter + RLS). The global KPI catalog is never mutated here — only the tenant's own
-override rows. Writes are audited with KPI codes and booleans only (no PII, no free text).
+override rows. Writes are audited with KPI codes, booleans, and clinic reference bounds only —
+the bounds are clinic CONFIGURATION (tenant thresholds), never patient data; no PII, no free text.
 """
 
 from __future__ import annotations
@@ -81,6 +82,19 @@ def _out(row: kpi_config_service.KpiConfigRow) -> KpiConfigOut:
     )
 
 
+def _previous_reference_detail(
+    previous: kpi_config_service.ClinicReference | None,
+) -> dict[str, str | None]:
+    # The replaced/removed clinic reference as exact-decimal strings (all None = none was set).
+    # Settings rows are mutated/deleted in place, so the audit trail is the only place a
+    # superseded interval survives — without it, past timeline markers lose their inputs.
+    return {
+        "previous_low": None if previous is None else str(previous.low),
+        "previous_high": None if previous is None else str(previous.high),
+        "previous_unit": None if previous is None else previous.unit,
+    }
+
+
 @router.get("/kpi-config", response_model=list[KpiConfigOut])
 def list_kpi_config(
     ctx: TenantContext = Depends(require(Action.KPI_CONFIG_READ)),
@@ -127,7 +141,9 @@ def reset_kpi_config(
     kpi_code: str,
     ctx: TenantContext = Depends(require(Action.KPI_CONFIG_WRITE)),
 ) -> KpiConfigOut:
-    row = kpi_config_service.reset_kpi_config(ctx.db, tenant_id=ctx.tenant_id, kpi_code=kpi_code)
+    row, previous_reference = kpi_config_service.reset_kpi_config(
+        ctx.db, tenant_id=ctx.tenant_id, kpi_code=kpi_code
+    )
     record_audit(
         ctx.db,
         action="kpi_config.reset",
@@ -135,7 +151,8 @@ def reset_kpi_config(
         tenant_id=ctx.tenant_id,
         target_type="kpi_config",
         correlation_id=ctx.correlation_id,
-        detail={"kpi_code": kpi_code},
+        # Reset deletes the override row — record the clinic reference it carried, if any.
+        detail={"kpi_code": kpi_code, **_previous_reference_detail(previous_reference)},
     )
     return _out(row)
 
@@ -146,7 +163,7 @@ def set_kpi_reference(
     body: KpiReferenceIn,
     ctx: TenantContext = Depends(require(Action.KPI_CONFIG_WRITE)),
 ) -> KpiConfigOut:
-    row = kpi_config_service.set_kpi_reference(
+    row, previous_reference = kpi_config_service.set_kpi_reference(
         ctx.db,
         tenant_id=ctx.tenant_id,
         kpi_code=kpi_code,
@@ -161,8 +178,14 @@ def set_kpi_reference(
         tenant_id=ctx.tenant_id,
         target_type="kpi_config",
         correlation_id=ctx.correlation_id,
-        # Catalog code + unit only — the reference bounds are clinic config, not recorded here.
-        detail={"kpi_code": kpi_code, "unit": row.reference_unit},
+        # New AND replaced bounds, so every past fallback marker stays reconstructable.
+        detail={
+            "kpi_code": kpi_code,
+            "unit": row.reference_unit,
+            "low": str(body.reference_low),
+            "high": str(body.reference_high),
+            **_previous_reference_detail(previous_reference),
+        },
     )
     return _out(row)
 
@@ -172,7 +195,7 @@ def clear_kpi_reference(
     kpi_code: str,
     ctx: TenantContext = Depends(require(Action.KPI_CONFIG_WRITE)),
 ) -> KpiConfigOut:
-    row = kpi_config_service.clear_kpi_reference(
+    row, previous_reference = kpi_config_service.clear_kpi_reference(
         ctx.db, tenant_id=ctx.tenant_id, kpi_code=kpi_code, updated_by_user_id=ctx.user.id
     )
     record_audit(
@@ -182,6 +205,6 @@ def clear_kpi_reference(
         tenant_id=ctx.tenant_id,
         target_type="kpi_config",
         correlation_id=ctx.correlation_id,
-        detail={"kpi_code": kpi_code},
+        detail={"kpi_code": kpi_code, **_previous_reference_detail(previous_reference)},
     )
     return _out(row)

@@ -17,6 +17,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from hadp_api.modules.audit.models import AuditEvent
 from hadp_api.modules.enums import ReviewStatus, Role, ValueType
 from hadp_api.modules.kpi.models import KpiCatalog
 from hadp_api.modules.kpi_config.service import ClinicReference
@@ -278,3 +279,84 @@ def test_clinic_reference_drives_timeline_marker(client, admin_session) -> None:
     alt = by[(ALT, "[IU]/L")]
     assert alt["reference_source"] == "laboratory"  # lab reference wins
     assert alt["clinic_reference_low"] is None
+
+
+# --- Audit trail: every reference write records the bounds, new AND replaced, so the interval a
+# --- past marker was computed against stays reconstructable (rows are mutated/deleted in place).
+
+
+def _audit_details(admin_session: Session, tenant_id, action: str) -> list[dict]:  # type: ignore[no-untyped-def]
+    events = (
+        admin_session.execute(
+            select(AuditEvent)
+            .where(AuditEvent.tenant_id == tenant_id, AuditEvent.action == action)
+            .order_by(AuditEvent.created_at)
+        )
+        .scalars()
+        .all()
+    )
+    return [e.detail for e in events]
+
+
+def test_reference_audit_records_bounds_old_and_new(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    _owner, tenant = login_as(
+        client,
+        admin_session,
+        email="kr-audit@synthetic.example",
+        tenant_name="KR AUD",
+        tenant_slug="kr-aud",
+        role=Role.OWNER,
+    )
+    url = f"/api/v1/kpi-config/{HBA1C}/reference"
+    assert client.put(url, json={"reference_low": "4", "reference_high": "6"}).status_code == 200
+    assert (
+        client.put(url, json={"reference_low": "4.5", "reference_high": "6.5"}).status_code == 200
+    )
+    assert client.delete(url).status_code == 200
+
+    assert _audit_details(admin_session, tenant.id, "kpi_config.reference_set") == [
+        {
+            "kpi_code": HBA1C,
+            "unit": "%",
+            "low": "4",
+            "high": "6",
+            "previous_low": None,
+            "previous_high": None,
+            "previous_unit": None,
+        },
+        {
+            "kpi_code": HBA1C,
+            "unit": "%",
+            "low": "4.5",
+            "high": "6.5",
+            "previous_low": "4",
+            "previous_high": "6",
+            "previous_unit": "%",
+        },
+    ]
+    assert _audit_details(admin_session, tenant.id, "kpi_config.reference_cleared") == [
+        {"kpi_code": HBA1C, "previous_low": "4.5", "previous_high": "6.5", "previous_unit": "%"}
+    ]
+
+
+def test_reset_audit_preserves_removed_reference(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    _owner, tenant = login_as(
+        client,
+        admin_session,
+        email="kr-audit-r@synthetic.example",
+        tenant_name="KR AUD R",
+        tenant_slug="kr-aud-r",
+        role=Role.OWNER,
+    )
+    assert (
+        client.put(
+            f"/api/v1/kpi-config/{HBA1C}/reference",
+            json={"reference_low": "4", "reference_high": "6"},
+        ).status_code
+        == 200
+    )
+    # Reset deletes the whole override row — the clinic reference it carried goes with it.
+    assert client.delete(f"/api/v1/kpi-config/{HBA1C}").status_code == 200
+    assert _audit_details(admin_session, tenant.id, "kpi_config.reset") == [
+        {"kpi_code": HBA1C, "previous_low": "4", "previous_high": "6", "previous_unit": "%"}
+    ]
