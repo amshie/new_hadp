@@ -36,7 +36,10 @@ Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
   are **Milestone 1** ingestion work, not the spike. Implement with M1.
 - **`generate_draft` idempotency**: each call creates a new draft Report. Acceptable
   multi-draft behavior for the spike; add a patient-scoped report list + "open draft"
-  reuse when the report UI is built out.
+  reuse when the report UI is built out. **UI guard (2026-10-11):** the patient detail offers
+  "Berichtsentwurf erstellen" only while the patient has no report and otherwise links to the
+  existing one ("Bericht öffnen"), so the UI cannot stack drafts; the API itself is unchanged.
+  Still open: a rejected report has no UI rework path (the edit endpoint has no UI).
 - **Log redaction of short/integer values**: the redactor catches emails, tokens, and
   value-shaped/long numbers, but cannot redact every bare integer without nuking ids.
   The real control is "application code never logs observation values" — enforce by

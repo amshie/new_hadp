@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 
-import { ApiError, approveReport, rejectReport, releaseReport } from "@/lib/api";
+import {
+  ApiError,
+  approveReport,
+  generateReport,
+  rejectReport,
+  releaseReport,
+} from "@/lib/api";
 import { isUuid } from "@/lib/uuid";
 
 // Real Freigabe lifecycle (Gate G2 closed): server-side calls into the governed API.
@@ -40,6 +46,57 @@ function guard(reportId: string, path: string): string | null {
   if (!isUuid(reportId)) return "Ungültige Berichtsreferenz.";
   if (!path.startsWith("/")) return "Ungültiger Pfad.";
   return null;
+}
+
+export type GenerateReportResult =
+  | { ok: true; reviewUrl: string }
+  | { ok: false; error: string };
+
+// Draft generation is the entry into the Freigabe lifecycle: the API builds the
+// source-grounded draft (deterministic provider, evidence-validated, audited) and the
+// caller lands on the review surface. Nothing is approved or released here.
+export async function generateReportAction(
+  patientId: string,
+): Promise<GenerateReportResult> {
+  if (!isUuid(patientId))
+    return { ok: false, error: "Ungültige Patientenreferenz." };
+  try {
+    const report = await generateReport(patientId);
+    if (!isUuid(report.report_id))
+      return {
+        ok: false,
+        error: "Aktion fehlgeschlagen. Bitte erneut versuchen.",
+      };
+    revalidatePath(`/patients/${patientId}`);
+    return {
+      ok: true,
+      reviewUrl: `/patients/${patientId}/assessments/${report.report_id}`,
+    };
+  } catch (e) {
+    if (e instanceof ApiError) {
+      if (e.status === 403)
+        return {
+          ok: false,
+          error: "Diese Aktion ist Ihrer Rolle nicht erlaubt.",
+        };
+      if (e.status === 422)
+        return {
+          ok: false,
+          error:
+            "Kein Entwurf möglich: Es liegen keine veröffentlichten Beobachtungen vor.",
+        };
+      if (e.status === 409)
+        return {
+          ok: false,
+          error:
+            "Kein Entwurf möglich: Nicht jede Aussage ließ sich mit einer Quelle belegen.",
+        };
+    }
+    return {
+      ok: false,
+      error: "Aktion fehlgeschlagen. Bitte erneut versuchen.",
+    };
+  }
 }
 
 export async function approveReportAction(
