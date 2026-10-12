@@ -102,12 +102,12 @@ const queueRow = (page: Page, analyte: string): Locator =>
 const markerRow = (page: Page, analyte: string): Locator =>
   page.getByRole("button", { name: `Marker ${analyte} öffnen` });
 
-// A select of the interpretation form, found by the visible label in front of it. The form's
-// labels are not associated with their controls, so the control has no accessible name to
-// select it by (reported with the slice; apps/web/src is not changed here).
+// A select of the interpretation form, by the name its label gives it. (The labels were not
+// connected to their controls when this suite was written; the selects are found by name
+// since they are — a field that loses its name again fails here.)
 const choose = (scope: Locator, label: string, option: string) =>
   scope
-    .locator(`label:text-is("${label}") + select`)
+    .getByRole("combobox", { name: label, exact: true })
     .selectOption({ label: option });
 
 test("the assistant creates the patient and records the consent to release", async ({
@@ -284,17 +284,24 @@ test("the clinician authors the interpretation run", async ({ browser }) => {
     // follow-up adequacy plus a state and an endpoint adequacy for each of the three cells.
     // One cell is given a state that needs evidence, and cites a published value.
     await page
-      .getByPlaceholder("z. B. Baseline-Interpretation")
+      .getByRole("textbox", { name: "Grund des Runs (Pflicht)" })
       .fill("Synthetische Baseline (E2E)");
     for (const axis of DOMAIN_AXES) {
       const domain = page.getByRole("region", { name: axis, exact: true });
+      // Nine selects per axis — three for the axis, two in each of the three cells — and
+      // every one of them is chosen by its name below; plus the optional rationale.
+      await expect(domain.getByRole("combobox")).toHaveCount(9);
+      await expect(
+        domain.getByRole("textbox", { name: "Begründung (optional)" }),
+      ).toHaveCount(1);
       await choose(domain, "CIS", "CIS-0 · Unzureichende Evidenz");
       await choose(domain, "Actionability", "A · Erkundung");
       await choose(domain, "Follow-up-Adäquanz", "nicht bewertet");
       for (const triState of TRI_STATE_AXES) {
-        const cell = domain.locator(
-          `div:has(> div:text-is("${triState} (bewertungsfrei)"))`,
-        );
+        const cell = domain.getByRole("group", {
+          name: `${triState} (bewertungsfrei)`,
+          exact: true,
+        });
         const cites = axis === "Kardiovaskulär" && triState === "Risk";
         await choose(cell, "Zustand", cites ? "Ungeklärt" : "Unbestimmt");
         await choose(cell, "Endpunkt-Adäquanz", "nicht bewertet");

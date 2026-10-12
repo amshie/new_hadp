@@ -60,11 +60,11 @@ Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
   test — the route smoke and the API tests cover them. A patient's attempt before the release
   cannot be made through the UI at all: the access link exists only once the release has
   issued it.
-  Found while writing it, not changed: the interpretation form's labels are not associated
-  with their controls (`apps/web/src/app/patients/[id]/interpretation/neu/AuthorRunContent.tsx`
-  — `<label>` beside `<select>` without `htmlFor`), so the selects and text fields of the
-  form have no accessible name; the test has to find them by position. That is a WCAG 2.2 AA
-  gap in the primary clinical workflow.
+  Found while writing it: the interpretation form's labels were not associated with their
+  controls (`AuthorRunContent.tsx` — `<label>` beside `<select>` without `htmlFor`), so the
+  selects and text fields of the form had no accessible name — a WCAG 2.2 AA gap in the
+  primary clinical workflow. ✅ Fixed 2026-10-13: every label is bound to its control, each
+  tri-state cell is a named group, and the suite finds the fields by name.
   Found by its first run against the production build: **a form whose submit is handled in
   script submits natively when it is used before React has hydrated it.** The forms have no
   `method` and no `action`, so the browser sends a GET to the same address: the page reloads,

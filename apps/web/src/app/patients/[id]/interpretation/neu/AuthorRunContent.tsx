@@ -306,8 +306,11 @@ export function AuthorRunContent({
       </div>
 
       <div style={cardStyle}>
-        <label style={labelStyle}>Grund des Runs (Pflicht)</label>
+        <label style={labelStyle} htmlFor="run-reason">
+          Grund des Runs (Pflicht)
+        </label>
         <input
+          id="run-reason"
           style={inputStyle}
           value={reason}
           maxLength={200}
@@ -347,8 +350,11 @@ export function AuthorRunContent({
               }}
             >
               <div>
-                <label style={labelStyle}>CIS</label>
+                <label style={labelStyle} htmlFor={`${axis}-cis`}>
+                  CIS
+                </label>
                 <select
+                  id={`${axis}-cis`}
                   style={selectStyle}
                   value={d.cis_status}
                   onChange={(e) =>
@@ -364,8 +370,11 @@ export function AuthorRunContent({
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Actionability</label>
+                <label style={labelStyle} htmlFor={`${axis}-actionability`}>
+                  Actionability
+                </label>
                 <select
+                  id={`${axis}-actionability`}
                   style={selectStyle}
                   value={d.actionability_class}
                   onChange={(e) =>
@@ -381,8 +390,11 @@ export function AuthorRunContent({
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Follow-up-Adäquanz</label>
+                <label style={labelStyle} htmlFor={`${axis}-followup`}>
+                  Follow-up-Adäquanz
+                </label>
                 <select
+                  id={`${axis}-followup`}
                   style={selectStyle}
                   value={d.followup_adequacy}
                   onChange={(e) =>
@@ -399,8 +411,11 @@ export function AuthorRunContent({
               </div>
             </div>
             <div style={{ marginTop: "10px" }}>
-              <label style={labelStyle}>Begründung (optional)</label>
+              <label style={labelStyle} htmlFor={`${axis}-rationale`}>
+                Begründung (optional)
+              </label>
               <input
+                id={`${axis}-rationale`}
                 style={inputStyle}
                 value={d.rationale}
                 maxLength={2000}
@@ -421,6 +436,8 @@ export function AuthorRunContent({
                 return (
                   <div
                     key={tri}
+                    role="group"
+                    aria-labelledby={`${axis}-${tri}-title`}
                     style={{
                       border: "1px solid var(--border-subtle)",
                       borderRadius: "var(--radius-md)",
@@ -428,6 +445,7 @@ export function AuthorRunContent({
                     }}
                   >
                     <div
+                      id={`${axis}-${tri}-title`}
                       style={{
                         fontSize: "12px",
                         fontWeight: 700,
@@ -437,8 +455,11 @@ export function AuthorRunContent({
                     >
                       {TRI_AXIS_LABELS[tri]} (bewertungsfrei)
                     </div>
-                    <label style={labelStyle}>Zustand</label>
+                    <label style={labelStyle} htmlFor={`${axis}-${tri}-state`}>
+                      Zustand
+                    </label>
                     <select
+                      id={`${axis}-${tri}-state`}
                       style={selectStyle}
                       value={c.state}
                       onChange={(e) =>
@@ -452,10 +473,14 @@ export function AuthorRunContent({
                         </option>
                       ))}
                     </select>
-                    <label style={{ ...labelStyle, marginTop: "8px" }}>
+                    <label
+                      style={{ ...labelStyle, marginTop: "8px" }}
+                      htmlFor={`${axis}-${tri}-endpoint`}
+                    >
                       Endpunkt-Adäquanz
                     </label>
                     <select
+                      id={`${axis}-${tri}-endpoint`}
                       style={selectStyle}
                       value={c.endpoint_adequacy}
                       onChange={(e) =>
