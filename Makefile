@@ -126,6 +126,21 @@ openapi: ## Export the OpenAPI document from the FastAPI app
 gen-client: openapi ## Regenerate the typed TypeScript API client from OpenAPI
 	pnpm gen:client
 
+# ---- Container images --------------------------------------------------------
+
+IMAGE_TAG ?= local
+
+.PHONY: images
+images: ## Build the three container images (hadp-api, hadp-worker, hadp-web)
+	docker build -f $(API_DIR)/Dockerfile -t hadp-api:$(IMAGE_TAG) .
+	docker build -f $(WORKER_DIR)/Dockerfile -t hadp-worker:$(IMAGE_TAG) .
+	docker build -f $(WEB_DIR)/Dockerfile -t hadp-web:$(IMAGE_TAG) .
+
+.PHONY: stack-smoke
+stack-smoke: images ## Build the images, boot the production-shaped stack, assert its posture, tear it down
+	HADP_API_IMAGE=hadp-api:$(IMAGE_TAG) HADP_WORKER_IMAGE=hadp-worker:$(IMAGE_TAG) \
+	  HADP_WEB_IMAGE=hadp-web:$(IMAGE_TAG) ./scripts/smoke_stack.sh
+
 # ---- Dev servers -------------------------------------------------------------
 
 .PHONY: api-dev

@@ -241,6 +241,55 @@ jobs:
           echo "===== web.log ====="; cat /tmp/web.log || true
           echo "===== s3.log ====="; tail -n 50 /tmp/s3.log || true
 
+  container-images:
+    # Builds the three images from the lockfiles, boots the production-shaped stack and
+    # asserts its posture (scripts/smoke_stack.sh), then scans the images for known
+    # vulnerabilities. Nobody can sign in to a production-mode stack yet, so this proves boot
+    # and posture, not the workflow (infra/docker/README.md). It holds no patient data, real
+    # or synthetic.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the images and run the stack smoke
+        run: make stack-smoke
+
+      - name: Install the image scanner (grype)
+        # A pinned release binary whose checksum is verified here — the pattern of the
+        # gitleaks step below, not a third-party action referenced by a tag that can move.
+        run: |
+          VERSION=0.120.1
+          SHA256=0a9ee97ef5ae2ee953b0a80098105052e846cdbe319a57d808b519c33cd1343d
+          curl -sSfL -o grype.tar.gz \
+            "https://github.com/anchore/grype/releases/download/v${VERSION}/grype_${VERSION}_linux_amd64.tar.gz"
+          echo "${SHA256}  grype.tar.gz" | sha256sum -c -
+          tar -xzf grype.tar.gz grype
+          ./grype version
+
+      - name: Scan the images
+        # Blocking on a HIGH or CRITICAL finding for which a fix exists. A finding WITHOUT a
+        # fix does not fail the job — nothing can be done about it here except choosing
+        # another base image — and `--only-fixed` alone would not even print it: it is shown
+        # as suppressed (`--show-suppressed`), so an unfixed HIGH or CRITICAL is at least seen.
+        # The scanner downloads its vulnerability database at run time: a newly published
+        # advisory, or an outage of that download, can turn an unrelated pull request red.
+        run: |
+          status=0
+          for image in hadp-api:local hadp-worker:local hadp-web:local; do
+            echo "===== $image"
+            ./grype "$image" --only-fixed --show-suppressed --fail-on high || status=1
+            # Where each HIGH or CRITICAL finding sits: it is only as fixable as its place
+            # (the application's dependencies, or something the base image brought along).
+            # For the reader of the log only — this listing never decides the job.
+            ./grype "$image" --only-fixed -o json 2> /dev/null \
+              | jq -r '.matches[]
+                  | select(.vulnerability.severity == "High" or .vulnerability.severity == "Critical")
+                  | "  \(.artifact.name)@\(.artifact.version)  \(.vulnerability.id)  \(.artifact.locations[0].path)"' \
+              | sort -u
+          done
+          exit "$status"
+
   secret-scan:
     runs-on: ubuntu-latest
     steps:
