@@ -401,17 +401,6 @@ export function PatientDetailContent({
   const sb = statusVita(review.status, review.statusLabel);
   const idBadge = sb;
 
-  const detTab = (active: boolean): CSSProperties => ({
-    padding: "13px 4px",
-    marginRight: "20px",
-    fontSize: "13px",
-    fontWeight: active ? 600 : 500,
-    color: active ? "var(--brand)" : "var(--text-muted)",
-    borderBottom: "2px solid " + (active ? "var(--brand)" : "transparent"),
-    whiteSpace: "nowrap",
-    cursor: "pointer",
-  });
-
   return (
     <>
       <button
@@ -507,7 +496,7 @@ export function PatientDetailContent({
 
       {/* identity */}
       <div
-        style={{ ...cardStyle, padding: "22px 24px 0", marginBottom: "20px" }}
+        style={{ ...cardStyle, padding: "22px 24px 4px", marginBottom: "20px" }}
       >
         <div
           style={{
@@ -751,28 +740,6 @@ export function PatientDetailContent({
             {draftError}
           </p>
         )}
-        <div
-          style={{
-            display: "flex",
-            gap: "4px",
-            borderTop: "1px solid var(--border-subtle)",
-            overflowX: "auto",
-          }}
-        >
-          <div style={detTab(true)}>Assessment</div>
-          {["Laborwerte", "Verlauf", "Bericht"].map((t, i, a) => (
-            <div
-              key={t}
-              className="vb-tab-text"
-              style={{
-                ...detTab(false),
-                marginRight: i === a.length - 1 ? 0 : "20px",
-              }}
-            >
-              {t}
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* data completeness (real, deterministic — the compliant replacement for the comp's quality gauge) */}

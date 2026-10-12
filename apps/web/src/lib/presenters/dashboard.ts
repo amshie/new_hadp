@@ -40,7 +40,7 @@ const STATUS_META: Record<string, BadgeMeta> = {
     bd: "rgba(20,169,130,0.32)",
   },
   rejected: {
-    label: "Abgelehnt",
+    label: "Zurückgewiesen",
     fg: "var(--rose-500)",
     bg: "rgba(194,74,74,0.12)",
     bd: "rgba(194,74,74,0.30)",
@@ -192,7 +192,7 @@ export function presentStatusSnapshot(rows: WorklistRow[]): StatusSnapshotView {
     },
     {
       key: "abgelehnt",
-      label: "Abgelehnt",
+      label: "Zurückgewiesen",
       count: count((r) => r.report_status === "rejected"),
       color: "var(--rose-500)",
     },

@@ -6,7 +6,7 @@ import { devLogin, logout, selectTenant } from "@/lib/api";
 
 export type LoginResult = { ok: false; error: string };
 
-// Wires the prototype's sign-in to the real API: dev-login (sets the session cookie) +
+// The development sign-in against the real API: dev-login (sets the session cookie) +
 // auto-select the first authorized tenant, then continue to the overview. On failure we do
 // NOT proceed — a silently-failed login must never present a logged-in shell that then 401s.
 // Returns an error on failure; on success it redirects (and never returns).

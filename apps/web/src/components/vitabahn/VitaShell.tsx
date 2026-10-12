@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, type CSSProperties, type ReactNode } from "react";
 
 import { signOut } from "@/app/login/actions";
@@ -15,20 +14,17 @@ type NavKey = "uebersicht" | "patienten" | "review" | "einstellungen";
 
 const THEME_KEY = "vb-theme";
 
+// A navigation entry is a link to a page that exists — nothing else is listed.
 function NavItem({
   active,
-  onClick,
+  href,
   icon,
   label,
-  trailing,
-  implemented = true,
 }: {
   active?: boolean;
-  onClick?: () => void;
+  href: string;
   icon: ReactNode;
   label: string;
-  trailing?: ReactNode;
-  implemented?: boolean;
 }) {
   const style: CSSProperties = {
     position: "relative",
@@ -39,9 +35,7 @@ function NavItem({
     padding: "10px 12px",
     marginBottom: "2px",
     borderRadius: "var(--radius-sm)",
-    border: "none",
-    cursor: "pointer",
-    textAlign: "left",
+    textDecoration: "none",
     fontFamily: "var(--font-text)",
     fontSize: "var(--text-sm)",
     fontWeight: active ? 600 : 500,
@@ -49,12 +43,10 @@ function NavItem({
     color: active ? "#fff" : "var(--slate-300)",
   };
   return (
-    <button
-      type="button"
+    <Link
+      href={href}
       className="vb-nav"
-      onClick={onClick}
       style={style}
-      title={implemented ? undefined : "Im Prototyp noch nicht umgesetzt"}
       aria-current={active ? "page" : undefined}
     >
       {active && (
@@ -72,8 +64,7 @@ function NavItem({
       )}
       {icon}
       <span style={{ flex: 1 }}>{label}</span>
-      {trailing}
-    </button>
+    </Link>
   );
 }
 
@@ -106,7 +97,6 @@ export function VitaShell({
   const personRole = identity?.roleLabel ?? "—";
   const clinicName = identity?.tenantName ?? "—";
   const personInitials = initialsOf(personName);
-  const router = useRouter();
   // Lazy-init from localStorage so a returning dark-mode user doesn't get a light flash on
   // client navigations. SSR has no localStorage and renders light; suppressHydrationWarning on
   // the root covers the intentional server/client data-theme difference.
@@ -245,7 +235,7 @@ export function VitaShell({
 
           <NavItem
             active={nav === "uebersicht"}
-            onClick={() => router.push("/overview")}
+            href="/overview"
             icon={stroke(
               <>
                 <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -259,7 +249,7 @@ export function VitaShell({
           />
           <NavItem
             active={nav === "patienten"}
-            onClick={() => router.push("/patients")}
+            href="/patients"
             icon={stroke(
               <>
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -272,7 +262,7 @@ export function VitaShell({
           />
           <NavItem
             active={nav === "review"}
-            onClick={() => router.push("/review-queue")}
+            href="/review-queue"
             icon={stroke(
               <>
                 <path d="M9 11l3 3L22 4" />
@@ -281,51 +271,11 @@ export function VitaShell({
             )}
             label="Review-Queue"
           />
-          <NavItem
-            implemented={false}
-            icon={stroke(
-              <>
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <path d="M7 10l5 5 5-5" />
-                <path d="M12 15V3" />
-              </>,
-            )}
-            label="Importe"
-          />
-          <NavItem
-            implemented={false}
-            icon={stroke(
-              <>
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <path d="M14 2v6h6" />
-                <path d="M8 13h8" />
-                <path d="M8 17h6" />
-              </>,
-            )}
-            label="Berichte"
-          />
 
           <div style={navLabelStyle("6px")}>Verwaltung</div>
           <NavItem
-            implemented={false}
-            icon={stroke(
-              <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />,
-            )}
-            label="Regeln"
-          />
-          <NavItem
-            implemented={false}
-            icon={stroke(
-              <>
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                <path d="M9 12l2 2 4-4" />
-              </>,
-            )}
-            label="Audit-Protokoll"
-          />
-          <NavItem
             active={nav === "einstellungen"}
-            onClick={() => router.push("/einstellungen")}
+            href="/einstellungen"
             icon={stroke(
               <>
                 <circle cx="12" cy="12" r="3" />
@@ -510,9 +460,7 @@ export function VitaShell({
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <button
-              type="button"
-              className="vb-iconbtn"
+            <div
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -522,12 +470,13 @@ export function VitaShell({
                 borderRadius: "var(--radius-sm)",
                 border: "1px solid var(--border-default)",
                 background: "var(--surface-card)",
-                cursor: "pointer",
                 color: "var(--text-body)",
                 fontFamily: "var(--font-text)",
               }}
             >
               <svg
+                aria-hidden="true"
+                focusable="false"
                 width="16"
                 height="16"
                 viewBox="0 0 24 24"
@@ -540,6 +489,7 @@ export function VitaShell({
                 <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z" />
                 <path d="M2 21c0-3 1.85-5.36 5.08-6" />
               </svg>
+              <span className="sr-only">Mandant: </span>
               <span
                 style={{
                   fontSize: "13px",
@@ -550,28 +500,7 @@ export function VitaShell({
               >
                 {clinicName}
               </span>
-              <span
-                style={{
-                  width: "6px",
-                  height: "6px",
-                  borderRadius: "999px",
-                  background: "var(--vital-400)",
-                  margin: "0 1px",
-                }}
-              />
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--text-faint)"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </button>
+            </div>
 
             <button
               type="button"
@@ -620,50 +549,6 @@ export function VitaShell({
               )}
             </button>
 
-            <button
-              type="button"
-              aria-label="Benachrichtigungen"
-              className="vb-iconbtn"
-              style={{
-                position: "relative",
-                width: "38px",
-                height: "38px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-card)",
-                cursor: "pointer",
-              }}
-            >
-              <svg
-                width="17"
-                height="17"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--text-muted)"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-              <span
-                style={{
-                  position: "absolute",
-                  top: "8px",
-                  right: "9px",
-                  width: "7px",
-                  height: "7px",
-                  borderRadius: "999px",
-                  background: "var(--rose-400)",
-                  border: "1.5px solid var(--surface-card)",
-                }}
-              />
-            </button>
-
             <div
               style={{
                 width: "1px",
@@ -674,14 +559,12 @@ export function VitaShell({
             />
 
             <div
-              className="vb-userchip"
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: "10px",
                 padding: "4px 6px 4px 4px",
                 borderRadius: "var(--radius-pill)",
-                cursor: "pointer",
               }}
             >
               <div

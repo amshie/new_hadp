@@ -7,6 +7,9 @@
 > (`/overview`, `/patients`, `/patients/[id]`) per
 > [ADR-0006](../../docs/adr/0006-dashboard-real-data-path.md). The parity checks below are kept as
 > history; a refreshed verification against the current VitaBahn surfaces is a separate task.
+> **2026-10-12:** the sign-in mock verified below (password field, 2FA step, lock and
+> signed-out screens, state switcher) and `scripts/shoot-live.mjs` were removed (go-live plan
+> A10); the sign-in page now shows only the sign-in the deployment has.
 
 Method: render the build with Playwright (Chromium, deviceScaleFactor 1) at the prototype's
 exact widths (desktop 1440px, mobile 390px), full-page, and compare side-by-side with
