@@ -362,3 +362,72 @@ def test_a_document_whose_stored_file_is_gone_is_refused_cleanly(client, admin_s
     assert resp.json()["error"]["detail"].startswith("document_unavailable")
     _nothing_imported(admin_session)
     assert _refusals(admin_session) == ["document_unavailable"]
+
+
+def test_the_document_list_shows_each_file_with_the_outcome_of_its_import(
+    client, admin_session
+) -> None:  # type: ignore[no-untyped-def]
+    _user, tenant = _clinician(client, admin_session, "doclist")
+    pid = _patient(client)
+    other = _patient(client, display_name="Second Patient (synthetic)")
+    imported = _upload(client, pid, _CSV, "text/csv", name="befund-juni.csv")
+    assert _import(client, pid, imported).status_code == 201
+    stored_only = _upload(client, pid, b"%PDF-1.4 synthetic", "application/pdf", name="scan.pdf")
+    _upload(client, other, _CSV + b"\n", "text/csv", name="other.csv")
+
+    listing = client.get(f"/api/v1/patients/{pid}/documents")
+    assert listing.status_code == 200, listing.text
+    by_id = {d["id"]: d for d in listing.json()}
+    # Only this patient's documents; metadata and counts, never content.
+    assert set(by_id) == {imported, stored_only}
+    assert by_id[stored_only]["imported"] is None
+    assert by_id[stored_only]["filename"] == "scan.pdf"
+    outcome = by_id[imported]["imported"]
+    assert {k: outcome[k] for k in ("parser_name", "published_count", "review_count")} == {
+        "parser_name": "hadp-csv",
+        "published_count": 1,
+        "review_count": 1,
+    }
+    assert (outcome["duplicate_count"], outcome["not_imported_count"]) == (0, 0)
+    assert "LDL" not in listing.text and "2,8" not in listing.text
+
+    audit = admin_session.execute(
+        select(AuditEvent).where(AuditEvent.action == "document.list")
+    ).scalar_one()
+    assert audit.detail == {"count": 2}
+
+    # The medical director reviews and may see what was imported; another clinic sees nothing.
+    switch_role(
+        client,
+        admin_session,
+        email="director-doclist@synthetic.example",
+        tenant=tenant,
+        role=Role.MEDICAL_DIRECTOR,
+    )
+    assert client.get(f"/api/v1/patients/{pid}/documents").status_code == 200
+    _clinician(client, admin_session, "doclist-b")
+    assert client.get(f"/api/v1/patients/{pid}/documents").status_code == 404
+
+
+def test_a_file_stored_for_one_patient_is_not_handed_to_another(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    _clinician(client, admin_session, "samefile")
+    first = _patient(client)
+    second = _patient(client, display_name="Second Patient (synthetic)")
+    doc_id = _upload(client, first, _CSV, "text/csv", name="befund-first.csv")
+
+    # The same bytes for another patient: neither a second copy nor the first patient's document.
+    resp = client.post(
+        f"/api/v1/patients/{second}/documents",
+        files={"file": ("befund.csv", _CSV, "text/csv")},
+    )
+    assert resp.status_code == 409
+    assert resp.json()["error"]["detail"].startswith("document_other_patient")
+    assert "befund-first" not in resp.text
+    assert client.get(f"/api/v1/patients/{second}/documents").json() == []
+
+    # For the same patient a re-upload is still the idempotent no-op it was.
+    again = client.post(
+        f"/api/v1/patients/{first}/documents",
+        files={"file": ("renamed.csv", _CSV, "text/csv")},
+    )
+    assert (again.status_code, again.json()["id"], again.json()["created"]) == (201, doc_id, False)

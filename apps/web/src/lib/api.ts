@@ -116,7 +116,9 @@ async function request<T>(
   init?: RequestInit & { auth?: boolean },
 ): Promise<T> {
   const headers = new Headers(init?.headers);
-  if (init?.body) headers.set("content-type", "application/json");
+  // A multipart body carries its own content type (with the boundary); everything else is JSON.
+  if (init?.body && !(init.body instanceof FormData))
+    headers.set("content-type", "application/json");
   if (init?.auth !== false) {
     const jar = await cookies();
     const token = jar.get(COOKIE)?.value;
@@ -249,6 +251,26 @@ export const authorInterpretation = (patientId: string, body: RunAuthorIn) =>
       method: "POST",
       body: JSON.stringify(body),
     },
+  );
+
+// Laboratory files (ingestion tier 1): the original is stored first, then read by a structured
+// reader. Metadata and counts only — the web never receives file content back.
+export type SourceDocument = Schemas["SourceDocumentOut"];
+export type DocumentImportResult = Schemas["DocumentImportOut"];
+export const listDocuments = (patientId: string) =>
+  request<SourceDocument[]>(`/api/v1/patients/${patientId}/documents`);
+export const uploadDocument = (patientId: string, file: Blob, name: string) => {
+  const body = new FormData();
+  body.append("file", file, name);
+  return request<Schemas["DocumentOut"]>(
+    `/api/v1/patients/${patientId}/documents`,
+    { method: "POST", body },
+  );
+};
+export const importDocument = (patientId: string, documentId: string) =>
+  request<DocumentImportResult>(
+    `/api/v1/patients/${patientId}/documents/${documentId}/import`,
+    { method: "POST" },
   );
 
 export const createInvitation = (patientId: string) =>

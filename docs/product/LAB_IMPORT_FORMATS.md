@@ -250,6 +250,32 @@ An LDT file is accepted at upload by content inspection: **every** line must be 
 of the format. It is stored under the fixed content type `application/x-ldt`; the type the client
 declared is neither trusted nor kept. Anything else still needs an allow-listed content type.
 
+One stored file per clinic and content: the same bytes uploaded again for the same patient return
+the stored document (nothing is stored twice); uploaded for **another** patient they are refused
+(HTTP 409 `document_other_patient`) — the first patient's document is never handed out.
+
+## In the product
+
+The patient page carries a "Labordaten" card (`apps/web/src/app/patients/[id]/LabDocumentsCard.tsx`):
+
+- **Care staff** (owner, clinician, assistant) choose a file and press "Hochladen und einlesen":
+  the file is uploaded, stored, and read in one step. The web declares the content type by file
+  extension (browsers report these files unreliably); the API's content inspection decides. The
+  web accepts files up to 5 MB — far above a real single-patient report.
+- The result line gives the four counts — published, held for review (with a link to the review
+  queue), already held, not imported — and the reader's name and version. A file that was imported
+  before shows the outcome of that first import.
+- A refused file shows the refusal in German, with the line number when the reader names one, and
+  the code for anything without its own text. Nothing was imported; the original stays stored and
+  is listed as "Gespeichert, nicht eingelesen" with an "Einlesen" button.
+- **Every staff role** sees the list of the patient's stored files with each file's import outcome
+  (`GET /api/v1/patients/{patient_id}/documents`: metadata and counts, never content; audited as
+  `document.list`). The counts are as of the import, not the current review state.
+- An erased (tombstoned) record shows no card.
+
+There is no clinic-wide import overview yet (the "Importe" navigation entry is still a placeholder)
+and no manual-entry form; values can be entered manually through the API only.
+
 ## Known limits (all formats)
 
 - **One file, one patient.** A laboratory transfer file usually carries reports for many patients;
@@ -258,8 +284,8 @@ declared is neither trusted nor kept. Anything else still needs an allow-listed 
   and the record have one.
 - **Text results are not carried** (the pipeline holds numeric observations only).
 - **A reviewer cannot open the source file in the product yet.** `source_comment` asks a human to
-  read the source, but no route serves the stored document; until the upload / review UI exists the
-  original file has to be read outside the product.
+  read the source, but no route serves the stored document: the patient page lists the file, it
+  does not show or download it. The original has to be read outside the product.
 - **Not read:** the laboratory's own limit indicator (8422), specimen details other than the
   sampling time, body measurements, attachments. LDT 3's range specification (8424) is not
   interpreted — whether it distinguishes kinds of ranges has not been verified.

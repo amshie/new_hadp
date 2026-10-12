@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from hadp_api.config import get_settings
-from hadp_api.errors import ValidationFailed
+from hadp_api.errors import Conflict, ValidationFailed
 from hadp_api.modules.documents.blob import get_blob_store
 from hadp_api.modules.documents.models import SourceDocument
 from hadp_api.modules.documents.xdt import is_wellformed_xdt
@@ -69,6 +69,12 @@ def store_source_document(
         )
     ).scalar_one_or_none()
     if existing is not None:
+        if existing.patient_id != patient_id:
+            # One stored file per clinic and content: handing back another patient's document
+            # here would attach that patient's file (and its name) to this one.
+            raise Conflict(
+                "document_other_patient: this file is already stored for another patient"
+            )
         return existing, False
 
     storage_key = f"{tenant_id}/{patient_id}/{checksum}"
@@ -88,3 +94,19 @@ def store_source_document(
     db.add(document)
     db.flush()
     return document, True
+
+
+def list_source_documents(
+    db: Session, *, tenant_id: uuid.UUID, patient_id: uuid.UUID
+) -> list[SourceDocument]:
+    """The patient's stored source documents, newest first (metadata only, never content)."""
+    return list(
+        db.execute(
+            select(SourceDocument)
+            .where(
+                SourceDocument.tenant_id == tenant_id,
+                SourceDocument.patient_id == patient_id,
+            )
+            .order_by(SourceDocument.created_at.desc(), SourceDocument.id)
+        ).scalars()
+    )

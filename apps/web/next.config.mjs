@@ -31,13 +31,19 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
   },
-  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains",
+  },
 ];
 
 const nextConfig = {
   // The API client is a workspace TS package; transpile it for the app.
   transpilePackages: ["@hadp/api-client"],
   reactStrictMode: true,
+  // A laboratory file is uploaded through a server action (patients/[id]/lab-actions.ts), which
+  // checks the size itself; the default 1 MB body limit would cut it off before that.
+  experimental: { serverActions: { bodySizeLimit: "6mb" } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

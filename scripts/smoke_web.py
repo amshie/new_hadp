@@ -102,6 +102,10 @@ def main() -> int:
         # (the only place approve/release live), and that link must resolve.
         review = re.search(rf'href="(/patients/{pid}/assessments/[0-9a-f-]{{36}})"', r.text)
         assert review, "patient detail does not link to the report review page"
+        # Laboratory file intake lives on the patient page (care staff): the card and its
+        # file field must render.
+        assert "Labordaten" in r.text, "patient detail has no laboratory-files card"
+        assert 'type="file"' in r.text, "laboratory-files card has no upload field"
         r = web.get(review.group(1))
         assert r.status_code == 200, ("review page via detail link", r.status_code)
         assert f'href="/patients/{pid}"' in r.text, "review page has no way back to the patient"
