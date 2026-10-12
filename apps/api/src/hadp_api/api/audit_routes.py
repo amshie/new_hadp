@@ -80,8 +80,8 @@ def list_audit_events(
         if bound is not None and bound.tzinfo is None:
             raise ValidationFailed("since / until must carry a UTC offset")
     # Every read writes an event (below) into this clinic's trail, and nothing is ever removed
-    # from it: this bounds what one account's reading adds to one clinic. It does not bound
-    # the table — a refused read leaves a `rate_limited` event, without tenant or actor.
+    # from it: this bounds what one account's reading adds to one clinic. A window in which
+    # reads were refused leaves one `rate_limited` event, without tenant or actor.
     check_rate_limit(
         action="audit.read",
         key=f"{ctx.tenant_id}:{ctx.user.id}",

@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import hmac
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -34,6 +35,7 @@ from hadp_api.api import (
     worklist_routes,
 )
 from hadp_api.config import get_settings
+from hadp_api.db.engine import get_engine
 from hadp_api.errors import AppError, app_error_handler
 from hadp_api.logging import configure_logging
 from hadp_api.modules.audit.service import record_security_event
@@ -62,12 +64,22 @@ async def _validation_error_handler(_: Request, exc: Exception) -> JSONResponse:
     )
 
 
+@asynccontextmanager
+async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
+    # The process does not come up as a database role that bypasses row-level security
+    # (db/engine.py). Without this it would start, answer /health, and be refused only when
+    # a request first reached the database.
+    get_engine()
+    yield
+
+
 def create_app() -> FastAPI:
     configure_logging()
     app = FastAPI(
         title="Longevity Health Analytics Platform API",
         version="0.0.0",
         description=_DESCRIPTION,
+        lifespan=_lifespan,
         openapi_url=f"{API_PREFIX}/openapi.json",
         docs_url=f"{API_PREFIX}/docs",
         redoc_url=None,
