@@ -64,13 +64,20 @@ def _canonical_unit(unit: str | None) -> str | None:
 def unit_was_converted(original_unit: str | None, normalized_unit: str | None) -> bool:
     """True when normalization changed the unit — and with it the value and the reference
     bounds. A different spelling of the same unit ("mmol/l") is not a conversion."""
-    return normalized_unit is not None and _canonical_unit(original_unit) != normalized_unit
+    return normalized_unit is not None and _canonical_unit(original_unit) != _canonical_unit(
+        normalized_unit
+    )
 
 
 # A plain decimal number: ASCII digits, an optional sign, `.` or `,` as the decimal separator,
 # an optional small exponent. Decimal() itself would also accept NaN, Infinity, digit-group
 # underscores ("3_4" -> 34) and other scripts' digits — none of which is a laboratory value.
 _NUMBER = re.compile(r"[+-]?(?:[0-9]+(?:[.,][0-9]*)?|[.,][0-9]+)(?:[eE][+-]?[0-9]{1,2})?")
+
+
+def is_plain_number(raw: str) -> bool:
+    """Whether a source string is a plain decimal number in the grammar this module reads."""
+    return _NUMBER.fullmatch(raw.strip()) is not None
 
 
 def _parse_decimal(raw: str) -> Decimal | None:

@@ -1,11 +1,13 @@
 """The deterministic report statements, word for word (German, provider version narr-2).
 
 A released statement is what the patient reads, so the wording is pinned. A statement gives
-the value the way the source wrote it — name, value and unit verbatim — then the reference
+a numeric result the way the source wrote it — value and unit verbatim — then the reference
 interval the platform holds for it, the position relative to that interval only when the
 value lies outside, and the deterministic change. What the platform adds is named: a unit
-conversion appears beside the source value, never instead of it. A day-only sampling date
-stays a day; a timed one is written as wall-clock time in the clinic's zone, with the zone.
+conversion appears beside the source value, never instead of it. Numbers the platform writes
+follow the source value's decimal mark. A result that is not a number is mentioned, never
+quoted. A day-only sampling date stays a day; a timed one is written as wall-clock time in
+the clinic's zone, with its offset from UTC.
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from hadp_api.modules.observations.models import Observation
-from hadp_api.modules.reports.evidence import _label
+from hadp_api.modules.reports.evidence import _label, quotable_result
 from hadp_api.modules.reports.narrative import DeterministicNarrativeProvider, EvidenceItem
 
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -43,8 +45,8 @@ def _item(
         observation_id=uuid.uuid4(),
         metric_code="13457-7",
         name=name,
-        original_value=source,
-        original_unit=source_unit,
+        source_value=source,
+        source_unit=source_unit,
         value=Decimal(source.replace(",", ".")) if value == "same" else _dec(value),
         unit=source_unit if unit == "same" else unit,
         converted=converted,
@@ -100,10 +102,22 @@ def test_provider_version_marks_the_german_wording() -> None:
             id="exactly on a bound is not outside",
         ),
         pytest.param(
-            _item("2,80", "0", "3.0", source_unit="mmol/l", unit="mmol/L"),
+            _item("2,80", "0.5", "3.0", source_unit="mmol/l", unit="mmol/L"),
             "LDL Cholesterol am 10.06.2025: 2,80 mmol/l. "
-            "Referenzintervall der Quelle: 0 bis 3 mmol/L.",
+            "Referenzintervall der Quelle: 0,5 bis 3 mmol/l.",
             id="the source's own notation is kept: decimal comma, trailing zero, unit spelling",
+        ),
+        pytest.param(
+            _item("5,55", "3.885", "5.55", source_unit="mmol/l", unit="mmol/L", delta="0.3"),
+            "LDL Cholesterol am 10.06.2025: 5,55 mmol/l. "
+            "Referenzintervall der Quelle: 3,885 bis 5,55 mmol/l. "
+            "Veränderung gegenüber der vorherigen vergleichbaren Messung: +0,3 mmol/l.",
+            id="one statement never mixes decimal marks: the platform's numbers follow the source",
+        ),
+        pytest.param(
+            _item("<0.5", source_unit="mU/L", value=None, unit=None, name="TSH"),
+            "TSH am 10.06.2025: <0.5 mU/L.",
+            id="a comparator result is a numeric result",
         ),
         pytest.param(
             _item(
@@ -124,6 +138,24 @@ def test_provider_version_marks_the_german_wording() -> None:
             _item("85", source_unit="ng/mL", value=None, unit=None, name="Ferritin"),
             "Ferritin am 10.06.2025: 85 ng/mL.",
             id="not normalized (unknown analyte): the source value, never 'no value'",
+        ),
+        pytest.param(
+            EvidenceItem(
+                observation_id=uuid.uuid4(),
+                metric_code=None,
+                name="HIV-1/2 Screening",
+                source_value=None,
+                source_unit=None,
+                value=None,
+                unit=None,
+                converted=False,
+                reference_low=None,
+                reference_high=None,
+                observed_at_label="10.06.2025",
+            ),
+            "Für HIV-1/2 Screening liegt am 10.06.2025 ein Ergebnis der Quelle vor, "
+            "das hier nicht im Wortlaut wiedergegeben wird.",
+            id="a result that may not be quoted is mentioned, never repeated",
         ),
         pytest.param(
             _item("1.0", None, "3.0"),
@@ -186,8 +218,8 @@ def test_provider_version_marks_the_german_wording() -> None:
             id="a plural analyte name reads correctly (no verb to agree with)",
         ),
         pytest.param(
-            _item("2.8", label="10.06.2025 um 08:30 Uhr (CEST)"),
-            "LDL Cholesterol am 10.06.2025 um 08:30 Uhr (CEST): 2.8 mmol/L.",
+            _item("2.8", label="10.06.2025 um 08:30 Uhr (UTC+2)"),
+            "LDL Cholesterol am 10.06.2025 um 08:30 Uhr (UTC+2): 2.8 mmol/L.",
             id="timed sample",
         ),
     ],
@@ -219,17 +251,64 @@ NEW_YORK_SUMMER = timezone(timedelta(hours=-4))
         (datetime(2025, 6, 10, tzinfo=UTC), True, "10.06.2025"),
         # The same stored day read through a database session west of UTC is still that day.
         (datetime(2025, 6, 9, 20, tzinfo=NEW_YORK_SUMMER), True, "10.06.2025"),
-        # Summer time (UTC+2) and winter time (UTC+1), each with its zone.
-        (datetime(2025, 6, 10, 6, 30, tzinfo=UTC), False, "10.06.2025 um 08:30 Uhr (CEST)"),
-        (datetime(2025, 1, 15, 7, 5, tzinfo=UTC), False, "15.01.2025 um 08:05 Uhr (CET)"),
+        # Summer time and winter time, each with its offset.
+        (datetime(2025, 6, 10, 6, 30, tzinfo=UTC), False, "10.06.2025 um 08:30 Uhr (UTC+2)"),
+        (datetime(2025, 1, 15, 7, 5, tzinfo=UTC), False, "15.01.2025 um 08:05 Uhr (UTC+1)"),
         # Late evening in UTC is already the next day in the clinic's zone.
-        (datetime(2025, 1, 15, 23, 30, tzinfo=UTC), False, "16.01.2025 um 00:30 Uhr (CET)"),
-        # The hour the clocks go back happens twice: the zone tells the two apart.
-        (datetime(2025, 10, 26, 0, 30, tzinfo=UTC), False, "26.10.2025 um 02:30 Uhr (CEST)"),
-        (datetime(2025, 10, 26, 1, 30, tzinfo=UTC), False, "26.10.2025 um 02:30 Uhr (CET)"),
+        (datetime(2025, 1, 15, 23, 30, tzinfo=UTC), False, "16.01.2025 um 00:30 Uhr (UTC+1)"),
+        # The hour the clocks go back happens twice: the offset tells the two apart.
+        (datetime(2025, 10, 26, 0, 30, tzinfo=UTC), False, "26.10.2025 um 02:30 Uhr (UTC+2)"),
+        (datetime(2025, 10, 26, 1, 30, tzinfo=UTC), False, "26.10.2025 um 02:30 Uhr (UTC+1)"),
         # Seconds the source gave are kept.
-        (datetime(2025, 6, 10, 6, 30, 59, tzinfo=UTC), False, "10.06.2025 um 08:30:59 Uhr (CEST)"),
+        (datetime(2025, 6, 10, 6, 30, 59, tzinfo=UTC), False, "10.06.2025 um 08:30:59 Uhr (UTC+2)"),
     ],
 )
 def test_sampling_time_label(observed_at: datetime, date_only: bool, expected: str) -> None:
     assert _label(_observation(observed_at, date_only=date_only), BERLIN) == expected
+
+
+@pytest.mark.parametrize(
+    ("zone", "expected"),
+    [
+        ("UTC", "10.06.2025 um 06:30 Uhr (UTC)"),
+        ("America/Los_Angeles", "09.06.2025 um 23:30 Uhr (UTC-7)"),
+        ("Asia/Kathmandu", "10.06.2025 um 12:15 Uhr (UTC+5:45)"),
+        ("America/St_Johns", "10.06.2025 um 04:00 Uhr (UTC-2:30)"),
+    ],
+)
+def test_the_offset_is_written_the_same_way_in_every_zone(zone: str, expected: str) -> None:
+    sample = _observation(datetime(2025, 6, 10, 6, 30, tzinfo=UTC), date_only=False)
+    assert _label(sample, ZoneInfo(zone)) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "unit", "expected"),
+    [
+        ("85", "ng/mL", ("85", "ng/mL")),
+        (" 2,80 ", " mmol/l ", ("2,80", "mmol/l")),
+        ("<0.5", "mU/L", ("<0.5", "mU/L")),
+        ("≥ 100", None, ("≥ 100", None)),
+        ("1e3", "10*9/L", ("1e3", "10*9/L")),
+        ("122", "mm[Hg]", ("122", "mm[Hg]")),
+        ("5.4", "%", ("5.4", "%")),
+        ("34", "ml/kg/min", ("34", "ml/kg/min")),
+        ("90", "", ("90", None)),
+        # Not a number: a text result, a flagged value, free text, a second line, markup.
+        ("reaktiv", None, (None, None)),
+        ("12,4 H", "mg/L", (None, None)),
+        ("positiv, Verdacht auf Borreliose", "U/mL", (None, None)),
+        ("pathologisch erhöht - Therapie empfohlen", None, (None, None)),
+        ("85\nDer Wert ist optimal. Diagnose: keine.", "ng/mL", (None, None)),
+        ("<script>alert(1)</script>", "ng/mL", (None, None)),
+        ("<  0.5", "mU/L", (None, None)),
+        ("", "ng/mL", (None, None)),
+        # A number with a unit that is not one token: nothing of the row is quoted.
+        ("31", "ng/mL. Wir empfehlen ein Supplement", (None, None)),
+        ("5", "Punkte von 10 möglichen", (None, None)),
+        ("5", "x" * 21, (None, None)),
+    ],
+)
+def test_what_a_statement_may_quote_from_a_source(
+    value: str, unit: str | None, expected: tuple[str | None, str | None]
+) -> None:
+    assert quotable_result(value, unit) == expected

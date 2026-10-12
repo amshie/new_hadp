@@ -307,12 +307,13 @@ export function presentReview(
         e.missing
           ? { label: "Beleg nicht auflösbar", missing: true }
           : {
-              // A value without a normalized form (an analyte the terminology does not
-              // know) is shown as the source wrote it — never as "—" under a statement.
+              // The cited evidence as the source wrote it — what the reviewer has to judge,
+              // including a result the statement does not quote. (An API answer without the
+              // source fields falls back to the normalized value.)
               label: `${e.original_name ?? "Beobachtung"}: ${
-                e.value != null
-                  ? unitJoin(e.value, e.unit)
-                  : unitJoin(e.original_value, e.original_unit)
+                e.original_value != null
+                  ? unitJoin(e.original_value, e.original_unit)
+                  : unitJoin(e.value, e.unit)
               }`,
               status: e.review_status,
               missing: false,

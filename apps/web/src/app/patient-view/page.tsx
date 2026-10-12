@@ -46,9 +46,10 @@ export default async function PatientViewPage() {
           synthetische Demo-Inhalte
         </p>
         <p style={{ lineHeight: 1.55, fontSize: "14px" }}>
-          Diese Zusammenfassung gibt Ihre Messwerte und die von der jeweiligen
-          Quelle – zum Beispiel Ihrem Labor – angegebenen Referenzintervalle
-          wieder. Bitte besprechen Sie die Inhalte mit Ihrem klinischen Team.
+          Diese Zusammenfassung gibt Ihre Messwerte wieder – mit dem
+          Referenzintervall der jeweiligen Quelle (zum Beispiel Ihres Labors),
+          soweit es übernommen wurde. Bitte besprechen Sie die Inhalte mit Ihrem
+          klinischen Team.
         </p>
         {view.statements.map((s) => (
           <div

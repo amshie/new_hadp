@@ -9,18 +9,54 @@ rests on a replaced value, cannot be approved.
 
 from __future__ import annotations
 
+import re
 import uuid
-from datetime import UTC
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
 from hadp_api.config import get_settings
 from hadp_api.modules.enums import KpiMeasurementClass
-from hadp_api.modules.imports.normalize import unit_was_converted
+from hadp_api.modules.imports.normalize import is_plain_number, unit_was_converted
 from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.observations.models import Observation
 from hadp_api.modules.reports.narrative import EvidenceItem
+
+# What a statement may quote from a source. The value and unit columns hold whatever the
+# source (a file, a person typing) put there — up to 120 / 60 characters. A statement becomes
+# patient-facing, so only a result that is a number is repeated; a text result, a flagged
+# value ("12,4 H") or free text is mentioned without its wording (see narrative.py).
+_COMPARATOR = re.compile(r"(?:<=|>=|<|>|≤|≥)[ ]?")
+# A unit: one token, no whitespace, no sentence punctuation ("mmol/L", "10*9/L", "mm[Hg]").
+# It cannot rule out a single word typed as a unit; like an analyte name, such a row has
+# passed a clinician's review before it is published.
+_UNIT = re.compile(r"[A-Za-zÄÖÜäöüßµμ°%‰/*^.,·×\[\]()0-9²³-]{1,20}")
+
+
+def quotable_result(
+    original_value: str, original_unit: str | None
+) -> tuple[str | None, str | None]:
+    """The source's value and unit as written if a statement may quote them, else (None, None)."""
+    value = original_value.strip()
+    unit = (original_unit or "").strip() or None
+    comparator = _COMPARATOR.match(value)
+    number = value[comparator.end() :] if comparator else value
+    if not is_plain_number(number) or number != number.strip():
+        return None, None
+    if unit is not None and not _UNIT.fullmatch(unit):
+        return None, None
+    return value, unit
+
+
+def _utc_offset(moment: datetime) -> str:
+    """The offset as text — "UTC+2", "UTC-7", "UTC+5:45", "UTC" — the same in every zone."""
+    offset = moment.utcoffset()
+    minutes = int(offset.total_seconds() // 60) if offset is not None else 0
+    if minutes == 0:
+        return "UTC"
+    hours, rest = divmod(abs(minutes), 60)
+    return f"UTC{'+' if minutes > 0 else '-'}{hours}" + (f":{rest:02d}" if rest else "")
 
 
 def _label(observation: Observation, zone: ZoneInfo) -> str:
@@ -28,7 +64,7 @@ def _label(observation: Observation, zone: ZoneInfo) -> str:
 
     A source that named only a day keeps the day — no time is invented; the day is read in
     UTC, where it is stored (whatever zone the database session reports). Otherwise the
-    instant is written as wall-clock time in the clinic's zone, with the zone's abbreviation:
+    instant is written as wall-clock time in the clinic's zone, with its offset from UTC:
     the text then names one instant even in the hour a clock change repeats, and stays
     readable if the configured zone ever changes.
     """
@@ -36,7 +72,7 @@ def _label(observation: Observation, zone: ZoneInfo) -> str:
         return f"{observation.observed_at.astimezone(UTC).date():%d.%m.%Y}"
     local = observation.observed_at.astimezone(zone)
     clock = f"{local:%H:%M:%S}" if local.second else f"{local:%H:%M}"
-    return f"{local:%d.%m.%Y} um {clock} Uhr ({local:%Z})"
+    return f"{local:%d.%m.%Y} um {clock} Uhr ({_utc_offset(local)})"
 
 
 def build_evidence_payload(db: Session, patient_id: uuid.UUID) -> list[EvidenceItem]:
@@ -55,13 +91,14 @@ def build_evidence_payload(db: Session, patient_id: uuid.UUID) -> list[EvidenceI
         # otherwise read as measured. Labelled inclusion is deferred to the derived-UI slice.
         if obs.source_category == KpiMeasurementClass.DERIVED:
             continue
+        source_value, source_unit = quotable_result(obs.original_value, obs.original_unit)
         items.append(
             EvidenceItem(
                 observation_id=point.observation_id,
                 metric_code=point.metric_code,
                 name=point.original_name,
-                original_value=obs.original_value,
-                original_unit=obs.original_unit,
+                source_value=source_value,
+                source_unit=source_unit,
                 value=point.value,
                 unit=point.unit,
                 converted=unit_was_converted(obs.original_unit, obs.normalized_unit),
