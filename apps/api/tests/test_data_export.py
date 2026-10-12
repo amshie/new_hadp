@@ -376,7 +376,9 @@ def test_a_file_refused_as_another_persons_report_is_not_exported(client, admin_
     pid = _patient(client, "Anna Anders (synthetic)", date_of_birth="1975-03-02")
     # Misfiled: the report names Erika Mustermann, born 1980-01-15.
     foreign = ldt_file(
-        header(), report(lab_test("LDL", "LDL Cholesterol", value="7.7", unit="mmol/L")), TRAILER
+        header(),
+        report(lab_test("LDL", "LDL Cholesterol", value="777.777", unit="mmol/L")),
+        TRAILER,
     )
     document_id = _upload(client, pid, foreign, "Mustermann_Z01.ldt", "application/octet-stream")
     refused = client.post(f"/api/v1/patients/{pid}/documents/{document_id}/import")
@@ -391,7 +393,8 @@ def test_a_file_refused_as_another_persons_report_is_not_exported(client, admin_
     assert data["source_documents"] == [] and data["observations"] == []
     assert data["source_documents_not_imported"] == 1
     visible = _everything(archive)
-    for trace in (b"Mustermann", b"19800115", b"7.7", document_id.encode()):
+    # (The value is one no timestamp or id in the package can contain by chance.)
+    for trace in (b"Mustermann", b"19800115", b"777.777", document_id.encode()):
         assert trace not in visible, trace
     assert "HINWEIS: 1 gespeicherte Datei(en) wurden nicht maschinell in diese Akte" in (
         archive.read("LIESMICH.txt").decode("utf-8")
@@ -409,7 +412,7 @@ def test_a_file_for_several_patients_or_without_a_reader_is_not_exported(
         header(),
         report(lab_test("LDL", "LDL Cholesterol", value="2.8", unit="mmol/L")),
         report(
-            lab_test("LDL", "LDL Cholesterol", value="9.9", unit="mmol/L"),
+            lab_test("LDL", "LDL Cholesterol", value="888.888", unit="mmol/L"),
             last_name="Fremd",
             first_name="Frieda",
             born="19790101",
@@ -427,7 +430,7 @@ def test_a_file_for_several_patients_or_without_a_reader_is_not_exported(
     assert sorted(archive.namelist()) == ["LIESMICH.txt", "export.json"]
     assert data["source_documents_not_imported"] == 2
     visible = _everything(archive)
-    for trace in (b"Fremd", b"19790101", b"9.9", b"sammel", b"scan-fremd"):
+    for trace in (b"Fremd", b"19790101", b"888.888", b"sammel", b"scan-fremd"):
         assert trace not in visible, trace
 
 
