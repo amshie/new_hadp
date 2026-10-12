@@ -166,7 +166,7 @@ def test_reading_is_throttled_per_account_and_clinic(client, admin_session) -> N
     events = admin_session.execute(select(AuditEvent)).scalars().all()
     assert sum(1 for e in events if e.action == "audit.read" and e.tenant_id == tenant.id) == 120
     # The refusal leaves a trace too — without tenant or actor: it says that a read was
-    # throttled, not whose. The table is not bounded by the limit.
+    # throttled, not whose. One event per window in which reads were refused.
     throttled = [e for e in events if e.action == "rate_limited"]
     assert [(e.tenant_id, e.actor_user_id, e.detail) for e in throttled] == [
         (None, None, {"action": "audit.read"})

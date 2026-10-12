@@ -74,6 +74,30 @@ def _set_csrf_cookie(response: Response, csrf_token: str) -> None:
     )
 
 
+def _clear_auth_cookies(response: Response) -> None:
+    """Sign-out removes BOTH cookies, each with the attributes it was set with.
+
+    A browser applies a deletion only if it would accept the cookie: a `__Host-` name (the
+    production names) is refused without `Secure` and `Path=/`, so a deletion that leaves
+    them out removes nothing. The session is revoked server-side either way. Today's web app
+    calls this API from its own server and keeps the two values in cookies of its own, which
+    it removes itself (apps/web/src/lib/api.ts) — these headers are for a client that holds
+    the API's cookies directly.
+    """
+    settings = get_settings()
+    for name, httponly in (
+        (settings.session_cookie_name, True),
+        (settings.csrf_cookie_name, False),
+    ):
+        response.delete_cookie(
+            key=name,
+            path="/",
+            secure=settings.is_production,
+            httponly=httponly,
+            samesite="lax",
+        )
+
+
 @router.post("/dev-login", response_model=LoginResponse)
 def dev_login(
     body: DevLoginRequest,
@@ -138,8 +162,7 @@ def logout(
         actor_user_id=principal.user.id,
         correlation_id=correlation_id,
     )
-    settings = get_settings()
-    response.delete_cookie(settings.session_cookie_name, path="/")
+    _clear_auth_cookies(response)
     response.status_code = 204
     return response
 
