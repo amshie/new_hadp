@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     api_base_url: str = "http://127.0.0.1:8000"
     # Laboratory files carry wall-clock times without a zone. They are read in this zone
     # (the DACH pilot default); a time that does not name exactly one instant goes to review.
+    # Report statements state a sampling time as wall-clock time in the same zone.
     lab_local_timezone: str = "Europe/Berlin"
     # Web app base URL — used to build the patient-facing view link on report release.
     web_base_url: str = "http://127.0.0.1:3000"

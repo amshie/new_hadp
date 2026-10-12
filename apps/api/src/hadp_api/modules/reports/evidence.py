@@ -10,23 +10,32 @@ rests on a replaced value, cannot be approved.
 from __future__ import annotations
 
 import uuid
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
+from hadp_api.config import get_settings
 from hadp_api.modules.enums import KpiMeasurementClass
 from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.observations.models import Observation
 from hadp_api.modules.reports.narrative import EvidenceItem
 
 
-def _label(observation: Observation) -> str:
+def _label(observation: Observation, zone: ZoneInfo) -> str:
+    """When the value was sampled, as a de-DE report states it after "am".
+
+    A source that named only a day keeps the day — no time is invented. Otherwise the instant
+    (stored in UTC) is written as day and wall-clock time in the clinic's zone.
+    """
     if observation.observed_at_is_date_only:
-        return observation.observed_at.date().isoformat()
-    return observation.observed_at.isoformat()
+        return f"{observation.observed_at.date():%d.%m.%Y}"
+    local = observation.observed_at.astimezone(zone)
+    return f"{local:%d.%m.%Y} um {local:%H:%M} Uhr"
 
 
 def build_evidence_payload(db: Session, patient_id: uuid.UUID) -> list[EvidenceItem]:
     timeline = obs_service.build_timeline(db, patient_id)
+    zone = ZoneInfo(get_settings().lab_local_timezone)
     items: list[EvidenceItem] = []
     by_id = {o.id: o for o in obs_service.list_observations(db, patient_id)}
     for point in timeline:
@@ -49,7 +58,7 @@ def build_evidence_payload(db: Session, patient_id: uuid.UUID) -> list[EvidenceI
                 unit=point.unit,
                 reference_low=point.reference_low,
                 reference_high=point.reference_high,
-                observed_at_label=_label(obs),
+                observed_at_label=_label(obs, zone),
                 delta_vs_previous=point.delta_vs_previous,
                 previous_observation_id=point.previous_observation_id,
             )

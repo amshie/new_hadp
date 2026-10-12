@@ -56,5 +56,12 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   intended-use terms (stem-matched to catch plurals + German inflections), strips comments
   and the two sanctioned negated disclaimers, and runs in `make check` / `make test-db`.
   Closes the ADR-0004 §0 "DE/EN labels through the language scan before any UI ships" gate.
+- **Report statements in German (go-live plan A10, 2026-10-12):** ✅ the deterministic provider
+  writes German (`narr-2`); the patient view no longer shows English sentences under German
+  headings. Still open: reports generated before this change keep their English text until a
+  new draft is created (a version is never rewritten); numbers keep the decimal point, as
+  everywhere else in the UI (a de-DE number format is one decision for the whole product); the
+  write-time term list for human edits is still English-stem based — extending it to German is
+  the founder decision in the go-live plan (§6.6).
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

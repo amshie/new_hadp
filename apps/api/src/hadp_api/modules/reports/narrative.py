@@ -5,6 +5,9 @@ invents measurements, ranges, causes, diagnoses, or recommendations, and every s
 references the observation(s) it is built from. A deterministic fake is the default (and
 is used in tests); a future AI provider must implement the same interface and obey the
 same output contract (strict schema, evidence-linked, validated before persistence).
+
+The text is written in German (de-DE, the product's initial locale): the released version
+is what the patient reads. Analyte names, values and units stay as the source wrote them.
 """
 
 from __future__ import annotations
@@ -26,6 +29,8 @@ class EvidenceItem:
     unit: str | None
     reference_low: Decimal | None
     reference_high: Decimal | None
+    # When the value was sampled, ready to follow "am": "10.06.2025" for a source that named
+    # only a day, "10.06.2025 um 08:30 Uhr" otherwise (built in reports/evidence.py).
     observed_at_label: str
     delta_vs_previous: Decimal | None = None
     previous_observation_id: uuid.UUID | None = None
@@ -45,8 +50,24 @@ class NarrativeProvider(Protocol):
     def generate(self, payload: list[EvidenceItem]) -> list[DraftStatement]: ...
 
 
-def _fmt(value: Decimal | None) -> str:
-    return "unknown" if value is None else f"{value.normalize():f}"
+def _fmt(value: Decimal) -> str:
+    return f"{value.normalize():f}"
+
+
+def _with_unit(text: str, unit: str | None) -> str:
+    return f"{text} {unit}" if unit else text
+
+
+def _interval(low: Decimal | None, high: Decimal | None, unit: str | None) -> str | None:
+    """The source's reference interval; a one-sided interval names its one bound; None if the
+    source gave no bound at all."""
+    if low is not None and high is not None:
+        return _with_unit(f"{_fmt(low)} bis {_fmt(high)}", unit)
+    if high is not None:
+        return _with_unit(f"bis {_fmt(high)}", unit)
+    if low is not None:
+        return _with_unit(f"ab {_fmt(low)}", unit)
+    return None
 
 
 class DeterministicNarrativeProvider:
@@ -58,21 +79,24 @@ class DeterministicNarrativeProvider:
     """
 
     name = "deterministic"
-    version = "narr-1"
+    # narr-2: the same facts as narr-1, worded in German. A stored version keeps the text and
+    # the version it was generated with.
+    version = "narr-2"
 
     def generate(self, payload: list[EvidenceItem]) -> list[DraftStatement]:
         statements: list[DraftStatement] = []
         for i, item in enumerate(payload, start=1):
             evidence = [item.observation_id]
-            parts = [
-                f"{item.name} was {_fmt(item.value)} {item.unit or ''}".rstrip()
-                + f" on {item.observed_at_label}."
-            ]
-            if item.reference_low is not None or item.reference_high is not None:
-                interval = (
-                    f"{_fmt(item.reference_low)}-{_fmt(item.reference_high)} {item.unit or ''}"
-                )
-                parts.append(f"Source reference interval: {interval.rstrip()}.")
+            if item.value is None:
+                parts = [
+                    f"Für {item.name} ist am {item.observed_at_label} kein Zahlenwert erfasst."
+                ]
+            else:
+                measured = _with_unit(_fmt(item.value), item.unit)
+                parts = [f"{item.name} lag am {item.observed_at_label} bei {measured}."]
+            interval = _interval(item.reference_low, item.reference_high, item.unit)
+            if interval is not None:
+                parts.append(f"Referenzintervall der Quelle: {interval}.")
                 # Factual comparison to the lab-provided interval (a rule match, not a diagnosis).
                 # Uses the shared predicate so the narrative, the web "Lage" column, and the
                 # planned out_of_source_interval rule cannot drift. Only above/below are stated;
@@ -81,13 +105,13 @@ class DeterministicNarrativeProvider:
                     item.value, item.reference_low, item.reference_high
                 )
                 if position == "above":
-                    parts.append("The value is above the source reference interval.")
+                    parts.append("Der Wert liegt über dem Referenzintervall der Quelle.")
                 elif position == "below":
-                    parts.append("The value is below the source reference interval.")
+                    parts.append("Der Wert liegt unter dem Referenzintervall der Quelle.")
             if item.delta_vs_previous is not None and item.previous_observation_id is not None:
+                change = _with_unit(_fmt(item.delta_vs_previous), item.unit)
                 parts.append(
-                    f"Change of {_fmt(item.delta_vs_previous)} {item.unit or ''}".rstrip()
-                    + " since the previous comparable measurement."
+                    f"Veränderung gegenüber der vorherigen vergleichbaren Messung: {change}."
                 )
                 evidence.append(item.previous_observation_id)
             statements.append(

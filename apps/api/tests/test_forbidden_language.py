@@ -10,6 +10,7 @@ from __future__ import annotations
 import uuid
 from decimal import Decimal
 
+from hadp_api.modules.reports.language import restricted_terms
 from hadp_api.modules.reports.narrative import DeterministicNarrativeProvider, EvidenceItem
 
 # Restricted terms (substring, case-insensitive) from the intended-use boundary.
@@ -25,6 +26,26 @@ FORBIDDEN = [
     "disease",
     "recommend",
     "cure",
+]
+
+# The provider writes German. This guards its OWN templates against the German words for the
+# same claims. It is a test of generated text only — not the write-time term list for human
+# edits (modules/reports/language.py), whose extension to German is a recorded open decision.
+FORBIDDEN_GERMAN = [
+    "therap",
+    "behandl",
+    "empfehl",
+    "empfohlen",
+    "medikament",
+    "arznei",
+    "nahrungsergänz",
+    "krank",
+    "heil",
+    "risiko",
+    "biologisches alter",
+    "normal",
+    "auffällig",
+    "gesund",
 ]
 
 
@@ -48,13 +69,17 @@ def test_narrative_contains_no_prohibited_claims() -> None:
         _item("2.8", "0", "3.0"),  # within interval
         _item("3.6", "0", "3.0", delta="-0.8"),  # above interval, with change
         _item("0.2", "0.5", "3.0"),  # below interval
-        _item("1.0", None, "3.0"),  # one-sided interval
+        _item("1.0", None, "3.0"),  # one-sided interval (upper bound only)
+        _item("1.0", "0.5", None),  # one-sided interval (lower bound only)
+        _item("1.0", None, None),  # no interval
     ]
     statements = DeterministicNarrativeProvider().generate(payload)
     assert statements
     blob = " ".join(s.text for s in statements).lower()
-    for term in FORBIDDEN:
+    for term in FORBIDDEN + FORBIDDEN_GERMAN:
         assert term not in blob, f"prohibited term in narrative: {term!r}"
+    # The write-time guard for human edits must accept every generated statement unchanged.
+    assert restricted_terms(s.text for s in statements) == []
 
 
 def test_every_statement_is_evidence_linked() -> None:
