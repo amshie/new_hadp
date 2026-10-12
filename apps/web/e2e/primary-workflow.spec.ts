@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { asStaff, hydrated } from "./support/staff";
+import { asStaff, hydrated, watchPageErrors } from "./support/staff";
 
 // The primary clinic workflow, walked through the UI alone on synthetic data: a new patient
 // with consent, a laboratory file of which one value is published by the import and two
@@ -399,15 +399,17 @@ test("the clinician drafts the report and approves it", async ({ browser }) => {
   });
 });
 
-test("before the release there is no access link, and the patient page shows no report without one", async ({
+test("without an access link the patient page shows the neutral message and no report", async ({
   browser,
 }) => {
-  // The access link is issued by the release and shown once, in the release dialog. Before
-  // the release there is no link to try, so the UI gives no way to ask for this report as a
-  // patient; all a patient's browser can reach is the page without a link. That page shows
-  // the neutral message and nothing of the approved report. (That a link shows released
-  // content only is the API's rule and is tested there — apps/api/tests.)
+  // What this shows, and no more: a browser that holds no link is told that the link is not
+  // valid and sees nothing of the report the clinician has just approved. It would say the
+  // same at any other moment — the access link is issued by the release and shown once, so
+  // before the release there is no link to try, and the UI gives no way to ask for this
+  // report as a patient. (A link that is NOT the issued one is tried after the release,
+  // below; that a link shows released content only is the API's rule and is tested there.)
   const context = await browser.newContext();
+  const noPageErrors = watchPageErrors(context);
   try {
     const page = await context.newPage();
     await page.goto("/patient-view");
@@ -418,6 +420,7 @@ test("before the release there is no access link, and the patient page shows no 
     await expect(
       page.getByRole("heading", { name: "Ihr Bericht" }),
     ).toHaveCount(0);
+    expect(statements.length, "the approved statements").toBe(3);
     for (const statement of statements) {
       await expect(page.getByText(statement)).toHaveCount(0);
     }
@@ -426,6 +429,7 @@ test("before the release there is no access link, and the patient page shows no 
     ).toContainText(
       "Pilotumgebung. Synthetische Beispieldaten · keine reale Patientenversorgung.",
     );
+    noPageErrors();
   } finally {
     await context.close();
   }
@@ -490,6 +494,7 @@ test("the patient reads the released report through the access link", async ({
 }) => {
   // A browser of the patient's own: a new context, no staff session.
   const context = await browser.newContext();
+  const noPageErrors = watchPageErrors(context);
   try {
     const page = await context.newPage();
     await page.goto(accessLink);
@@ -522,6 +527,39 @@ test("the patient reads the released report through the access link", async ({
     // The link opens the report and nothing else: the clinic's pages stay closed.
     await page.goto(patientPath);
     await expect(page).toHaveURL(/\/login$/);
+    noPageErrors();
+  } finally {
+    await context.close();
+  }
+});
+
+test("a link that is not the issued one opens no report", async ({
+  browser,
+}) => {
+  // The issued link with one character of its token changed, in a browser of its own.
+  const link = new URL(accessLink);
+  const token = link.searchParams.get("token") ?? "";
+  const last = token.slice(-1) === "A" ? "B" : "A";
+  link.searchParams.set("token", token.slice(0, -1) + last);
+  expect(link.toString()).not.toBe(accessLink);
+
+  const context = await browser.newContext();
+  const noPageErrors = watchPageErrors(context);
+  try {
+    const page = await context.newPage();
+    await page.goto(link.toString());
+
+    await expect(page).toHaveURL(/\/patient-view$/);
+    await expect(
+      page.getByText("Dieser Bericht ist nicht verfügbar."),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Ihr Bericht" }),
+    ).toHaveCount(0);
+    for (const statement of statements) {
+      await expect(page.getByText(statement)).toHaveCount(0);
+    }
+    noPageErrors();
   } finally {
     await context.close();
   }

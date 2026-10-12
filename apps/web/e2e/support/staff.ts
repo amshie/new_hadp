@@ -9,8 +9,11 @@ import {
 // Until React has hydrated a control it is only what the server rendered: a click on a button
 // does nothing, and a form submits natively — the page reloads and what was entered is gone.
 // A production build paints fast enough for a test (and for a quick hand) to get there first.
-// React marks an element it has taken over with a `__reactProps$…` key; this waits for that
-// mark on the control the next step is about to use. Call it after every full page load.
+// React writes a `__reactProps$…` key onto an element while it hydrates it; this waits for
+// that key on the control the next step is about to use. The key says that hydration has
+// reached the element, not that every handler above it is attached — what makes the next
+// action safe is that React hydrates synchronously on the click, key press or change that
+// follows. Call it after every full page load.
 export async function hydrated(control: Locator): Promise<void> {
   await expect
     .poll(
@@ -39,14 +42,33 @@ export type StaffRole = keyof typeof STAFF;
 type Session = Awaited<ReturnType<BrowserContext["storageState"]>>;
 
 // One sign-in per role and run, made when the role is first needed. Sign-in is rate limited
-// (10 per minute per client address, apps/api auth_routes.py): every later step of the same
-// role opens a new browser context from the session kept here. The sessions stay in memory —
-// nothing that grants access is written to disk.
+// (10 per minute, apps/api auth_routes.py — per address the API sees, which is the web
+// server's for every browser): every later step of the same role opens a new browser context
+// from the session kept here. The suite itself keeps the sessions in memory only. A FAILED
+// run is different: its trace (playwright.config.ts) holds the cookies and the access link,
+// under test-results/, and CI uploads it — sessions of made-up accounts on a stack that is
+// gone when the job ends.
 const sessions = new Map<StaffRole, Session>();
+
+// An uncaught error on a page — a hydration mismatch among them — fails no step by itself:
+// the page renders again and every assertion passes. Each context is watched, and the step
+// that used it fails if a page reported one.
+export function watchPageErrors(context: BrowserContext): () => void {
+  const errors: string[] = [];
+  context.on("page", (page) => {
+    page.on("pageerror", (error) => {
+      errors.push(`${new URL(page.url()).pathname}: ${error.message}`);
+    });
+  });
+  return () => {
+    expect(errors, "uncaught errors on the pages of this step").toEqual([]);
+  };
+}
 
 async function signIn(browser: Browser, role: StaffRole): Promise<Session> {
   const { email, roleLabel } = STAFF[role];
   const context = await browser.newContext();
+  const noPageErrors = watchPageErrors(context);
   try {
     const page = await context.newPage();
     await page.goto("/login");
@@ -59,6 +81,7 @@ async function signIn(browser: Browser, role: StaffRole): Promise<Session> {
       `sign-in as ${email} did not reach /overview (the API refuses more than 10 sign-ins per minute)`,
     ).toHaveURL(/\/overview$/);
     await expect(page.getByRole("banner")).toContainText(roleLabel);
+    noPageErrors();
     return await context.storageState();
   } finally {
     await context.close();
@@ -77,8 +100,10 @@ export async function asStaff(
     sessions.set(role, session);
   }
   const context = await browser.newContext({ storageState: session });
+  const noPageErrors = watchPageErrors(context);
   try {
     await work(await context.newPage());
+    noPageErrors();
   } finally {
     await context.close();
   }

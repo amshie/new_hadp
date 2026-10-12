@@ -66,10 +66,23 @@ Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
   form have no accessible name; the test has to find them by position. That is a WCAG 2.2 AA
   gap in the primary clinical workflow.
   Found by its first run against the production build: **a form whose submit is handled in
-  script submits natively when it is used before React has hydrated it** — the page reloads
-  and what was entered is gone, without a message. The laboratory upload form and the sign-in
-  form are such forms (`LabDocumentsCard.tsx`, `SignInForm.tsx`). The test now waits for
-  hydration; a person with a fast hand on a slow device gets the reload. Not changed here.
+  script submits natively when it is used before React has hydrated it.** The forms have no
+  `method` and no `action`, so the browser sends a GET to the same address: the page reloads,
+  what was entered is gone without a message — **and it is in the address bar, the history
+  and the web server's access log**: the e-mail address as `/login?email=…`, the laboratory
+  file's name as `?file=…`. The laboratory upload form and the sign-in form are such forms
+  (`LabDocumentsCard.tsx`, `SignInForm.tsx`). The test now waits for hydration; a person with
+  a fast hand on a slow device gets the reload. Not changed here, and no test pins it yet.
+  From the independent review of the suite, taken: the step that claimed to show "before the
+  release" is named for what it shows (a browser without a link), and a link that is not the
+  issued one is tried after the release; every context fails its step on an uncaught page
+  error (the suite was blind to them — the review predicted a hydration error on every run
+  from dates formatted in the server's zone; fixed in its own change). Still open from it:
+  the interpretation step gives all six axes the same values and asserts one field, so
+  swapped or dropped verdicts would pass (CIS is rendered on no reading page — its storage is
+  proven by API tests only); the statements are checked by their beginning, not in full; the
+  roles are shown by a control being absent, the refusals themselves are API tests; nothing
+  crosses a clinic boundary in the browser; one green run in three is not yet stability.
   Also found: **the MinIO images `docker-compose.yml` names can no longer be pulled** — Docker
   Hub answers 404 for `minio/minio` and `minio/mc` (checked 2026-10-12). A machine that
   already holds them keeps working; a new machine, or one that lost its image cache, cannot
