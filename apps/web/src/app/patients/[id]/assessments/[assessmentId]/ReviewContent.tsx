@@ -1,12 +1,13 @@
 "use client";
 
-import { Fragment, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 
 import { Dialog } from "@/components/vitabahn/Dialog";
 import { Icon } from "@/components/Icon";
 import { useToast } from "@/components/Toaster";
 import {
   approveReportAction,
+  editReportAction,
   rejectReportAction,
   releaseReportAction,
 } from "@/app/reports/actions";
@@ -166,6 +167,71 @@ export function ReviewContent({
     (sessionRole === "clinician" || sessionRole === "medical_director") &&
     (isDraft || isApproved);
 
+  // Rework after rejection: the clinician revises the wording (or drops a statement) and saves
+  // it as a NEW version — the rejected version stays a preserved record. Each statement keeps
+  // its evidence binding; the API re-validates it and refuses restricted language.
+  const canRework = sessionRole === "clinician" && view.status === "rejected";
+  const [editRows, setEditRows] = useState<
+    | { id: string; text: string; evidenceIds: string[]; removed: boolean }[]
+    | null
+  >(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const firstEditRef = useRef<HTMLTextAreaElement>(null);
+  const editing = editRows !== null;
+  useEffect(() => {
+    if (editing) firstEditRef.current?.focus();
+  }, [editing]);
+  const keptRows = editRows?.filter((r) => !r.removed) ?? [];
+  const reworkDirty =
+    editRows?.some(
+      (r, i) => r.removed || r.text.trim() !== view.statements[i]?.text,
+    ) ?? false;
+  const reworkValid =
+    keptRows.length > 0 && keptRows.every((r) => r.text.trim().length > 0);
+
+  const startRework = () => {
+    setEditError(null);
+    setEditRows(
+      view.statements.map((s) => ({
+        id: s.id,
+        text: s.text,
+        evidenceIds: s.evidenceIds,
+        removed: false,
+      })),
+    );
+  };
+  const cancelRework = () => {
+    setEditRows(null);
+    setEditError(null);
+  };
+  const updateRow = (
+    index: number,
+    patch: { text?: string; removed?: boolean },
+  ) =>
+    setEditRows(
+      (rows) =>
+        rows?.map((r, i) => (i === index ? { ...r, ...patch } : r)) ?? null,
+    );
+  const saveRework = () => {
+    startTransition(async () => {
+      const res = await editReportAction(
+        view.reportId,
+        path,
+        keptRows.map((r) => ({
+          id: r.id,
+          text: r.text.trim(),
+          evidence_observation_ids: r.evidenceIds,
+        })),
+      );
+      if (!res.ok) {
+        setEditError(res.error);
+        return;
+      }
+      cancelRework();
+      toast("Überarbeitung als neue Version gespeichert.");
+    });
+  };
+
   const closeDialog = () => {
     setDialog(null);
     setConfirmChecked(false);
@@ -288,8 +354,13 @@ export function ReviewContent({
       <div className="draft-banner" role="status">
         <Icon name="alert" />
         <span>
-          <strong>Systementwurf – nicht freigegeben.</strong> Aussagen müssen
-          anhand der Quellen geprüft und vom klinischen Team signiert werden.
+          <strong>
+            {view.edited
+              ? "Überarbeiteter Entwurf – nicht freigegeben."
+              : "Systementwurf – nicht freigegeben."}
+          </strong>{" "}
+          Aussagen müssen anhand der Quellen geprüft und vom klinischen Team
+          signiert werden.
         </span>
       </div>
 
@@ -308,40 +379,121 @@ export function ReviewContent({
         className="card summary-card"
         aria-label="Quellengebundener Entwurf"
       >
-        <span className="kicker">Deterministische Zusammenfassung</span>
+        <span className="kicker">
+          {view.edited
+            ? "Klinisch überarbeitete Fassung"
+            : "Deterministische Zusammenfassung"}
+        </span>
         {view.statements.length === 0 && (
           <p style={{ marginTop: "12px" }}>
             Für diesen Bericht liegen keine Aussagen vor.
           </p>
         )}
-        {view.statements.map((s) => (
-          <div
-            className="system-draft"
-            key={s.id}
-            style={{ marginTop: "14px" }}
-          >
-            <p style={{ marginTop: 0 }}>{s.text}</p>
-            <div className="source-links">
-              {s.evidence.map((e, i) => (
-                <span
-                  key={i}
-                  className={`source-link${e.missing ? " " : ""}`}
-                  style={
-                    e.missing
-                      ? {
-                          color: "var(--danger)",
-                          borderColor: "var(--btn-danger-border)",
-                        }
-                      : undefined
-                  }
+        {view.statements.map((s, index) => {
+          const row = editRows?.[index];
+          return (
+            <div
+              className="system-draft"
+              key={s.id}
+              style={{ marginTop: "14px", opacity: row?.removed ? 0.6 : 1 }}
+            >
+              {row ? (
+                <label className="field">
+                  <span className="field-label">
+                    Aussage {index + 1}
+                    {row.removed ? " · wird entfernt" : ""}
+                  </span>
+                  <textarea
+                    ref={index === 0 ? firstEditRef : undefined}
+                    className="textarea"
+                    rows={3}
+                    value={row.text}
+                    disabled={row.removed || pending}
+                    onChange={(e) => updateRow(index, { text: e.target.value })}
+                    style={{
+                      padding: "10px 12px",
+                      fontSize: "12.5px",
+                      lineHeight: 1.55,
+                      resize: "vertical",
+                    }}
+                  />
+                </label>
+              ) : (
+                <p style={{ marginTop: 0 }}>{s.text}</p>
+              )}
+              <div className="source-links">
+                {s.evidence.map((e, i) => (
+                  <span
+                    key={i}
+                    className={`source-link${e.missing ? " " : ""}`}
+                    style={
+                      e.missing
+                        ? {
+                            color: "var(--danger)",
+                            borderColor: "var(--btn-danger-border)",
+                          }
+                        : undefined
+                    }
+                  >
+                    {e.label}
+                    {e.status && e.status !== "published"
+                      ? ` · ${e.status}`
+                      : ""}
+                  </span>
+                ))}
+              </div>
+              {row && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  type="button"
+                  disabled={pending}
+                  onClick={() => updateRow(index, { removed: !row.removed })}
+                  style={{ marginTop: "8px" }}
                 >
-                  {e.label}
-                  {e.status && e.status !== "published" ? ` · ${e.status}` : ""}
-                </span>
-              ))}
+                  {row.removed
+                    ? "Aussage wiederherstellen"
+                    : "Aussage entfernen"}
+                </button>
+              )}
+            </div>
+          );
+        })}
+        {editing && (
+          <div style={{ marginTop: "16px" }}>
+            <p>
+              Die Belege bleiben an die jeweilige Aussage gebunden. Beim
+              Speichern entsteht Version v{view.versionNo + 1} als Entwurf; die
+              zurückgewiesene Version v{view.versionNo} bleibt erhalten. Die
+              neue Version muss erneut genehmigt und freigegeben werden.
+            </p>
+            {editError && (
+              <p role="alert" style={{ color: "var(--danger)" }}>
+                {editError}
+              </p>
+            )}
+            <div
+              className="dialog-actions"
+              style={{ justifyContent: "flex-start", marginTop: "12px" }}
+            >
+              <button
+                className="btn btn-primary"
+                type="button"
+                disabled={pending || !reworkDirty || !reworkValid}
+                onClick={saveRework}
+              >
+                Als neue Version speichern
+              </button>
+              <button
+                className="btn btn-secondary"
+                type="button"
+                disabled={pending}
+                onClick={cancelRework}
+              >
+                Abbrechen
+              </button>
             </div>
           </div>
-        ))}
+        )}
       </section>
 
       <div className="section-header">
@@ -650,6 +802,16 @@ export function ReviewContent({
           <span>{statusHint(view.status, sessionRole)}</span>
         </div>
         <div className="action-bar-buttons">
+          {canRework && !editing && (
+            <button
+              className="btn btn-primary"
+              type="button"
+              disabled={pending}
+              onClick={startRework}
+            >
+              Überarbeiten
+            </button>
+          )}
           {canReject && (
             <button
               className="btn btn-secondary"

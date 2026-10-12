@@ -39,7 +39,8 @@ Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
   reuse when the report UI is built out. **UI guard (2026-10-11):** the patient detail offers
   "Berichtsentwurf erstellen" only while the patient has no report and otherwise links to the
   existing one ("Bericht öffnen"), so the UI cannot stack drafts; the API itself is unchanged.
-  Still open: a rejected report has no UI rework path (the edit endpoint has no UI).
+  A rejected report is reworked on the review page ("Überarbeiten", clinician): the existing
+  edit endpoint opens a new version and the rejected one stays a preserved record.
 - **Log redaction of short/integer values**: the redactor catches emails, tokens, and
   value-shaped/long numbers, but cannot redact every bare integer without nuking ids.
   The real control is "application code never logs observation values" — enforce by

@@ -73,6 +73,8 @@ export interface StatementView {
   id: string;
   text: string;
   evidence: EvidenceChip[];
+  // The observations the statement is bound to — a rework keeps this binding unchanged.
+  evidenceIds: string[];
 }
 export interface MarkerView {
   name: string;
@@ -127,6 +129,8 @@ export interface ReviewView {
   statusBadge: string;
   statusLabel: string;
   versionNo: number;
+  // True once the current version carries a human edit (no longer the provider's output).
+  edited: boolean;
   statements: StatementView[];
   markers: MarkerView[];
   auditSteps: AuditStepView[];
@@ -207,7 +211,9 @@ export function statusHint(status: string, role: string | null): string {
   if (status === "released")
     return "Freigegeben — die Patientin sieht ausschließlich diese Version.";
   if (status === "rejected")
-    return "Zurückgewiesen — eine Überarbeitung erstellt eine neue Version.";
+    return role === "clinician"
+      ? "Zurückgewiesen — „Überarbeiten“ erstellt eine neue Version; die zurückgewiesene bleibt erhalten."
+      : "Zurückgewiesen — eine Überarbeitung erstellt eine neue Version.";
   if (status === "approved") {
     return role === "medical_director"
       ? "Bereit zur Freigabe an die Patientin — einwilligungsgebunden, zugeordnet und auditiert."
@@ -270,9 +276,11 @@ export function presentReview(
     statusBadge: statusInfo.badge,
     statusLabel: statusInfo.label,
     versionNo: report.version_no,
+    edited: report.edited === true,
     statements: report.statements.map((s) => ({
       id: s.id,
       text: s.text,
+      evidenceIds: s.evidence.map((e) => e.observation_id),
       evidence: s.evidence.map((e) =>
         e.missing
           ? { label: "Beleg nicht auflösbar", missing: true }

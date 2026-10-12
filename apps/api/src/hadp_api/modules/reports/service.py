@@ -25,6 +25,7 @@ from hadp_api.modules.consents import service as consents_service
 from hadp_api.modules.enums import ConsentPurpose, ReportStatus
 from hadp_api.modules.observations.models import Observation
 from hadp_api.modules.reports.evidence import build_evidence_payload, validate_statements
+from hadp_api.modules.reports.language import restricted_terms
 from hadp_api.modules.reports.models import (
     PatientAccessLink,
     Report,
@@ -263,6 +264,13 @@ def edit_report(
         validate_statements(db, report.patient_id, statements)
     except ValueError as exc:
         raise IntendedUseViolation(str(exc)) from exc
+    # An edit is free text bound for a patient-facing report: the restricted intended-use
+    # terms are refused at write time. The detail names the matched terms, never the text.
+    restricted = restricted_terms(str(s.get("text", "")) for s in statements)
+    if restricted:
+        raise IntendedUseViolation(
+            f"restricted language in statement text: {', '.join(restricted)}"
+        )
 
     current = _current_version(db, report)
     if current.status in {ReportStatus.APPROVED, ReportStatus.RELEASED, ReportStatus.REJECTED}:
@@ -417,6 +425,8 @@ def assemble_report_view(db: Session, report: Report) -> dict[str, Any]:
         "version_no": version.version_no,
         "narrative_provider": version.narrative_provider,
         "narrative_version": version.narrative_version,
+        # Provenance of the text: a human edit means it is no longer the provider's output.
+        "edited": version.edited_by_user_id is not None,
         "statements": [
             {
                 "id": s["id"],
