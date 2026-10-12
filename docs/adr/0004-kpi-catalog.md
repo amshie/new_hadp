@@ -724,9 +724,12 @@ read side such a value had no number at all. With normalization version `norm-2`
   has published it.
 - **A number that reads two ways is not read.** One to three digits, a mark, exactly three digits —
   "4.000", "1,250", "150.000" — is a decimal number, or a number grouped in thousands; nothing in
-  the value says which, and its size must not decide. Such a value has no number; such a reference
-  bound is not held (`ambiguous_reference`), and neither is a pair whose lower bound lies above the
-  upper. This holds for the six names too: norm-1 read "4.000" as 4.
+  the value says which, and its size must not decide. Such a value has no number. This holds for
+  the six names too: norm-1 read "4.000" as 4.
+- **A reference interval is held whole or not at all.** Where a bound the source gave cannot be
+  read one way, or the lower bound lies above the upper, no bound is held and the value goes to
+  review (`unparseable_reference` — the normalizer's own reason; the readers' `ambiguous_reference`
+  means several ranges in a source and changes how a repeated value is recognized).
 
 **Why "the catalog knows the name" is not "the import may act on it".** The first version of this
 step normalized — and so published without a human — every KPI whose comparison policy defaults to
@@ -756,6 +759,14 @@ and, for specimen-bound analytes, a specimen on the observation. Neither exists 
 - **The readers do not carry the specimen.** The CSV reader ignores a column it does not know (a
   "Material" column among them), and the LDT 2 reader does not read fields 8428–8431. For the six
   names this is as it was under norm-1 — see the findings below.
+- **The import now depends on a seeded catalog, and nothing seeds one in production.** With no
+  catalog, or one that no longer describes the six names as the module does, their values are not
+  normalized: they wait for review as `unmapped_metric` (norm-1 normalized them whatever the
+  catalog held). That is the safe direction, and it would be silent: the import writes one error
+  line to the log naming the names (`unconfirmed_names`), and the queue only says "not mapped".
+  `seed_kpi_catalog` is called by the tests and by the synthetic seed script, which refuses to run
+  in production, and it never updates an existing release. A deployment needs a seeding step and a
+  start-up check — workstream C of the go-live plan.
 
 **Departures from earlier sections, recorded:**
 
@@ -778,3 +789,5 @@ and, for specimen-bound analytes, a specimen on the observation. Neither exists 
   compared with the last one. `vo2max` resolves to `regen.vo2peak_direct` (§9.9); it is not one of
   the six. Both aliases come from the seed reconciliation (M4).
 - A name alone does not tell the specimen ("Creatinine" in serum or in urine).
+- Nothing about the six names checks whether a number is plausible: `LDL 820 mmol/L` or
+  `HbA1c 54 %` is published without a human, as under norm-1.

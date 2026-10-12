@@ -73,14 +73,18 @@ manual entry as well):
   the decimal separator, an optional small exponent. `NaN`, `Infinity`, digit-group underscores
   (`3_4`), other scripts' digits and a number with two marks (`1.234,5`) are **not** numbers.
 - **A number that reads two ways is not read.** One to three digits, a mark, exactly three digits
-  — `4.000`, `1,250`, `150.000` — is a decimal number or a number grouped in thousands, and
-  nothing in the value says which. Such a value keeps the source's wording and has no number (for
-  one of the six names: `unparseable_value`). This is new with `norm-2`, also for the six names:
-  before, `4.000` was read as 4.
-- A reference bound the source gives but that cannot be read goes to review instead of silently
-  turning a two-sided interval into a one-sided one: `unparseable_reference` when it is not a
-  number, `ambiguous_reference` when it reads two ways. A pair whose lower bound lies above the
-  upper is not an interval: neither bound is held (`ambiguous_reference`).
+  — `4.000`, `1,250`, `150.000`, also `04.000` — is a decimal number or a number grouped in
+  thousands, and nothing in the value says which. Only an integer part of zeros settles it
+  (`0.005`, `00.500`). Such a value keeps the source's wording and has no number (for one of the
+  six names: `unparseable_value`). This is new with `norm-2`, also for the six names: before,
+  `4.000` was read as 4. **A laboratory that writes three decimals** therefore sends every value
+  of 1 or more to review without a number, until a reader can state the decimal mark of its
+  format (LDT defines one; CSV and manual entry do not) — an open item.
+- **A reference interval is held whole or not at all.** A bound the source gives but that cannot
+  be read — it is not a number, or it reads two ways — and a pair whose lower bound lies above
+  the upper leave **no** bound held, and the value goes to review (`unparseable_reference`).
+  Keeping the readable half would show a one-sided interval the source did not give. A bound the
+  source simply does not give is no problem: the other one is held, and named as the one bound.
 - A source code (LOINC) is stamped on the six names only, exactly as before. Every other value
   carries the catalog code, if its name has one, and no external code.
 

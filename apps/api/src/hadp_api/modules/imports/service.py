@@ -12,6 +12,7 @@ and sampling time is held for review.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -38,6 +39,8 @@ from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.observations.models import Observation
 from hadp_api.modules.patients.models import Patient
 from hadp_api.modules.reports import service as reports_service
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -104,6 +107,19 @@ def ingest_values(
     )
 
     terminology = load_terminology(db)
+    unconfirmed = normalize_mod.unconfirmed_names(terminology)
+    if unconfirmed:
+        # A catalog that was never seeded, or that no longer describes these names as the
+        # import does: their values wait for review instead of being normalized. Nothing else
+        # would show it — the queue only says "not mapped". (The names are the import's own
+        # fixed list, not source text.)
+        logger.error(
+            "KPI catalog does not confirm %d of the import's %d automatic names (%s); "
+            "their values are held for review",
+            len(unconfirmed),
+            len(normalize_mod.automatic_names()),
+            ", ".join(unconfirmed),
+        )
 
     for index, row in enumerate(rows):
         norm = normalize_mod.normalize(

@@ -116,10 +116,11 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   the source's unit: the tables, the interpretation evidence and the report statement show it
   as written (they showed "—" and no interval), with its review status, and a position against
   the interval only once a clinician has published it. It stays out of change calculations. A
-  number or a bound that reads two ways ("4.000", "1,250") is not read — also for the six
-  names, where norm-1 read "4.000" as 4 — and a pair with the lower bound above the upper is
-  not an interval. The review queue shows the bounds publishing puts into effect. The data
-  export is format version 2 (bounds for values that are not normalized; plain decimals).
+  number that reads two ways ("4.000", "1,250") is not read — also for the six names, where
+  norm-1 read "4.000" as 4 — and a reference interval is held whole or not at all: an
+  unreadable bound, or a pair with the lower bound above the upper, leaves none held. The
+  review queue shows the bounds publishing puts into effect. The data export is format
+  version 2 (bounds for values that are not normalized; plain decimals).
   - **What an independent review refused, and why it matters beyond this slice:** the first
     version normalized, and so published unseen, every KPI whose comparison policy is
     `method_aware` — 57 KPIs under 62 names, where norm-1 had six. An assistant, who may enter
@@ -139,9 +140,19 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
     reference-interval display"); (5) whether a change may be computed between two values of
     one KPI held in the same source unit (today: no — only between normalized values).
   - **Gaps:** a number that reads two ways has no way back to being a number — a clinician can
-    publish or reject the value, not say which reading is meant; a value imported before
-    `norm-2` without a normalized form has its number back (migration 0018) but not its
-    bounds, and a stored row is never re-normalized; `reference_text` is still synthesized as
+    publish or reject the value, not say which reading is meant; **a laboratory that writes
+    three decimals** loses the number of every value of 1 or more ("1.250") and the interval
+    beside it, until a reader states the decimal mark of its format (LDT defines one; CSV and
+    manual entry do not); once published, such a value of one of the six names is skipped by
+    later change calculations without a word; **the import depends on a seeded catalog and
+    nothing seeds one in production** (ADR-0004 §18 — an error line in the log is all that
+    says so); a value imported before `norm-2` without a normalized form has its number back
+    (migration 0018) but not its bounds, and a stored row is never re-normalized — a row
+    norm-1 normalized from "1.050 mg/dL" still stands as 1.05; a six-name value is not checked
+    for plausibility (`LDL 820 mmol/L` publishes unseen, as before); a name typed with a tab
+    or a line break is matched, and the statement repeats it as typed; migrations have to be
+    run by a superuser or a role with BYPASSRLS (0018 refuses any other, also on an empty
+    table); `reference_text` is still synthesized as
     "None-120 …" for a one-sided interval; a converted value and its bounds show every computed
     digit, and a statement restates a bound without its trailing zeros; the glucose factor has
     three significant digits; the web has no tests of its own; property-based tests for the

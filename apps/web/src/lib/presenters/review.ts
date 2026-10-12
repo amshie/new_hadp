@@ -189,26 +189,27 @@ function unitJoin(
 
 // How the shown value relates to the source's writing. Three cases need saying: the platform
 // converted the unit; the value is held as the source wrote it (not normalized, so no change
-// over time is computed); no number is read from the source's writing at all — it is a text
-// result, it carries an addition ("<0,5", "12,4 H"), or it reads two ways ("4.000").
+// over time is computed); no number is read from the source's writing at all — a text result,
+// an addition ("<0,5", "12,4 H"), or a way of writing a number the platform does not read
+// one way ("4.000", "1.234,5").
 function sourceNote(p: TimelinePoint): MarkerView["sourceNote"] {
   if (p.value == null)
     return {
       kind: "text",
       short: "Angabe im Wortlaut",
-      full: "Aus der Angabe der Quelle wird hier keine Zahl gelesen: Sie ist kein Zahlenwert, trägt einen Zusatz oder lässt zwei Lesarten zu. Angezeigt wird die Angabe im Wortlaut.",
+      full: "Aus der Angabe der Quelle liest die Plattform hier keine Zahl – etwa bei einem Textergebnis, einem Zusatz am Wert oder einer Schreibweise, die sie nicht eindeutig lesen kann. Angezeigt wird die Angabe im Wortlaut.",
     };
   if (p.converted)
     return {
       kind: "converted",
       short: `umgerechnet aus ${unitJoin(p.original_value, p.original_unit)}`,
-      full: `Die Quelle nennt ${unitJoin(p.original_value, p.original_unit)}; Wert und Referenzintervall wurden in ${p.unit ?? "die Einheit des Katalogs"} umgerechnet.`,
+      full: `Die Quelle nennt ${unitJoin(p.original_value, p.original_unit)}; der Wert – und das Referenzintervall, soweit eines angezeigt ist – wurde in ${p.unit ?? "die Einheit der Kennzahl"} umgerechnet.`,
     };
   if (!p.normalized)
     return {
       kind: "source_unit",
       short: "Einheit der Quelle",
-      full: "Wert und Referenzintervall stehen so, wie die Quelle sie nennt, in ihrer Einheit. Der Wert ist nicht normalisiert; eine Veränderung zum Vorwert wird deshalb nicht berechnet.",
+      full: "Der Wert steht so, wie die Quelle ihn nennt, in ihrer Einheit – ein angezeigtes Referenzintervall ebenso. Der Wert ist nicht normalisiert; eine Veränderung zum Vorwert wird deshalb nicht berechnet.",
     };
   return null;
 }

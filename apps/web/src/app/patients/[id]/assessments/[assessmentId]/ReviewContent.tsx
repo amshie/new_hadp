@@ -65,7 +65,15 @@ function fmtNum(n: number): string {
 // dot, never a guessed position (doctrine: never read as normal/stable).
 function LageCell({ marker }: { marker: MarkerView }) {
   // No position is stated for a value nobody has reviewed.
-  if (marker.reviewRequired) return <span className="pos-bar-noscale">—</span>;
+  if (marker.reviewRequired)
+    return (
+      <span className="pos-bar-noscale">
+        <span aria-hidden="true">—</span>
+        <span className="sr-only">
+          keine Lage: Der Wert ist nicht veröffentlicht
+        </span>
+      </span>
+    );
   const l = lageLabel(marker.lagePosition);
   const bar = marker.lageBar;
   const intervalText =
@@ -125,6 +133,9 @@ const REF_FILTERS: { key: RefFilter; label: string }[] = [
 ];
 
 function matchesRefFilter(marker: MarkerView, filter: RefFilter): boolean {
+  // A value that is not published has no position: it is listed under "Alle" only — not
+  // under "Ohne Referenz", which it may well have.
+  if (marker.reviewRequired) return filter === "all";
   if (filter === "outside")
     return marker.lagePosition === "above" || marker.lagePosition === "below";
   if (filter === "no_ref")

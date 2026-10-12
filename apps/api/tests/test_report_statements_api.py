@@ -181,8 +181,9 @@ def test_the_same_unit_in_another_spelling_is_not_a_conversion(client, admin_ses
 
 
 def test_an_unreadable_bound_is_not_turned_into_a_one_sided_interval(client, admin_session) -> None:  # type: ignore[no-untyped-def]
-    """The source gave two bounds; one could not be read. The statement names the bound the
-    platform holds and claims neither an interval "up to 3" nor a position against it."""
+    """The source gave two bounds; one could not be read. The statement restates no interval
+    at all — not "up to 3", and not "upper bound 3" either: the source gave neither — and
+    states no position."""
     _clinician(client, admin_session, "bound")
     pid = _import(
         client,
@@ -194,16 +195,50 @@ def test_an_unreadable_bound_is_not_turned_into_a_one_sided_interval(client, adm
                 "reference_low": "0.5*",
                 "reference_high": "3.0",
                 **DAY,
-            }
+            },
+            # A three-decimal format: of the bounds only the first reads one way.
+            {
+                "original_name": "TSH",
+                "original_value": "0.950",
+                "original_unit": "mU/l",
+                "reference_low": "0.270",
+                "reference_high": "4.200",
+                **DAY,
+            },
         ],
         publish_review=True,
+    )
+
+    texts = {statement["text"] for statement in _draft(client, pid)["statements"]}
+
+    assert texts == {
+        "LDL Cholesterol am 10.06.2025: 0.2 mmol/L.",
+        "TSH am 10.06.2025: 0.950 mU/l.",
+    }
+
+
+def test_a_bound_the_source_does_not_give_is_said_as_it_is(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """A source that gives one bound gave a one-sided interval: that bound is named."""
+    _clinician(client, admin_session, "one-sided")
+    pid = _import(
+        client,
+        [
+            {
+                "original_name": "LDL Cholesterol",
+                "original_value": "3.4",
+                "original_unit": "mmol/L",
+                "reference_high": "3.0",
+                **DAY,
+            }
+        ],
     )
 
     (statement,) = _draft(client, pid)["statements"]
 
     assert statement["text"] == (
-        "LDL Cholesterol am 10.06.2025: 0.2 mmol/L. "
-        "Referenzintervall der Quelle: obere Grenze 3 mmol/L."
+        "LDL Cholesterol am 10.06.2025: 3.4 mmol/L. "
+        "Referenzintervall der Quelle: obere Grenze 3 mmol/L. "
+        "Der Wert liegt über dem Referenzintervall der Quelle."
     )
 
 

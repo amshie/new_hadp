@@ -3,7 +3,7 @@
 The clinic is the controller and answers a data subject's request; this builds the package it
 hands over: ONE self-describing ZIP for ONE patient, generated on request and never stored
 (its record is the audit event, with the package's checksum). Format `hadp-patient-export`,
-version 1 — described in docs/product/DATA_EXPORT.md.
+version 2 — described in docs/product/DATA_EXPORT.md.
 
 The scope is deliberately the data that is the patient's own, or has already been released to
 them: profile, consent events, observations (source and normalized representation, provenance

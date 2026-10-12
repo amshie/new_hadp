@@ -12,6 +12,7 @@ calculation.
 from __future__ import annotations
 
 import importlib.util
+import logging
 import os
 import uuid
 from datetime import UTC, datetime
@@ -294,6 +295,21 @@ LEGACY: dict[str, tuple[str, Decimal | None, Decimal | None, Decimal | None]] = 
     # A number that reads two ways is not read — also where norm-1 had read it.
     "grouped": ("4.000", Decimal("4.000"), Decimal("4.000"), None),
     "grouped comma": ("1,250", None, None, None),
+    "grouped, padded": ("04.000", None, None, None),
+    "grouped, signed": ("-1.250", None, None, None),
+    "grouped, two lead digits": ("12.345", None, None, None),
+    "grouped, three lead digits": ("150.000", None, None, None),
+    "zeros lead": ("00.500", None, None, Decimal("0.500")),
+    "four lead digits": ("1000.000", None, None, Decimal("1000.000")),
+    "signed": ("+2.5", None, None, Decimal("2.5")),
+    "negative": ("-0.5", None, None, Decimal("-0.5")),
+    "bare fraction": (".5", None, None, Decimal("0.5")),
+    "trailing mark": ("5.", None, None, Decimal("5")),
+    "exponent": ("5.00E+01", None, None, Decimal("50.0")),
+    "negative exponent": ("25e-1", None, None, Decimal("2.5")),
+    "grouped shape with exponent": ("1.234e2", None, None, Decimal("123.4")),
+    "three-digit exponent": ("1e100", None, None, None),
+    "tab and line feed": ("\t3,4\r\n", None, None, Decimal("3.4")),
     # The letter v is not white space (PostgreSQL has no escape for the vertical tab).
     "trailing v": ("12,4 v", None, None, None),
     "leading v": ("v5", None, None, None),
@@ -403,6 +419,10 @@ def test_the_migration_runs_through_alembic_in_both_directions(client, admin_ses
     finally:
         admin_session.rollback()
         command.upgrade(cfg, "head")
+        # Alembic configures logging from alembic.ini and switches existing loggers off.
+        for existing in logging.Logger.manager.loggerDict.values():
+            if isinstance(existing, logging.Logger):
+                existing.disabled = False
 
 
 def test_the_migration_switches_row_security_off_before_it_writes(monkeypatch) -> None:  # type: ignore[no-untyped-def]

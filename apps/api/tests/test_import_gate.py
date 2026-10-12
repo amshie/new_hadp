@@ -9,9 +9,11 @@ import publishes by itself is what reaches a report with no clinician having loo
 
 from __future__ import annotations
 
+import logging
 from datetime import date, timedelta
 
-from sqlalchemy import select
+import pytest
+from sqlalchemy import select, text
 
 from hadp_api.modules.enums import ReviewStatus, Role
 from hadp_api.modules.imports import normalize as normalize_mod
@@ -190,7 +192,7 @@ def test_the_review_queue_shows_the_bounds_publishing_puts_into_effect(
         ("Ferritin", "unmapped_metric"): ("30", "400", "ng/mL", False),
         # "4.000 – 10.000" reads two ways: no bound is held, and the reason says why.
         ("Leukozyten", "unmapped_metric"): (None, None, "/µl", False),
-        ("Leukozyten", "ambiguous_reference"): (None, None, "/µl", False),
+        ("Leukozyten", "unparseable_reference"): (None, None, "/µl", False),
         # Normalized: the bounds are the source's, converted with the value's own factor.
         ("LDL Cholesterol", "impossible_value"): ("0.0000000", "2.9997368", "mmol/L", True),
     }
@@ -234,3 +236,105 @@ def test_a_laboratory_file_publishes_nothing_but_the_six(client, admin_session) 
     assert {o.original_name for o in stored if o.review_status == ReviewStatus.PUBLISHED} == {
         "LDL Cholesterol"
     }
+
+
+def test_the_same_values_sent_again_are_not_stored_again(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """A file that arrives twice adds nothing — also for a value whose reference could not be
+    read, or whose number reads two ways. (The reason the normalizer gives for an unreadable
+    reference is its own; the readers' reason for several ranges in a source would make each
+    copy a new value.)"""
+    _staff(client, admin_session, "again", Role.CLINICIAN)
+    pid = _patient(client)
+    day = {"observed_at": "2025-06-10T00:00:00Z", "observed_at_is_date_only": True}
+    values = [
+        {"original_name": n, "original_value": v, "original_unit": u, **bounds, **day}
+        for n, v, u, bounds in (
+            ("LDL Cholesterol", "2.8", "mmol/L", {"reference_low": "0", "reference_high": "3.0"}),
+            ("Ferritin", "85", "ng/mL", {"reference_low": "30", "reference_high": "400"}),
+            (
+                "Leukozyten",
+                "950",
+                "/µl",
+                {"reference_low": "4.000", "reference_high": "10.000"},
+            ),
+            ("Cystatin C", "0.9", "mg/l", {"reference_low": "1.2", "reference_high": "0.6"}),
+            ("Thrombozyten", "98.000", "/µl", {}),
+            ("TSH", "1.250", "mU/l", {"reference_low": "0.270", "reference_high": "4.200"}),
+        )
+    ]
+
+    first = client.post(f"/api/v1/patients/{pid}/imports", json={"values": values}).json()
+    stored = len(admin_session.execute(select(Observation)).scalars().all())
+    open_items = len(client.get("/api/v1/review-items").json())
+    for _ in range(2):
+        again = client.post(f"/api/v1/patients/{pid}/imports", json={"values": values})
+        assert again.status_code == 201, again.text
+        assert again.json()["duplicate_count"] == len(values), again.json()
+        assert (again.json()["published_count"], again.json()["review_count"]) == (0, 0)
+
+    assert (first["published_count"], first["review_count"]) == (1, 5)
+    assert stored == len(values)
+    admin_session.expire_all()
+    assert len(admin_session.execute(select(Observation)).scalars().all()) == stored
+    assert len(client.get("/api/v1/review-items").json()) == open_items
+
+
+def test_a_catalog_that_does_not_confirm_a_name_holds_its_values_and_says_so(  # type: ignore[no-untyped-def]
+    client, admin_session, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Through the import, against the database: with LDL retired in the catalog, an LDL value
+    waits for a human, HbA1c is untouched — and the operator's log names the two names. The
+    review queue alone would only say "not mapped"."""
+    _staff(client, admin_session, "catalog", Role.CLINICIAN)
+    pid = _patient(client)
+    day = {"observed_at": "2025-06-10T00:00:00Z", "observed_at_is_date_only": True}
+    values = [
+        {"original_name": "LDL Cholesterol", "original_value": "2.8", "original_unit": "mmol/L"},
+        {"original_name": "HbA1c", "original_value": "5.4", "original_unit": "%"},
+    ]
+    admin_session.execute(
+        text("UPDATE kpi_catalog SET status = 'deprecated' WHERE code = 'cardio.ldl_c'")
+    )
+    admin_session.commit()
+    try:
+        with caplog.at_level(logging.ERROR, logger="hadp_api.modules.imports.service"):
+            result = client.post(
+                f"/api/v1/patients/{pid}/imports",
+                json={"values": [{**value, **day} for value in values]},
+            )
+    finally:
+        admin_session.execute(
+            text("UPDATE kpi_catalog SET status = 'active' WHERE code = 'cardio.ldl_c'")
+        )
+        admin_session.commit()
+
+    assert result.status_code == 201, result.text
+    stored = {
+        o.original_name: o for o in admin_session.execute(select(Observation)).scalars().all()
+    }
+    ldl, hba1c = stored["LDL Cholesterol"], stored["HbA1c"]
+    assert (ldl.review_status, ldl.normalized_value, ldl.kpi_code) == (
+        ReviewStatus.PENDING,
+        None,
+        None,
+    )
+    assert ldl.numeric_value is not None
+    assert (hba1c.review_status, hba1c.kpi_code) == (ReviewStatus.PUBLISHED, "metabolic.hba1c")
+    (said,) = [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR]
+    assert "2 of the import's 6 automatic names (ldl, ldl cholesterol)" in said
+    # With the catalog as seeded nothing is said.
+    caplog.clear()
+    with caplog.at_level(logging.ERROR, logger="hadp_api.modules.imports.service"):
+        client.post(
+            f"/api/v1/patients/{pid}/imports",
+            json={
+                "values": [
+                    {
+                        **values[0],
+                        "observed_at": "2025-07-01T00:00:00Z",
+                        **{"observed_at_is_date_only": True},
+                    }
+                ]
+            },
+        )
+    assert [r for r in caplog.records if r.levelno == logging.ERROR] == []

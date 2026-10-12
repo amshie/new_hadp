@@ -15,6 +15,9 @@ White space around the value is removed as the import removes it, for ASCII whit
 A value padded with a non-ASCII space (a no-break space) stays NULL here although the import
 would read it: the row then shows the source's wording instead of a number.
 
+Only `numeric_value` is touched. A row normalized under norm-1 keeps the normalized value and
+the bounds norm-1 gave it, also where norm-2 would not read the source that way ("4.000").
+
 Not recoverable for stored rows: their reference bounds. An un-normalized row was stored
 without `reference_low`/`reference_high` (only `reference_text` kept what the source wrote);
 it shows its number without an interval until it is imported again.
@@ -22,7 +25,8 @@ it shows its number without an interval until it is imported again.
 `observations` is under row-level security. Run by a role that is subject to it, an UPDATE
 without a tenant bound would match no row and report success. Row security is therefore
 switched off for the statement: a role that may not do that fails here, loudly, instead of
-leaving every row as it was.
+leaving every row as it was — also on an empty table. Migrations are run by a superuser or a
+role with BYPASSRLS (docs/adr/0001-stack.md).
 
 Revision ID: 0018_observation_source_number
 Revises: 0017_report_rejection_reason
@@ -40,10 +44,10 @@ depends_on = None
 
 # The import's number grammar (modules/imports/normalize.py): `_NUMBER` — ASCII digits, an
 # optional sign, "." or "," as the decimal separator, an optional exponent of at most two
-# digits — less `_GROUPED`, a number that reads two ways (one to three digits, a mark, exactly
-# three digits).
+# digits — less `_GROUPED`, a number that reads two ways (one to three digits that are not all
+# zeros, a mark, exactly three digits).
 PLAIN_NUMBER = r"^[+-]?([0-9]+([.,][0-9]*)?|[.,][0-9]+)([eE][+-]?[0-9]{1,2})?$"
-GROUPED_NUMBER = r"^[+-]?[1-9][0-9]{0,2}[.,][0-9]{3}$"
+GROUPED_NUMBER = r"^[+-]?(?!0+[.,])[0-9]{1,3}[.,][0-9]{3}$"
 # The ASCII white space Python's str.strip() removes: space, tab, line feed, vertical tab, form
 # feed, carriage return and the four separators 28-31. Written with chr(): PostgreSQL's E''
 # strings have no escape for the vertical tab ("\v" is the letter v).

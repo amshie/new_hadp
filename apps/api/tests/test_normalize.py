@@ -173,7 +173,7 @@ def test_plain_decimal_notations_are_read(raw: str, expected: str) -> None:
 
 @pytest.mark.parametrize(
     "raw",
-    ["4.000", "1,250", "150.000", "98.000", "-1.250", "+4.000", " 4.000 "],
+    ["4.000", "1,250", "150.000", "98.000", "-1.250", "+4.000", " 4.000 ", "04.000", "012.345"],
 )
 def test_a_number_that_groups_digits_in_threes_is_not_read(raw: str) -> None:
     """ "4.000" is four — or four thousand; "1,250" is one and a quarter — or twelve hundred
@@ -193,8 +193,9 @@ def test_a_number_that_groups_digits_in_threes_is_not_read(raw: str) -> None:
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [
-        ("0.005", "0.005"),  # a leading zero groups nothing
+        ("0.005", "0.005"),  # an integer part of zeros groups nothing
         ("0,125", "0.125"),
+        ("00.500", "0.500"),
         ("1000.000", "1000.000"),  # four digits lead: not a group of thousands
         ("1.25", "1.25"),
         ("1.0000", "1.0000"),
@@ -210,29 +211,33 @@ def test_a_number_that_reads_one_way_is_read(raw: str, expected: str) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# Reference bounds: read, or a reason for a human
+# A reference interval is held whole or not at all
 # ---------------------------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("name", ["LDL", "Leukozyten"])
 @pytest.mark.parametrize(
-    ("low", "high", "held", "reason"),
+    ("low", "high"),
     [
         # "3_0" used to parse as 30; "<3" used to vanish and leave a one-sided interval.
-        ("0", "3_0", ("0", None), "unparseable_reference"),
-        ("0", "<3", ("0", None), "unparseable_reference"),
-        ("n/a", "3.0", (None, "3.0"), "unparseable_reference"),
-        ("70*", "120", (None, "120"), "unparseable_reference"),
+        ("0", "3_0"),
+        ("0", "<3"),
+        ("n/a", "3.0"),
+        ("70*", "120"),
         # A bound that reads two ways: "4.000 – 10.000" per microlitre is 4 to 10, or
-        # 4000 to 10000.
-        ("4.000", "10.000", (None, None), "ambiguous_reference"),
-        ("150", "400.000", ("150", None), "ambiguous_reference"),
-        ("1,250", "5", (None, "5"), "ambiguous_reference"),
+        # 4000 to 10000. A three-decimal format: of "0.270 – 4.200" only the first reads one way.
+        ("4.000", "10.000"),
+        ("150", "400.000"),
+        ("1,250", "5"),
+        ("0.270", "4.200"),
+        # The lower bound above the upper: not an interval.
+        ("1.2", "0.6"),
+        ("400", "30"),
+        ("0.5", "-0.5"),
     ],
 )
-def test_a_bound_that_cannot_be_read_is_never_dropped_silently(
-    name: str, low: str, high: str, held: tuple[str | None, str | None], reason: str
-) -> None:
+def test_an_interval_that_cannot_be_read_whole_is_not_held(name: str, low: str, high: str) -> None:
+    """Keeping the readable half would show a one-sided interval the source did not give."""
     r = normalize(
         original_name=name,
         original_value="2.8",
@@ -240,26 +245,15 @@ def test_a_bound_that_cannot_be_read_is_never_dropped_silently(
         reference_low=low,
         reference_high=high,
     )
-    expected = tuple(Decimal(b) if b is not None else None for b in held)
-    assert (r.reference_low, r.reference_high) == expected
-    assert reason in r.review_reasons
+    assert (r.reference_low, r.reference_high) == (None, None)
+    # One reason, the normalizer's own. The readers' `ambiguous_reference` means something
+    # else (several ranges in the source) and changes how a repeated value is recognized.
+    assert [reason for reason in r.review_reasons if "reference" in reason] == [
+        "unparseable_reference"
+    ]
     assert r.needs_review
     # The value itself is untouched by a problem with its interval.
     assert r.numeric_value == Decimal("2.8")
-
-
-@pytest.mark.parametrize("name", ["LDL", "Leukozyten"])
-@pytest.mark.parametrize(("low", "high"), [("1.2", "0.6"), ("400", "30"), ("0.5", "-0.5")])
-def test_a_lower_bound_above_the_upper_is_not_an_interval(name: str, low: str, high: str) -> None:
-    r = normalize(
-        original_name=name,
-        original_value="0.9",
-        original_unit="mg/L",
-        reference_low=low,
-        reference_high=high,
-    )
-    assert (r.reference_low, r.reference_high) == (None, None)
-    assert "ambiguous_reference" in r.review_reasons
 
 
 def test_an_interval_the_source_gives_is_held_as_given() -> None:
@@ -275,13 +269,25 @@ def test_an_interval_the_source_gives_is_held_as_given() -> None:
         Decimal("3.0"),
         [],
     )
-    # A bound the source simply does not give is not a problem.
+    # A bound the source simply does not give is not a problem: the other one is held.
     upper = normalize(
         original_name="LDL", original_value="2.8", original_unit="mmol/L", reference_high="3.0"
     )
     assert (upper.reference_low, upper.reference_high, upper.review_reasons) == (
         None,
         Decimal("3.0"),
+        [],
+    )
+    lower = normalize(
+        original_name="LDL",
+        original_value="2.8",
+        original_unit="mmol/L",
+        reference_low="1.0",
+        reference_high="  ",
+    )
+    assert (lower.reference_low, lower.reference_high, lower.review_reasons) == (
+        Decimal("1.0"),
+        None,
         [],
     )
     # Equal bounds are an interval (of one point).
@@ -401,6 +407,33 @@ def test_each_of_the_six_names_normalizes_in_its_unit(name: str) -> None:
     assert r.review_reasons == []
 
 
+@pytest.mark.parametrize("name", ["  LDL  ", "\tLDL \n", "ldl", "Ldl", "LDL\u00a0"])
+def test_a_six_name_is_matched_without_case_and_outer_white_space(name: str) -> None:
+    """As norm-1 matched it. Whatever is inside the name must be exactly the name."""
+    r = normalize(original_name=name, original_value="3.0", original_unit="mmol/L")
+    assert (r.kpi_code, r.normalized_value, r.review_reasons) == (
+        "cardio.ldl_c",
+        Decimal("3.0"),
+        [],
+    )
+
+
+@pytest.mark.parametrize("name", ["L DL", "LDL\u200b", "\uff2c\uff24\uff2c", "LDL.", "LDL-C"])
+def test_a_name_that_only_looks_like_one_of_the_six_is_not_one(name: str) -> None:
+    r = normalize(original_name=name, original_value="3.0", original_unit="mmol/L")
+    assert r.normalized_value is None
+    assert r.review_reasons == ["unmapped_metric"]
+
+
+def test_the_catalog_as_seeded_confirms_all_six_names() -> None:
+    assert normalize_mod.automatic_names() == set(NORM_1)
+    assert normalize_mod.unconfirmed_names(TERMINOLOGY) == []
+    # A catalog that was never seeded confirms none of them — and says which.
+    assert normalize_mod.unconfirmed_names(_catalog()) == sorted(NORM_1)
+    drifted = _catalog(**{**TERMINOLOGY._terms, "ldl": CatalogTerm("cardio.ldl_c", "g/L")})
+    assert normalize_mod.unconfirmed_names(drifted) == ["ldl"]
+
+
 @pytest.mark.parametrize("alias", [a for a in ALIASES if a not in NORM_1])
 def test_no_other_catalog_name_is_acted_on_without_a_human(alias: str) -> None:
     """Every alias the catalog holds, in the catalog's own unit — the best case a source could
@@ -469,6 +502,24 @@ def test_a_name_resolves_exactly_or_not_at_all() -> None:
 # ---------------------------------------------------------------------------------------------
 # Conversions and units
 # ---------------------------------------------------------------------------------------------
+
+
+def test_the_approved_conversions_are_these_four_and_no_other() -> None:
+    """The factors as approved: a changed digit is a changed value on every converted row."""
+    assert {
+        ("cardio.ldl_c", "mg/dL", "mmol/L"): Decimal("0.0258598"),
+        ("cardio.total_cholesterol", "mg/dL", "mmol/L"): Decimal("0.0258598"),
+        ("cardio.hdl_c", "mg/dL", "mmol/L"): Decimal("0.0258598"),
+        ("metabolic.fasting_plasma_glucose", "mg/dL", "mmol/L"): Decimal("0.0555"),
+    } == normalize_mod._CONVERSIONS
+    for name, factor in (
+        ("Total cholesterol", "0.0258598"),
+        ("HDL cholesterol", "0.0258598"),
+        ("LDL", "0.0258598"),
+        ("Glucose", "0.0555"),
+    ):
+        r = normalize(original_name=name, original_value="100", original_unit="mg/dL")
+        assert r.normalized_value == Decimal("100") * Decimal(factor), name
 
 
 def test_every_approved_conversion_belongs_to_one_of_the_six_and_names_its_target() -> None:

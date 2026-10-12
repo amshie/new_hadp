@@ -187,6 +187,11 @@ def test_provider_version_marks_the_german_wording() -> None:
             id="lower bound only, undercut",
         ),
         pytest.param(
+            _item("0.9", "1.2", "0.6"),
+            "LDL Cholesterol am 10.06.2025: 0.9 mmol/L.",
+            id="a stored pair the wrong way round is not restated, and no position is stated",
+        ),
+        pytest.param(
             _item("2.8"),
             "LDL Cholesterol am 10.06.2025: 2.8 mmol/L.",
             id="no interval: nothing is said about one",

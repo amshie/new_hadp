@@ -10,6 +10,7 @@ This is the highest patient-safety-risk surface (wrong value/unit/interval). Rul
 - Reference intervals convert with the exact same factor as the value.
 - Units are never inferred from a value's magnitude, and neither is the meaning of a decimal
   mark: a number that can be read two ways is not read.
+- A reference interval is held whole or not at all.
 - A value that is not normalized does NOT fail silently and is NOT erased: the source's number
   and its reference bounds are kept, in the source's unit, and the row enters the human review
   queue rather than being published.
@@ -123,9 +124,10 @@ def unit_was_converted(original_unit: str | None, normalized_unit: str | None) -
 _NUMBER = re.compile(r"[+-]?(?:[0-9]+(?:[.,][0-9]*)?|[.,][0-9]+)(?:[eE][+-]?[0-9]{1,2})?")
 # One to three digits, a mark, exactly three digits: "4.000", "1,250", "150.000". Such a number
 # reads two ways — the mark is a decimal mark (4), or it groups thousands (4000) — and nothing
-# in the value says which. A leading zero settles it ("0.005" groups nothing), and so does an
-# exponent. (A number with two marks, "1.234,5" or "12.345.678", is not a plain number at all.)
-_GROUPED = re.compile(r"[+-]?[1-9][0-9]{0,2}[.,][0-9]{3}")
+# in the value says which. An integer part of zeros settles it ("0.005" groups nothing); a
+# padded one ("04.000") does not. So does an exponent. (A number with two marks, "1.234,5" or
+# "12.345.678", is not a plain number at all.)
+_GROUPED = re.compile(r"[+-]?(?!0+[.,])[0-9]{1,3}[.,][0-9]{3}")
 
 
 def is_plain_number(raw: str) -> bool:
@@ -148,33 +150,60 @@ def _parse_decimal(raw: str) -> Decimal | None:
     return Decimal(text.replace(",", "."))
 
 
-def _parse_bound(raw: str | None, reasons: list[str]) -> Decimal | None:
-    """Parse a reference bound. A bound the source gives but that cannot be read — it is not a
-    number, or it reads two ways — is a reason for review: dropping it silently would turn a
-    two-sided interval into a one-sided one."""
-    if raw is None or not raw.strip():
-        return None
-    bound = _parse_decimal(raw)
-    if bound is None:
-        reason = "ambiguous_reference" if is_plain_number(raw) else "unparseable_reference"
-        if reason not in reasons:
-            reasons.append(reason)
-    return bound
-
-
 def _interval(
     raw_low: str | None, raw_high: str | None, reasons: list[str]
 ) -> tuple[Decimal | None, Decimal | None]:
-    """The source's reference bounds as numbers. A pair in which the lower bound lies above the
-    upper is not an interval: neither bound is held, and a human looks. The source's own
-    wording stays in `reference_text` either way."""
-    low = _parse_bound(raw_low, reasons)
-    high = _parse_bound(raw_high, reasons)
-    if low is not None and high is not None and low > high:
-        if "ambiguous_reference" not in reasons:
-            reasons.append("ambiguous_reference")
+    """The source's reference bounds as numbers — held only when everything the source gave
+    for them could be read.
+
+    A bound that is not a number, a bound that reads two ways, or a pair whose lower bound
+    lies above the upper leaves NO bound held, and a human looks (`unparseable_reference`).
+    Keeping the readable half would show a one-sided interval the source did not give. A
+    bound the source simply does not give is not a problem: the other one is held. The
+    source's own wording stays in `reference_text` either way.
+    """
+    bounds: list[Decimal | None] = []
+    readable = True
+    for raw in (raw_low, raw_high):
+        if raw is None or not raw.strip():
+            bounds.append(None)
+            continue
+        bound = _parse_decimal(raw)
+        readable = readable and bound is not None
+        bounds.append(bound)
+    low, high = bounds
+    if readable and low is not None and high is not None and low > high:
+        readable = False
+    if not readable:
+        if "unparseable_reference" not in reasons:
+            reasons.append("unparseable_reference")
         return None, None
     return low, high
+
+
+def _agrees(term: CatalogTerm | None, automatic: _Automatic) -> bool:
+    return term is not None and (term.kpi_code, term.canonical_unit) == (
+        automatic.kpi_code,
+        automatic.unit,
+    )
+
+
+def automatic_names() -> frozenset[str]:
+    """The names the import normalizes without a human (lower-case)."""
+    return frozenset(_AUTOMATIC)
+
+
+def unconfirmed_names(terminology: Terminology) -> list[str]:
+    """The names this module acts on by itself that the catalog does not describe as it does.
+
+    Every value under such a name waits for a human. Empty for a seeded catalog that agrees;
+    all six for a catalog that was never seeded — which nothing else would make visible.
+    """
+    return sorted(
+        name
+        for name, automatic in _AUTOMATIC.items()
+        if not _agrees(terminology.resolve(name), automatic)
+    )
 
 
 def normalize(
@@ -191,11 +220,7 @@ def normalize(
     automatic = _AUTOMATIC.get(original_name.strip().lower())
     value = _parse_decimal(original_value)
 
-    if (
-        automatic is None
-        or term is None
-        or (term.kpi_code, term.canonical_unit) != (automatic.kpi_code, automatic.unit)
-    ):
+    if automatic is None or not _agrees(term, automatic):
         # Not a name the import acts on by itself — or one the catalog no longer describes as
         # this module does. The catalog's KPI, if the name has one, is recorded as where the
         # value belongs; the number and its interval are what the source wrote, in the

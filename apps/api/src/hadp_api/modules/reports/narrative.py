@@ -93,6 +93,9 @@ def _bounds(low: Decimal | None, high: Decimal | None, unit: str | None, comma: 
     may have given a one-sided interval, or a second bound that could not be read.
     """
     if low is not None and high is not None:
+        if low > high:
+            # A row stored before such a pair was refused: not an interval, not restated.
+            return None
         return _with_unit(f"{_fmt(low, comma)} bis {_fmt(high, comma)}", unit)
     if high is not None:
         return _with_unit(f"obere Grenze {_fmt(high, comma)}", unit)
