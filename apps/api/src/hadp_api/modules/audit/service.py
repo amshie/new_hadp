@@ -1,18 +1,27 @@
-"""Audit service: append-only event recording.
+"""Audit service: append-only event recording, and the clinic's read of its own trail.
 
 Callers pass identifiers, codes, and timings only. Detail must never contain names,
-emails, observation values, free text, document contents, or secrets.
+emails, observation values, free text, document contents, or secrets. That is a rule for the
+code that writes an event, held by review; `record_audit` backs it with a guard on a set of
+top-level key names, which is not a schema — a nested key or another spelling passes it.
 """
 
 from __future__ import annotations
 
+import base64
+import binascii
 import logging
 import uuid
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
+from sqlalchemy import literal, not_, or_, select, tuple_
 from sqlalchemy.orm import Session
 
+from hadp_api.errors import ValidationFailed
 from hadp_api.modules.audit.models import AuditEvent
+from hadp_api.modules.enums import AuditCategory
 
 logger = logging.getLogger(__name__)
 
@@ -99,3 +108,99 @@ def record_security_event(
             action,
             type(exc).__name__,
         )
+
+
+# --- Reading a clinic's trail -------------------------------------------------------------
+
+MAX_PAGE = 200
+
+
+@dataclass(frozen=True)
+class AuditPage:
+    events: list[AuditEvent]
+    # Opaque position of the last event on this page; None when nothing older is left.
+    next_cursor: str | None
+
+
+def _encode_cursor(event: AuditEvent) -> str:
+    raw = f"{event.created_at.isoformat()}|{event.id}"
+    return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
+    try:
+        raw = base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)).decode()
+        stamp, _, ident = raw.partition("|")
+        at = datetime.fromisoformat(stamp)
+        if at.tzinfo is None:
+            raise ValueError("naive timestamp")
+        return at, uuid.UUID(ident)
+    except (ValueError, binascii.Error, UnicodeDecodeError) as exc:
+        raise ValidationFailed("invalid cursor") from exc
+
+
+def is_read_action() -> Any:
+    """Staff reads and listings (`*.read`, `*.list`) — the bulk of a trail. A released report
+    opened through a patient link (`report.patient_view`) is not one of them."""
+    return or_(
+        AuditEvent.action.endswith(".read", autoescape=True),
+        AuditEvent.action.endswith(".list", autoescape=True),
+    )
+
+
+def list_tenant_events(
+    db: Session,
+    *,
+    tenant_id: uuid.UUID,
+    limit: int = 50,
+    cursor: str | None = None,
+    category: AuditCategory | None = None,
+    actor_user_id: uuid.UUID | None = None,
+    target_id: uuid.UUID | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    exclude_reads: bool = False,
+) -> AuditPage:
+    """One page of a clinic's audit events, newest first.
+
+    The tenant filter is explicit and exact. Row-level security alone is NOT enough here: its
+    read policy also lets tenant-less events through (sign-ins and denials recorded before a
+    clinic is selected — of every user of the platform), and those belong to no clinic.
+    """
+    query = select(AuditEvent).where(AuditEvent.tenant_id == tenant_id)
+    if category is not None:
+        # "report" selects report.approved, report.released, …. Every action recorded with a
+        # tenant has a dot; "_" in a category is a letter, not a wildcard.
+        query = query.where(AuditEvent.action.startswith(f"{category.value}.", autoescape=True))
+    if actor_user_id is not None:
+        query = query.where(AuditEvent.actor_user_id == actor_user_id)
+    if target_id is not None:
+        query = query.where(AuditEvent.target_id == target_id)
+    if since is not None:
+        query = query.where(AuditEvent.created_at >= since)
+    if until is not None:
+        query = query.where(AuditEvent.created_at < until)
+    if exclude_reads:
+        query = query.where(not_(is_read_action()))
+    if cursor:
+        at, ident = _decode_cursor(cursor)
+        # Keyset: strictly older than the last event already shown. Events written in one
+        # transaction share a timestamp (it is the transaction's start); the id breaks the tie,
+        # so a page boundary inside one instant neither repeats nor drops an event, and events
+        # appended later never shift a page. NOT covered: an event whose transaction began
+        # before a page was read and committed after it sorts into a range already passed — a
+        # reader who pages on does not see it, a fresh read does. Whatever is built on this
+        # cursor to copy the whole trail has to deal with that.
+        query = query.where(
+            tuple_(AuditEvent.created_at, AuditEvent.id) < tuple_(literal(at), literal(ident))
+        )
+    size = max(1, min(limit, MAX_PAGE))
+    rows = list(
+        db.execute(
+            query.order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc()).limit(size + 1)
+        ).scalars()
+    )
+    page = rows[:size]
+    return AuditPage(
+        events=page, next_cursor=_encode_cursor(page[-1]) if len(rows) > size else None
+    )

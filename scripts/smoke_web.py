@@ -21,6 +21,8 @@ from __future__ import annotations
 import os
 import re
 import sys
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -61,7 +63,11 @@ def assert_nav(path: str, html: str, link_class: str) -> None:
     """The navigation is exactly the four pages that exist, each a real link."""
     hrefs = re.findall(rf'<a[^>]*class="{link_class}"[^>]*href="([^"]*)"', html)
     hrefs += re.findall(rf'<a[^>]*href="([^"]*)"[^>]*class="{link_class}"', html)
-    assert sorted(set(hrefs)) == sorted(NAV_TARGETS), (path, "navigation entries", hrefs)
+    assert sorted(set(hrefs)) == sorted(NAV_TARGETS), (
+        path,
+        "navigation entries",
+        hrefs,
+    )
 
 
 def assert_stage(path: str, html: str, report: dict) -> None:
@@ -241,7 +247,10 @@ def main() -> int:
                 )
                 checked.append("patient view")
             released = api.get(f"/reports/{report_id}").json()
-            assert released["status"] == "released", ("release exercise", released["status"])
+            assert released["status"] == "released", (
+                "release exercise",
+                released["status"],
+            )
             assert_stage("review page (released)", web.get(review_path).text, released)
             checked.append("released")
 
@@ -281,6 +290,88 @@ def main() -> int:
         assert r.status_code == 200, ("/interpretation/neu authed", r.status_code)
         assert "Korrektur-Run erfassen" in r.text or "Interpretation erfassen" in r.text
         assert_no_mock_ui("/interpretation/neu", r.text)
+
+        # The audit trail is tenant administration: this clinician session is told so and
+        # is shown no entry.
+        r = web.get("/einstellungen/audit")
+        assert r.status_code == 200, (
+            "/einstellungen/audit as clinician",
+            r.status_code,
+        )
+        assert "nur für Inhaber" in r.text, "audit trail not refused to a non-owner"
+        assert "<table" not in r.text, "audit entries rendered for a non-owner"
+
+    # The owner reads the clinic's trail: who did what, on the clinic's wall clock.
+    owner = staff_session("owner@demo.synthetic")
+    try:
+        owner_cookie = {"hadp_session": owner.cookies.get("hadp_session") or ""}
+        with httpx.Client(
+            base_url=WEB, timeout=60.0, follow_redirects=False, cookies=owner_cookie
+        ) as web:
+
+            def entries(path: str) -> str:
+                """The table's rows — not the shell around them, which names the reader."""
+                r = web.get(path)
+                assert r.status_code == 200, (path, r.status_code)
+                assert "<tbody" in r.text, f"{path} shows no audit entries"
+                return r.text.split("<tbody", 1)[1].split("</tbody>", 1)[0]
+
+            r = web.get("/einstellungen")
+            assert 'href="/einstellungen/audit"' in r.text, "settings do not list the audit trail"
+            r = web.get("/einstellungen/audit")
+            assert r.status_code == 200, (
+                "/einstellungen/audit as owner",
+                r.status_code,
+            )
+            assert_no_mock_ui("/einstellungen/audit", r.text)
+            # The page says what the trail does not hold.
+            assert "Was dieses Protokoll nicht zeigt" in r.text, "the trail's limits are not stated"
+            assert "Derzeit nicht protokolliert" in r.text
+            rows = entries("/einstellungen/audit")
+            # A colleague's entry into the clinic, named by the account that acted.
+            assert "tenant.select" in rows and "Praxis ausgewählt" in rows
+            assert "clinician@demo.synthetic" in rows, "audit entries do not name who acted"
+            # Every time carries its zone.
+            assert re.search(r"\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}:\d{2} MES?Z", rows), "no zoned time"
+            # Reads are part of the trail as it is shown — the reads of the trail included.
+            assert "audit.read" in rows, "reading the trail does not show on the trail"
+            assert "Audit-Protokoll gelesen" in entries("/einstellungen/audit?category=audit")
+            # Reads can be left out, and then the page says that they are.
+            r = web.get("/einstellungen/audit?reads=0")
+            assert "Lesezugriffe sind ausgeblendet" in r.text
+            hidden = entries("/einstellungen/audit?reads=0")
+            assert "audit.read" not in hidden and "patient.list" not in hidden
+            # A day is a day on the clinic's wall clock: today has this run's entries, and a
+            # day that has not come has none.
+            today = datetime.now(ZoneInfo("Europe/Berlin")).date().isoformat()
+            assert "tenant.select" in entries(
+                f"/einstellungen/audit?from={today}&to={today}&category=tenant"
+            )
+            r = web.get("/einstellungen/audit?from=2099-01-01")
+            assert r.status_code == 200 and "<tbody" not in r.text, "entries from the future"
+            assert "keine Einträge" in r.text
+            # A parameter that is not what it claims to be is no filter — and is not shown as one.
+            r = web.get(
+                "/einstellungen/audit?category=nope&target=not-a-uuid&from=yesterday&to=2026-02-30"
+            )
+            assert r.status_code == 200, (
+                "audit trail with malformed filters",
+                r.status_code,
+            )
+            assert "<tbody" in r.text, "a malformed filter emptied the trail"
+            # (The address is echoed in the page's own routing data; the form is what counts.)
+            assert 'value="2026-02-30"' not in r.text and "Filter zurücksetzen" not in r.text
+            r = web.get("/einstellungen/audit?cursor=not-a-cursor")
+            assert r.status_code == 200 and "nicht gültig" in r.text, "a damaged position link"
+            # One view of the page is one read of the trail, recorded once. (The API read that
+            # counts them is not in its own answer.)
+            checked_at = datetime.now(UTC).isoformat()
+            web.get("/einstellungen/audit")
+            reads = owner.get("/audit-events", params={"category": "audit", "since": checked_at})
+            assert reads.status_code == 200, reads.text
+            assert len(reads.json()["items"]) == 1, "one page view is not one recorded read"
+    finally:
+        owner.close()
 
     api.close()
     print("WEB SMOKE OK: guards, redirects, 404 boundary, and authed dashboard render")
