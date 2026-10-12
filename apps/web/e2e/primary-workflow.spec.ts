@@ -4,7 +4,12 @@ import { join } from "node:path";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { asStaff, hydrated, watchPageErrors } from "./support/staff";
+import {
+  asStaff,
+  hydrated,
+  watchPageErrors,
+  withoutPageScripts,
+} from "./support/staff";
 
 // The primary clinic workflow, walked through the UI alone on synthetic data: a new patient
 // with consent, a laboratory file of which one value is published by the import and two
@@ -102,12 +107,12 @@ const queueRow = (page: Page, analyte: string): Locator =>
 const markerRow = (page: Page, analyte: string): Locator =>
   page.getByRole("button", { name: `Marker ${analyte} öffnen` });
 
-// A select of the interpretation form, found by the visible label in front of it. The form's
-// labels are not associated with their controls, so the control has no accessible name to
-// select it by (reported with the slice; apps/web/src is not changed here).
+// A select of the interpretation form, by the name its label gives it. (The labels were not
+// connected to their controls when this suite was written; the selects are found by name
+// since they are — a field that loses its name again fails here.)
 const choose = (scope: Locator, label: string, option: string) =>
   scope
-    .locator(`label:text-is("${label}") + select`)
+    .getByRole("combobox", { name: label, exact: true })
     .selectOption({ label: option });
 
 test("the assistant creates the patient and records the consent to release", async ({
@@ -123,9 +128,12 @@ test("the assistant creates the patient and records the consent to release", asy
     await add.click();
 
     const wizard = page.getByRole("dialog", { name: "Patient hinzufügen" });
-    await wizard
-      .getByRole("textbox", { name: "Name", exact: true })
-      .fill(patient.name);
+    const name = wizard.getByRole("textbox", { name: "Name", exact: true });
+    // The dialog moves focus to its first field a moment after it opens. Typing into another
+    // field before that has happened lands in this one (seen once in CI: the patient was
+    // created under its name with the reference appended) — so wait for the focus first.
+    await expect(name).toBeFocused();
+    await name.fill(patient.name);
     await wizard.getByRole("textbox", { name: "Externe ID" }).fill(patient.ref);
     await wizard.getByRole("button", { name: "Weiter" }).click();
 
@@ -176,6 +184,49 @@ test("the assistant creates the patient and records the consent to release", asy
     await expect(figure(page, "Beobachtungen")).toHaveText("0");
     await expect(page.getByText("Kein Bericht", { exact: true })).toBeVisible();
   });
+});
+
+test("a form handled in script takes no submission before the page is hydrated", async ({
+  browser,
+}) => {
+  // Submitted before React has taken the page over, such a form would go to the server
+  // natively: a GET to the same address — a reload that drops what was entered and writes it
+  // into the URL. The submit button is disabled in the server's markup; that also stops the
+  // Enter key. Both forms are tried on pages whose scripts are kept from loading.
+  const context = await browser.newContext();
+  try {
+    await withoutPageScripts(context);
+    const page = await context.newPage();
+    await page.goto("/login");
+    const address = page.getByRole("textbox", { name: "E-Mail-Adresse" });
+    await address.fill("assistant@demo.synthetic");
+    await expect(page.getByRole("button", { name: "Anmelden" })).toBeDisabled();
+    await address.press("Enter");
+    // Nothing was sent: the address is still in the field and not in the URL.
+    await expect(address).toHaveValue("assistant@demo.synthetic");
+    expect(new URL(page.url()).search).toBe("");
+    expect(new URL(page.url()).pathname).toBe("/login");
+  } finally {
+    await context.close();
+  }
+
+  await asStaff(
+    browser,
+    "assistant",
+    async (page) => {
+      await page.goto(patientPath);
+      const lab = page.getByRole("region", { name: "Labordaten" });
+      await lab.getByLabel("Labordatei wählen").setInputFiles(labFile);
+      await expect(
+        lab.getByRole("button", { name: "Hochladen und einlesen" }),
+      ).toBeDisabled();
+      expect(new URL(page.url()).search).toBe("");
+      await expect(
+        lab.getByText("Für diese Akte ist noch keine Labordatei gespeichert."),
+      ).toBeVisible();
+    },
+    { unhydrated: true },
+  );
 });
 
 test("the assistant imports a laboratory file: one value is published, two wait for review", async ({
@@ -284,17 +335,24 @@ test("the clinician authors the interpretation run", async ({ browser }) => {
     // follow-up adequacy plus a state and an endpoint adequacy for each of the three cells.
     // One cell is given a state that needs evidence, and cites a published value.
     await page
-      .getByPlaceholder("z. B. Baseline-Interpretation")
+      .getByRole("textbox", { name: "Grund des Runs (Pflicht)" })
       .fill("Synthetische Baseline (E2E)");
     for (const axis of DOMAIN_AXES) {
       const domain = page.getByRole("region", { name: axis, exact: true });
+      // Nine selects per axis — three for the axis, two in each of the three cells — and
+      // every one of them is chosen by its name below; plus the optional rationale.
+      await expect(domain.getByRole("combobox")).toHaveCount(9);
+      await expect(
+        domain.getByRole("textbox", { name: "Begründung (optional)" }),
+      ).toHaveCount(1);
       await choose(domain, "CIS", "CIS-0 · Unzureichende Evidenz");
       await choose(domain, "Actionability", "A · Erkundung");
       await choose(domain, "Follow-up-Adäquanz", "nicht bewertet");
       for (const triState of TRI_STATE_AXES) {
-        const cell = domain.locator(
-          `div:has(> div:text-is("${triState} (bewertungsfrei)"))`,
-        );
+        const cell = domain.getByRole("group", {
+          name: `${triState} (bewertungsfrei)`,
+          exact: true,
+        });
         const cites = axis === "Kardiovaskulär" && triState === "Risk";
         await choose(cell, "Zustand", cites ? "Ungeklärt" : "Unbestimmt");
         await choose(cell, "Endpunkt-Adäquanz", "nicht bewertet");
