@@ -199,3 +199,97 @@ def test_a_catalog_that_no_longer_confirms_a_name_fails_the_step(first_run: _Fir
         with first_run.engine.begin() as conn:
             conn.execute(text(retire), {"status": "active"})
     assert _unconfirmed(first_run.engine) == []
+
+
+_AUTOMATIC_KPIS = (
+    "cardio.ldl_c",
+    "cardio.total_cholesterol",
+    "cardio.hdl_c",
+    "metabolic.fasting_plasma_glucose",
+    "metabolic.hba1c",
+)
+
+
+def test_a_changed_unit_of_an_automatic_kpi_fails_the_step(first_run: _FirstRun) -> None:
+    change = "UPDATE kpi_catalog SET canonical_unit_ucum = :unit WHERE code = 'metabolic.hba1c'"
+    with first_run.engine.begin() as conn:
+        original = conn.execute(
+            text("SELECT canonical_unit_ucum FROM kpi_catalog WHERE code = 'metabolic.hba1c'")
+        ).scalar_one()
+        conn.execute(text(change), {"unit": "mmol/mol"})
+    try:
+        drifted = _seed_catalog(first_run.database_url)
+        assert drifted.returncode == 1
+        assert "hba1c" in drifted.stderr
+    finally:
+        with first_run.engine.begin() as conn:
+            conn.execute(text(change), {"unit": original})
+    assert _unconfirmed(first_run.engine) == []
+
+
+def test_a_catalog_changed_in_place_is_not_reported_as_seeded(first_run: _FirstRun) -> None:
+    """The six automatic names still agree, the release is the build's own — and a KPI the
+    import does not act on by itself has another unit than the build ships. "Already present"
+    would be true and would hide it."""
+    with first_run.engine.begin() as conn:
+        code, original = conn.execute(
+            text(
+                """
+                SELECT c.code, c.canonical_unit_ucum
+                  FROM kpi_catalog c
+                  JOIN kpi_alias a ON a.kpi_code = c.code AND a.source_system = ''
+                 WHERE c.status = 'active' AND c.canonical_unit_ucum IS NOT NULL
+                   AND c.code <> ALL(:automatic)
+                 ORDER BY c.code
+                 LIMIT 1
+                """
+            ),
+            {"automatic": list(_AUTOMATIC_KPIS)},
+        ).one()
+    change = "UPDATE kpi_catalog SET canonical_unit_ucum = :unit WHERE code = :code"
+    with first_run.engine.begin() as conn:
+        conn.execute(text(change), {"unit": "changed-in-place", "code": code})
+    try:
+        assert _unconfirmed(first_run.engine) == []  # the import's own check sees nothing
+        before = _rows_as_stored(first_run.engine)
+        drifted = _seed_catalog(first_run.database_url)
+        assert drifted.returncode == 1
+        assert "does not resolve names as this build's catalog does" in drifted.stderr
+        assert "already present" in drifted.stdout
+        assert _rows_as_stored(first_run.engine) == before
+        # Says that it differs, not what: no catalog content is printed.
+        assert code not in drifted.stderr + drifted.stdout
+    finally:
+        with first_run.engine.begin() as conn:
+            conn.execute(text(change), {"unit": original, "code": code})
+    with Session(first_run.engine) as db:
+        assert load_terminology(db) == seed_terminology()
+
+
+def test_another_release_in_the_database_stops_the_step_before_it_writes(
+    first_run: _FirstRun,
+) -> None:
+    """The command seeds an empty catalog; it does not replace a release. Seeding over one
+    would collide with the rows that are there — it says which release it found and what it
+    ships, with an exit code of its own."""
+    with first_run.engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO kpi_catalog_release (version, status)"
+                " VALUES ('kpi-cat-0.0.1-test', 'retired')"
+            )
+        )
+    try:
+        before = _rows_as_stored(first_run.engine)
+        refused = _seed_catalog(first_run.database_url)
+        assert refused.returncode == 2
+        assert "kpi-cat-0.0.1-test" in refused.stderr
+        assert "Nothing was written" in refused.stderr
+        assert refused.stdout == ""
+        assert _rows_as_stored(first_run.engine) == before
+    finally:
+        with first_run.engine.begin() as conn:
+            conn.execute(
+                text("DELETE FROM kpi_catalog_release WHERE version = 'kpi-cat-0.0.1-test'")
+            )
+    assert _seed_catalog(first_run.database_url).returncode == 0

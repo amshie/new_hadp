@@ -19,9 +19,10 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never
 WORKDIR /srv/hadp/apps/api
 COPY apps/api/pyproject.toml apps/api/uv.lock ./
-# Exactly the locked dependencies, without the dev group. The project itself is not installed:
+# Exactly the locked dependencies, without the dev group (`--locked`: a lockfile that does not
+# match pyproject.toml fails the build instead of being used as it is). The project itself is not installed:
 # its source is copied into the final stage and put on PYTHONPATH.
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --locked --no-dev --no-install-project
 
 FROM python:3.12.15-slim-trixie
 # The base image's own pip is not used here (the dependencies come from the stage above) and
@@ -37,7 +38,12 @@ COPY --from=deps /srv/hadp/apps/api/.venv ./.venv
 COPY apps/api/alembic.ini ./
 COPY apps/api/alembic ./alembic
 COPY apps/api/src ./src
-ENV PATH="/srv/hadp/apps/api/.venv/bin:${PATH}" \
+# Production mode is the image's default, not something a deployment has to remember: the
+# application's own default is "development", in which the password-less development sign-in
+# exists and the production configuration guard does not run. An image started without its
+# configuration refuses to start.
+ENV APP_ENV=production \
+    PATH="/srv/hadp/apps/api/.venv/bin:${PATH}" \
     PYTHONPATH=/srv/hadp/apps/api/src \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

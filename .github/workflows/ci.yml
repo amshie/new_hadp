@@ -212,16 +212,20 @@ jobs:
           ./grype version
 
       - name: Scan the images
-        # Blocking on a HIGH or CRITICAL finding for which a fix exists. Findings without a
-        # fix are printed by the scanner and do not fail the job: nothing can be done about
-        # them here except choosing another base image.
+        # Blocking on a HIGH or CRITICAL finding for which a fix exists. A finding WITHOUT a
+        # fix does not fail the job — nothing can be done about it here except choosing
+        # another base image — and `--only-fixed` alone would not even print it: it is shown
+        # as suppressed (`--show-suppressed`), so an unfixed HIGH or CRITICAL is at least seen.
+        # The scanner downloads its vulnerability database at run time: a newly published
+        # advisory, or an outage of that download, can turn an unrelated pull request red.
         run: |
           status=0
           for image in hadp-api:local hadp-worker:local hadp-web:local; do
             echo "===== $image"
-            ./grype "$image" --only-fixed --fail-on high || status=1
+            ./grype "$image" --only-fixed --show-suppressed --fail-on high || status=1
             # Where each HIGH or CRITICAL finding sits: it is only as fixable as its place
             # (the application's dependencies, or something the base image brought along).
+            # For the reader of the log only — this listing never decides the job.
             ./grype "$image" --only-fixed -o json 2> /dev/null \
               | jq -r '.matches[]
                   | select(.vulnerability.severity == "High" or .vulnerability.severity == "Critical")

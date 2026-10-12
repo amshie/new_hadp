@@ -93,9 +93,13 @@ expect "web container is healthy" "healthy" "$(state web '{{.State.Health.Status
 echo "--- migrate step ---"
 expect "migrate exited with status 0" "exited 0" \
   "$(state migrate '{{.State.Status}} {{.State.ExitCode}}')"
-compose logs --no-color migrate | grep -q "the catalog confirms the import's" ||
-  fail "migrate did not report a catalog that confirms the import's automatic names"
-ok "migrate reported: the catalog confirms the import's automatic names"
+# Captured first: `grep -q` closing a pipe early would fail it under `pipefail`.
+migrate_log="$(compose logs --no-color migrate)"
+case "$migrate_log" in
+  *"the catalog confirms the import's"*)
+    ok "migrate reported: the catalog confirms the import's automatic names" ;;
+  *) fail "migrate did not report a catalog that confirms the import's automatic names" ;;
+esac
 expect "schema is at exactly one Alembic revision" "1" "$(sql 'SELECT count(*) FROM alembic_version')"
 for table in $CATALOG_TABLES; do
   rows="$(sql "SELECT count(*) FROM $table")"
@@ -240,6 +244,19 @@ ok "GET /login: 200 with every security header of next.config.mjs (production po
 ok "the login page says that no sign-in is set up, and shows no form"
 
 echo "--- processes and images ---"
+# Production mode is the API image's default: started with no configuration at all it must
+# refuse — not come up in development mode with the password-less sign-in. An image that did
+# start would hold the smoke for ever: where `timeout` exists (it does on the CI runner, not
+# on every workstation) the run is cut off after a minute, and the check then fails.
+api_image="${HADP_API_IMAGE:-hadp-api:local}"
+limited() { if command -v timeout > /dev/null 2>&1; then timeout 60 "$@"; else "$@"; fi; }
+unconfigured="$(limited docker run --rm "$api_image" 2>&1)" &&
+  fail "the API image starts without any configuration"
+case "$unconfigured" in
+  *"unsafe production configuration"*)
+    ok "the API image refuses to start without its configuration (production is its default)" ;;
+  *) fail "the unconfigured API image did not refuse for the expected reason" ;;
+esac
 for service in api worker web; do
   uids="$(compose exec -T "$service" sh -c 'grep "^Uid:" /proc/1/status' | tr -s '[:space:]' ' ')"
   case "$uids" in
@@ -261,8 +278,11 @@ from hadp_api.config import Settings
 print(Path(str(Settings.model_config["env_file"])).exists())
 '
 )"
-compose logs --no-color worker | grep -q "worker started" || fail "worker did not log its start"
-ok "worker logged its start"
+worker_log="$(compose logs --no-color worker)"
+case "$worker_log" in
+  *"worker started"*) ok "worker logged its start" ;;
+  *) fail "worker did not log its start" ;;
+esac
 for service in postgres redis s3 api worker web; do
   expect "$service is running, never restarted, and mounts no volume" \
     "running restarts=0 volumes=" \

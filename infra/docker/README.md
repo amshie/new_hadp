@@ -19,7 +19,11 @@ make images        # builds all three, tagged :local
 
 - Dependencies come from the lockfiles only (`uv sync --frozen --no-dev`,
   `pnpm install --frozen-lockfile`); base images are pinned by tag.
-- Every image runs as a numeric non-root user and needs no writable file system.
+- Every image runs as a numeric non-root user and needs no writable file system except `/tmp`
+  (the API spools an upload of more than 1 MB there; the stack below mounts a tmpfs).
+- **The API image's default is production mode.** Started without its configuration it refuses to
+  start; it never comes up in development mode, where the password-less development sign-in
+  exists.
 - The runtime images carry no package manager: the node image's npm, corepack and yarn and the
   Python images' pip are removed from the container's file system (they are what an image scan
   reports first, and nothing at run time uses them).
@@ -36,11 +40,16 @@ A deployment runs, with the **admin** DSN and before the API starts:
 alembic upgrade head && python -m hadp_api.scripts.seed_catalog
 ```
 
-Both are in the API image. `alembic upgrade head` alone is not enough: the laboratory import
+Both are in the API image, and both read the application's full production configuration (the
+configuration guard runs for them too), not only the admin DSN. `alembic upgrade head` alone is
+not enough: the laboratory import
 looks every name up in the KPI catalog (ADR-0004 §18), and without a catalog it holds every
 value for review and says so only in a log line. `seed_catalog` loads the catalog and nothing
-else, is idempotent, prints row counts only, and **fails** if the catalog in the database does
-not confirm the names the import acts on without a human. It is safe for any environment —
+else, is idempotent, prints row counts only, and **fails** (exit 1) if the catalog in the database
+does not resolve names as this build's catalog does or does not confirm the names the import acts
+on without a human. **It seeds; it does not upgrade:** where the database holds another catalog
+release than the build ships it writes nothing and stops with exit 2 — replacing a release needs a
+migration of its own, and none exists yet. The API does not check the catalog when it starts. It is safe for any environment —
 unlike `hadp_api.scripts.seed`, the synthetic demo seeder, which refuses to run in production.
 
 The application role `hadp_app` must exist **before** the first migration, with its own
@@ -79,7 +88,9 @@ generates random secrets for the run, boots the stack, checks it, and tears it d
 
 ## Still missing for a real deployment
 
-TLS termination and public `https` origins (the `__Host-` cookies need them); managed
+TLS termination and public `https` origins (the `__Host-` cookies need them — and the web app
+still keeps its own cookies under fixed names without `Secure`, which the production sign-in must
+not inherit); managed
 PostgreSQL with backups and a tested restore; a secret manager; an EU-region object store with
 a bucket-scoped key; the production identity provider (OIDC + MFA); monitoring and alerting
 with the redaction layer; a deploy job; runbooks. Go-live plan, workstreams B and C.

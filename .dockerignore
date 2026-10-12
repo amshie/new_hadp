@@ -44,3 +44,4 @@ apps/web/playwright.config.ts
 apps/web/test-results
 apps/web/playwright-report
 apps/web/DESIGN-VERIFICATION.md
+apps/web/.shots

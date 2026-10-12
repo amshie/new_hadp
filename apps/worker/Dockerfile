@@ -12,9 +12,10 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never
 WORKDIR /srv/hadp/apps/worker
 COPY apps/worker/pyproject.toml apps/worker/uv.lock ./
-# Exactly the locked dependencies, without the dev group. The project itself is not installed:
+# Exactly the locked dependencies, without the dev group (`--locked`: a lockfile that does not
+# match pyproject.toml fails the build instead of being used as it is). The project itself is not installed:
 # its source is copied into the final stage and put on PYTHONPATH.
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --locked --no-dev --no-install-project
 
 FROM python:3.12.15-slim-trixie
 # The base image's own pip is not used here (the dependencies come from the stage above) and
