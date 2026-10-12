@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { asStaff } from "./support/staff";
+import { asStaff, hydrated } from "./support/staff";
 
 // The primary clinic workflow, walked through the UI alone on synthetic data: a new patient
 // with consent, a laboratory file of which one value is published by the import and two
@@ -115,9 +115,12 @@ test("the assistant creates the patient and records the consent to release", asy
 }) => {
   await asStaff(browser, "assistant", async (page) => {
     await page.goto("/patients");
-    await page
-      .getByRole("button", { name: "Patient hinzufügen", exact: true })
-      .click();
+    const add = page.getByRole("button", {
+      name: "Patient hinzufügen",
+      exact: true,
+    });
+    await hydrated(add);
+    await add.click();
 
     const wizard = page.getByRole("dialog", { name: "Patient hinzufügen" });
     await wizard
@@ -182,7 +185,10 @@ test("the assistant imports a laboratory file: one value is published, two wait 
     await page.goto(patientPath);
 
     const lab = page.getByRole("region", { name: "Labordaten" });
-    await lab.getByLabel("Labordatei wählen").setInputFiles(labFile);
+    const chooser = lab.getByLabel("Labordatei wählen");
+    // Before hydration this form submits natively: the page reloads and no file is sent.
+    await hydrated(chooser);
+    await chooser.setInputFiles(labFile);
     await lab.getByRole("button", { name: "Hochladen und einlesen" }).click();
 
     const counts =
@@ -236,7 +242,9 @@ test("the clinician publishes the held values", async ({ browser }) => {
 
     for (const held of HELD_FOR_REVIEW) {
       const row = queueRow(page, held.name);
-      await row.getByRole("button", { name: "Veröffentlichen" }).click();
+      const publish = row.getByRole("button", { name: "Veröffentlichen" });
+      await hydrated(publish);
+      await publish.click();
 
       const confirm = page.getByRole("dialog", {
         name: "Wert veröffentlichen?",
@@ -251,9 +259,11 @@ test("the clinician publishes the held values", async ({ browser }) => {
     // On the patient page the value no longer waits, and its position is now stated.
     await page.goto(patientPath);
     await expect(figure(page, "veröffentlicht")).toHaveText("3/3");
-    await page
-      .getByRole("button", { name: "Domäne Metabolisch auswählen" })
-      .click();
+    const metabolic = page.getByRole("button", {
+      name: "Domäne Metabolisch auswählen",
+    });
+    await hydrated(metabolic);
+    await metabolic.click();
     const creatinine = markerRow(page, "Creatinine");
     await expect(creatinine).toContainText("Im Intervall");
     await expect(creatinine).not.toContainText("in Prüfung");
@@ -263,7 +273,11 @@ test("the clinician publishes the held values", async ({ browser }) => {
 test("the clinician authors the interpretation run", async ({ browser }) => {
   await asStaff(browser, "clinician", async (page) => {
     await page.goto(patientPath);
-    await page.getByRole("button", { name: "Interpretation erfassen" }).click();
+    const author = page.getByRole("button", {
+      name: "Interpretation erfassen",
+    });
+    await hydrated(author);
+    await author.click();
     await page.waitForURL(`**${patientPath}/interpretation/neu`);
 
     // What the form requires: a reason, and for each of the six axes CIS, Actionability and
@@ -330,9 +344,11 @@ test("the clinician authors the interpretation run", async ({ browser }) => {
 test("the clinician drafts the report and approves it", async ({ browser }) => {
   await asStaff(browser, "clinician", async (page) => {
     await page.goto(patientPath);
-    await page
-      .getByRole("button", { name: "Berichtsentwurf erstellen" })
-      .click();
+    const draftIt = page.getByRole("button", {
+      name: "Berichtsentwurf erstellen",
+    });
+    await hydrated(draftIt);
+    await draftIt.click();
     await page.waitForURL(
       new RegExp(`${patientPath}/assessments/[0-9a-f-]{36}$`),
     );
@@ -419,9 +435,11 @@ test("the medical director releases the report", async ({ browser }) => {
   await asStaff(browser, "medicalDirector", async (page) => {
     // She finds the patient in the directory and opens the report from the patient page.
     await page.goto("/patients");
-    await page
-      .getByRole("textbox", { name: "Patient oder ID suchen" })
-      .fill(patient.ref);
+    const search = page.getByRole("textbox", {
+      name: "Patient oder ID suchen",
+    });
+    await hydrated(search);
+    await search.fill(patient.ref);
     await page
       .getByRole("button", {
         name: `Patient ${patient.name}, ${patient.ref} öffnen`,

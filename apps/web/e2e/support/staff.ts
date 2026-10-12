@@ -2,8 +2,26 @@ import {
   expect,
   type Browser,
   type BrowserContext,
+  type Locator,
   type Page,
 } from "@playwright/test";
+
+// Until React has hydrated a control it is only what the server rendered: a click on a button
+// does nothing, and a form submits natively — the page reloads and what was entered is gone.
+// A production build paints fast enough for a test (and for a quick hand) to get there first.
+// React marks an element it has taken over with a `__reactProps$…` key; this waits for that
+// mark on the control the next step is about to use. Call it after every full page load.
+export async function hydrated(control: Locator): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        control.evaluate((element) =>
+          Object.keys(element).some((key) => key.startsWith("__reactProps$")),
+        ),
+      { message: "the control was never taken over by React (not hydrated)" },
+    )
+    .toBe(true);
+}
 
 // The seeded synthetic accounts of the demo clinic, by the role the API gives them, with the
 // role as the shell names it next to the signed-in person.
@@ -33,6 +51,7 @@ async function signIn(browser: Browser, role: StaffRole): Promise<Session> {
     const page = await context.newPage();
     await page.goto("/login");
     const address = page.getByRole("textbox", { name: "E-Mail-Adresse" });
+    await hydrated(address);
     await address.fill(email);
     await address.press("Enter");
     await expect(

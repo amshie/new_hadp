@@ -65,6 +65,11 @@ Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
   — `<label>` beside `<select>` without `htmlFor`), so the selects and text fields of the
   form have no accessible name; the test has to find them by position. That is a WCAG 2.2 AA
   gap in the primary clinical workflow.
+  Found by its first run against the production build: **a form whose submit is handled in
+  script submits natively when it is used before React has hydrated it** — the page reloads
+  and what was entered is gone, without a message. The laboratory upload form and the sign-in
+  form are such forms (`LabDocumentsCard.tsx`, `SignInForm.tsx`). The test now waits for
+  hydration; a person with a fast hand on a slow device gets the reload. Not changed here.
   Also found: **the MinIO images `docker-compose.yml` names can no longer be pulled** — Docker
   Hub answers 404 for `minio/minio` and `minio/mc` (checked 2026-10-12). A machine that
   already holds them keeps working; a new machine, or one that lost its image cache, cannot
