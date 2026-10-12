@@ -20,6 +20,9 @@ make images        # builds all three, tagged :local
 - Dependencies come from the lockfiles only (`uv sync --frozen --no-dev`,
   `pnpm install --frozen-lockfile`); base images are pinned by tag.
 - Every image runs as a numeric non-root user and needs no writable file system.
+- The runtime images carry no package manager: the node image's npm, corepack and yarn and the
+  Python images' pip are removed from the container's file system (they are what an image scan
+  reports first, and nothing at run time uses them).
 - The build context is an allowlist (`.dockerignore`): no `.env*`, no reports, no fixtures and
   no local dependency tree can reach a layer.
 - `next build` needs no network: the fonts are packages, and the typed API client is generated
