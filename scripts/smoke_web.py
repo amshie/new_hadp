@@ -11,6 +11,7 @@ only. Exits non-zero on any failure. (Full Playwright e2e is a later slice.)
 from __future__ import annotations
 
 import os
+import re
 import sys
 
 import httpx
@@ -97,6 +98,13 @@ def main() -> int:
 
         r = web.get(f"/patients/{pid}")
         assert r.status_code == 200, ("/patients/[id] authed", r.status_code)
+        # The seeded patient has a report: the detail page must link to its review surface
+        # (the only place approve/release live), and that link must resolve.
+        review = re.search(rf'href="(/patients/{pid}/assessments/[0-9a-f-]{{36}})"', r.text)
+        assert review, "patient detail does not link to the report review page"
+        r = web.get(review.group(1))
+        assert r.status_code == 200, ("review page via detail link", r.status_code)
+        assert f'href="/patients/{pid}"' in r.text, "review page has no way back to the patient"
 
         r = web.get("/review-queue")
         assert r.status_code == 200, ("/review-queue authed", r.status_code)

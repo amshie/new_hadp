@@ -57,9 +57,11 @@ export default async function AssessmentReviewPage({
       identity={shellIdentity(session)}
       breadcrumbs={
         <nav className="breadcrumbs" aria-label="Brotkrümelnavigation">
-          <Link href="/worklist">Arbeitsliste</Link>
+          <Link href="/patients">Patienten</Link>
           <span>/</span>
-          <span>{view.patientName}</span>
+          <Link href={`/patients/${id}`}>{view.patientName}</Link>
+          <span>/</span>
+          <span>Bericht</span>
         </nav>
       }
     >
