@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from hadp_api.api.schemas import TenantMembershipOut
 from hadp_api.auth.dependencies import Principal, get_correlation_id, get_current_principal
 from hadp_api.db.engine import set_tenant_context
-from hadp_api.db.session import get_db
+from hadp_api.db.session import RequestSession
 from hadp_api.errors import PermissionDenied
 from hadp_api.modules.audit.service import record_audit
 from hadp_api.modules.enums import Role
@@ -32,7 +32,7 @@ class SelectTenantResponse(BaseModel):
 @router.get("/my-tenants", response_model=list[TenantMembershipOut])
 def my_tenants(
     principal: Principal = Depends(get_current_principal),
-    db: Session = Depends(get_db),
+    db: Session = RequestSession,
 ) -> list[TenantMembershipOut]:
     memberships = list_memberships(db, principal.user.id)
     return [TenantMembershipOut(**m.__dict__) for m in memberships]
@@ -42,7 +42,7 @@ def my_tenants(
 def select_tenant(
     body: SelectTenantRequest,
     principal: Principal = Depends(get_current_principal),
-    db: Session = Depends(get_db),
+    db: Session = RequestSession,
     correlation_id: str = Depends(get_correlation_id),
 ) -> SelectTenantResponse:
     membership = get_membership(db, principal.user.id, body.tenant_id)

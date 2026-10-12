@@ -12,12 +12,12 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from hadp_api.db.engine import set_tenant_context
-from hadp_api.db.session import get_db
+from hadp_api.db.session import RequestSession
 from hadp_api.errors import NotFound
 from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.reports import service as reports_service
@@ -35,7 +35,7 @@ class PatientViewRequest(BaseModel):
 def patient_view(
     body: PatientViewRequest,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = RequestSession,
 ) -> dict[str, Any]:
     # The token surface is public and brute-forceable — throttle per client IP
     # (P-pre-1) before touching the database.
