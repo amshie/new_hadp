@@ -86,10 +86,11 @@ jobs:
           cd ../.. && pnpm -r --if-present test
 
   web-build-smoke:
-    # Production `next build` + a browserless route smoke over the governed path:
-    # API (dev mode, non-superuser hadp_app role, RLS enforced) + `next start` on the
-    # seeded synthetic data set. Catches broken builds, broken route guards, and a
-    # missing synthetic-data banner before merge. Synthetic data only.
+    # Production `next build`, a browserless route smoke and the browser test of the clinic
+    # workflow (Playwright) over the governed path: API (dev mode, non-superuser hadp_app
+    # role, RLS enforced) + `next start` on the seeded synthetic data set. Catches broken
+    # builds, broken route guards, a missing synthetic-data banner, and a workflow step that
+    # no longer works through the UI before merge. Synthetic data only.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -156,6 +157,39 @@ jobs:
           uv run alembic upgrade head
           uv run python -m hadp_api.scripts.seed
 
+      - name: Start an S3 endpoint for the browser test (a test double)
+        # A laboratory file is stored before it is read, and the browser test uploads one. The
+        # MinIO images docker-compose.yml names can no longer be pulled (Docker Hub answers 404
+        # for minio/minio and minio/mc), so this job cannot start them. An S3 test double in a
+        # process instead: the API reaches it over HTTP with boto3, on its default endpoint
+        # and with its default development credentials — the same code path as an object
+        # store. It says nothing about which store a deployment uses.
+        run: |
+          cd apps/api
+          nohup uv run --with 'moto[server]==5.2.3' moto_server -H 127.0.0.1 -p 59000 > /tmp/s3.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:59000/moto-api/ > /dev/null && break; sleep 1;
+          done
+          curl -sf http://127.0.0.1:59000/moto-api/ > /dev/null
+          uv run python - <<'PY'
+          import boto3
+
+          from hadp_api.config import get_settings
+
+          s = get_settings()
+          boto3.client(
+              "s3",
+              endpoint_url=s.s3_endpoint_url,
+              region_name=s.s3_region,
+              aws_access_key_id=s.s3_access_key_id,
+              aws_secret_access_key=s.s3_secret_access_key,
+          ).create_bucket(
+              Bucket=s.s3_bucket_source_documents,
+              CreateBucketConfiguration={"LocationConstraint": s.s3_region},
+          )
+          print("bucket ready")
+          PY
+
       - name: Build web app (next build)
         run: pnpm --filter @hadp/web build
 
@@ -179,11 +213,33 @@ jobs:
           WEB_SMOKE_RELEASE: "1"
         run: cd apps/api && uv run python ../../scripts/smoke_web.py
 
+      - name: Install Chromium for the browser test
+        run: pnpm --filter @hadp/web exec playwright install --with-deps chromium
+
+      - name: Browser test of the clinic workflow (Playwright)
+        # Against the production build that is already serving. Sign-in is limited to 10 per
+        # minute per client address: the route smoke above signs in three times, this suite
+        # three times (once per role) — six, even if both fell into one minute.
+        run: make test-e2e
+
+      - name: Upload the Playwright report and traces
+        # Synthetic data only: the accounts, the patient and the laboratory file are made up.
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Dump server logs on failure
         if: failure()
         run: |
           echo "===== api.log ====="; cat /tmp/api.log || true
           echo "===== web.log ====="; cat /tmp/web.log || true
+          echo "===== s3.log ====="; tail -n 50 /tmp/s3.log || true
 
   secret-scan:
     runs-on: ubuntu-latest
