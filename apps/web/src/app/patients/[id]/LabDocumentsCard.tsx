@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useTransition, type CSSProperties } from "react";
 
 import type { SourceDocument } from "@/lib/api";
+import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
 
 import {
   importStoredDocumentAction,
@@ -81,13 +82,20 @@ function countsLine(c: Counts): string {
   ].join(" · ");
 }
 
+// On the clinic's wall clock, whatever zone the server or the reader's device is in: the same
+// text on the server and in the browser, and the same time for everyone who reads the page.
 function fmtWhen(iso: string): string {
   const d = new Date(iso);
   return `${d.toLocaleDateString("de-DE", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  })}, ${d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`;
+    timeZone: CLINIC_TIME_ZONE,
+  })}, ${d.toLocaleTimeString("de-DE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: CLINIC_TIME_ZONE,
+  })}`;
 }
 
 function fmtSize(bytes: number): string {
