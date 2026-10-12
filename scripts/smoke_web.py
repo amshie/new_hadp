@@ -223,10 +223,17 @@ def main() -> int:
                 finally:
                     director.close()
                 # The link issued at release opens the patient view; it names the day of
-                # release the German way.
+                # release the German way. The link is exchanged for the httpOnly cookie, which
+                # is passed on by hand: a production build marks it Secure, and this smoke
+                # speaks plain http to 127.0.0.1.
                 link = httpx.URL(r.json()["patient_view_url"])
-                with httpx.Client(base_url=WEB, timeout=60.0, follow_redirects=True) as patient:
-                    page = patient.get(link.raw_path.decode()).text
+                with httpx.Client(base_url=WEB, timeout=60.0, follow_redirects=False) as patient:
+                    r = patient.get(link.raw_path.decode())
+                    assert r.status_code in REDIRECT, ("patient link", r.status_code)
+                    issued = re.search(r"hadp_pv=([^;]+)", r.headers.get("set-cookie", ""))
+                    assert issued, "patient link issued no hadp_pv cookie"
+                    cookie = {"cookie": f"hadp_pv={issued.group(1)}"}
+                    page = patient.get("/patient-view", headers=cookie).text
                 # React separates adjacent text nodes with empty comments.
                 page = page.replace("<!-- -->", "")
                 assert re.search(r"Ärztlich freigegeben\s+am \d{2}\.\d{2}\.\d{4}", page), (
