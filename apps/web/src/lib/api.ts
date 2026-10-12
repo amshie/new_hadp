@@ -253,6 +253,31 @@ export const authorInterpretation = (patientId: string, body: RunAuthorIn) =>
     },
   );
 
+// Consent (append-only events on a closed purpose vocabulary): current state per purpose, and
+// the two write operations — each appends a NEW event; nothing is ever edited.
+export type ConsentState = Schemas["ConsentStateOut"];
+export type ConsentPurposeValue = Schemas["ConsentIn"]["purpose"];
+export const listConsents = (patientId: string) =>
+  request<ConsentState[]>(`/api/v1/patients/${patientId}/consents`);
+export const grantConsent = (
+  patientId: string,
+  purpose: ConsentPurposeValue,
+  channel: string,
+) =>
+  request<Schemas["ConsentEventOut"]>(
+    `/api/v1/patients/${patientId}/consents`,
+    { method: "POST", body: JSON.stringify({ purpose, channel }) },
+  );
+export const withdrawConsent = (
+  patientId: string,
+  purpose: ConsentPurposeValue,
+  channel: string,
+) =>
+  request<Schemas["ConsentEventOut"]>(
+    `/api/v1/patients/${patientId}/consents/withdraw`,
+    { method: "POST", body: JSON.stringify({ purpose, channel }) },
+  );
+
 // Laboratory files (ingestion tier 1): the original is stored first, then read by a structured
 // reader. Metadata and counts only — the web never receives file content back.
 export type SourceDocument = Schemas["SourceDocumentOut"];

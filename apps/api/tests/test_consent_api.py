@@ -226,3 +226,66 @@ def test_failed_login_is_audited(client, admin_session) -> None:  # type: ignore
     # Reason code only — the attempted identifier is never recorded.
     assert event.detail == {"reason": "unknown_user"}
     assert event.actor_user_id is None
+
+
+def test_consent_state_is_readable_per_purpose(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    _user, tenant = login_as(
+        client,
+        admin_session,
+        email="cread-clin@synthetic.example",
+        tenant_name="Consent Read Clinic",
+        tenant_slug="consent-read-clinic",
+        role=Role.CLINICIAN,
+    )
+    pid = client.post("/api/v1/patients", json={"display_name": "CR Patient"}).json()["id"]
+
+    def states() -> dict[str, dict]:  # type: ignore[type-arg]
+        resp = client.get(f"/api/v1/patients/{pid}/consents")
+        assert resp.status_code == 200, resp.text
+        return {s["purpose"]: s for s in resp.json()}
+
+    # Every purpose of the closed vocabulary is listed, fail-closed when nothing is recorded.
+    assert {p: (s["active"], s["last_event"]) for p, s in states().items()} == {
+        "report_release": (False, None),
+        "analytics": (False, None),
+        "data_source_connect": (False, None),
+    }
+
+    body = {"purpose": "report_release", "channel": "in_person"}
+    assert client.post(f"/api/v1/patients/{pid}/consents", json=body).status_code == 201
+    granted = states()["report_release"]
+    assert granted["active"] is True
+    assert (granted["last_event"]["event_type"], granted["last_event"]["channel"]) == (
+        "granted",
+        "in_person",
+    )
+    assert states()["analytics"]["active"] is False  # one purpose says nothing about another
+
+    assert client.post(f"/api/v1/patients/{pid}/consents/withdraw", json=body).status_code == 201
+    withdrawn = states()["report_release"]
+    assert (withdrawn["active"], withdrawn["last_event"]["event_type"]) == (False, "withdrawn")
+
+    reads = admin_session.execute(
+        select(AuditEvent).where(AuditEvent.action == "consent.read")
+    ).scalars()
+    assert len(reads.all()) == 4
+
+    # The medical director reads the state before a release but still cannot record it.
+    switch_role(
+        client,
+        admin_session,
+        email="cread-md@synthetic.example",
+        tenant=tenant,
+        role=Role.MEDICAL_DIRECTOR,
+    )
+    assert client.get(f"/api/v1/patients/{pid}/consents").status_code == 200
+    # Another clinic cannot see that the patient exists.
+    login_as(
+        client,
+        admin_session,
+        email="cread-other@synthetic.example",
+        tenant_name="Other Consent Clinic",
+        tenant_slug="other-consent-clinic",
+        role=Role.CLINICIAN,
+    )
+    assert client.get(f"/api/v1/patients/{pid}/consents").status_code == 404

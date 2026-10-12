@@ -17,6 +17,7 @@ import {
   type DuplicateCandidateView,
   type OnboardingConsent,
 } from "@/app/patients/actions";
+import { CONSENT_OPTIONS, type ConsentPurpose } from "@/lib/consentCopy";
 
 // VitaBahn patient onboarding wizard (docs/notes/0011). Replaces the flat "+ Patient
 // hinzufügen" form with a guided, validated flow:
@@ -30,30 +31,6 @@ import {
 //   ✓ Erfolg       — open record / mint invitation (one-time URL) / add another
 // Draft state lives in React only — nothing is persisted client-side beyond the
 // session, and closing with entered data asks before discarding.
-
-type ConsentPurpose = OnboardingConsent["purpose"];
-
-const CONSENT_OPTIONS: {
-  purpose: ConsentPurpose;
-  label: string;
-  desc: string;
-}[] = [
-  {
-    purpose: "report_release",
-    label: "Freigabe geprüfter Berichte",
-    desc: "Ärztlich freigegebene Berichte dürfen der Person bereitgestellt werden.",
-  },
-  {
-    purpose: "data_source_connect",
-    label: "Anbindung von Datenquellen",
-    desc: "Externe Datenquellen (z. B. Labor) dürfen mit der Akte verknüpft werden.",
-  },
-  {
-    purpose: "analytics",
-    label: "Erweiterte Auswertungen",
-    desc: "Daten dürfen für zusammenfassende Auswertungen der Klinik verwendet werden.",
-  },
-];
 
 const MIN_BIRTH_YEAR = 1900;
 const STEPS = ["Identität", "Einwilligung", "Prüfung"] as const;

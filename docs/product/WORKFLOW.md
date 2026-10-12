@@ -109,7 +109,13 @@ audit event (`audit_events`) carrying identifiers/codes/timings only — never h
 2. **Record consent; optionally connect a source.** The patient records a versioned, purpose-scoped
    `ConsentRecord` (consent text version, purposes, timestamp, channel). Consent status **gates**
    patient creation completion, data-source connection, and patient release; withdrawal is
-   attributable and triggers defined downstream handling.
+   attributable and triggers defined downstream handling. _(As built 2026-10-12: consent is an
+   append-only event stream on a closed, placeholder purpose vocabulary. It is recorded at
+   onboarding, through the patient invitation, and — shipped 2026-10-12 — by care staff on the
+   patient page, which shows the state per purpose to every staff role. Only `report_release` is
+   enforced: no release without it, and a withdrawal revokes the patient's access links. The other
+   purposes are documented but gate nothing yet; the real taxonomy and consent text are a pending
+   DPO/counsel deliverable.)_
 3. **Upload or enter laboratory data.** An assistant or clinician uploads a lab file or enters
    observations manually. The original source file is stored before parsing, with a content checksum
    for idempotent re-upload, file-type inspection by content (not extension), and size/page limits
