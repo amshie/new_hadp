@@ -19,6 +19,7 @@ import {
 } from "@/lib/rejectionCopy";
 import { lageLabel } from "@/lib/lageCopy";
 import {
+  reportStage,
   statusHint,
   type MarkerView,
   type ReviewView,
@@ -132,8 +133,6 @@ function matchesRefFilter(marker: MarkerView, filter: RefFilter): boolean {
   return true;
 }
 
-const NOT_IMPLEMENTED = "Diese Ansicht ist im Prototyp noch nicht umgesetzt.";
-
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return (
@@ -187,6 +186,7 @@ export function ReviewContent({
   // A cited value was corrected by the laboratory: this version can be neither approved nor
   // released. The clinician opens a new draft from the values that stand.
   const canRedraft = sessionRole === "clinician" && view.citesReplaced;
+  const stage = reportStage(view.status, view.edited, view.citesReplaced);
   const rejection = rejectionCopy(view.rejectionReason);
   const reworked = rejectionCopy(view.reworksRejectionReason);
   const [editRows, setEditRows] = useState<
@@ -333,79 +333,37 @@ export function ReviewContent({
             {view.statusLabel}
           </span>
         </div>
-        <div className="page-actions">
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={() =>
-              toast(
-                "Quelldokumente würden hier in einem sicheren Viewer geöffnet.",
-              )
-            }
-          >
-            <Icon name="reports" />
-            Quelldokumente
-          </button>
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={() =>
-              toast(
-                "Weitere Patientenaktionen sind im Prototyp nicht angebunden.",
-              )
-            }
-          >
-            Mehr
-          </button>
-        </div>
       </header>
 
-      <nav className="review-tabs" aria-label="Patientenansichten">
-        <a href="#" aria-current="page" onClick={(e) => e.preventDefault()}>
-          Assessment
-        </a>
-        {["Laborwerte", "Verlauf", "Dokumente", "Bericht"].map((t) => (
-          <a
-            key={t}
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              toast(NOT_IMPLEMENTED);
-            }}
-          >
-            {t}
-          </a>
-        ))}
-      </nav>
-
-      <div className="draft-banner" role="status">
-        <Icon name="alert" />
+      <div
+        className={`stage-banner is-${stage.attention ? "draft" : stage.key}`}
+        role="status"
+      >
+        <Icon
+          name={
+            !stage.attention &&
+            (stage.key === "approved" || stage.key === "released")
+              ? "check"
+              : "alert"
+          }
+        />
         <span>
-          <strong>
-            {view.edited
-              ? "Überarbeiteter Entwurf – nicht freigegeben."
-              : "Systementwurf – nicht freigegeben."}
-          </strong>{" "}
-          Aussagen müssen anhand der Quellen geprüft und vom klinischen Team
-          signiert werden.
+          <strong>{stage.headline}</strong> {stage.detail}
         </span>
       </div>
 
       <div className="section-header">
         <div>
-          <h2>Quellengebundener Entwurf</h2>
+          <h2>{stage.title}</h2>
           <p>
             Jede Aussage bleibt auf die zugrunde liegenden Beobachtungen
             zurückführbar.
           </p>
         </div>
-        <span className="badge badge-brand no-dot">Nicht freigegeben</span>
+        <span className="badge badge-brand no-dot">{stage.badge}</span>
       </div>
 
-      <section
-        className="card summary-card"
-        aria-label="Quellengebundener Entwurf"
-      >
+      <section className="card summary-card" aria-label={stage.title}>
         <span className="kicker">
           {view.edited
             ? "Klinisch überarbeitete Fassung"
@@ -465,7 +423,7 @@ export function ReviewContent({
             Ein zitierter Wert wurde vom Labor korrigiert. Diese Fassung kann
             nicht genehmigt oder freigegeben werden.
             {view.status === "released" &&
-              " Sie bleibt für die Patientin sichtbar, bis ein neuer Entwurf erstellt wird."}
+              " Der Zugriff der Patientin auf diese Fassung wird erst mit einem neuen Entwurf zurückgezogen."}
             {sessionRole === "clinician"
               ? " Erstellen Sie einen neuen Entwurf aus den aktuellen Werten."
               : " Ein neuer Entwurf ist der klinischen Rolle vorbehalten."}
@@ -902,7 +860,9 @@ export function ReviewContent({
           <strong>
             Bericht v{view.versionNo} · Status: {view.statusLabel}
           </strong>
-          <span>{statusHint(view.status, sessionRole)}</span>
+          <span>
+            {statusHint(view.status, sessionRole, view.citesReplaced)}
+          </span>
         </div>
         <div className="action-bar-buttons">
           {canRework && !editing && (

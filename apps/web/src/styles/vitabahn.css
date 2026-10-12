@@ -72,12 +72,6 @@
 .vb-scope .vb-iconbtn:hover {
   border-color: var(--border-strong) !important;
 }
-.vb-scope .vb-userchip {
-  transition: background var(--dur-fast) var(--ease-standard);
-}
-.vb-scope .vb-userchip:hover {
-  background: var(--surface-sunken) !important;
-}
 .vb-scope .vb-btn-sec {
   transition:
     border-color var(--dur-fast) var(--ease-standard),
@@ -110,12 +104,6 @@
 }
 .vb-scope .vb-crumblink:hover {
   color: var(--brand) !important;
-}
-.vb-scope .vb-tab-text {
-  transition: color var(--dur-fast) var(--ease-standard);
-}
-.vb-scope .vb-tab-text:hover {
-  color: var(--text-strong) !important;
 }
 .vb-scope .vb-input {
   transition:

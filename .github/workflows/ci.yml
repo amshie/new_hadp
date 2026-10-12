@@ -173,6 +173,10 @@ jobs:
           curl -sf http://127.0.0.1:3000/login > /dev/null
 
       - name: Web route smoke
+        # WEB_SMOKE_RELEASE: also approve and release the seeded report through the API, so
+        # the review page's wording is checked as a draft, approved and released.
+        env:
+          WEB_SMOKE_RELEASE: "1"
         run: cd apps/api && uv run python ../../scripts/smoke_web.py
 
       - name: Dump server logs on failure

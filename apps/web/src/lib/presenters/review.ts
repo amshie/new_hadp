@@ -61,7 +61,7 @@ const REPORT_STATUS: Record<string, { badge: string; label: string }> = {
     label: "An ärztliche Freigabe weitergeleitet",
   },
   released: { badge: "badge-success", label: "Freigegeben" },
-  rejected: { badge: "badge-danger", label: "Abgelehnt" },
+  rejected: { badge: "badge-danger", label: "Zurückgewiesen" },
 };
 
 export interface EvidenceChip {
@@ -191,16 +191,20 @@ function auditSteps(status: string): AuditStepView[] {
     sub:
       state === "done" ? subDone : state === "active" ? subActive : subPending,
   });
+  // Each step says only what the status proves. A draft exists only from published values,
+  // so step 1 says that and no more ("complete" is not something the status knows). A
+  // rejected version may have been rejected before or after the clinical approval — the
+  // status does not say which — so it is never shown as signed.
   return [
-    step("Datenerfassung", "done", "1", "Vollständig", "", ""),
+    step("Datenerfassung", "done", "1", "Werte veröffentlicht", "", ""),
     step("Entwurf erstellt", "done", "2", "Quellengebunden", "", ""),
     step(
       "Klinischer Review",
-      draft ? "active" : "done",
+      draft ? "active" : approved || released ? "done" : "",
       "3",
       "Signiert",
       "In Bearbeitung",
-      "Ausstehend",
+      rejected ? "Version zurückgewiesen" : "Ausstehend",
     ),
     step(
       "Ärztliche Freigabe",
@@ -208,7 +212,7 @@ function auditSteps(status: string): AuditStepView[] {
       "4",
       "Abgeschlossen",
       "In Prüfung",
-      rejected ? "Zurückgewiesen" : "Ausstehend",
+      rejected ? "Nicht erfolgt" : "Ausstehend",
     ),
     step(
       "Patientenfreigabe",
@@ -221,11 +225,92 @@ function auditSteps(status: string): AuditStepView[] {
   ];
 }
 
+// What a released status proves — and no more. Whether the patient can open the report also
+// depends on a valid access link and standing consent, which the status does not carry (a
+// withdrawn consent or an expired link leaves the status "released").
+const RELEASED_ACCESS =
+  "Für die Patientin ist nur diese Version einsehbar – solange ihr Zugriffslink gültig ist und die Einwilligung besteht.";
+
+// A cited value was replaced by a laboratory correction: the version can be neither approved
+// nor released as it stands, whatever its status says.
+const CITES_REPLACED =
+  "Ein zitierter Wert wurde vom Labor korrigiert – siehe Hinweis unten.";
+
+// Where this report version stands, said above its text. Only a version that still awaits a
+// decision is called a draft; an approved or released version is never labelled "nicht
+// freigegeben". An unknown status is treated as not released (fail-safe).
+export interface ReportStageView {
+  key: "draft" | "approved" | "released" | "rejected";
+  // Draws attention instead of confirming: the version rests on a replaced value.
+  attention: boolean;
+  title: string;
+  badge: string;
+  headline: string;
+  detail: string;
+}
+
+export function reportStage(
+  status: string,
+  edited: boolean,
+  citesReplaced: boolean,
+): ReportStageView {
+  if (status === "released")
+    return {
+      key: "released",
+      attention: citesReplaced,
+      title: "Quellengebundener Bericht",
+      badge: "Freigegeben",
+      headline: "Ärztlich freigegeben.",
+      detail: citesReplaced ? CITES_REPLACED : RELEASED_ACCESS,
+    };
+  if (status === "approved")
+    return {
+      key: "approved",
+      attention: citesReplaced,
+      title: "Quellengebundener Bericht",
+      badge: "Genehmigt",
+      headline: "Klinisch genehmigt – noch nicht freigegeben.",
+      detail: citesReplaced
+        ? CITES_REPLACED
+        : "Die Freigabe an die Patientin ist der ärztlichen Leitung vorbehalten.",
+    };
+  if (status === "rejected")
+    return {
+      key: "rejected",
+      attention: false,
+      title: "Zurückgewiesene Fassung",
+      badge: "Zurückgewiesen",
+      headline: "Zurückgewiesen – nicht freigegeben.",
+      detail:
+        "Eine Überarbeitung erstellt eine neue Version; diese Fassung bleibt erhalten.",
+    };
+  return {
+    key: "draft",
+    attention: false,
+    title: "Quellengebundener Entwurf",
+    badge: "Nicht freigegeben",
+    headline:
+      status === "draft_edited" || edited
+        ? "Überarbeiteter Entwurf – nicht freigegeben."
+        : "Systementwurf – nicht freigegeben.",
+    detail: citesReplaced
+      ? CITES_REPLACED
+      : "Aussagen müssen anhand der Quellen geprüft und vom klinischen Team signiert werden.",
+  };
+}
+
 // Honest, role-aware status line under the Freigabe action bar (shared by the review
 // and detail surfaces; the server enforces the actions — this only explains them).
-export function statusHint(status: string, role: string | null): string {
-  if (status === "released")
-    return "Freigegeben — die Patientin sieht ausschließlich diese Version.";
+export function statusHint(
+  status: string,
+  role: string | null,
+  citesReplaced = false,
+): string {
+  if (citesReplaced && status === "released")
+    return "Freigegeben — ein zitierter Wert wurde vom Labor korrigiert; der Zugriff der Patientin wird erst mit einem neuen Entwurf zurückgezogen.";
+  if (citesReplaced && status !== "rejected")
+    return "Ein zitierter Wert wurde vom Labor korrigiert — diese Fassung kann nicht genehmigt oder freigegeben werden.";
+  if (status === "released") return `Freigegeben — ${RELEASED_ACCESS}`;
   if (status === "rejected")
     return role === "clinician"
       ? "Zurückgewiesen — „Überarbeiten“ erstellt eine neue Version; die zurückgewiesene bleibt erhalten."
