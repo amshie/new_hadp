@@ -72,3 +72,17 @@ Both gates must be clear (Python: zero advisories; JS: zero high/critical) befor
 pilot go-live. Re-review on any dependency change, and do not let the gate stay red across pull
 requests: a failing first step hides everything behind it. Dependabot (`.github/dependabot.yml`) continues to
 open PRs as fixes land.
+
+## 2026-10-13 — Mako, and two scanners that did not agree
+
+GitHub's Dependabot reported `Mako` 1.3.12 (a transitive dependency of Alembic) for
+GHSA-5639-2j2p-m4mx — a path traversal through a drive-letter URI on Windows in `TemplateLookup`,
+fixed in 1.4.2 — and the image scan added with the container job (grype) reported the same.
+**`pip-audit`, the gate in CI, passed on the same commit.** The gate above is therefore not "zero
+advisories" but "zero advisories that `pip-audit`'s source lists"; the Dependabot alerts and the
+image scan have to be read beside it.
+
+Fixed by refreshing the lockfile for Mako alone (`uv lock --upgrade-package mako`: 1.3.12 → 1.4.3;
+nothing else moved). The platform does not run on Windows and Alembic's templates are its own, so
+the advisory was not reachable here; the bump keeps the alert list empty, which is what makes a
+new alert visible.
