@@ -27,38 +27,48 @@ deprecated; install httpx2 instead.` under the test client. Tests pass today on 
 Migrating the test client to `httpx2` is a separate, non-security follow-up — do it when a future
 starlette drops the `httpx` path, not before.
 
-## JavaScript (`pnpm audit`) — partially cleared, one accepted moderate
+## JavaScript (`pnpm audit`) — CLEARED
 
 The gate is `pnpm audit --audit-level high` (blocking on high/critical only; Dependabot reports
-moderate). Both current JS advisories are **moderate** and sit in **dev/build tooling**, not the
-runtime patient-data surface.
+moderate). As of 2026-10-12 `pnpm audit` reports **no known vulnerabilities** at any level.
 
-- **postcss** (`<8.5.10`, via `next`) — **CLEARED** with a `pnpm.overrides` floor of `>=8.5.10`
-  (patch bump; the production `next build` passes on it).
-- **js-yaml** (`>=4.0.0 <=4.1.1`, via `openapi-typescript > @redocly/openapi-core`) —
-  **accepted (moderate, dev-tooling); blocked upstream.** js-yaml runs only in the offline client
-  generator (`make gen-client`); it never touches request or patient data. The upgrade was
-  attempted and confirmed **not resolvable today** (2026-07-03):
-  - js-yaml 4.2.0 removed the `types.merge` API (the merge-key handling the DoS advisory concerns).
-    `@redocly/openapi-core@1.34.15` reads `js_yaml.types.merge` at load, so any js-yaml `>=4.2.0`
-    override crashes `gen-client`.
-  - Bumping `openapi-typescript` does **not** help: even the latest (`7.13.0`) still pins
-    `@redocly/openapi-core ^1.34.6` (resolves to 1.34.15), so the broken `types.merge` read remains.
-  - `@redocly/openapi-core@2.x` **fixed** the js-yaml issue (declares `js-yaml ^4.2.0`), but
-    overriding Redocly to 2.x breaks `openapi-typescript`, which imports Redocly's internal
-    `./lib/ref-utils.js` — a subpath 2.x removed from its `exports` map
-    (`ERR_PACKAGE_PATH_NOT_EXPORTED`).
-  - So the advisory clears only when **`openapi-typescript` ships a release that adopts
-    `@redocly/openapi-core` 2.x** (not out yet), or the client generator is swapped for a different
-    tool. Both are out of scope for a security-hygiene slice; forcing it now would require a fragile
-    `pnpm patch` of Redocly's internals, which is not warranted for a moderate dev-tooling advisory.
-    Dependabot likewise reports "security_update_not_possible". Re-check when `openapi-typescript`
-    releases a redocly-2.x version.
+- **postcss** (`<8.5.10`, via `next`) — cleared earlier with a `pnpm.overrides` floor of `>=8.5.10`.
+- **js-yaml** (via `openapi-typescript > @redocly/openapi-core`) — **cleared 2026-10-12.** It had
+  been accepted as a moderate, dev-tooling advisory that could not be resolved (2026-07-03): js-yaml
+  `>=4.2.0` removed the `types.merge` API that `@redocly/openapi-core@1.34.15` read at load, and
+  Redocly 2.x broke `openapi-typescript`. Upstream has since fixed it inside the 1.x line:
+  `@redocly/openapi-core@1.34.20` depends on `js-yaml 4.3.2`, within `openapi-typescript`'s
+  `^1.34.6` range. A lockfile update was enough; `pnpm gen:client` and the client contract test
+  pass on it.
+
+## 2026-10-12 — advisories published since the last merge
+
+`dependency-scan` had been red on every pull request since August 2026: new advisories landed
+after the last merge, and no upgrade had followed. Cleared by lockfile updates only (no direct
+constraint changed except the `next` floor):
+
+| Package               | Was     | Now     | Where                                   |
+| --------------------- | ------- | ------- | --------------------------------------- |
+| pyjwt                 | 2.13.0  | 2.15.1  | `apps/api`, `apps/worker` (transitive)  |
+| cryptography          | 49.0.0  | 50.0.2  | `apps/api`, `apps/worker` (transitive)  |
+| urllib3               | 2.7.0   | 2.8.0   | `apps/api` (transitive, via botocore)   |
+| anyio                 | 4.14.0  | 4.14.2  | `apps/api` (transitive)                 |
+| next                  | 15.5.19 | 15.5.27 | `apps/web` (floor raised to `^15.5.27`) |
+| sharp                 | 0.34.5  | 0.35.5  | via `next`                              |
+| postcss               | 8.5.16  | 8.5.29  | via `next`                              |
+| nanoid                | 3.3.14  | 3.3.20  | via `postcss`                           |
+| source-map-js         | 1.2.1   | 1.2.2   | via `postcss`                           |
+| brace-expansion       | 2.1.1   | 2.1.7   | dev tooling                             |
+| @redocly/openapi-core | 1.34.15 | 1.34.20 | client generator                        |
+| js-yaml               | 4.1.1   | 4.3.2   | client generator                        |
+
+The `pip-audit` step runs first in the job, so while it failed the JS step never ran — the JS
+advisories (two critical and several high in `next`) were invisible in CI. `apps/worker` is not
+audited by CI at all; its lockfile was updated here by hand.
 
 ## Standing rule
 
 Both gates must be clear (Python: zero advisories; JS: zero high/critical) before any real-data /
-pilot go-live. The js-yaml moderate above is blocked upstream (see the investigation note) and must
-be closed before that gate — re-check when `openapi-typescript` releases a `@redocly/openapi-core`
-2.x version. Re-review on any dependency change. Dependabot (`.github/dependabot.yml`) continues to
+pilot go-live. Re-review on any dependency change, and do not let the gate stay red across pull
+requests: a failing first step hides everything behind it. Dependabot (`.github/dependabot.yml`) continues to
 open PRs as fixes land.
