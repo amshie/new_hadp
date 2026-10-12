@@ -17,25 +17,17 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from hadp_api.modules.reports.language import RESTRICTED_PHRASES, RESTRICTED_STEMS
+
 _WEB_SRC = Path(__file__).resolve().parents[2] / "web" / "src"
 
 # Stems matched at a word START (a letter BEFORE disqualifies, so "secure" != "cure"; no trailing
 # guard, so plurals and German inflections are caught: treatment(s), recommend(ed), optimal(en),
-# disease(s), diagnos(e/is), prescrib(e)).
-_STEMS = (
-    "diagnos",
-    "prescrib",
-    "treatment",
-    "medication",
-    "supplement",
-    "optimal",
-    "disease",
-    "recommend",
-    "cure",
-    "abnormal",
-)
+# disease(s), diagnos(e/is), prescrib(e)). Single source: the report edit guard enforces the
+# same terms at write time.
+_STEMS = RESTRICTED_STEMS
 # Distinctive phrases (plain substring).
-_PHRASES = ("risk score", "biological age")
+_PHRASES = RESTRICTED_PHRASES
 
 # The ONLY sanctioned disclaimers (doctrine-permitted negations). Lowercase, whitespace-normalized;
 # stripped before matching. Every other use of a restricted term — even negated — is still flagged.

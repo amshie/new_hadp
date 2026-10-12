@@ -46,6 +46,7 @@ export interface ReportView {
   version_no: number;
   narrative_provider: string;
   narrative_version: string;
+  edited?: boolean; // true once the current version carries a human edit
   statements: ReportStatement[];
 }
 export interface PatientView {
@@ -274,6 +275,15 @@ export const generateReport = (patientId: string) =>
   });
 export const getReport = (reportId: string) =>
   request<ReportView>(`/api/v1/reports/${reportId}`);
+export type ReportStatementInput = Schemas["StatementIn"];
+export const editReport = (
+  reportId: string,
+  statements: ReportStatementInput[],
+) =>
+  request<ReportView>(`/api/v1/reports/${reportId}/edit`, {
+    method: "POST",
+    body: JSON.stringify({ statements }),
+  });
 export const approveReport = (reportId: string) =>
   request<ReportView>(`/api/v1/reports/${reportId}/approve`, {
     method: "POST",

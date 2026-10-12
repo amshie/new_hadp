@@ -5,9 +5,11 @@ import { revalidatePath } from "next/cache";
 import {
   ApiError,
   approveReport,
+  editReport,
   generateReport,
   rejectReport,
   releaseReport,
+  type ReportStatementInput,
 } from "@/lib/api";
 import { isUuid } from "@/lib/uuid";
 
@@ -97,6 +99,58 @@ export async function generateReportAction(
       error: "Aktion fehlgeschlagen. Bitte erneut versuchen.",
     };
   }
+}
+
+// Rework of a report (edit): the API re-validates the evidence binding and refuses restricted
+// intended-use language; after an approved/released/rejected version it opens a NEW version
+// and leaves the prior one as a preserved record. Nothing is approved here.
+export async function editReportAction(
+  reportId: string,
+  path: string,
+  statements: ReportStatementInput[],
+): Promise<ReportActionResult> {
+  const invalid = guard(reportId, path);
+  if (invalid) return { ok: false, error: invalid };
+  // Server-action arguments arrive from the client: check the shape before using it.
+  const wellFormed =
+    Array.isArray(statements) &&
+    statements.length > 0 &&
+    statements.every(
+      (s) =>
+        typeof s?.id === "string" &&
+        s.id.length > 0 &&
+        typeof s.text === "string" &&
+        s.text.trim().length > 0 &&
+        Array.isArray(s.evidence_observation_ids) &&
+        s.evidence_observation_ids.length > 0 &&
+        s.evidence_observation_ids.every(isUuid),
+    );
+  if (!wellFormed)
+    return {
+      ok: false,
+      error: "Jede Aussage braucht einen Text und mindestens einen Beleg.",
+    };
+  try {
+    await editReport(reportId, statements);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 409) {
+      const restricted = e.message.match(/restricted language[^:]*: (.+)$/);
+      if (restricted)
+        return {
+          ok: false,
+          error: `Nicht gespeichert: Der Text enthält für Berichte nicht zulässige Begriffe (${restricted[1]}).`,
+        };
+      if (e.message.includes("evidence"))
+        return {
+          ok: false,
+          error:
+            "Nicht gespeichert: Nicht jeder Beleg ist einsehbar. Bitte die betroffene Aussage entfernen.",
+        };
+    }
+    return { ok: false, error: safeMessage(e) };
+  }
+  revalidatePath(path);
+  return { ok: true };
 }
 
 export async function approveReportAction(
