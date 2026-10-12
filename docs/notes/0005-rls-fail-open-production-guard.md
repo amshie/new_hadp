@@ -34,9 +34,23 @@ process also looked healthy. Nothing tested the assertion.
 As it stands now:
 
 - The assertion runs **before** the engine is kept; a refused engine is disposed and the
-  next call is refused again.
+  next call is refused again. One initialisation at a time (the first requests after a start
+  arrive on several threads), and a connect that does not answer fails after ten seconds.
 - It runs in **every environment**. A development or test setup that runs the app as
   `postgres` (an unset `APP_DATABASE_URL` falls back to the admin DSN) is refused with the
   same message, instead of showing cross-tenant behaviour production never has.
 - The API checks it at **startup** (`main.py`, lifespan): the process does not come up as
   such a role. Starting the API therefore needs a reachable database.
+
+What the guard does **not** establish (independent review, 2026-10-12; open):
+
+- It reads two attributes of the connecting role, once, at start. A role that is neither a
+  superuser nor BYPASSRLS but **owns the tables** passes — on a managed database the admin user
+  can be exactly that. Tenant isolation still holds for an owner (every tenant table has
+  ENABLE **and** FORCE; `tests/test_rls_tables.py` now asserts it), but the `REVOKE`s that make
+  the audit and consent tables append-only do not bind an owner. `APP_DATABASE_URL` unset still
+  falls back to the admin DSN, and the production check compares the two DSNs as strings.
+  Closing this: make an unset `APP_DATABASE_URL` an error everywhere and refuse a role that
+  owns a table.
+- A later `ALTER ROLE … BYPASSRLS`, or membership in a bypassing role used through `SET ROLE`,
+  is not noticed (no code issues `SET ROLE`).

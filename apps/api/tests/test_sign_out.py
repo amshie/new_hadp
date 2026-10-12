@@ -39,6 +39,7 @@ def _cookies(response) -> dict[str, dict[str, str | bool]]:  # type: ignore[no-u
                 "value": morsel.value,
                 "max_age": morsel["max-age"],
                 "path": morsel["path"],
+                "domain": morsel["domain"],
                 "secure": bool(morsel["secure"]),
                 "httponly": bool(morsel["httponly"]),
                 "samesite": morsel["samesite"].lower(),
@@ -66,6 +67,8 @@ def test_sign_out_revokes_the_session_and_removes_both_cookies(client, admin_ses
         assert cookie["max_age"] == "0", name
         assert cookie["value"] == "", name
         assert cookie["path"] == "/", name
+        assert cookie["domain"] == "", name
+        assert cookie["secure"] is False, name  # development: plain http
     # The client did what a browser does with them.
     assert client.cookies.get("hadp_session") is None
     assert client.cookies.get("hadp_csrf") is None
@@ -92,7 +95,9 @@ def test_a_copied_session_cookie_is_refused_after_sign_out(client, admin_session
         role=Role.CLINICIAN,
     )
     copied = client.cookies.get("hadp_session")
+    assert client.get("/api/v1/auth/me").status_code == 200
     assert client.post("/api/v1/auth/logout").status_code == 204
+    assert client.cookies.get("hadp_session") is None
     client.cookies.set("hadp_session", copied)
     assert client.get("/api/v1/auth/me").status_code == 401
 
@@ -126,6 +131,8 @@ def test_each_cookie_is_removed_with_the_attributes_it_was_set_with(
         assert removed[name]["max_age"] == "0" and removed[name]["value"] == "", name
         assert removed[name]["secure"] is True, name
         assert removed[name]["path"] == "/", name
+        # A `__Host-` cookie carries no Domain — neither when it is set nor when it is removed.
+        assert removed[name]["domain"] == "" and set_with[name]["domain"] == "", name
         for attribute in ("secure", "path", "httponly", "samesite"):
             assert removed[name][attribute] == set_with[name][attribute], (name, attribute)
     assert removed["__Host-hadp_session"]["httponly"] is True

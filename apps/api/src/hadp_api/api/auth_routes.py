@@ -79,8 +79,10 @@ def _clear_auth_cookies(response: Response) -> None:
 
     A browser applies a deletion only if it would accept the cookie: a `__Host-` name (the
     production names) is refused without `Secure` and `Path=/`, so a deletion that leaves
-    them out removes nothing. The session is revoked server-side either way; this is what
-    takes the two values off the device.
+    them out removes nothing. The session is revoked server-side either way. Today's web app
+    calls this API from its own server and keeps the two values in cookies of its own, which
+    it removes itself (apps/web/src/lib/api.ts) — these headers are for a client that holds
+    the API's cookies directly.
     """
     settings = get_settings()
     for name, httponly in (

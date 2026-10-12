@@ -1,10 +1,16 @@
 """Redis-backed fixed-window rate limiting (P-pre-1, docs/notes/0010).
 
 Applied to the abuse-prone surfaces: login, the public patient-view token surface,
-uploads, and report release. FAIL-CLOSED when Redis is unreachable — a missing backend
-must not silently disable throttling (503, in every environment: the local/CI stacks
-provide Redis, so an outage is a real misconfiguration, never an implicit bypass).
-A breach emits an audited `rate_limited` security event on an independent transaction.
+uploads, imports, invitations, data export, reading the audit trail, report drafting and
+report release. FAIL-CLOSED when Redis is unreachable — a missing backend must not silently
+disable throttling (503, in every environment: the local/CI stacks provide Redis, so an
+outage is a real misconfiguration, never an implicit bypass).
+
+The FIRST refusal of a window emits an audited `rate_limited` security event on an
+independent transaction; the refusals after it in the same window do not. A client that
+keeps hammering a limit is refused every time and recorded once per window — otherwise the
+limit would bound what the client asked for and leave it writing one append-only row, on a
+second database connection, per refused request.
 """
 
 from __future__ import annotations
@@ -46,16 +52,23 @@ def check_rate_limit(
     name = f"rl:{action}:{key}"
     try:
         client = _get_client()
-        count = int(client.incr(name))
-        if count == 1:
+        pipe = client.pipeline(transaction=True)
+        pipe.incr(name)
+        pipe.ttl(name)
+        count, ttl = (int(value) for value in pipe.execute())
+        # The window starts with the first call. A key WITHOUT an expiry (-1) is one whose
+        # EXPIRE never arrived — a timeout or a crash between the two commands: left alone it
+        # would count forever and refuse that caller for good, so it is given its window now.
+        if count == 1 or ttl == -1:
             client.expire(name, window_seconds)
     except RedisError as exc:
         # Fail closed: no throttling backend, no throttled surface.
         raise ServiceUnavailable("rate limiting unavailable") from exc
     if count > limit:
-        record_security_event(
-            action="rate_limited",
-            correlation_id=correlation_id,
-            detail={"action": action},
-        )
+        if count == limit + 1:
+            record_security_event(
+                action="rate_limited",
+                correlation_id=correlation_id,
+                detail={"action": action},
+            )
         raise TooManyRequests("too many requests")

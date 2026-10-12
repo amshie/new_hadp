@@ -29,6 +29,10 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
+        # A refused configuration names what is wrong, never the values it was given: the
+        # error is raised at import and printed by whatever starts the process — and the
+        # input it would quote holds the session secret and the database passwords.
+        hide_input_in_errors=True,
     )
 
     app_env: AppEnv = "development"

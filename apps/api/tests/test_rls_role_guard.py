@@ -81,18 +81,37 @@ def test_a_role_that_is_not_a_superuser_but_bypasses_rls_is_refused(  # type: ig
 def test_no_request_is_served_through_a_role_that_bypasses_rls(
     run_app_as: Callable[[str], None],
 ) -> None:
-    run_app_as(get_settings().database_url)
     # No `with`: the app is taken as already running, so this is the per-request guard alone.
     client = TestClient(app, raise_server_exceptions=False)
+    unknown = {"email": "nobody@synthetic.example"}
+    # The control: as the ordinary role the lookup runs and says "unknown user".
+    reset_engine()
+    assert client.post("/api/v1/auth/dev-login", json=unknown).status_code == 401
+
+    run_app_as(get_settings().database_url)
     for _ in range(3):
-        resp = client.post("/api/v1/auth/dev-login", json={"email": "nobody@synthetic.example"})
-        # 401 ("unknown user") would mean the lookup ran — as a role that sees every tenant.
+        resp = client.post("/api/v1/auth/dev-login", json=unknown)
+        # 401 would mean the lookup ran — as a role that sees every tenant.
         assert resp.status_code == 500, resp.text
+        assert engine_module._engine is None, "a refused engine was kept"
 
 
 def test_the_api_does_not_start_as_a_role_that_bypasses_rls(
     run_app_as: Callable[[str], None],
 ) -> None:
     run_app_as(get_settings().database_url)
+    # Refused on the way IN: a check that only ran at shutdown would reach the body.
     with pytest.raises(RuntimeError, match=_REFUSAL), TestClient(app):
-        pass
+        pytest.fail("the API started as a role that bypasses row-level security")
+
+
+def test_two_first_requests_at_once_build_one_engine() -> None:
+    """Sync handlers run in a thread pool: the first requests after a start arrive together."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    reset_engine()
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        engines = list(pool.map(lambda _: get_engine(), range(32)))
+        factories = list(pool.map(lambda _: get_sessionmaker(), range(32)))
+    assert len({id(e) for e in engines}) == 1
+    assert len({id(f) for f in factories}) == 1

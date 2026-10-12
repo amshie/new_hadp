@@ -102,10 +102,9 @@ export async function generateReportAction(
             "Kein Entwurf möglich: Nicht jede Aussage ließ sich mit einer Quelle belegen.",
         };
     }
-    return {
-      ok: false,
-      error: "Aktion fehlgeschlagen. Bitte erneut versuchen.",
-    };
+    // Everything else — a throttled request among it — is worded where the other report
+    // actions word it.
+    return { ok: false, error: safeMessage(e) };
   }
 }
 
