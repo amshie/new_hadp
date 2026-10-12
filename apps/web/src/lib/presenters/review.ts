@@ -307,7 +307,13 @@ export function presentReview(
         e.missing
           ? { label: "Beleg nicht auflösbar", missing: true }
           : {
-              label: `${e.original_name ?? "Beobachtung"}: ${unitJoin(e.value, e.unit)}`,
+              // A value without a normalized form (an analyte the terminology does not
+              // know) is shown as the source wrote it — never as "—" under a statement.
+              label: `${e.original_name ?? "Beobachtung"}: ${
+                e.value != null
+                  ? unitJoin(e.value, e.unit)
+                  : unitJoin(e.original_value, e.original_unit)
+              }`,
               status: e.review_status,
               missing: false,
               superseded: e.superseded === true,

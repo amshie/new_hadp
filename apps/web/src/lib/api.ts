@@ -28,6 +28,9 @@ export type MemberOut = Schemas["MemberOut"];
 export interface ReportEvidenceItem {
   observation_id: string;
   original_name?: string;
+  // The source representation (verbatim); `value`/`unit` are the normalized one, when it exists.
+  original_value?: string;
+  original_unit?: string | null;
   value?: string | null;
   unit?: string | null;
   observed_at?: string;

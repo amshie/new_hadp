@@ -56,12 +56,21 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   intended-use terms (stem-matched to catch plurals + German inflections), strips comments
   and the two sanctioned negated disclaimers, and runs in `make check` / `make test-db`.
   Closes the ADR-0004 §0 "DE/EN labels through the language scan before any UI ships" gate.
-- **Report statements in German (go-live plan A10, 2026-10-12):** ✅ the deterministic provider
-  writes German (`narr-2`); the patient view no longer shows English sentences under German
-  headings. Still open: reports generated before this change keep their English text until a
-  new draft is created (a version is never rewritten); numbers keep the decimal point, as
-  everywhere else in the UI (a de-DE number format is one decision for the whole product); the
-  write-time term list for human edits is still English-stem based — extending it to German is
-  the founder decision in the go-live plan (§6.6).
+- **Report statements: German, and the value as the source wrote it (go-live plan A10,
+  2026-10-12):** ✅ the deterministic provider writes German (`narr-2`) and states name, value
+  and unit verbatim; a unit conversion is named beside the source value. Before, a published
+  value the terminology does not know (six terms are mapped today) read "… was unknown", and a
+  converted value stood alone with seven computed digits under "source reference interval".
+  Still open: reports generated earlier keep their English text until a new draft (a version
+  is never rewritten). **Decisions:** German prose with a decimal point ("3.885 mmol/L" can be
+  read as 3885) — the number format is one decision for the whole product; how many digits a
+  converted value shows; the write-time term list for human edits is English-stem based —
+  extending it to German is the founder decision in the go-live plan (§6.6). **Gaps the review
+  found, not fixed here:** a value the terminology does not know gets no reference interval in
+  its statement and shows as "—" in the tables (bounds are parsed only for mapped analytes —
+  plan item A2); a manual-entry time without an offset is stored as UTC, while file readers
+  read the same time in the laboratory zone; source-supplied analyte names are not checked
+  against the restricted terms when a draft is generated; `LAB_LOCAL_TIMEZONE` is not validated
+  at startup.
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

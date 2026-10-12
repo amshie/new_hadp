@@ -7,7 +7,9 @@ is used in tests); a future AI provider must implement the same interface and ob
 same output contract (strict schema, evidence-linked, validated before persistence).
 
 The text is written in German (de-DE, the product's initial locale): the released version
-is what the patient reads. Analyte names, values and units stay as the source wrote them.
+is what the patient reads. A statement gives the value the way the source wrote it — name,
+value and unit verbatim. What the platform adds is named as such: a unit conversion appears
+beside the source value, never instead of it.
 """
 
 from __future__ import annotations
@@ -25,12 +27,20 @@ class EvidenceItem:
     observation_id: uuid.UUID
     metric_code: str | None
     name: str
+    # The source representation, verbatim. This is what a statement states.
+    original_value: str
+    original_unit: str | None
+    # The normalized representation (None when the value could not be normalized, e.g. an
+    # analyte the terminology does not know). Reference bounds are in the normalized unit.
     value: Decimal | None
     unit: str | None
+    # True when normalization converted the unit, so `value`, `unit` and the bounds are the
+    # platform's conversion of what the source wrote.
+    converted: bool
     reference_low: Decimal | None
     reference_high: Decimal | None
     # When the value was sampled, ready to follow "am": "10.06.2025" for a source that named
-    # only a day, "10.06.2025 um 08:30 Uhr" otherwise (built in reports/evidence.py).
+    # only a day, "10.06.2025 um 08:30 Uhr (CEST)" otherwise (built in reports/evidence.py).
     observed_at_label: str
     delta_vs_previous: Decimal | None = None
     previous_observation_id: uuid.UUID | None = None
@@ -58,15 +68,24 @@ def _with_unit(text: str, unit: str | None) -> str:
     return f"{text} {unit}" if unit else text
 
 
-def _interval(low: Decimal | None, high: Decimal | None, unit: str | None) -> str | None:
-    """The source's reference interval; a one-sided interval names its one bound; None if the
-    source gave no bound at all."""
+def _signed(value: Decimal) -> str:
+    """A change says its direction: "+0.8", "-0.8", "0"."""
+    text = _fmt(value)
+    return f"+{text}" if value > 0 else text
+
+
+def _bounds(low: Decimal | None, high: Decimal | None, unit: str | None) -> str | None:
+    """The reference bounds the platform holds for a value, or None if it holds none.
+
+    With one bound only, that bound is named and nothing is said about the other: the source
+    may have given a one-sided interval, or a second bound that could not be read.
+    """
     if low is not None and high is not None:
         return _with_unit(f"{_fmt(low)} bis {_fmt(high)}", unit)
     if high is not None:
-        return _with_unit(f"bis {_fmt(high)}", unit)
+        return _with_unit(f"obere Grenze {_fmt(high)}", unit)
     if low is not None:
-        return _with_unit(f"ab {_fmt(low)}", unit)
+        return _with_unit(f"untere Grenze {_fmt(low)}", unit)
     return None
 
 
@@ -79,24 +98,24 @@ class DeterministicNarrativeProvider:
     """
 
     name = "deterministic"
-    # narr-2: the same facts as narr-1, worded in German. A stored version keeps the text and
-    # the version it was generated with.
+    # narr-2: German, and the value as the source wrote it (narr-1 was English and printed
+    # the normalized value only). A stored version keeps its text and the version it was
+    # generated with.
     version = "narr-2"
 
     def generate(self, payload: list[EvidenceItem]) -> list[DraftStatement]:
         statements: list[DraftStatement] = []
         for i, item in enumerate(payload, start=1):
             evidence = [item.observation_id]
-            if item.value is None:
-                parts = [
-                    f"Für {item.name} ist am {item.observed_at_label} kein Zahlenwert erfasst."
-                ]
-            else:
-                measured = _with_unit(_fmt(item.value), item.unit)
-                parts = [f"{item.name} lag am {item.observed_at_label} bei {measured}."]
-            interval = _interval(item.reference_low, item.reference_high, item.unit)
-            if interval is not None:
-                parts.append(f"Referenzintervall der Quelle: {interval}.")
+            stated = _with_unit(item.original_value, item.original_unit)
+            if item.converted and item.value is not None:
+                stated += f" (umgerechnet: {_with_unit(_fmt(item.value), item.unit)})"
+            parts = [f"{item.name} am {item.observed_at_label}: {stated}."]
+            bounds = _bounds(item.reference_low, item.reference_high, item.unit)
+            if bounds is not None:
+                # Converted bounds are the source's interval in the platform's unit — said so.
+                label = "Referenzintervall der Quelle"
+                parts.append(f"{label}{' (umgerechnet)' if item.converted else ''}: {bounds}.")
                 # Factual comparison to the lab-provided interval (a rule match, not a diagnosis).
                 # Uses the shared predicate so the narrative, the web "Lage" column, and the
                 # planned out_of_source_interval rule cannot drift. Only above/below are stated;
@@ -109,7 +128,7 @@ class DeterministicNarrativeProvider:
                 elif position == "below":
                     parts.append("Der Wert liegt unter dem Referenzintervall der Quelle.")
             if item.delta_vs_previous is not None and item.previous_observation_id is not None:
-                change = _with_unit(_fmt(item.delta_vs_previous), item.unit)
+                change = _with_unit(_signed(item.delta_vs_previous), item.unit)
                 parts.append(
                     f"Veränderung gegenüber der vorherigen vergleichbaren Messung: {change}."
                 )

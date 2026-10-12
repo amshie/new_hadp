@@ -28,9 +28,10 @@ FORBIDDEN = [
     "cure",
 ]
 
-# The provider writes German. This guards its OWN templates against the German words for the
-# same claims. It is a test of generated text only — not the write-time term list for human
-# edits (modules/reports/language.py), whose extension to German is a recorded open decision.
+# The provider writes German. This guards its OWN templates (with one fixed analyte name)
+# against the German words for the same claims. It is a test of generated text only — not the
+# write-time term list for human edits (modules/reports/language.py), whose extension to
+# German is a recorded open decision — and it says nothing about names a source supplies.
 FORBIDDEN_GERMAN = [
     "therap",
     "behandl",
@@ -54,11 +55,14 @@ def _item(value: str, low: str | None, high: str | None, delta: str | None = Non
         observation_id=uuid.uuid4(),
         metric_code="13457-7",
         name="LDL Cholesterol",
+        original_value=value,
+        original_unit="mmol/L",
         value=Decimal(value),
         unit="mmol/L",
+        converted=False,
         reference_low=Decimal(low) if low is not None else None,
         reference_high=Decimal(high) if high is not None else None,
-        observed_at_label="2025-06-10",
+        observed_at_label="10.06.2025 um 08:30 Uhr (CEST)",
         delta_vs_previous=Decimal(delta) if delta is not None else None,
         previous_observation_id=uuid.uuid4() if delta is not None else None,
     )

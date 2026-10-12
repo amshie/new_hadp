@@ -61,6 +61,12 @@ def _canonical_unit(unit: str | None) -> str | None:
     return aliases.get(u.lower(), u)
 
 
+def unit_was_converted(original_unit: str | None, normalized_unit: str | None) -> bool:
+    """True when normalization changed the unit — and with it the value and the reference
+    bounds. A different spelling of the same unit ("mmol/l") is not a conversion."""
+    return normalized_unit is not None and _canonical_unit(original_unit) != normalized_unit
+
+
 # A plain decimal number: ASCII digits, an optional sign, `.` or `,` as the decimal separator,
 # an optional small exponent. Decimal() itself would also accept NaN, Infinity, digit-group
 # underscores ("3_4" -> 34) and other scripts' digits — none of which is a laboratory value.

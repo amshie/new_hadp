@@ -9,6 +9,7 @@ Actionability as two separate fields, the three tri-state cells as supporting ev
 from __future__ import annotations
 
 import uuid
+from datetime import UTC
 from typing import Any
 
 from sqlalchemy import func, select
@@ -292,7 +293,7 @@ def _cell_evidence(
             hi = obs.reference_high if obs.reference_high is not None else "—"
             reference = f"{lo}–{hi} {obs.normalized_unit or ''}".strip()
         observed = (
-            obs.observed_at.date().isoformat()
+            obs.observed_at.astimezone(UTC).date().isoformat()
             if obs.observed_at_is_date_only
             else obs.observed_at.isoformat()
         )

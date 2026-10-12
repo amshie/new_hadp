@@ -10,12 +10,14 @@ rests on a replaced value, cannot be approved.
 from __future__ import annotations
 
 import uuid
+from datetime import UTC
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
 from hadp_api.config import get_settings
 from hadp_api.modules.enums import KpiMeasurementClass
+from hadp_api.modules.imports.normalize import unit_was_converted
 from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.observations.models import Observation
 from hadp_api.modules.reports.narrative import EvidenceItem
@@ -24,13 +26,17 @@ from hadp_api.modules.reports.narrative import EvidenceItem
 def _label(observation: Observation, zone: ZoneInfo) -> str:
     """When the value was sampled, as a de-DE report states it after "am".
 
-    A source that named only a day keeps the day — no time is invented. Otherwise the instant
-    (stored in UTC) is written as day and wall-clock time in the clinic's zone.
+    A source that named only a day keeps the day — no time is invented; the day is read in
+    UTC, where it is stored (whatever zone the database session reports). Otherwise the
+    instant is written as wall-clock time in the clinic's zone, with the zone's abbreviation:
+    the text then names one instant even in the hour a clock change repeats, and stays
+    readable if the configured zone ever changes.
     """
     if observation.observed_at_is_date_only:
-        return f"{observation.observed_at.date():%d.%m.%Y}"
+        return f"{observation.observed_at.astimezone(UTC).date():%d.%m.%Y}"
     local = observation.observed_at.astimezone(zone)
-    return f"{local:%d.%m.%Y} um {local:%H:%M} Uhr"
+    clock = f"{local:%H:%M:%S}" if local.second else f"{local:%H:%M}"
+    return f"{local:%d.%m.%Y} um {clock} Uhr ({local:%Z})"
 
 
 def build_evidence_payload(db: Session, patient_id: uuid.UUID) -> list[EvidenceItem]:
@@ -54,8 +60,11 @@ def build_evidence_payload(db: Session, patient_id: uuid.UUID) -> list[EvidenceI
                 observation_id=point.observation_id,
                 metric_code=point.metric_code,
                 name=point.original_name,
+                original_value=obs.original_value,
+                original_unit=obs.original_unit,
                 value=point.value,
                 unit=point.unit,
+                converted=unit_was_converted(obs.original_unit, obs.normalized_unit),
                 reference_low=point.reference_low,
                 reference_high=point.reference_high,
                 observed_at_label=_label(obs, zone),
