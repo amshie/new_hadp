@@ -25,7 +25,8 @@
 - A laboratory that writes three decimals (`4.000`) loses the number of every value of 1 or more until a reader states the decimal mark of its format; CSV and manual entry have none (→ A1).
 - Which names the import may publish without a human is a clinical decision, name by name; today it is the six names of `norm-1`, which nobody signed either (→ E, §6).
 - Audit events carry no patient identifier; report reads and administrative lists are not audited; the trail has no index, export or retention rule (→ A9 follow-up, D).
-- The web build downloads four Google font families at build time and failed CI once on that alone (→ C/F).
+- The web build downloads four Google font families at build time and failed CI **twice today** on that alone (`next/font`: `TypeError: Cannot read properties of null` in `nextFontGoogleFontLoader`) — once on #62, once on `main`'s own post-merge run of `fb84c0c` (run 38305042320). The job is not a required check, so `main` stays mergeable while its build is red (→ C/F).
+- GitHub reports one open Dependabot alert on `main` (medium, since 2026-10-12 07:51): `Mako` 1.3.12 < 1.4.2, GHSA-5639-2j2p-m4mx, a path traversal on Windows in `TemplateLookup`, pulled in through Alembic. `pip-audit` passed on the same commit — the two scanners do not see the same set (→ B).
 
 ---
 
@@ -82,14 +83,14 @@ Still open:
 - The BYPASSRLS boot guard runs in production only (`db/engine.py`); it should run everywhere.
 - No malware-scan integration point on upload; no short-lived signed URLs (no document download path exists).
 - `record_security_event` writes an ERROR log and continues when its own write fails (`modules/audit/service.py`, a documented boundary so that a 403 cannot become a 500) — without alerting (C) that log line is the whole control; decide whether that is enough once monitoring exists.
-- Dependency advisories: the allow-list is empty (`ci.yml:217`). 19 Dependabot pull requests are open, the oldest from June: two are already satisfied on `main` (pytest 9, Next 15.5.24 — `main` is at `^15.5.27`), eight are major bumps (Next 16, mypy 2, cryptography 50 for api and worker, four GitHub Actions), nine are minor or patch. None is in any plan.
+- Dependency advisories: the allow-list is empty (`ci.yml:217`), but GitHub's Dependabot and `pip-audit` disagree today (the Mako alert above passes `pip-audit`); decide which scanner is the gate, and refresh the lock for Mako ≥ 1.4.2 when Alembic's constraint allows. 19 Dependabot pull requests are open, the oldest from June: two are already satisfied on `main` (pytest 9, Next 15.5.24 — `main` is at `^15.5.27`), eight are major bumps (Next 16, mypy 2, cryptography 50 for api and worker, four GitHub Actions), nine are minor or patch. None is in any plan.
 
 ### C — Platform and operations
 
 Nothing exists: no Dockerfile (api, web, worker), no `infra/`, no IaC, no staging, no deploy job, no backup, no monitoring, no runbooks. Added to the list:
 
 - **Catalog seeding as a deploy step.** `alembic upgrade head` is not enough: the import needs the KPI catalog or it holds every value. Today only the synthetic seed script loads it (`scripts/seed.py` → `seed_kpi_catalog`), and that script must never run against a production database.
-- **Self-hosted web fonts.** The build must not depend on a Google download.
+- **Self-hosted web fonts.** The build must not depend on a Google download; a production build that fails on a third party's availability is a deploy risk, not only a CI flake.
 
 ### D — Data protection
 
