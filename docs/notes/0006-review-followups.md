@@ -278,6 +278,10 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   tenant table enables and forces RLS.
   From that review, open: the role guard does not refuse a table **owner**, and an unset
   `APP_DATABASE_URL` still falls back to the admin DSN ([[0005-rls-fail-open-production-guard]]);
+  **the limits keyed on a client address (sign-in, the patient-view token surface, invitation
+  redemption) count the web server's address, which is the API's peer for every browser — all
+  patients share one budget, and one client can exhaust it for everyone** (found by the review
+  of the browser test; `docs/security/THREAT_MODEL.md` §5);
   `rate_limited` events carry neither user nor clinic, so a breach cannot be tied to anyone and
   reaches no clinic's trail; editing a report has no size limit and no rate limit, and each
   edit of an approved or rejected version adds a version; a failed sign-out call is swallowed
