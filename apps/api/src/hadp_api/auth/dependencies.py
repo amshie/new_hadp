@@ -19,7 +19,7 @@ from hadp_api.auth.authz import Action, can
 from hadp_api.auth.sessions import get_active_session
 from hadp_api.config import get_settings
 from hadp_api.db.engine import set_tenant_context
-from hadp_api.db.session import get_db
+from hadp_api.db.session import RequestSession
 from hadp_api.errors import NotAuthenticated, PermissionDenied
 from hadp_api.modules.audit.service import record_security_event
 from hadp_api.modules.enums import Role
@@ -47,7 +47,7 @@ def get_correlation_id(request: Request) -> str:
     return value if isinstance(value, str) else "unknown"
 
 
-def get_current_principal(request: Request, db: Session = Depends(get_db)) -> Principal:
+def get_current_principal(request: Request, db: Session = RequestSession) -> Principal:
     settings = get_settings()
     token = request.cookies.get(settings.session_cookie_name)
     if not token:
@@ -63,7 +63,7 @@ def get_current_principal(request: Request, db: Session = Depends(get_db)) -> Pr
 
 def get_tenant_context(
     principal: Principal = Depends(get_current_principal),
-    db: Session = Depends(get_db),
+    db: Session = RequestSession,
     correlation_id: str = Depends(get_correlation_id),
 ) -> TenantContext:
     tenant_id = principal.session.active_tenant_id
