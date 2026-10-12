@@ -70,13 +70,45 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   the issued link. Still open, deliberately: the two Übersicht panels that say why they are
   empty (ADR-0006 — activity feed, imports) use engineering wording; the legal links
   (Datenschutz, Nutzungsbedingungen) return when those pages exist (workstream D); the report
-  review page keeps the legacy shell (on a narrow screen its only way out is the brand link);
-  report statements are still generated in English (the next A10 slice). Found by the review
+  review page keeps the legacy shell (on a narrow screen its only way out is the brand link).
+  The report statements themselves are the next entry. Found by the review
   and not fixed here: reading a report (`GET /reports/{id}`) writes no audit event, while the
   sign-in page says access is logged; the staff-invitation page tells a new colleague to sign
   in, which a production deployment cannot offer yet; "Einstellungen" is an empty page for
   clinician and assistant; whether a released report is still reachable (link valid, consent
   standing) is not exposed by the API, so the UI can only name the condition; the web app has
   no unit-test runner, so the sign-in mode and the presenters are covered by the smoke only.
+- **Report statements: German, and the result as the source wrote it (go-live plan A10,
+  2026-10-12):** ✅ the deterministic provider writes German (`narr-2`) and states a numeric
+  result verbatim; a unit conversion is named beside the source value. Before, a published
+  value the terminology does not know (six terms are mapped today) read "… was unknown", and a
+  converted value stood alone with seven computed digits under "source reference interval".
+  A result is quoted only if it is a plain number (optionally with a comparator) whose unit is
+  one token; anything else — a text result, a flagged value, free text typed into the value or
+  unit field — is mentioned and never quoted: those fields are free text, and a statement is
+  patient-facing. Still open: reports generated earlier keep their English text until a new
+  draft (a version is never rewritten). **The price of the rule:** numeric results whose unit
+  is not one token are not quoted either — `92 mL/min/1.73 m²` (eGFR), `38 mmol/mol Hb`,
+  `30 mg/g Krea`, `1,2 g/24 h`, `95 % der Norm` — nor are `1.234,5`, titers (`1:160`), ranges
+  (`0-1`), `neg.` or `++`. Quoting by a verified unit catalog instead of by shape belongs to
+  plan item A2. **Decisions:** whether a text result may appear in a patient statement at all
+  (today: no), and the wording of the sentence that stands in for it; units with a space; the
+  decimal mark of numbers the platform writes when neither the value nor its reference text
+  has one ("130 mg/dL (umgerechnet: 3.361774 mmol/L)" — otherwise they follow the source); how
+  many digits a converted value shows; the write-time term list for human edits is
+  English-stem based — extending it to German is the founder decision in the go-live plan
+  (§6.6). **What a source can still put into a statement unchecked:** the analyte name (up to
+  200 characters, as on `main`) and a unit token of up to 20 characters without whitespace,
+  refused only when it carries an English restricted stem ("Therapie-empfohlen" passes); both
+  have been published by a clinician from the review queue, and either can block a later
+  rework at the edit guard. **Gaps the review found, not fixed here:** a value the terminology
+  does not know gets no reference interval in its statement and shows as "—" in the tables
+  (bounds are parsed only for mapped analytes — plan item A2); every import path carries a
+  text result as a numeric observation without a value (see
+  `docs/product/LAB_IMPORT_FORMATS.md`, "Known limits"); a manual-entry time without an
+  offset is stored as UTC, while file readers read the same time in the laboratory zone; a
+  number written with a thousands separator ("1,234") is read as 1.234; the day-only fix in
+  the interpretation evidence has no test under a database session west of UTC;
+  `LAB_LOCAL_TIMEZONE` is not validated at startup.
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

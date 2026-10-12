@@ -173,7 +173,7 @@ def _observation(
         "original_value": observation.original_value,
         "original_unit": observation.original_unit,
         "reference_text": observation.reference_text,
-        "observed_at": observation.observed_at.date().isoformat()
+        "observed_at": observation.observed_at.astimezone(UTC).date().isoformat()
         if observation.observed_at_is_date_only
         else _instant(observation.observed_at),
         "observed_at_is_date_only": observation.observed_at_is_date_only,

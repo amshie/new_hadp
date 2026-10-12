@@ -282,7 +282,12 @@ and no manual-entry form; values can be entered manually through the API only.
   such a file is refused. Matching reports to patients across a clinic is a separate feature. The
   only identity check against the patient record is the date of birth, and only when both the file
   and the record have one.
-- **Text results are not carried** (the pipeline holds numeric observations only).
+- **Text results are not carried as text.** The LDT readers leave a test without a result
+  value out (counted as "not imported"). A value field that is present is passed on as written
+  by every path — LDT, CSV, manual entry: a text result ("reaktiv", "12,4 H") becomes an
+  observation without a normalized value, goes to the review queue, and a clinician can publish
+  it. A report statement then says that a result exists and does not repeat its wording. Typing
+  such results as text observations — or refusing them at the door — is open.
 - **A reviewer cannot open the source file in the product yet.** `source_comment` asks a human to
   read the source, but no route serves the stored document: the patient page lists the file, it
   does not show or download it. The original has to be read outside the product.

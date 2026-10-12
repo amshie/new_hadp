@@ -392,7 +392,14 @@ export function presentReview(
         e.missing
           ? { label: "Beleg nicht auflösbar", missing: true }
           : {
-              label: `${e.original_name ?? "Beobachtung"}: ${unitJoin(e.value, e.unit)}`,
+              // The cited evidence as the source wrote it — what the reviewer has to judge,
+              // including a result the statement does not quote. (An API answer without the
+              // source fields falls back to the normalized value.)
+              label: `${e.original_name ?? "Beobachtung"}: ${
+                e.original_value != null
+                  ? unitJoin(e.original_value, e.original_unit)
+                  : unitJoin(e.value, e.unit)
+              }`,
               status: e.review_status,
               missing: false,
               superseded: e.superseded === true,

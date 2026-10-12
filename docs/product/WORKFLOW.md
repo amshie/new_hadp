@@ -157,6 +157,12 @@ PUBLISHED | REJECTED`. Each observation retains **both** the immutable source re
    rule-evaluation IDs; statements unsupported by evidence fail validation or are removed. AI, when
    used, is a constrained `NarrativeProvider` (a deterministic local fake exists for dev/test); it
    performs no calculations, invents no measurements/ranges/causes, and cannot publish or approve.
+   The deterministic provider writes German (de-DE) — the released version is what the patient
+   reads. A statement gives a numeric result as the source wrote it; a unit conversion is named
+   beside the source value, never instead of it. A result that is not a plain number with a
+   one-token unit is mentioned, never quoted. From the source, a statement carries the analyte
+   name as written, a numeric result and a short unit token — the name and the unit token are
+   not checked against the restricted terms beyond the English stems (register row).
    _(planned, Milestone 3.)_
 8. **Clinician edits and approves.** The clinician edits the draft and performs the
    meaningful approval (§4.3). Approval is attributable to a specific user and timestamp and is

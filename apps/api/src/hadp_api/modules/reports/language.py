@@ -1,9 +1,12 @@
 """Intended-use language guard for human-edited report text.
 
-The deterministic provider's output is guarded by tests, but an edit is free text bound for a
-patient-facing report — so the restricted intended-use terms (docs/regulatory/INTENDED_USE.md
-"Vocabulary") are enforced at write time, not only by review. This is the single source for
-the stems the apps/web copy scan (tests/test_web_copy_language.py) matches too.
+The deterministic provider's templates are guarded by tests, and of what a source supplied
+only the analyte name, a numeric result and a unit-shaped unit enter a generated statement
+(reports/evidence.py) — these terms are NOT checked at generation. An edit is free text bound
+for a patient-facing report — so the restricted intended-use terms
+(docs/regulatory/INTENDED_USE.md "Vocabulary") are enforced at write time, not only by
+review. This is the single source for the stems the apps/web copy scan
+(tests/test_web_copy_language.py) matches too.
 
 Any change to these terms is an intended-use boundary change (documented review process),
 never an engineering convenience.
