@@ -5,6 +5,7 @@ import { useState, useTransition, type CSSProperties } from "react";
 
 import { Dialog } from "@/components/vitabahn/Dialog";
 import type { DataExport } from "@/lib/api";
+import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
 
 // Data export for one patient (GDPR Art. 15 access / Art. 20 portability) — the owner's tool
 // to answer a data subject's request. The API builds the file on request and stores nothing;
@@ -57,13 +58,20 @@ function errorMessage(status: number, code: string): string {
   return "Die Datenauskunft konnte nicht erstellt werden. Bitte erneut versuchen.";
 }
 
+// On the clinic's wall clock, whatever zone the server or the reader's device is in: the same
+// text on the server and in the browser, and the same time for everyone who reads the page.
 function fmtWhen(iso: string): string {
   const d = new Date(iso);
   return `${d.toLocaleDateString("de-DE", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  })}, ${d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`;
+    timeZone: CLINIC_TIME_ZONE,
+  })}, ${d.toLocaleTimeString("de-DE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: CLINIC_TIME_ZONE,
+  })}`;
 }
 
 function fmtSize(bytes: number): string {

@@ -10,6 +10,7 @@ import {
 import { useRouter } from "next/navigation";
 
 import { Dialog } from "@/components/vitabahn/Dialog";
+import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
 import {
   addPatient,
   checkPatientDuplicates,
@@ -757,6 +758,7 @@ export function AddPatientDialog({
                       {new Date(invite.expiresAt).toLocaleString("de-DE", {
                         dateStyle: "medium",
                         timeStyle: "short",
+                        timeZone: CLINIC_TIME_ZONE,
                       })}{" "}
                       · wird nur einmal angezeigt — bitte sicher und persönlich
                       übermitteln.

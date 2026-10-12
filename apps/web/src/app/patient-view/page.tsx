@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { Disclaimer } from "@/components/Disclaimer";
 import { patientView } from "@/lib/api";
+import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
 import { decodePv, PV_COOKIE } from "@/lib/patientView";
 import { isUuid } from "@/lib/uuid";
 
@@ -23,7 +24,7 @@ function releaseDay(iso: string | null): string | null {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-    timeZone: "Europe/Berlin",
+    timeZone: CLINIC_TIME_ZONE,
   });
 }
 

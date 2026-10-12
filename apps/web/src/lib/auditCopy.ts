@@ -57,6 +57,8 @@ const ACTION_LABELS: Record<string, string> = {
   "worklist.read": "Übersicht gelesen",
   "worklist.coverage.read": "Übersicht gelesen (Datenlage)",
   "worklist.throughput.read": "Übersicht gelesen (Durchsatz)",
+  "metric.read": "Kennzahl Vorbereitungszeit gelesen",
+  "metric.statement_recorded": "Angabe zur Vorbereitungszeit erfasst",
 };
 
 export function actionLabel(action: string): string {
@@ -83,6 +85,7 @@ const CATEGORY_LABELS: Record<AuditCategory, string> = {
   authz: "Verweigerte Zugriffe",
   worklist: "Übersicht",
   audit: "Lesen dieses Protokolls",
+  metric: "Kennzahlen",
 };
 
 export const AUDIT_CATEGORIES = (
@@ -108,6 +111,7 @@ const TARGET_LABELS: Record<string, string> = {
   staff_invitation: "Teameinladung",
   deletion_request: "Löschantrag",
   tenant: "Praxis",
+  preparation_time_statement: "Angabe zur Vorbereitungszeit",
 };
 
 export function targetLabel(type: string | null): string {

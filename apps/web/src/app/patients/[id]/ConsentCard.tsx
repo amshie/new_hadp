@@ -4,6 +4,7 @@ import { useState, useTransition, type CSSProperties } from "react";
 
 import { Dialog } from "@/components/vitabahn/Dialog";
 import type { ConsentState } from "@/lib/api";
+import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
 import { CONSENT_OPTIONS, type ConsentPurpose } from "@/lib/consentCopy";
 
 import { recordConsentAction } from "./consent-actions";
@@ -44,11 +45,13 @@ const CHANNEL_LABELS: Record<string, string> = {
   in_person: "vor Ort erklärt",
 };
 
+// The day on the clinic's wall clock — not the server's and not the reader's device's.
 function fmtDay(iso: string): string {
   return new Date(iso).toLocaleDateString("de-DE", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+    timeZone: CLINIC_TIME_ZONE,
   });
 }
 

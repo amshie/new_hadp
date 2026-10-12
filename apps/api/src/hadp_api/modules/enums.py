@@ -62,6 +62,7 @@ class AuditCategory(str, Enum):
     AUTHZ = "authz"
     WORKLIST = "worklist"
     AUDIT = "audit"
+    METRIC = "metric"
 
 
 class ValueType(str, Enum):
@@ -387,3 +388,29 @@ class ComparabilityReason(str, Enum):
     CONTEXT_DIFFERS = "context_differs"  # required context present on both but unequal
     CONTEXT_MISSING = "context_missing"  # required context absent on either side (never inferred)
     NOT_LONGITUDINAL = "not_longitudinal"  # the KPI is not longitudinally comparable at all
+
+
+class PreparationStatementKind(str, Enum):
+    """What a clinic's own statement of its preparation time stands for — a CLOSED vocabulary.
+
+    BASELINE: how long preparing one appointment took before the clinic worked with the
+    platform — the value a pilot is measured against. FOLLOW_UP: the clinic's later statement
+    of the same quantity.
+
+    PROPOSED values (engineering proposal, 2026-10-12) — docs/product/WORKFLOW.md §6.
+    Changing the set is a migration (the DB CHECK lists the values).
+    """
+
+    BASELINE = "baseline"
+    FOLLOW_UP = "follow_up"
+
+
+class PreparationStatementBasis(str, Enum):
+    """How the clinic arrived at the number — a CLOSED vocabulary.
+
+    An estimate and a timed sample are not the same evidence; the statement keeps which one it
+    is, and a timed sample says over how many appointments. PROPOSED, as above.
+    """
+
+    ESTIMATE = "estimate"
+    TIMED_SAMPLE = "timed_sample"

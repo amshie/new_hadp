@@ -332,6 +332,17 @@ def main() -> int:
         assert "nur für Inhaber" in r.text, "audit trail not refused to a non-owner"
         assert "<table" not in r.text, "audit entries rendered for a non-owner"
 
+        # The preparation-time metric is tenant administration as well: no figure, no form.
+        r = web.get("/einstellungen/vorbereitungszeit")
+        assert r.status_code == 200, (
+            "/einstellungen/vorbereitungszeit as clinician",
+            r.status_code,
+        )
+        assert "nur für Inhaber" in r.text, "the metric is not refused to a non-owner"
+        # (The shell has a form of its own — the sign-out button.)
+        assert "Angaben der Praxis" not in r.text, "the metric is shown to a non-owner"
+        assert 'name="median_minutes"' not in r.text, "the metric form is shown to a non-owner"
+
     # The owner reads the clinic's trail: who did what, on the clinic's wall clock.
     owner = staff_session("owner@demo.synthetic")
     try:
@@ -349,6 +360,28 @@ def main() -> int:
 
             r = web.get("/einstellungen")
             assert 'href="/einstellungen/audit"' in r.text, "settings do not list the audit trail"
+            # The preparation-time metric: what the clinic states and what the platform
+            # measures stand in two sections, and the page says what the figures are not.
+            assert 'href="/einstellungen/vorbereitungszeit"' in r.text, "settings do not list it"
+            r = web.get("/einstellungen/vorbereitungszeit")
+            assert r.status_code == 200, (
+                "/einstellungen/vorbereitungszeit as owner",
+                r.status_code,
+            )
+            assert_no_mock_ui("/einstellungen/vorbereitungszeit", r.text)
+            for heading in (
+                "Angaben der Praxis",
+                "Gemessen aus dem Ablauf der Berichte",
+                "Was diese Zahlen sind",
+            ):
+                assert heading in r.text, f"the metric page lacks the section {heading!r}"
+            assert "keine Arbeitszeit" in r.text, "the page does not say what is measured"
+            assert 'name="median_minutes"' in r.text, "no form to state a preparation time"
+            # An outcome code that is not one of the page's own shows no message.
+            r = web.get("/einstellungen/vorbereitungszeit?fehler=nope&gespeichert=yes")
+            assert r.status_code == 200, ("metric page with unknown outcome codes", r.status_code)
+            assert "nicht gespeichert" not in r.text, "an unknown code shows a failure message"
+            assert "wurde gespeichert" not in r.text, "an unknown code shows a success message"
             r = web.get("/einstellungen/audit")
             assert r.status_code == 200, (
                 "/einstellungen/audit as owner",

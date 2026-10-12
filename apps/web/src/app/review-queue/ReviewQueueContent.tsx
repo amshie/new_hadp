@@ -4,6 +4,7 @@ import { useState, useTransition, type CSSProperties } from "react";
 
 import { Dialog } from "@/components/vitabahn/Dialog";
 import type { ReviewQueueItem } from "@/lib/api";
+import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
 
 import { resolveReviewItemAction } from "./actions";
 
@@ -66,15 +67,24 @@ function reasonLabel(reason: string): string {
   return REASON_LABELS[reason] ?? reason;
 }
 
+// A date-only value is the calendar day the source wrote (kept as midnight UTC): it is read
+// back in UTC, so no zone can move it to the day before. A time is shown on the clinic's wall
+// clock — the same on the server and in the browser, whatever zone either is in.
 function fmtObserved(iso: string, dateOnly: boolean): string {
   const d = new Date(iso);
+  const timeZone = dateOnly ? "UTC" : CLINIC_TIME_ZONE;
   const date = d.toLocaleDateString("de-DE", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+    timeZone,
   });
   if (dateOnly) return date;
-  return `${date}, ${d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`;
+  return `${date}, ${d.toLocaleTimeString("de-DE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone,
+  })}`;
 }
 
 const cardStyle: CSSProperties = {
