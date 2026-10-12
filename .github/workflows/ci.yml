@@ -185,6 +185,44 @@ jobs:
           echo "===== api.log ====="; cat /tmp/api.log || true
           echo "===== web.log ====="; cat /tmp/web.log || true
 
+  container-images:
+    # Builds the three images from the lockfiles, boots the production-shaped stack and
+    # asserts its posture (scripts/smoke_stack.sh), then scans the images for known
+    # vulnerabilities. Nobody can sign in to a production-mode stack yet, so this proves boot
+    # and posture, not the workflow (infra/docker/README.md). It holds no patient data, real
+    # or synthetic.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the images and run the stack smoke
+        run: make stack-smoke
+
+      - name: Install the image scanner (grype)
+        # A pinned release binary whose checksum is verified here — the pattern of the
+        # gitleaks step below, not a third-party action referenced by a tag that can move.
+        run: |
+          VERSION=0.120.1
+          SHA256=0a9ee97ef5ae2ee953b0a80098105052e846cdbe319a57d808b519c33cd1343d
+          curl -sSfL -o grype.tar.gz \
+            "https://github.com/anchore/grype/releases/download/v${VERSION}/grype_${VERSION}_linux_amd64.tar.gz"
+          echo "${SHA256}  grype.tar.gz" | sha256sum -c -
+          tar -xzf grype.tar.gz grype
+          ./grype version
+
+      - name: Scan the images
+        # Blocking on a HIGH or CRITICAL finding for which a fix exists. Findings without a
+        # fix are printed by the scanner and do not fail the job: nothing can be done about
+        # them here except choosing another base image.
+        run: |
+          status=0
+          for image in hadp-api:local hadp-worker:local hadp-web:local; do
+            echo "===== $image"
+            ./grype "$image" --only-fixed --fail-on high || status=1
+          done
+          exit "$status"
+
   secret-scan:
     runs-on: ubuntu-latest
     steps:

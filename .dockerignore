@@ -38,4 +38,9 @@
 packages/api-client/src/generated
 packages/*/test
 apps/web/scripts
+# Browser tests and their output: not part of the application.
+apps/web/e2e
+apps/web/playwright.config.ts
+apps/web/test-results
+apps/web/playwright-report
 apps/web/DESIGN-VERIFICATION.md

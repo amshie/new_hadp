@@ -79,7 +79,7 @@ sql() { compose exec -T postgres psql -U postgres -d hadp -v ON_ERROR_STOP=1 -At
 echo "--- starting $PROJECT ---"
 # A stack left over from an interrupted run is this script's own (same project name).
 compose down --timeout 20 > /dev/null 2>&1 || true
-# Returns once every dependency condition has held: postgres/redis/minio healthy, the migrate
+# Returns once every dependency condition has held: postgres/redis/s3 healthy, the migrate
 # and bucket jobs completed successfully, the API healthy.
 compose up -d
 
@@ -182,7 +182,9 @@ from hadp_api.config import get_settings
 print(redis.Redis.from_url(get_settings().redis_url, socket_timeout=5).ping())
 '
 )"
-expect "the API reaches the source-documents bucket with its credentials" "200" "$(
+# The stack's S3 endpoint is a test double that accepts any credentials: this proves the
+# wiring (endpoint, bucket), not that access to the bucket is controlled.
+expect "the API reaches the source-documents bucket on its S3 endpoint" "200" "$(
   compose exec -T api python -c '
 import boto3
 
@@ -259,7 +261,7 @@ print(Path(str(Settings.model_config["env_file"])).exists())
 )"
 compose logs --no-color worker | grep -q "worker started" || fail "worker did not log its start"
 ok "worker logged its start"
-for service in postgres redis minio api worker web; do
+for service in postgres redis s3 api worker web; do
   expect "$service is running, never restarted, and mounts no volume" \
     "running restarts=0 volumes=" \
     "$(state "$service" '{{.State.Status}} restarts={{.RestartCount}} volumes={{range .Mounts}}{{if eq .Type "volume"}}{{.Destination}} {{end}}{{end}}')"

@@ -11,9 +11,9 @@
 # them); none is written here. The database passwords and the Redis password are put into
 # URLs, so they must be URL-safe (the smoke uses hex).
 #
-# Nothing is persisted and no host port is published. PostgreSQL, Redis and MinIO keep their
-# data on tmpfs — there is no named volume: this is a smoke stack, not a database of record,
-# and stopping it loses everything in it. Reach a service through
+# Nothing is persisted and no host port is published. PostgreSQL and Redis keep their data on
+# tmpfs, the S3 test double in memory — there is no named volume: this is a smoke stack, not a
+# database of record, and stopping it loses everything in it. Reach a service through
 # `docker compose -p hadp-prodshape -f infra/docker/compose.production.yml exec <service> ...`.
 name: hadp-prodshape
 
@@ -30,7 +30,7 @@ x-api-environment: &api-environment
   # The non-superuser role: row-level security is enforced for everything the API does.
   APP_DATABASE_URL: postgresql+psycopg://hadp_app:${HADP_APP_DB_PASSWORD:?}@postgres:5432/hadp
   REDIS_URL: redis://:${REDIS_PASSWORD:?}@redis:6379/0
-  S3_ENDPOINT_URL: http://minio:9000
+  S3_ENDPOINT_URL: http://s3:5000
   S3_REGION: eu-central-1
   S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?}
   S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?}
@@ -75,41 +75,59 @@ services:
       - /data
     healthcheck:
       test:
-        ["CMD-SHELL", 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+        [
+          "CMD-SHELL",
+          'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG',
+        ]
       interval: 2s
       timeout: 3s
       retries: 30
 
-  minio:
-    image: minio/minio:RELEASE.2024-09-13T20-26-02Z
-    environment:
-      # The stack's only S3 identity is the store's root user. A deployment gives the
-      # application a key that is scoped to its bucket.
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:?}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:?}
-    command: ["server", "/data"]
-    tmpfs:
-      - /data
+  # Object storage: an S3 TEST DOUBLE (moto), not an object store. The MinIO images the
+  # development compose names can no longer be pulled (Docker Hub answers 404 for minio/minio
+  # and minio/mc), and which store a deployment uses is an open vendor decision. It keeps
+  # objects in memory and accepts any credentials — the smoke proves that the API is wired to
+  # an S3 endpoint and can reach its bucket, not that access to it is controlled.
+  s3:
+    image: motoserver/moto:5.2.3
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test:
+        - CMD
+        - python
+        - -c
+        - 'import urllib.request as u; u.urlopen("http://127.0.0.1:5000/moto-api/", timeout=3)'
       interval: 3s
-      timeout: 3s
+      timeout: 5s
       retries: 30
 
-  # One-shot: create the source-documents bucket.
-  minio-init:
-    image: minio/mc:RELEASE.2024-09-16T17-43-14Z
+  # One-shot: create the source-documents bucket, with the API image's own S3 client and
+  # settings.
+  s3-init:
+    <<: *hardening
+    image: ${HADP_API_IMAGE:-hadp-api:local}
     depends_on:
-      minio:
+      s3:
         condition: service_healthy
-    environment:
-      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?}
-      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?}
-    entrypoint: ["/bin/sh", "-ec"]
+    environment: *api-environment
     command:
+      - python
+      - -c
       - |
-        mc alias set store http://minio:9000 "$$S3_ACCESS_KEY_ID" "$$S3_SECRET_ACCESS_KEY" > /dev/null
-        mc mb --ignore-existing store/hadp-source-documents
+        import boto3
+
+        from hadp_api.config import get_settings
+
+        s = get_settings()
+        boto3.client(
+            "s3",
+            endpoint_url=s.s3_endpoint_url,
+            region_name=s.s3_region,
+            aws_access_key_id=s.s3_access_key_id,
+            aws_secret_access_key=s.s3_secret_access_key,
+        ).create_bucket(
+            Bucket=s.s3_bucket_source_documents,
+            CreateBucketConfiguration={"LocationConstraint": s.s3_region},
+        )
 
   # One-shot: bring the schema to head, then load the KPI catalog the laboratory import
   # resolves names against (ADR-0004 §18). The only service that holds the admin DSN. It runs
@@ -136,7 +154,7 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
-      minio-init:
+      s3-init:
         condition: service_completed_successfully
     environment: *api-environment
     healthcheck:
