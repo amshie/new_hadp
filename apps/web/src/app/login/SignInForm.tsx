@@ -18,7 +18,7 @@ export function SignInForm() {
     const email = String(
       new FormData(e.currentTarget).get("email") ?? "",
     ).trim();
-    if (!email) return;
+    if (!email || pending) return;
     startTransition(async () => {
       setError(null);
       // On success the action redirects and never returns.
@@ -38,14 +38,16 @@ export function SignInForm() {
             type="email"
             name="email"
             autoComplete="username"
-            disabled={pending}
+            readOnly={pending}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "sign-in-error" : undefined}
             required
           />
         </span>
       </label>
 
       {error && (
-        <div className="notice notice-danger" role="alert">
+        <div className="notice notice-danger" role="alert" id="sign-in-error">
           <Icon name="alert" />
           <span>{error}</span>
         </div>

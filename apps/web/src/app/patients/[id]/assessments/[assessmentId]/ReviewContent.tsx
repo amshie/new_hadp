@@ -186,7 +186,7 @@ export function ReviewContent({
   // A cited value was corrected by the laboratory: this version can be neither approved nor
   // released. The clinician opens a new draft from the values that stand.
   const canRedraft = sessionRole === "clinician" && view.citesReplaced;
-  const stage = reportStage(view.status, view.edited);
+  const stage = reportStage(view.status, view.edited, view.citesReplaced);
   const rejection = rejectionCopy(view.rejectionReason);
   const reworked = rejectionCopy(view.reworksRejectionReason);
   const [editRows, setEditRows] = useState<
@@ -335,10 +335,14 @@ export function ReviewContent({
         </div>
       </header>
 
-      <div className={`stage-banner is-${stage.key}`} role="status">
+      <div
+        className={`stage-banner is-${stage.attention ? "draft" : stage.key}`}
+        role="status"
+      >
         <Icon
           name={
-            stage.key === "approved" || stage.key === "released"
+            !stage.attention &&
+            (stage.key === "approved" || stage.key === "released")
               ? "check"
               : "alert"
           }
@@ -419,7 +423,7 @@ export function ReviewContent({
             Ein zitierter Wert wurde vom Labor korrigiert. Diese Fassung kann
             nicht genehmigt oder freigegeben werden.
             {view.status === "released" &&
-              " Sie bleibt für die Patientin sichtbar, bis ein neuer Entwurf erstellt wird."}
+              " Der Zugriff der Patientin auf diese Fassung wird erst mit einem neuen Entwurf zurückgezogen."}
             {sessionRole === "clinician"
               ? " Erstellen Sie einen neuen Entwurf aus den aktuellen Werten."
               : " Ein neuer Entwurf ist der klinischen Rolle vorbehalten."}
@@ -856,7 +860,9 @@ export function ReviewContent({
           <strong>
             Bericht v{view.versionNo} · Status: {view.statusLabel}
           </strong>
-          <span>{statusHint(view.status, sessionRole)}</span>
+          <span>
+            {statusHint(view.status, sessionRole, view.citesReplaced)}
+          </span>
         </div>
         <div className="action-bar-buttons">
           {canRework && !editing && (

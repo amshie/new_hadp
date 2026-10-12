@@ -10,8 +10,10 @@ only. Exits non-zero on any failure. (Full Playwright e2e is a later slice.)
 No page may carry mock UI (a password or second-factor field that checks nothing,
 "Prototyp" wording, a notification control with nothing behind it), and the report
 review page must state the version's real release status. With WEB_SMOKE_RELEASE=1
-(CI) the seeded report is additionally approved and released through the API, so
-the released wording is checked too; without it the report is left as it is.
+(CI) the seeded report is additionally approved and released through the API and the
+patient view is opened with the issued link, and a second report is rejected and
+reworked — so the wording is checked in every status. Without the variable nothing
+is changed.
 """
 
 from __future__ import annotations
@@ -37,9 +39,16 @@ STAGE_HEADLINE = {
 }
 
 
-# German "Prototyp…" wording only: a dev-mode page also embeds JavaScript source, where
-# identifiers such as "ObjectSetPrototypeOf" are not copy.
-MOCK_UI = (r"\bPrototyp(?!e)", "Benachrichtigungen", 'type="password"', 'href="#"')
+# German "Prototyp / Prototyps / Prototypen / Prototyp-…" wording only: a dev-mode page also
+# embeds JavaScript source, where "ObjectSetPrototypeOf" or "Prototype" is not copy.
+MOCK_UI = (
+    r"\bPrototyp(?:s|en)?(?![A-Za-z])",
+    'aria-label="Benachrichtigungen"',
+    'type="password"',
+    'href="#"',
+)
+NAV_TARGETS = ["/overview", "/patients", "/review-queue", "/einstellungen"]
+DRAFT_HEADLINES = ("Systementwurf", "Überarbeiteter Entwurf")
 
 
 def assert_no_mock_ui(path: str, html: str) -> None:
@@ -48,17 +57,34 @@ def assert_no_mock_ui(path: str, html: str) -> None:
         assert not re.search(marker, html), f"{path} still carries mock UI: {marker!r}"
 
 
+def assert_nav(path: str, html: str, link_class: str) -> None:
+    """The navigation is exactly the four pages that exist, each a real link."""
+    hrefs = re.findall(rf'<a[^>]*class="{link_class}"[^>]*href="([^"]*)"', html)
+    hrefs += re.findall(rf'<a[^>]*href="([^"]*)"[^>]*class="{link_class}"', html)
+    assert sorted(set(hrefs)) == sorted(NAV_TARGETS), (path, "navigation entries", hrefs)
+
+
 def assert_stage(path: str, html: str, report: dict) -> None:
-    """The page says where the version stands — never "nicht freigegeben" once released."""
+    """The page says where the version stands — and nothing that belongs to another status."""
     status = report["status"]
     headline = STAGE_HEADLINE[status]
     if status == "draft_generated" and report.get("edited"):
         headline = STAGE_HEADLINE["draft_edited"]
     assert headline in html, (path, status, "status headline missing")
+    for other in set(STAGE_HEADLINE.values()) - {headline}:
+        assert other not in html, (path, status, f"also shows {other!r}")
+    if not status.startswith("draft"):
+        for word in DRAFT_HEADLINES:
+            assert word not in html, f"{path}: a {status} version is called a draft"
     if status == "released":
         assert "nicht freigegeben" not in html.lower(), (
             f"{path}: a released report is labelled as not released"
         )
+        # A released status does not prove access: the wording must not claim she sees it.
+        assert "sieht ausschließlich" not in html, f"{path}: claims the patient sees the report"
+    if status == "rejected":
+        # Rejected before or after the clinical approval — the status does not say which.
+        assert "Signiert" not in html, f"{path}: a rejected version is shown as signed"
 
 
 def staff_session(email: str) -> httpx.Client:
@@ -144,9 +170,7 @@ def main() -> int:
         assert "Synthetische Beispieldaten" in r.text, "synthetic banner missing on /overview"
         assert_no_mock_ui("/overview", r.text)
         # Every navigation entry leads somewhere: the four real destinations, nothing else.
-        for label in ("Übersicht", "Patienten", "Review-Queue", "Einstellungen"):
-            assert label in r.text, f"navigation entry missing: {label}"
-        assert "Audit-Protokoll" not in r.text, "navigation still lists a view that does not exist"
+        assert_nav("/overview", r.text, "vb-nav")
 
         r = web.get("/patients")
         assert r.status_code == 200, ("/patients authed", r.status_code)
@@ -175,8 +199,7 @@ def main() -> int:
         assert f'href="/patients/{pid}"' in r.text, "review page has no way back to the patient"
         assert_no_mock_ui("review page", r.text)
         # The legacy shell's navigation leads to the real pages (it used to be dead links).
-        for target in ("/overview", "/patients", "/review-queue", "/einstellungen"):
-            assert f'href="{target}"' in r.text, f"review page navigation lacks {target}"
+        assert_nav("review page", r.text, "nav-link")
         report = api.get(f"/reports/{report_id}").json()
         assert_stage("review page", r.text, report)
         checked = [report["status"]]
@@ -199,10 +222,48 @@ def main() -> int:
                     assert r.status_code == 200, ("release", r.status_code, r.text)
                 finally:
                     director.close()
+                # The link issued at release opens the patient view; it names the day of
+                # release the German way.
+                link = httpx.URL(r.json()["patient_view_url"])
+                with httpx.Client(base_url=WEB, timeout=60.0, follow_redirects=True) as patient:
+                    page = patient.get(link.raw_path.decode()).text
+                # React separates adjacent text nodes with empty comments.
+                page = page.replace("<!-- -->", "")
+                assert re.search(r"Ärztlich freigegeben\s+am \d{2}\.\d{2}\.\d{4}", page), (
+                    "patient view does not show the release day as TT.MM.JJJJ"
+                )
+                checked.append("patient view")
             released = api.get(f"/reports/{report_id}").json()
             assert released["status"] == "released", ("release exercise", released["status"])
             assert_stage("review page (released)", web.get(review_path).text, released)
             checked.append("released")
+
+            # A second report, rejected straight from the draft and then reworked: the page
+            # must not show a clinical sign-off that never happened, and the reworked
+            # version is an edited draft again.
+            second = api.post(f"/patients/{pid}/reports").json()
+            second_path = f"/patients/{pid}/assessments/{second['report_id']}"
+            r = api.post(f"/reports/{second['report_id']}/reject", json={"reason": "wording"})
+            assert r.status_code == 200, ("reject", r.status_code, r.text)
+            rejected = api.get(f"/reports/{second['report_id']}").json()
+            assert rejected["status"] == "rejected", rejected["status"]
+            assert_stage("review page (rejected)", web.get(second_path).text, rejected)
+            checked.append("rejected")
+            statements = [
+                {
+                    "id": s["id"],
+                    "text": s["text"],
+                    "evidence_observation_ids": [e["observation_id"] for e in s["evidence"]],
+                }
+                for s in rejected["statements"]
+            ]
+            statements[0]["text"] += " (Formulierung geprüft.)"
+            r = api.post(f"/reports/{second['report_id']}/edit", json={"statements": statements})
+            assert r.status_code == 200, ("edit", r.status_code, r.text)
+            reworked = api.get(f"/reports/{second['report_id']}").json()
+            assert reworked["status"] == "draft_edited", reworked["status"]
+            assert_stage("review page (reworked)", web.get(second_path).text, reworked)
+            checked.append("draft_edited")
 
         r = web.get("/review-queue")
         assert r.status_code == 200, ("/review-queue authed", r.status_code)

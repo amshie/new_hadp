@@ -16,8 +16,10 @@ export const dynamic = "force-dynamic";
 
 // The day of release as the patient reads it (de-DE). Rendered on the server, so the zone is
 // named explicitly — the DACH pilot default, the same one the API reads laboratory times in.
-function releaseDay(iso: string): string {
-  return new Date(iso).toLocaleDateString("de-DE", {
+function releaseDay(iso: string | null): string | null {
+  const at = iso ? new Date(iso) : null;
+  if (!at || Number.isNaN(at.getTime())) return null;
+  return at.toLocaleDateString("de-DE", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -48,13 +50,13 @@ export default async function PatientViewPage() {
   }
   try {
     const view = await patientView(creds.tenant, creds.token);
+    const releasedOn = releaseDay(view.released_at);
     return shell(
       <div>
         <h1 style={{ fontSize: "22px", marginBottom: "6px" }}>Ihr Bericht</h1>
         <p style={{ color: "var(--text-muted, #5b6b70)", fontSize: "13px" }}>
           Ärztlich freigegeben
-          {view.released_at ? ` am ${releaseDay(view.released_at)}` : ""} ·
-          synthetische Demo-Inhalte
+          {releasedOn ? ` am ${releasedOn}` : ""} · synthetische Demo-Inhalte
         </p>
         <p style={{ lineHeight: 1.55, fontSize: "14px" }}>
           Diese Zusammenfassung gibt Ihre Laborwerte und die von Ihrem Labor

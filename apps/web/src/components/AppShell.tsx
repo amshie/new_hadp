@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { signOut } from "@/app/login/actions";
 import { initialsOf, type ShellIdentity } from "@/lib/identity";
@@ -104,52 +104,24 @@ function Sidebar({
   );
 }
 
-function UserMenu({ identity }: { identity?: ShellIdentity | null }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("click", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("click", onClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
+// Who is signed in, and the way out. Sign-out is the only account action that exists, so it
+// is a button — not a menu with one entry.
+function TopbarUser({ identity }: { identity?: ShellIdentity | null }) {
   return (
-    <div className="user-menu" ref={ref}>
-      <button
-        className="user-menu-button"
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className="user-copy">
-          <strong>{identity?.name ?? "—"}</strong>
-          <span>{identity?.roleLabel ?? "—"}</span>
-        </span>
-        <span className="avatar" aria-hidden="true">
-          {initialsOf(identity?.name ?? "—")}
-        </span>
-      </button>
-      <div className={`menu${open ? "" : " hidden"}`} role="menu">
-        <form action={signOut} role="none">
-          <button className="danger" role="menuitem" type="submit">
-            <Icon name="logout" />
-            Abmelden
-          </button>
-        </form>
-      </div>
+    <div className="topbar-user">
+      <span className="user-copy">
+        <strong>{identity?.name ?? "—"}</strong>
+        <span>{identity?.roleLabel ?? "—"}</span>
+      </span>
+      <span className="avatar" aria-hidden="true">
+        {initialsOf(identity?.name ?? "—")}
+      </span>
+      <form action={signOut}>
+        <button className="btn btn-secondary btn-sm" type="submit">
+          <Icon name="logout" />
+          Abmelden
+        </button>
+      </form>
     </div>
   );
 }
@@ -181,7 +153,7 @@ function Topbar({
         <span className="sr-only">Mandant: </span>
         <span>{identity?.tenantName ?? "—"}</span>
       </div>
-      <UserMenu identity={identity} />
+      <TopbarUser identity={identity} />
     </header>
   );
 }

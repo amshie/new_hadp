@@ -62,11 +62,21 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   a notice, and the "nicht freigegeben" wording on approved and released reports. The sign-in
   page now shows the sign-in the deployment has: the development sign-in outside production, and
   a plain "not set up" notice in production until an identity provider is connected (workstream
-  B). `scripts/smoke_web.py` fails if mock UI returns and checks the review page's wording as a
-  draft, approved and released (CI). Still open, deliberately: the two Übersicht panels that
-  say why they are empty (ADR-0006 — activity feed, imports) use engineering wording; the legal
-  links (Datenschutz, Nutzungsbedingungen) return when those pages exist (workstream D); the
-  report review page keeps the legacy shell; report statements are still generated in English
-  (the next A10 slice).
+  B). The review page says only what a status proves: "freigegeben" names the condition for
+  access (a valid link, standing consent) instead of claiming the patient sees the report, and
+  the audit strip no longer shows "Vollständig" or a clinical sign-off for a version that was
+  rejected. `scripts/smoke_web.py` fails if mock UI returns and, in CI, checks the wording in
+  every status (draft, approved, released, rejected, reworked) and opens the patient view with
+  the issued link. Still open, deliberately: the two Übersicht panels that say why they are
+  empty (ADR-0006 — activity feed, imports) use engineering wording; the legal links
+  (Datenschutz, Nutzungsbedingungen) return when those pages exist (workstream D); the report
+  review page keeps the legacy shell (on a narrow screen its only way out is the brand link);
+  report statements are still generated in English (the next A10 slice). Found by the review
+  and not fixed here: reading a report (`GET /reports/{id}`) writes no audit event, while the
+  sign-in page says access is logged; the staff-invitation page tells a new colleague to sign
+  in, which a production deployment cannot offer yet; "Einstellungen" is an empty page for
+  clinician and assistant; whether a released report is still reachable (link valid, consent
+  standing) is not exposed by the API, so the UI can only name the condition; the web app has
+  no unit-test runner, so the sign-in mode and the presenters are covered by the smoke only.
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

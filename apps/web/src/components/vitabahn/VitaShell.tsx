@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, type CSSProperties, type ReactNode } from "react";
 
 import { signOut } from "@/app/login/actions";
@@ -15,14 +14,15 @@ type NavKey = "uebersicht" | "patienten" | "review" | "einstellungen";
 
 const THEME_KEY = "vb-theme";
 
+// A navigation entry is a link to a page that exists — nothing else is listed.
 function NavItem({
   active,
-  onClick,
+  href,
   icon,
   label,
 }: {
   active?: boolean;
-  onClick: () => void;
+  href: string;
   icon: ReactNode;
   label: string;
 }) {
@@ -35,9 +35,7 @@ function NavItem({
     padding: "10px 12px",
     marginBottom: "2px",
     borderRadius: "var(--radius-sm)",
-    border: "none",
-    cursor: "pointer",
-    textAlign: "left",
+    textDecoration: "none",
     fontFamily: "var(--font-text)",
     fontSize: "var(--text-sm)",
     fontWeight: active ? 600 : 500,
@@ -45,10 +43,9 @@ function NavItem({
     color: active ? "#fff" : "var(--slate-300)",
   };
   return (
-    <button
-      type="button"
+    <Link
+      href={href}
       className="vb-nav"
-      onClick={onClick}
       style={style}
       aria-current={active ? "page" : undefined}
     >
@@ -67,7 +64,7 @@ function NavItem({
       )}
       {icon}
       <span style={{ flex: 1 }}>{label}</span>
-    </button>
+    </Link>
   );
 }
 
@@ -100,7 +97,6 @@ export function VitaShell({
   const personRole = identity?.roleLabel ?? "—";
   const clinicName = identity?.tenantName ?? "—";
   const personInitials = initialsOf(personName);
-  const router = useRouter();
   // Lazy-init from localStorage so a returning dark-mode user doesn't get a light flash on
   // client navigations. SSR has no localStorage and renders light; suppressHydrationWarning on
   // the root covers the intentional server/client data-theme difference.
@@ -239,7 +235,7 @@ export function VitaShell({
 
           <NavItem
             active={nav === "uebersicht"}
-            onClick={() => router.push("/overview")}
+            href="/overview"
             icon={stroke(
               <>
                 <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -253,7 +249,7 @@ export function VitaShell({
           />
           <NavItem
             active={nav === "patienten"}
-            onClick={() => router.push("/patients")}
+            href="/patients"
             icon={stroke(
               <>
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -266,7 +262,7 @@ export function VitaShell({
           />
           <NavItem
             active={nav === "review"}
-            onClick={() => router.push("/review-queue")}
+            href="/review-queue"
             icon={stroke(
               <>
                 <path d="M9 11l3 3L22 4" />
@@ -279,7 +275,7 @@ export function VitaShell({
           <div style={navLabelStyle("6px")}>Verwaltung</div>
           <NavItem
             active={nav === "einstellungen"}
-            onClick={() => router.push("/einstellungen")}
+            href="/einstellungen"
             icon={stroke(
               <>
                 <circle cx="12" cy="12" r="3" />
