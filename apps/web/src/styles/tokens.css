@@ -3,7 +3,7 @@
  * Lifted verbatim from the approved prototype (HADP-UI-Optimiert-v2/assets/hadp.css :root).
  * The "derived tints" group below tokenizes recurring component colors so nothing is a
  * one-off; each value is identical to the prototype's original literal (no visual change).
- * --font-sans references the Inter variable provided by next/font (apps/web/src/app/layout.tsx).
+ * --font-sans names the Inter family whose files ship with the build (apps/web/src/app/layout.tsx).
  */
 :root {
   color-scheme: light;
@@ -50,8 +50,8 @@
   --radius-lg: 18px;
   --radius-xl: 24px;
 
-  /* Type — Inter loaded explicitly via next/font (--font-inter) */
-  --font-sans: var(--font-inter), Inter, Aptos, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Type — Inter ships with the build (layout.tsx); the names after it are fallbacks */
+  --font-sans: "Inter Variable", Inter, Aptos, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 
   /* Layout scales */
@@ -107,7 +107,7 @@
    --font-mono, --focus-ring) only apply inside the new dashboard
    subtree and never alter the existing login/worklist/review
    screens. Dark mode: .vb-scope[data-theme="dark"].
-   Font families reference the next/font variables set on <html>
+   Font families name the fonts that ship with the build
    (apps/web/src/app/layout.tsx).
    ============================================================ */
 .vb-scope {
@@ -186,9 +186,9 @@
   --status-info: var(--sky-400);
 
   /* ---- Type ---- */
-  --font-display: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
-  --font-text: var(--font-hanken), "Helvetica Neue", Arial, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display: "Archivo Variable", "Helvetica Neue", Arial, sans-serif;
+  --font-text: "Hanken Grotesk Variable", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   --text-2xs: 0.6875rem;
   --text-xs: 0.75rem;
