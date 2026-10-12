@@ -117,6 +117,17 @@ def note(text: str = "Probe hämolytisch") -> list[Field]:
     return obj("8167", "Zusaetzliche_Informationen", "Obj_0068", fields(("3564", text)))
 
 
+def attachment() -> list[Field]:
+    """A base64 attachment: its payload travels in an Obj_0068, which is NOT a note."""
+    return obj(
+        "8110",
+        "Anhang",
+        "Obj_0010",
+        obj("8242", "base64-kodierte_Anlage", "Obj_0068", fields(("6329", "JVBERi0xLjUN"))),
+        fields(("6303", "PDF")),
+    )
+
+
 def microbiology() -> list[Field]:
     return obj("8161", "UE_Mikrobiologie", "Obj_0061", fields(("7304", "R-MIBI"), ("8418", "06")))
 
@@ -135,16 +146,24 @@ def report(
     last_name: str = "Mustermann",
     first_name: str = "Erika",
     record_type: str = "8205",
+    patient: list[Field] | None = None,
+    record_level: list[Field] | None = None,
 ) -> list[Field]:
-    """A report record. `parts` are materials (record level) and results (inside the report)."""
+    """A report record. `parts` are materials (record level) and results (inside the report).
+
+    `patient` replaces the whole patient object (pass [] for a report without one);
+    `record_level` is appended to the record after the report (notes, attachments).
+    """
     materials = [p for p in parts if p[0][0] == "8137"]
     results = [p for p in parts if p[0][0] != "8137"]
     person: list[Field] = [("3101", last_name), ("3102", first_name)]
     if born is not None:
         person.append(("3103", born))
+    if patient is None:
+        patient = obj("8145", "Patient", "Obj_0045", obj("8147", "Person", "Obj_0047", person))
     return [
         ("8000", record_type),
-        *obj("8145", "Patient", "Obj_0045", obj("8147", "Person", "Obj_0047", person)),
+        *patient,
         *obj(
             "8117",
             "Befundinformationen",
@@ -153,13 +172,18 @@ def report(
         ),
         *[f for m in materials for f in m],
         *obj("8135", "Laborergebnisbericht", "Obj_0035", *results),
+        *(record_level or []),
         ("8001", record_type),
     ]
+
+
+def sha1(data: bytes) -> str:
+    return hashlib.sha1(data, usedforsecurity=False).hexdigest()
 
 
 def ldt3_file(*records: list[Field], checksum: bool = True) -> bytes:
     body = b"".join(ldt_line(f, c) for record in records for f, c in record)
     body += ldt_line("8000", "8221")
     if checksum:
-        body += ldt_line("9300", hashlib.sha1(body, usedforsecurity=False).hexdigest())
+        body += ldt_line("9300", sha1(body))
     return body + ldt_line("8001", "8221")

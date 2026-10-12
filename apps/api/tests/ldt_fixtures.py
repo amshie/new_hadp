@@ -35,6 +35,8 @@ def report(
     first_name: str = "Erika",
     born: str | None = "19800115",
     record_type: str = "8201",
+    note: str | None = None,
+    named: bool = True,
 ) -> list[Field]:
     fields = [
         ("8000", record_type),
@@ -42,16 +44,17 @@ def report(
         ("8310", "A-0001"),
         ("8311", "L-2025-000123"),
         ("8302", "20250611"),
-        ("3101", last_name),
-        ("3102", first_name),
     ]
+    if named:
+        fields += [("3101", last_name), ("3102", first_name)]
     if born is not None:
         fields.append(("3103", born))
     if kind is not None:
         fields.append(("8401", kind))
     for test in tests:
         fields.extend(test)
-    fields.append(("8490", "Auftragsbezogener Hinweis"))
+    if note is not None:
+        fields.append(("8490", note))
     return fields
 
 

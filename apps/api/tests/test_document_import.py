@@ -13,7 +13,10 @@ from typing import Any
 
 from sqlalchemy import select
 
+from hadp_api.config import get_settings
 from hadp_api.modules.audit.models import AuditEvent
+from hadp_api.modules.documents.blob import get_blob_store
+from hadp_api.modules.documents.models import SourceDocument
 from hadp_api.modules.enums import ImportStatus, ReviewStatus, Role
 from hadp_api.modules.imports.models import ImportJob, ImportRow, ReviewItem
 from hadp_api.modules.observations.models import Observation
@@ -64,6 +67,13 @@ def _import(client, patient_id: str, document_id: str):  # type: ignore[no-untyp
 def _nothing_imported(admin_session) -> None:  # type: ignore[no-untyped-def]
     assert admin_session.execute(select(ImportJob)).scalars().all() == []
     assert admin_session.execute(select(Observation)).scalars().all() == []
+
+
+def _refusals(admin_session) -> list[str]:  # type: ignore[no-untyped-def]
+    events = admin_session.execute(
+        select(AuditEvent).where(AuditEvent.action == "import.refused")
+    ).scalars()
+    return [e.detail["code"] for e in events]
 
 
 def test_csv_import_publishes_mapped_values_and_queues_the_rest(client, admin_session) -> None:  # type: ignore[no-untyped-def]
@@ -203,7 +213,8 @@ def test_ldt3_import_takes_the_sampling_time_and_the_si_value(client, admin_sess
     assert resp.status_code == 201, resp.text
     body = resp.json()
     assert body["parser_name"] == "ldt3-8205"
-    assert (body["published_count"], body["review_count"], body["not_imported_count"]) == (1, 1, 1)
+    # Not imported: the microbiology result and the mg/dl writing of the glucose value.
+    assert (body["published_count"], body["review_count"], body["not_imported_count"]) == (1, 1, 2)
 
     by_name = {
         o.original_name: o for o in admin_session.execute(select(Observation)).scalars().all()
@@ -221,7 +232,10 @@ def test_ldt3_import_takes_the_sampling_time_and_the_si_value(client, admin_sess
     skipped = admin_session.execute(
         select(ImportRow).where(ImportRow.status == ImportStatus.REJECTED)
     ).scalars()
-    assert [r.raw["not_imported_reason"] for r in skipped] == ["unsupported_result_type"]
+    assert sorted(r.raw["not_imported_reason"] for r in skipped) == [
+        "alternate_unit_value",
+        "unsupported_result_type",
+    ]
 
     # A file whose bytes were altered after the laboratory wrote it imports nothing.
     tampered = data.replace(b"5.6", b"9.6")
@@ -242,6 +256,8 @@ def test_a_file_with_another_date_of_birth_is_refused(client, admin_session) -> 
     assert resp.status_code == 409, resp.text
     assert resp.json()["error"]["code"] == "conflict"
     _nothing_imported(admin_session)
+    # The attempt leaves a trace even though the request rolled back.
+    assert _refusals(admin_session) == ["patient_mismatch"]
 
 
 def test_a_structural_problem_imports_nothing_and_echoes_no_content(client, admin_session) -> None:  # type: ignore[no-untyped-def]
@@ -262,6 +278,7 @@ def test_a_structural_problem_imports_nothing_and_echoes_no_content(client, admi
     assert "ZZ-secret" not in resp.text
     # The valid first row is not imported either: a file is read whole or not at all.
     _nothing_imported(admin_session)
+    assert _refusals(admin_session) == ["unsupported_date"]
 
 
 def test_a_pdf_has_no_structured_reader(client, admin_session) -> None:  # type: ignore[no-untyped-def]
@@ -309,10 +326,38 @@ def test_the_medical_director_cannot_run_imports(client, admin_session) -> None:
 def test_upload_still_refuses_unknown_binary_content(client, admin_session) -> None:  # type: ignore[no-untyped-def]
     _clinician(client, admin_session, "upload-guard")
     pid = _patient(client)
-    resp = client.post(
-        f"/api/v1/patients/{pid}/documents",
-        files={
-            "file": ("x.bin", b"\x00\x01\x02 not a laboratory file", "application/octet-stream")
-        },
-    )
-    assert resp.status_code == 422
+    for payload in (
+        b"\x00\x01\x02 not a laboratory file",
+        # Opens like an LDT file, then is anything: a prefix is not a file format.
+        b"01380008220\r\n" + bytes(range(256)),
+        b"0138000" + bytes(range(256)),
+    ):
+        resp = client.post(
+            f"/api/v1/patients/{pid}/documents",
+            files={"file": ("x.bin", payload, "application/octet-stream")},
+        )
+        assert resp.status_code == 422, payload[:12]
+        assert "octet-stream" not in resp.text  # the declared type is not echoed
+
+
+def test_an_ldt_upload_is_stored_under_a_fixed_content_type(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    _clinician(client, admin_session, "ldt-type")
+    pid = _patient(client)
+    data = ldt_file(header(), report(lab_test("LDL", value="2.8")), TRAILER)
+    _upload(client, pid, data, "application/x-whatever; " + "x" * 300, name="befund.ldt")
+    stored = admin_session.execute(select(SourceDocument.content_type)).scalar_one()
+    assert stored == "application/x-ldt"  # never the client's declaration
+
+
+def test_a_document_whose_stored_file_is_gone_is_refused_cleanly(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    _clinician(client, admin_session, "blob-gone")
+    pid = _patient(client)
+    doc_id = _upload(client, pid, _CSV, "text/csv")
+    key = admin_session.execute(select(SourceDocument.storage_key)).scalar_one()
+    get_blob_store(get_settings()).delete(key)
+
+    resp = _import(client, pid, doc_id)
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["error"]["detail"].startswith("document_unavailable")
+    _nothing_imported(admin_session)
+    assert _refusals(admin_session) == ["document_unavailable"]

@@ -94,7 +94,10 @@ def import_source_document(
         return _first_import(db, existing)
 
     settings = get_settings()
-    data = get_blob_store(settings).get(document.storage_key)
+    store = get_blob_store(settings)
+    if not store.exists(document.storage_key):
+        raise Conflict("document_unavailable: the stored source document cannot be read")
+    data = store.get(document.storage_key)
     try:
         parsed = parse_source_document(data, zone=ZoneInfo(settings.lab_local_timezone))
     except SourceParseError as exc:
@@ -107,7 +110,7 @@ def import_source_document(
         and patient.date_of_birth is not None
         and parsed.patient_date_of_birth != patient.date_of_birth
     ):
-        raise Conflict("source document does not match this patient")
+        raise Conflict("patient_mismatch: the source document does not match this patient")
 
     result = ingest_values(
         db,

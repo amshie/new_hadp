@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from hadp_api.modules.documents.xdt import is_wellformed_xdt
 from hadp_api.modules.imports.parsers import SourceParseError, parse_source_document
 from hadp_api.modules.imports.parsers.base import (
     AMBIGUOUS_LOCAL_TIME,
@@ -24,7 +25,6 @@ from hadp_api.modules.imports.parsers.base import (
     TEXT_RESULT,
 )
 from hadp_api.modules.imports.parsers.detect import parse_ldt
-from hadp_api.modules.imports.parsers.xdt import looks_like_xdt as looks_like_ldt
 from tests.ldt_fixtures import TRAILER, header, lab_test, ldt_file, ldt_line, report
 
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -42,9 +42,12 @@ def test_the_specification_example_line_pins_the_length_rule() -> None:
     # KBV record description: the line for record type 8220 is "01380008220" — 4 characters of
     # content plus 9.
     assert ldt_line("8000", "8220") == b"01380008220\r\n"
-    assert looks_like_ldt(b"01380008220\r\n") is True
-    assert looks_like_ldt(b"01480008220\r\n") is False  # wrong declared length
-    assert looks_like_ldt(b"name;value;date\r\n") is False
+    assert is_wellformed_xdt(b"01380008220\r\n") is True
+    assert is_wellformed_xdt(b"01480008220\r\n") is False  # wrong declared length
+    assert is_wellformed_xdt(b"01380008220") is False  # the last line must end too
+    assert is_wellformed_xdt(b"name;value;date\r\n") is False
+    # Digits of another script are not a length: int() would happily convert them.
+    assert is_wellformed_xdt("٠١٣8000".encode() + b"8220\r\n") is False
 
 
 def test_a_report_is_read_test_by_test_with_verbatim_values() -> None:
@@ -186,6 +189,71 @@ def test_a_local_time_that_is_not_one_instant_is_held_for_review() -> None:
         header(), report(lab_test("LDL", value="2.8", day="20251026", clock="0230")), TRAILER
     )
     assert parse_ldt(data, zone=BERLIN).values[0].review_reasons == (AMBIGUOUS_LOCAL_TIME,)
+
+
+def test_a_file_cut_off_in_transit_imports_nothing() -> None:
+    whole = ldt_file(
+        header(),
+        report(
+            [*lab_test("K", "Kalium", value="5.9", low="3.5", high="5.1"), ("8470", "hämolytisch")]
+        ),
+        TRAILER,
+    )
+    # Cut right after the value: what is left is line-perfect, but the bounds and the
+    # laboratory's note never arrived. Without the trailer nothing of it may be imported.
+    cut = whole[: whole.index(ldt_line("8420", "5.9")) + len(ldt_line("8420", "5.9"))]
+    assert parse_ldt(whole, zone=BERLIN).values[0].review_reasons == (SOURCE_COMMENT,)
+    assert _error(cut).code == "malformed_record"
+    assert _error(ldt_file(header(), report(LDL))).code == "malformed_record"  # no trailer
+    assert _error(ldt_file(header(), TRAILER, report(LDL))).code == "malformed_record"
+    assert _error(ldt_file(header(), header(), report(LDL), TRAILER)).code == "malformed_record"
+
+
+def test_a_note_on_the_whole_report_holds_all_its_values_for_review() -> None:
+    doc = parse_ldt(
+        ldt_file(
+            header(),
+            report(LDL, lab_test("HB", value="14.2"), note="Probe hämolytisch"),
+            TRAILER,
+        ),
+        zone=BERLIN,
+    )
+    assert [v.review_reasons for v in doc.values] == [(SOURCE_COMMENT,), (SOURCE_COMMENT,)]
+
+
+def test_result_fields_outside_a_test_are_not_silently_dropped() -> None:
+    stray = report(LDL)
+    stray.insert(2, ("8420", "9.9"))  # a value before any test (8410)
+    assert _error(ldt_file(header(), stray, TRAILER)).code == "malformed_record"
+
+
+def test_reports_that_name_nobody_cannot_be_merged() -> None:
+    # One anonymous report is importable (there is nothing to compare); two are not — nothing
+    # shows they are one person's.
+    one = ldt_file(header(), report(LDL, named=False, born=None), TRAILER)
+    assert len(parse_ldt(one, zone=BERLIN).values) == 1
+    two = ldt_file(
+        header(),
+        report(LDL, named=False, born=None),
+        report(LDL, named=False, born=None),
+        TRAILER,
+    )
+    assert _error(two).code == "unidentified_patient"
+    mixed = ldt_file(header(), report(LDL), report(LDL, named=False, born=None), TRAILER)
+    assert _error(mixed).code == "multiple_patients"
+
+
+@pytest.mark.parametrize(
+    ("test", "code"),
+    [
+        (lab_test("LDL", value="3.4\x00"), "unsupported_character"),
+        (lab_test("LDL", "LDL\x07", value="3.4"), "unsupported_character"),
+        (lab_test("LDL", value="3.4", low="9" * 61), "field_too_long"),
+        (lab_test("LDL", value="3.4", high="9" * 61), "field_too_long"),
+    ],
+)
+def test_a_field_that_cannot_be_stored_verbatim_refuses_the_file(test: list, code: str) -> None:  # type: ignore[type-arg]
+    assert _error(ldt_file(header(), report(test), TRAILER)).code == code
 
 
 def test_a_value_without_a_sampling_date_is_recorded_not_imported() -> None:

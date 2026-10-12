@@ -7,11 +7,13 @@ order). Only what that description fixes is read; anything outside it refuses th
 - a record starts with field 8000 (record type); the package header 8220 carries the LDT
   version (9212) and the character set (9106: 2 = CP437, 3 = ISO 8859-1, 4 = ISO 8859-15);
 - results are read from 8201 "Labor-Bericht" records only. A file that also carries another
-  report type (8202, 8203, 8204 …) is refused rather than read in part;
+  report type (8202, 8203, 8204 …) is refused rather than read in part, and so is a file
+  without its package trailer (8221) — it was cut off;
 - inside a report every test starts with 8410; the fields up to the next 8410 belong to it.
   A value that comes with a result text (8480) or a test-related note (8470) is held for
   review, because that text is not carried. The laboratory's own limit indicator (8422), the
-  specimen fields (8428-8431) and report-level notes (8490) are not read;
+  specimen fields (8428-8431) are not read. A report-level note (8490) holds every value of
+  that report for review;
 - dates are JJJJMMTT (LDT1014.01) or TTMMJJJJ (LDT1001.02); any other version is refused,
   because the date order depends on it. (LDT 3 is a different, object-based format with its
   own reader.)
@@ -27,9 +29,11 @@ from dataclasses import dataclass, field
 from datetime import date, time
 from zoneinfo import ZoneInfo
 
+from hadp_api.modules.documents.xdt import RECORD_START, Line
 from hadp_api.modules.imports.parsers.base import (
     AMBIGUOUS_LOCAL_TIME,
     CORRECTED_RESULT,
+    MAX_BOUND,
     MAX_NAME,
     MAX_REFERENCE_TEXT,
     MAX_UNIT,
@@ -45,12 +49,11 @@ from hadp_api.modules.imports.parsers.base import (
     ParsedDocument,
     ParsedValue,
     SourceParseError,
-    check_length,
+    check_text,
     date_only,
     local_instant,
     plausible_day,
 )
-from hadp_api.modules.imports.parsers.xdt import RECORD_START, Line
 
 PARSER_NAME = "ldt2-8201"
 PARSER_VERSION = "1"
@@ -60,6 +63,7 @@ _CHARSETS = {"2": "cp437", "3": "iso-8859-1", "4": "iso-8859-15"}
 _DAY_FIRST = {"LDT1014.01": False, "LDT1001.02": True}
 
 _PACKAGE_HEADER = "8220"
+_PACKAGE_TRAILER = "8221"
 _REPORT = "8201"
 # Framing records that carry no results.
 _FRAMING = {"0020", "0021", "8220", "8221"}
@@ -68,6 +72,8 @@ _TEST_START = "8410"
 _AFTER_TESTS = "8490"  # report-level notes that follow the tests
 # Fields that may appear at most once per test.
 _SINGLE = {"8411", "8418", "8420", "8421", "8432", "8433", "8461", "8462"}
+# Fields that only mean something inside a test; outside one the record is malformed.
+_TEST_ONLY = _SINGLE | {"8460", "8470", "8480"}
 # Befundart (8401): only the preliminary report changes how its values are treated.
 _REPORT_KINDS = {"E", "T", "V", "A", "N"}
 # Teststatus (8418).
@@ -95,10 +101,18 @@ def _records(lines: list[Line]) -> list[list[Line]]:
 
 
 def _header(records: list[list[Line]]) -> tuple[str, bool]:
-    """Return (encoding, day_first) from the package header."""
-    header = next((r for r in records if r[0].raw == _PACKAGE_HEADER.encode()), None)
-    if header is None:
-        raise SourceParseError("malformed_record", "no package header record (8220)")
+    """Return (encoding, day_first) from the package header, and check the package frame."""
+    kinds = [record[0].raw.decode("ascii", "replace") for record in records]
+    if kinds.count(_PACKAGE_HEADER) != 1:
+        raise SourceParseError("malformed_record", "expected exactly one package header (8220)")
+    # A file cut off in transit has no trailer; what was read of it must not be imported.
+    reports = [i for i, kind in enumerate(kinds) if kind not in _FRAMING]
+    trailers = [i for i, kind in enumerate(kinds) if kind == _PACKAGE_TRAILER]
+    if len(trailers) != 1 or (reports and trailers[0] < reports[-1]):
+        raise SourceParseError(
+            "malformed_record", "no package trailer (8221) after the reports: the file is cut off"
+        )
+    header = records[kinds.index(_PACKAGE_HEADER)]
 
     def only(field_id: str) -> str | None:
         found = [
@@ -128,7 +142,7 @@ def _header(records: list[list[Line]]) -> tuple[str, bool]:
 
 def _day(raw: str, day_first: bool, locator: str) -> date | None:
     """Parse an 8-digit LDT date. A date with unknown parts (zeros) yields None."""
-    if not re.fullmatch(r"\d{8}", raw):
+    if not re.fullmatch(r"[0-9]{8}", raw):
         raise SourceParseError("unsupported_date", f"{locator}: the date must have 8 digits")
     if day_first:
         day, month, year = int(raw[0:2]), int(raw[2:4]), int(raw[4:8])
@@ -140,13 +154,17 @@ def _day(raw: str, day_first: bool, locator: str) -> date | None:
 
 
 def _clock(raw: str, locator: str) -> time:
-    if re.fullmatch(r"\d{4}", raw) and int(raw[:2]) < 24 and int(raw[2:]) < 60:
+    if re.fullmatch(r"[0-9]{4}", raw) and int(raw[:2]) < 24 and int(raw[2:]) < 60:
         return time(int(raw[:2]), int(raw[2:]))
     raise SourceParseError("unsupported_time", f"{locator}: the time must be HHMM")
 
 
 def _tests(record: list[Line], encoding: str) -> tuple[dict[str, list[str]], list[_Test]]:
-    """Split a report into its report-level fields and its tests."""
+    """Split a report into its report-level fields and its tests.
+
+    Report-level notes (8490) are collected like any report-level field; the caller holds the
+    report's values for review when there are any.
+    """
     report: dict[str, list[str]] = {}
     tests: list[_Test] = []
     current: _Test | None = None
@@ -163,7 +181,13 @@ def _tests(record: list[Line], encoding: str) -> tuple[dict[str, list[str]], lis
             tests.append(current)
         elif line.field_id == _AFTER_TESTS:
             current = None
+            report.setdefault(line.field_id, []).append(content)
         elif current is None:
+            if line.field_id in _TEST_ONLY:
+                raise SourceParseError(
+                    "malformed_record",
+                    f"line {line.number}: field {line.field_id} outside a test (8410)",
+                )
             report.setdefault(line.field_id, []).append(content)
         elif line.field_id in _SINGLE:
             if line.field_id in current.single:
@@ -185,7 +209,7 @@ def parse_ldt2(lines: list[Line], *, zone: ZoneInfo) -> ParsedDocument:
 
     values: list[ParsedValue] = []
     not_imported: list[NotImported] = []
-    patients: set[tuple[str, ...]] = set()
+    patients: list[tuple[str, ...]] = []
     birth_dates: set[date] = set()
 
     for record in records:
@@ -200,9 +224,11 @@ def parse_ldt2(lines: list[Line], *, zone: ZoneInfo) -> ParsedDocument:
         report, tests = _tests(record, encoding)
         where = f"line {record[0].number}"
 
-        patients.add(
+        patients.append(
             tuple(" ".join(report.get(f, [])).casefold() for f in ("3101", "3102", "3103"))
         )
+        # A note on the whole report may qualify every value in it and is not carried.
+        report_note = any(report.get(_AFTER_TESTS, []))
         for raw in report.get("3103", []):
             born = _day(raw, day_first, where)
             if born is not None:
@@ -233,11 +259,15 @@ def parse_ldt2(lines: list[Line], *, zone: ZoneInfo) -> ParsedDocument:
                     "missing_field", f"{locator}: the test has no name (8411/8410)"
                 )
             unit = test.single.get("8421") or None
+            low = test.single.get("8461") or None
+            high = test.single.get("8462") or None
             reference_text = " ".join(t for t in test.reference_text if t) or None
-            check_length(name, MAX_NAME, "name", locator)
-            check_length(value, MAX_VALUE, "value", locator)
-            check_length(unit or "", MAX_UNIT, "unit", locator)
-            check_length(reference_text or "", MAX_REFERENCE_TEXT, "reference_text", locator)
+            check_text(name, MAX_NAME, "name", locator)
+            check_text(value, MAX_VALUE, "value", locator)
+            check_text(unit, MAX_UNIT, "unit", locator)
+            check_text(low, MAX_BOUND, "reference_low", locator)
+            check_text(high, MAX_BOUND, "reference_high", locator)
+            check_text(reference_text, MAX_REFERENCE_TEXT, "reference_text", locator)
 
             day_raw = test.single.get("8432")
             day = _day(day_raw, day_first, locator) if day_raw else None
@@ -260,7 +290,7 @@ def parse_ldt2(lines: list[Line], *, zone: ZoneInfo) -> ParsedDocument:
                 reasons.append(PRELIMINARY_REPORT)
             if status in _STATUS_REASON:
                 reasons.append(_STATUS_REASON[status])
-            if test.commented:
+            if test.commented or report_note:
                 # The note may qualify the value; it is not carried, so a human reads the source.
                 reasons.append(SOURCE_COMMENT)
 
@@ -272,8 +302,8 @@ def parse_ldt2(lines: list[Line], *, zone: ZoneInfo) -> ParsedDocument:
                     observed_at=observed_at,
                     observed_at_is_date_only=not clock_raw,
                     source_record_locator=locator,
-                    reference_low=test.single.get("8461") or None,
-                    reference_high=test.single.get("8462") or None,
+                    reference_low=low,
+                    reference_high=high,
                     reference_text=reference_text,
                     review_reasons=tuple(reasons),
                 )
@@ -281,9 +311,14 @@ def parse_ldt2(lines: list[Line], *, zone: ZoneInfo) -> ParsedDocument:
             if len(values) > MAX_VALUES:
                 raise SourceParseError("too_many_values", f"more than {MAX_VALUES} values")
 
-    if len(patients) > 1 or len(birth_dates) > 1:
+    if len(set(patients)) > 1 or len(birth_dates) > 1:
         raise SourceParseError(
             "multiple_patients", "the file contains reports for more than one patient"
+        )
+    if len(patients) > 1 and not patients[0][0]:
+        # Several reports that name nobody cannot be shown to be one person's.
+        raise SourceParseError(
+            "unidentified_patient", "several reports in the file carry no patient name"
         )
     if not values and not not_imported:
         raise SourceParseError("empty_document", "the file contains no laboratory results")

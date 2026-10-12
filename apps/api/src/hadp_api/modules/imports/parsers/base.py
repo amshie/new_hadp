@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
@@ -12,6 +13,7 @@ MAX_NAME = 200
 MAX_VALUE = 120
 MAX_UNIT = 60
 MAX_REFERENCE_TEXT = 200
+MAX_BOUND = 60
 # A single laboratory report beyond this size is a different kind of file.
 MAX_VALUES = 2000
 
@@ -31,6 +33,8 @@ MULTIPLE_RESULT_VALUES = "multiple_result_values"
 # Why a result in the file was NOT imported (closed set). Recorded and counted, never dropped
 # silently: the pipeline carries numeric observations only.
 TEXT_RESULT = "text_result"
+# The same measurement written a second time in another unit; the carried one names the unit.
+ALTERNATE_VALUE = "alternate_unit_value"
 RESULT_PENDING = "result_pending"
 NO_RESULT = "no_result"
 # The source names no sampling date; the report or measurement date is never used instead.
@@ -115,8 +119,18 @@ def local_instant(day: date, clock: time, zone: ZoneInfo) -> tuple[datetime, boo
     return first.astimezone(UTC), ambiguous
 
 
-def check_length(value: str, limit: int, field_name: str, locator: str) -> None:
+_CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+
+def check_text(value: str | None, limit: int, field_name: str, locator: str) -> None:
+    """Refuse a field that cannot be stored verbatim: too long, or with control characters."""
+    if value is None:
+        return
     if len(value) > limit:
         raise SourceParseError(
             "field_too_long", f"{locator}: {field_name} exceeds {limit} characters"
+        )
+    if _CONTROL.search(value):
+        raise SourceParseError(
+            "unsupported_character", f"{locator}: {field_name} contains a control character"
         )

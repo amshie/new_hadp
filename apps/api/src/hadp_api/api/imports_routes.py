@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field
 
 from hadp_api.auth.authz import Action
 from hadp_api.auth.dependencies import TenantContext, require
-from hadp_api.modules.audit.service import record_audit
+from hadp_api.errors import Conflict, ValidationFailed
+from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.documents.service import store_source_document
 from hadp_api.modules.enums import ReviewDecision
 from hadp_api.modules.imports import service as imports_service
@@ -181,13 +182,28 @@ def import_document(
         correlation_id=ctx.correlation_id,
     )
     patient = patients_service.get_patient(ctx.db, ctx.tenant_id, patient_id)
-    result = import_source_document(
-        ctx.db,
-        tenant_id=ctx.tenant_id,
-        patient=patient,
-        document_id=document_id,
-        created_by_user_id=ctx.user.id,
-    )
+    try:
+        result = import_source_document(
+            ctx.db,
+            tenant_id=ctx.tenant_id,
+            patient=patient,
+            document_id=document_id,
+            created_by_user_id=ctx.user.id,
+        )
+    except (ValidationFailed, Conflict) as exc:
+        # A refused file (unreadable, another patient's) is an attempt worth a trace. Recorded
+        # on its own transaction — this request rolls back — with the refusal code only.
+        record_security_event(
+            action="import.refused",
+            actor_user_id=ctx.user.id,
+            tenant_id=ctx.tenant_id,
+            correlation_id=ctx.correlation_id,
+            detail={
+                "code": exc.detail.split(":", 1)[0],
+                "source_document_id": str(document_id),
+            },
+        )
+        raise
     if result.created:
         record_audit(
             ctx.db,

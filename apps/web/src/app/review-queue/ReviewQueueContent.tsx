@@ -15,6 +15,7 @@ const REASON_LABELS: Record<string, string> = {
   unparseable_value: "Wert nicht lesbar",
   unsupported_unit: "Einheit nicht unterstützt",
   impossible_value: "Wert außerhalb der plausiblen Spanne",
+  unparseable_reference: "Referenzgrenze nicht lesbar",
   ambiguous_local_time: "Uhrzeit nicht eindeutig (Zeitumstellung)",
   preliminary_report: "Vom Labor als vorläufig markiert",
   previously_reported: "Vom Labor als bereits berichtet markiert",

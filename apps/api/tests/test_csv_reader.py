@@ -115,7 +115,7 @@ def test_a_local_time_that_is_not_one_instant_is_held_for_review(day: str) -> No
         ("name;value;date\nGlucose;5,1;31.02.2025\n", "unsupported_date", "line 2"),
         ("name;value;date;time\nGlucose;5,1;10.06.2025;8.15\n", "unsupported_time", "line 2"),
         ("name;value;date\nGlucose;5,1;10.06.2025\nHbA1c;;10.06.2025\n", "missing_field", "line 3"),
-        ("name;value;date\nGlucose;5,1\n", "missing_field", "line 2"),  # short row
+        ("name;value;date\nGlucose;5,1\n", "malformed_table", "line 2"),  # short row
         ("name;value;date\n", "empty_document", "no values"),
         ("", "empty_document", "no header"),
         ('name;value;date\n"Glucose;5,1;10.06.2025\n', "malformed_table", "quoting"),
@@ -126,6 +126,52 @@ def test_structural_problems_refuse_the_whole_file(text: str, code: str, positio
     error = _error(text)
     assert error.code == code
     assert position in error.detail
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        # An unquoted decimal comma in a comma-separated file: one cell too many. Read by
+        # position this row would yield the value "3" — and publish.
+        "Date,Analyte,Unit,Value\n2025-06-10,LDL,mmol/L,3,4\n",
+        # The same slip in the reference bounds would yield 1–5 instead of 1,5–4,1.
+        "Analyte,Value,Unit,Date,Reference_low,Reference_high\nLDL,3.4,mmol/L,2025-06-10,1,5,4,1\n",
+        # A row that stops early would silently lose its trailing bound.
+        "Analyte;Value;Date;Reference_low\nLDL;3,4;2025-06-10\n",
+    ],
+)
+def test_a_row_that_does_not_line_up_with_the_header_is_never_read_by_position(text: str) -> None:
+    error = _error(text)
+    assert error.code == "malformed_table"
+    assert "line 2" in error.detail and "cells" in error.detail
+
+
+@pytest.mark.parametrize("lead", ["\r\r\n", "\x0c\n", "\u2028\n", "\x85\n", "\n\n"])
+def test_odd_line_breaks_never_swallow_a_data_row(lead: str) -> None:
+    # Two ways of counting lines used to disagree here, and the first data row vanished.
+    newline = "\r\r\n" if lead == "\r\r\n" else "\n"
+    text = lead + newline.join(
+        ["Name;Wert;Datum", "LDL;3,4;10.06.2025", "Glucose;5,1;10.06.2025", ""]
+    )
+    assert [v.original_name for v in parse_csv(text, zone=BERLIN).values] == ["LDL", "Glucose"]
+
+
+def test_quoting_is_judged_under_the_delimiter_that_fits() -> None:
+    # Correct under ';' — and only looks broken when read with ',' or TAB.
+    doc = parse_csv('Name;Wert;Datum\n"LDL";2,8;10.06.2025\n', zone=BERLIN)
+    assert (doc.values[0].original_name, doc.values[0].original_value) == ("LDL", "2,8")
+
+
+@pytest.mark.parametrize(
+    ("text", "code"),
+    [
+        ("Name;Wert;Datum\nLDL;3.4\x00;10.06.2025\n", "unsupported_character"),
+        ("Name;Wert;Datum;Referenz_von\nLDL;3,4;10.06.2025;" + "9" * 61 + "\n", "field_too_long"),
+        ("Name;Wert;Datum;Referenz_bis\nLDL;3,4;10.06.2025;" + "9" * 61 + "\n", "field_too_long"),
+    ],
+)
+def test_a_field_that_cannot_be_stored_verbatim_refuses_the_file(text: str, code: str) -> None:
+    assert _error(text).code == code
 
 
 def test_errors_name_positions_never_content() -> None:

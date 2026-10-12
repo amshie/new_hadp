@@ -4,17 +4,24 @@ Written against the KBV record description v3.2.20 and checked against the KBV's
 files. LDT 3 is a tree: an attribute line (e.g. `8160 UE_Klinische_Chemie`) is always followed
 by its object, `8002 Obj_0060` … `8003 Obj_0060`. What is read:
 
-- the file is 8220 (header), one or more 8205 (report), 8221 (trailer). The trailer's checksum
-  (9300, SHA-1 over everything before that line) must match — a damaged file is refused;
+- the file is 8220 (header), one or more 8205 (report), 8221 (trailer). The trailer carries the
+  checksum and nothing else (9300, SHA-1 over everything before that line); it must match — a
+  damaged or cut-off file is refused;
+- every report must name exactly one person (Obj_0045 → Obj_0047 with a surname): a report
+  without one is an animal or environmental sample, not a patient's;
 - the version (0001 in the header) must be LDT3.2.x; the character set is ISO 8859-15;
 - per report: the patient's date of birth (Obj_0045 → Obj_0047 → 3103), every material
   (Obj_0037) with its sampling timestamp (8219), and the clinical-chemistry results
   (Obj_0035 → Obj_0060);
 - a result names its sample by 7364; the sampling time is the one of the material with that
-  identifier. The measurement time (8225) and the report time are never used in its place;
+  identifier — if exactly one time is stated for it. The measurement time (8225) and the
+  report time are never used in its place;
 - a result's values hang under 7306 (how the value is written) → 8420 (the value) with its unit
   system 8419, unit 8421 and reference ranges (Obj_0042). When the same measurement is given in
-  several unit systems, the SI one (8419 = 1) is taken.
+  several unit systems, the SI one (8419 = 1) is carried and the others are recorded as not
+  imported;
+- a note or attention message on the report, the order or a sample (outside the result
+  objects; attachments excepted) holds every value of that report for review.
 
 Everything else under a report — microbiology, cytology, blood group, tumour and "other"
 results, body measurements, attachments — is not carried; result objects of those kinds are
@@ -32,10 +39,13 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from hadp_api.modules.documents.xdt import RECORD_START, Line
 from hadp_api.modules.imports.parsers.base import (
+    ALTERNATE_VALUE,
     AMBIGUOUS_LOCAL_TIME,
     AMBIGUOUS_REFERENCE,
     CORRECTED_RESULT,
+    MAX_BOUND,
     MAX_NAME,
     MAX_REFERENCE_TEXT,
     MAX_UNIT,
@@ -54,12 +64,11 @@ from hadp_api.modules.imports.parsers.base import (
     ParsedDocument,
     ParsedValue,
     SourceParseError,
-    check_length,
+    check_text,
     date_only,
     local_instant,
     plausible_day,
 )
-from hadp_api.modules.imports.parsers.xdt import RECORD_START, Line
 
 PARSER_NAME = "ldt3-8205"
 PARSER_VERSION = "1"
@@ -71,6 +80,8 @@ _MAX_DEPTH = 40  # far beyond any real file; stops a hostile one
 _RECORD_END = "8001"
 _OBJECT_START = "8002"
 _OBJECT_END = "8003"
+_CHECKSUM = "9300"
+_ATTACHMENT = "Obj_0010"
 _HEADER, _REPORT, _TRAILER = "8220", "8205", "8221"
 
 _PATIENT, _PERSON = "Obj_0045", "Obj_0047"
@@ -106,7 +117,8 @@ _STATUS_NOT_IMPORTED = {
 _NUMERIC = {"01", "02", "03"}
 _SI = "1"  # 8419 Einheitensystem
 
-_ZONE = re.compile(r"UTC(?:([+-])(\d{1,2})(?::(\d{2}))?)?")
+_ZONE = re.compile(r"UTC(?:([+-])([0-9]{1,2})(?::([0-9]{2}))?)?")
+_ATTRIBUTE = re.compile(r"8[12][0-9]{2}")  # object attributes are the fields 8100-8299
 
 
 @dataclass
@@ -148,16 +160,29 @@ class _Value:
 
 def is_ldt3(lines: list[Line]) -> bool:
     """LDT 3 names its version in field 0001 at the top of the header record."""
-    return any(line.field_id == "0001" and line.raw.startswith(b"LDT3") for line in lines[:10])
+    for line in lines:
+        if line.field_id == _RECORD_END:
+            return False
+        if line.field_id == "0001" and line.raw.startswith(b"LDT3"):
+            return True
+    return False
 
 
-def _verify_checksum(data: bytes) -> None:
-    marker = data.rfind(b"9300")
-    start = data.rfind(b"\r\n", 0, marker) + 2 if marker != -1 else -1
-    if start < 2 or data[start + 3 : start + 7] != b"9300":
-        raise SourceParseError("malformed_record", "the trailer carries no checksum (9300)")
-    declared = data[start + 7 : data.index(b"\r\n", start)].decode("ascii", "replace")
-    if hashlib.sha1(data[:start], usedforsecurity=False).hexdigest() != declared.strip().lower():
+def _verify_checksum(data: bytes, lines: list[Line], trailer: _Node) -> None:
+    """The trailer is exactly `8000 8221 / 9300 <sha1> / 8001 8221`, and the checksum covers
+    every byte before its own line. Anything else — no checksum, a second field, a checksum
+    elsewhere in the file — is not a verified file."""
+    if len(trailer.items) != 1 or isinstance(trailer.items[0], _Node):
+        raise SourceParseError(
+            "malformed_record", "the trailer must carry the checksum (9300) and nothing else"
+        )
+    field_id, declared, number = trailer.items[0]
+    if field_id != _CHECKSUM:
+        raise SourceParseError(
+            "malformed_record", "the trailer must carry the checksum (9300) and nothing else"
+        )
+    covered = data[: lines[number - 1].offset]
+    if hashlib.sha1(covered, usedforsecurity=False).hexdigest() != declared.lower():
         raise SourceParseError("checksum_mismatch", "the file's checksum (9300) does not match")
 
 
@@ -185,9 +210,15 @@ def _records(lines: list[Line]) -> list[_Node]:
         elif line.field_id == _OBJECT_START:
             parent = stack[-1]
             # "Auf das Objektattribut folgt immer das Objekt": the line before names it.
-            attribute = parent.items.pop() if parent.items else None
-            if attribute is None or isinstance(attribute, _Node) or len(stack) >= _MAX_DEPTH:
+            attribute = parent.items[-1] if parent.items else None
+            if (
+                attribute is None
+                or isinstance(attribute, _Node)
+                or not _ATTRIBUTE.fullmatch(attribute[0])
+                or len(stack) >= _MAX_DEPTH
+            ):
                 raise SourceParseError("malformed_object", f"{where}: an object without attribute")
+            parent.items.pop()
             node = _Node(name=content, line=line.number, attribute=attribute[0])
             parent.items.append(node)
             stack.append(node)
@@ -204,7 +235,7 @@ def _records(lines: list[Line]) -> list[_Node]:
 
 def _day(raw: str, locator: str) -> date | None:
     """Parse JJJJMMTT. A date with unknown parts (zeros) yields None."""
-    if not re.fullmatch(r"\d{8}", raw):
+    if not re.fullmatch(r"[0-9]{8}", raw):
         raise SourceParseError("unsupported_date", f"{locator}: the date must have 8 digits")
     year, month, day = int(raw[0:4]), int(raw[4:6]), int(raw[6:8])
     if 0 in (day, month, year):
@@ -222,7 +253,7 @@ def _instant(stamp: _Node, zone: ZoneInfo) -> tuple[datetime, bool, bool] | None
     clock_raw = stamp.one("7279")
     if not clock_raw:
         return date_only(day), True, False
-    if not re.fullmatch(r"\d{6}(\d{3})?", clock_raw):
+    if not re.fullmatch(r"[0-9]{6}([0-9]{3})?", clock_raw):
         raise SourceParseError("unsupported_time", f"{locator}: the time must be hhmmss")
     try:
         clock = time(int(clock_raw[0:2]), int(clock_raw[2:4]), int(clock_raw[4:6]))
@@ -243,15 +274,23 @@ def _instant(stamp: _Node, zone: ZoneInfo) -> tuple[datetime, bool, bool] | None
     return exact, False, False
 
 
-def _value_groups(result: _Node) -> tuple[list[_Value], bool]:
-    """Split a result into its values. Returns (values, has_non_numeric_value)."""
+def _value_groups(result: _Node) -> tuple[list[_Value], bool, bool]:
+    """Split a result into its values.
+
+    Returns (numeric values, has_non_numeric_value, has_stray_reference). A reference range
+    that follows no value cannot be attached to one; the caller then uses none of the ranges.
+    """
     groups: list[_Value] = []
     shape: str | None = None
     current: _Value | None = None
+    stray_reference = False
     for item in result.items:
         if isinstance(item, _Node):
-            if current is not None and item.attribute == "8142" and item.name == _REFERENCE:
-                current.references.append(item)
+            if item.name == _REFERENCE:
+                if current is None:
+                    stray_reference = True
+                else:
+                    current.references.append(item)
             elif item.attribute not in ("8225", "8237"):
                 current = None  # the value's own block is over
             continue
@@ -268,7 +307,7 @@ def _value_groups(result: _Node) -> tuple[list[_Value], bool]:
         else:
             current = None
     numeric = [g for g in groups if g.shape in _NUMERIC and g.value]
-    return numeric, len(numeric) != len(groups)
+    return numeric, len(numeric) != len(groups), stray_reference
 
 
 def _reference(value: _Value, locator: str) -> tuple[str | None, str | None, str | None, bool]:
@@ -278,18 +317,67 @@ def _reference(value: _Value, locator: str) -> tuple[str | None, str | None, str
     if len(value.references) > 1:
         return None, None, None, True
     ref = value.references[0]
-    low, high = ref.one("8461"), ref.one("8462")
+    ref.one("8424")  # one specification per range object: two would be two ranges in one
+    low, high = ref.one("8461") or None, ref.one("8462") or None
     text = " ".join(t for t in ref.values("8460") if t) or None
-    check_length(text or "", MAX_REFERENCE_TEXT, "reference_text", locator)
+    check_text(low, MAX_BOUND, "reference_low", locator)
+    check_text(high, MAX_BOUND, "reference_high", locator)
+    check_text(text, MAX_REFERENCE_TEXT, "reference_text", locator)
     # Each bound may name its own unit; a bound in another unit than the value is not usable.
     bound_units = {u for u in ref.values("8421") if u}
     if (low or high) and bound_units and bound_units != {value.unit or ""}:
         return None, None, text, True
-    return low or None, high or None, text, False
+    return low, high, text, False
+
+
+def _report_note(node: _Node) -> bool:
+    """True when a report carries a note or attention message OUTSIDE its result objects.
+
+    Such a note (on the report, the order, a sample) may qualify every value in the report.
+    Attachments are skipped: they repeat the report as a document.
+    """
+    for item in node.items:
+        if not isinstance(item, _Node) or item.name == _ATTACHMENT:
+            continue
+        if item.name == _CHEMISTRY or item.name in _OTHER_RESULTS:
+            continue
+        if item.name in _NOTES or _report_note(item):
+            return True
+    return False
+
+
+def _patient(record: _Node) -> tuple[tuple[str, ...], date | None]:
+    """The report's patient as (identity, date of birth). A report without a named person —
+    an animal or environmental sample, or a damaged file — is not a patient's report."""
+    persons = [p for patient in record.children(_PATIENT) for p in patient.children(_PERSON)]
+    if len(persons) != 1 or not (persons[0].one("3101") or ""):
+        raise SourceParseError(
+            "unidentified_patient", f"line {record.line}: the report names no single patient"
+        )
+    person = persons[0]
+    born_raw = person.one("3103") or ""
+    identity = (
+        (person.one("3101") or "").casefold(),
+        " ".join(person.values("3102")).casefold(),
+        born_raw,
+    )
+    return identity, (_day(born_raw, f"line {person.line}") if born_raw else None)
+
+
+def _sampling_times(record: _Node, zone: ZoneInfo) -> dict[str, tuple[datetime, bool, bool] | None]:
+    """Sample identifier -> its sampling time; None when the file does not name exactly one."""
+    seen: dict[str, set[tuple[datetime, bool, bool] | None]] = {}
+    for material in record.children(_MATERIAL):
+        sample = material.one("7364")
+        stamps = [c for c in material.children(_TIMESTAMP) if c.attribute == _SAMPLING_TIME]
+        if sample:
+            moment = _instant(stamps[0], zone) if len(stamps) == 1 else None
+            seen.setdefault(sample, set()).add(moment)
+    # Two materials under one identifier with different times: neither time is the result's.
+    return {sample: next(iter(m)) if len(m) == 1 else None for sample, m in seen.items()}
 
 
 def parse_ldt3(data: bytes, lines: list[Line], *, zone: ZoneInfo) -> ParsedDocument:
-    _verify_checksum(data)
     records = _records(lines)
     kinds = [r.name for r in records]
     if kinds[0] == "8230":
@@ -299,6 +387,7 @@ def parse_ldt3(data: bytes, lines: list[Line], *, zone: ZoneInfo) -> ParsedDocum
         )
     if len(kinds) < 2 or kinds[0] != _HEADER or kinds[-1] != _TRAILER:
         raise SourceParseError("malformed_record", "expected a header (8220) and a trailer (8221)")
+    _verify_checksum(data, lines, records[-1])
     versions = [v for node in records[0].children("Obj_0032") for v in node.values("0001")]
     if len(versions) != 1 or not versions[0].startswith(_VERSION_PREFIX):
         raise SourceParseError("unsupported_ldt_version", "the LDT version (0001) must be LDT3.2.x")
@@ -314,19 +403,10 @@ def parse_ldt3(data: bytes, lines: list[Line], *, zone: ZoneInfo) -> ParsedDocum
                 "unsupported_record_type",
                 f"line {record.line}: only report records (8205) can be read",
             )
-        for patient in record.children(_PATIENT):
-            for person in patient.children(_PERSON):
-                born_raw = person.one("3103") or ""
-                patients.add(
-                    (
-                        (person.one("3101") or "").casefold(),
-                        " ".join(person.values("3102")).casefold(),
-                        born_raw,
-                    )
-                )
-                born = _day(born_raw, f"line {person.line}") if born_raw else None
-                if born is not None:
-                    birth_dates.add(born)
+        identity, born = _patient(record)
+        patients.add(identity)
+        if born is not None:
+            birth_dates.add(born)
 
         for info in record.children(_REPORT_INFO):
             if (info.one("8401") or "2") not in ("1", "2"):
@@ -334,13 +414,8 @@ def parse_ldt3(data: bytes, lines: list[Line], *, zone: ZoneInfo) -> ParsedDocum
                     "unsupported_report_kind", f"line {info.line}: unknown status (8401)"
                 )
 
-        # Sample identifier -> sampling timestamp (None when the material names none).
-        sampling: dict[str, tuple[datetime, bool, bool] | None] = {}
-        for material in record.children(_MATERIAL):
-            sample = material.one("7364")
-            stamps = [c for c in material.children(_TIMESTAMP) if c.attribute == _SAMPLING_TIME]
-            if sample:
-                sampling[sample] = _instant(stamps[0], zone) if len(stamps) == 1 else None
+        sampling = _sampling_times(record, zone)
+        report_note = _report_note(record)
 
         for report in record.children(_RESULTS):
             for item in report.items:
@@ -361,14 +436,14 @@ def parse_ldt3(data: bytes, lines: list[Line], *, zone: ZoneInfo) -> ParsedDocum
                     raise SourceParseError(
                         "unsupported_test_status", f"{where}: unknown Ergebnisstatus (8418)"
                     )
-                numeric, has_text_value = _value_groups(item)
+                numeric, has_text_value, stray_reference = _value_groups(item)
                 if not numeric:
                     not_imported.append(NotImported(where, TEXT_RESULT))
                     continue
                 name = item.one("8411") or item.one("8410")
                 if not name:
                     raise SourceParseError("missing_field", f"{where}: the result has no name")
-                check_length(name, MAX_NAME, "name", where)
+                check_text(name, MAX_NAME, "name", where)
 
                 # The sampling time is the material's. Several samples must agree on it.
                 moments = {sampling.get(sample) for sample in item.values("7364")}
@@ -383,24 +458,33 @@ def parse_ldt3(data: bytes, lines: list[Line], *, zone: ZoneInfo) -> ParsedDocum
                     shared.append(AMBIGUOUS_LOCAL_TIME)
                 if status in _STATUS_REVIEW:
                     shared.append(_STATUS_REVIEW[status])
-                if has_text_value or item.has_note():
+                if has_text_value or report_note or item.has_note():
                     # A text result or a note may qualify the value; it is not carried.
                     shared.append(SOURCE_COMMENT)
 
-                # One measurement written in several unit systems: the SI one is taken.
+                # One measurement written in several unit systems: the SI one is carried and
+                # the others are recorded, not dropped.
                 chosen = numeric
                 if len(numeric) > 1:
                     si = [g for g in numeric if g.unit_system == _SI]
                     if len(si) == 1:
                         chosen = si
+                        not_imported += [
+                            NotImported(f"line {g.line}", ALTERNATE_VALUE)
+                            for g in numeric
+                            if g is not si[0]
+                        ]
                     else:
                         shared.append(MULTIPLE_RESULT_VALUES)
 
                 for group in chosen:
                     locator = f"line {group.line}"
                     low, high, text, ambiguous_reference = _reference(group, locator)
-                    check_length(group.value, MAX_VALUE, "value", locator)
-                    check_length(group.unit or "", MAX_UNIT, "unit", locator)
+                    if stray_reference:
+                        # A range that belongs to no value: none of this result's ranges is safe.
+                        low, high, ambiguous_reference = None, None, True
+                    check_text(group.value, MAX_VALUE, "value", locator)
+                    check_text(group.unit, MAX_UNIT, "unit", locator)
                     reasons = [*shared, *([AMBIGUOUS_REFERENCE] if ambiguous_reference else [])]
                     values.append(
                         ParsedValue(

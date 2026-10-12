@@ -15,6 +15,7 @@ import pytest
 
 from hadp_api.modules.imports.parsers import SourceParseError, parse_source_document
 from hadp_api.modules.imports.parsers.base import (
+    ALTERNATE_VALUE,
     AMBIGUOUS_LOCAL_TIME,
     AMBIGUOUS_REFERENCE,
     CORRECTED_RESULT,
@@ -30,6 +31,7 @@ from hadp_api.modules.imports.parsers.base import (
     ParsedDocument,
 )
 from tests.ldt3_fixtures import (
+    attachment,
     chemistry,
     fields,
     header,
@@ -40,6 +42,7 @@ from tests.ldt3_fixtures import (
     obj,
     reference,
     report,
+    sha1,
     timestamp,
     value,
 )
@@ -111,7 +114,9 @@ def test_a_report_is_read_through_its_object_tree() -> None:
         assert lines[number - 1][3:7] == b"8420"
         assert lines[number - 1][7:].decode("iso-8859-15") == row.original_value
 
+    # The mg/dl writing of the glucose value is recorded, not dropped.
     assert [n.reason for n in doc.not_imported] == [
+        ALTERNATE_VALUE,
         TEXT_RESULT,
         RESULT_PENDING,
         UNSUPPORTED_RESULT_TYPE,
@@ -166,6 +171,17 @@ def test_without_one_sampling_time_the_result_is_not_imported(
     doc = _read(*materials, result)
     assert doc.values == []
     assert [n.reason for n in doc.not_imported] == [NO_SAMPLING_DATE]
+
+
+def test_two_materials_under_one_identifier_with_different_times_give_no_time() -> None:
+    early = material("S1", sampled=timestamp("8219", "Abnahme", "20250610", "081500", "UTC+2"))
+    late = material("S1", sampled=timestamp("8219", "Abnahme", "20250101", "120000", "UTC+1"))
+    for materials in ([early, late], [late, early]):  # never "the last one wins"
+        doc = _read(*materials, LDL)
+        assert doc.values == []
+        assert [n.reason for n in doc.not_imported] == [NO_SAMPLING_DATE]
+    # The same time stated twice is still one time.
+    assert len(_read(early, early, LDL).values) == 1
 
 
 def test_two_samples_taken_at_the_same_time_are_not_ambiguous() -> None:
@@ -280,6 +296,30 @@ def test_a_laboratory_note_anywhere_on_the_result_holds_it_for_review() -> None:
     assert [v.review_reasons for v in doc.values] == [(SOURCE_COMMENT,), (SOURCE_COMMENT,), ()]
 
 
+def test_a_note_outside_the_results_holds_the_whole_report_for_review() -> None:
+    on_report = _read(material(), LDL, note())  # an Obj_0068 directly in the report object
+    on_record = _read(material(), LDL, record_level=note())
+    on_sample = _read(
+        obj("8137", "Material", "Obj_0037", fields(("7364", "S1")), timestamp("8219", "A"), note()),
+        LDL,
+    )
+    for doc in (on_report, on_record, on_sample):
+        assert doc.values[0].review_reasons == (SOURCE_COMMENT,)
+    # An attachment repeats the report as a document; its payload object is not a note.
+    assert _read(material(), LDL, record_level=attachment()).values[0].review_reasons == ()
+
+
+def test_a_reference_range_that_follows_no_value_is_not_used() -> None:
+    measured = value("2.8")  # no range of its own
+    stray = [
+        *obj("8141", "Namenskennung", "Obj_0041", fields(("7420", "07"))),
+        *reference("0", "3.0"),
+    ]
+    doc = _read(material(), chemistry("LDL", "LDL Cholesterol", measured, extra=stray))
+    assert (doc.values[0].reference_low, doc.values[0].reference_high) == (None, None)
+    assert doc.values[0].review_reasons == (AMBIGUOUS_REFERENCE,)
+
+
 def test_the_ident_is_the_name_when_no_designation_is_given() -> None:
     assert (
         _read(material(), chemistry("GLUC", None, value("5.1"))).values[0].original_name == "GLUC"
@@ -300,6 +340,44 @@ def test_the_checksum_guards_every_byte() -> None:
     assert _error(tampered).code == "checksum_mismatch"
     assert _error(ldt3_file(header(), report(material(), LDL), checksum=False)).code == (
         "malformed_record"
+    )
+
+
+def test_the_checksum_is_the_trailer_s_and_nothing_else_counts() -> None:
+    good = ldt3_file(header(), report(material(), LDL))
+    trailer_start = good.index(ldt_line("8000", "8221"))
+    body = good[:trailer_start]
+
+    # A checksum planted INSIDE the file (correct for the bytes before it) proves nothing.
+    planted_at = body.index(ldt_line("8001", "8205"))
+    planted = body[:planted_at] + ldt_line("9300", sha1(body[:planted_at])) + body[planted_at:]
+    forged = (planted + ldt_line("8000", "8221") + ldt_line("8001", "8221")).replace(
+        ldt_line("8420", "2.8"), ldt_line("8420", "9.9")
+    )
+    assert _error(forged).code == "malformed_record"
+
+    # Lines after the checksum are not covered by it, so the trailer may hold nothing else.
+    padded = body + ldt_line("8000", "8221")
+    padded += ldt_line("9300", sha1(padded)) + ldt_line("7306", "01") + ldt_line("8001", "8221")
+    assert _error(padded).code == "malformed_record"
+
+    # A file that ends without its final line break is cut off — and must not crash.
+    assert _error(good[:-2]).code == "malformed_line"
+    assert _error(good[: good.rindex(ldt_line("8001", "8221"))][:-2]).code == "malformed_line"
+
+
+def test_a_report_must_name_exactly_one_person() -> None:
+    def refused(*records: list) -> str:  # type: ignore[type-arg]
+        return _error(ldt3_file(header(), *records)).code
+
+    # No patient object: an animal or environmental sample, not a patient's report.
+    assert refused(report(material(), LDL, patient=[])) == "unidentified_patient"
+    # Name fields outside the person object are not a person.
+    loose = obj("8145", "Patient", "Obj_0045", fields(("3101", "Anders"), ("3103", "19790101")))
+    assert refused(report(material(), LDL, patient=loose)) == "unidentified_patient"
+    # A named report plus an anonymous one is not "one patient".
+    assert refused(report(material(), LDL), report(material(), LDL, patient=[])) == (
+        "unidentified_patient"
     )
 
 
@@ -341,6 +419,69 @@ def _deep(levels: int) -> list:  # type: ignore[type-arg]
             "malformed_object",
         ),
         (ldt3_file(header(), _deep(60)), "malformed_object"),
+        (  # an object start right after a data field would swallow that field (here: the unit)
+            ldt3_file(
+                header(),
+                report(
+                    material(),
+                    chemistry(
+                        "LDL",
+                        "LDL",
+                        [
+                            ("7306", "01"),
+                            ("8420", "2.8"),
+                            ("8421", "mmol/l"),
+                            ("8002", "Obj_0042"),
+                            ("8003", "Obj_0042"),
+                        ],
+                    ),
+                ),
+            ),
+            "malformed_object",
+        ),
+        (  # two specifications in one range object are two ranges written as one
+            ldt3_file(
+                header(),
+                report(
+                    material(),
+                    chemistry(
+                        "LDL",
+                        "LDL",
+                        value(
+                            "2.8",
+                            references=(
+                                obj(
+                                    "8142",
+                                    "Normalwert",
+                                    "Obj_0042",
+                                    fields(
+                                        ("8424", "20"),
+                                        ("8461", "3.9"),
+                                        ("8424", "13"),
+                                        ("8462", "20.0"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            "duplicate_field",
+        ),
+        (
+            ldt3_file(header(), report(material(), chemistry("LDL", "LDL", value("3.4\x00")))),
+            "unsupported_character",
+        ),
+        (
+            ldt3_file(
+                header(),
+                report(
+                    material(),
+                    chemistry("LDL", "LDL", value("3.4", references=(reference("9" * 61, "3"),))),
+                ),
+            ),
+            "field_too_long",
+        ),
         (ldt3_file(report(material(), LDL)), "malformed_record"),  # no header
         (
             ldt3_file(
