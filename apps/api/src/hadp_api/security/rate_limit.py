@@ -2,9 +2,10 @@
 
 Applied to the abuse-prone surfaces: login, the public patient-view token surface,
 uploads, imports, invitations, data export, reading the audit trail, the preparation-time
-metric, report drafting and report release. FAIL-CLOSED when Redis is unreachable — a missing backend must not silently
-disable throttling (503, in every environment: the local/CI stacks provide Redis, so an
-outage is a real misconfiguration, never an implicit bypass).
+metric, report drafting and report release. FAIL-CLOSED when Redis is unreachable — a
+missing backend must not silently disable throttling (503, in every environment: the
+local/CI stacks provide Redis, so an outage is a real misconfiguration, never an implicit
+bypass).
 
 The FIRST refusal of a window emits an audited `rate_limited` security event on an
 independent transaction; the refusals after it in the same window do not. A client that
