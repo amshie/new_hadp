@@ -1260,8 +1260,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "string",
-                  "pattern": "^[a-z_]{1,40}$"
+                  "$ref": "#/components/schemas/AuditCategory"
                 },
                 {
                   "type": "null"
@@ -2361,6 +2360,29 @@
         ],
         "title": "AuditActorOut"
       },
+      "AuditCategory": {
+        "type": "string",
+        "enum": [
+          "patient",
+          "observation",
+          "interpretation",
+          "report",
+          "document",
+          "import",
+          "review_item",
+          "review_queue",
+          "consent",
+          "privacy",
+          "invitation",
+          "staff_invite",
+          "member",
+          "tenant",
+          "authz",
+          "worklist",
+          "audit"
+        ],
+        "title": "AuditCategory"
+      },
       "AuditEventOut": {
         "properties": {
           "id": {
@@ -2410,17 +2432,6 @@
             ],
             "title": "Target Id"
           },
-          "correlation_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Correlation Id"
-          },
           "detail": {
             "additionalProperties": true,
             "type": "object",
@@ -2435,7 +2446,6 @@
           "actor",
           "target_type",
           "target_id",
-          "correlation_id",
           "detail"
         ],
         "title": "AuditEventOut"

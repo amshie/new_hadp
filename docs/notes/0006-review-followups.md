@@ -111,13 +111,42 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   the interpretation evidence has no test under a database session west of UTC;
   `LAB_LOCAL_TIMEZONE` is not validated at startup.
 - **The clinic reads its own audit trail (go-live plan A9, 2026-10-12):** ✅ Einstellungen →
-  Audit-Protokoll (owner): newest first, paged by a cursor, filtered by area, day and record.
-  The read filters by tenant explicitly — row-level security also passes tenant-less events
-  (sign-ins of every user), which are no clinic's. Still open: no index for the query yet
-  (`tenant_id` alone; fine at pilot volume — add `(tenant_id, created_at DESC, id DESC)` when
-  the trail grows); no export of the trail and no retention rule; sign-ins are tenant-less and
-  so not part of any clinic's trail (the entry into the clinic is); reading a report still
-  writes no event (separate task); the "Letzte Aktivität" panel on the Übersicht stays gated —
-  a feed for every role is a different decision than an owner's audit view.
+  Audit-Protokoll (owner): newest first, paged by a cursor, filtered by a closed set of areas,
+  by day (on the clinic's wall clock) and by record; reads are shown unless the reader hides
+  them. The read filters by tenant explicitly — row-level security also passes tenant-less
+  events (sign-ins of every user), which are no clinic's. The response leaves out the request's
+  correlation id, and an inbound correlation id is now used only in the form of one (32
+  hexadecimal digits, with or without a UUID's hyphens): before, a caller without a session
+  could write text of its choosing into any clinic's trail through the invitation surfaces,
+  and a header longer than the column failed every audited request. The read is throttled
+  (120 per minute and user) — every read writes an event.
+  - **What the trail does not hold** (found in the independent review; stated on the page and
+    held against the code by `tests/test_audit_read.py`): (1) reading a report
+    (`GET /reports/{id}`) and the administrative lists (members, staff invitations, deletion
+    requests, export history) write no event; (2) an event is filed under the record it was
+    written for and carries no patient id of its own — report, document, import, review-item,
+    invitation and deletion-request events are not found by a search for the patient record,
+    and a refused export or import keeps the record id in `detail` only; (3) events without a
+    tenant never reach a clinic: sign-in and sign-out, failed sign-ins, `rate_limited`,
+    `csrf.denied`, and `authz.denied` before a clinic is selected or after a membership ended
+    — a removed member's continued attempts are invisible to the owner; (4) `member.removed`
+    and `staff_invite.redeemed` point at the membership, not at the person; (5) events of one
+    request share a timestamp (`now()` is the transaction's start) and have no order among
+    themselves, and an event committed after a page was read can be missed by a reader who
+    pages on — an export of the trail must not be built on this cursor as it is; (6) the
+    guard on `detail` is a set of top-level key names, not a schema.
+  - **Still open:** no index for the query (measured in review: about 140 ms for the first
+    page at 400 000 events of one clinic, growing linearly; the keyset is a row-value
+    comparison, so `(tenant_id, created_at DESC, id DESC)` will serve it); no export of the
+    trail; no retention rule; a caller who knows a clinic's id can still add refused-redemption
+    entries to its trail (30 per minute and address, a closed reason code, no text); the
+    "Letzte Aktivität" panel on the Übersicht stays gated — a feed for every role is a
+    different decision than an owner's audit view.
+  - **For the DPO, before real data:** the trail is a record of each colleague's activity
+    (purpose limitation, retention, a works council where there is one); an account's name and
+    e-mail stay attached to its entries after the member has left — a `users` row with audit
+    events cannot be deleted at all (the foreign key's SET NULL is an UPDATE, which the
+    append-only trigger refuses); entries of an erased record keep its id (`docs/notes/0012`);
+    OWNER-only means a sole owner is the only reader of their own actions.
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

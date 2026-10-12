@@ -32,7 +32,7 @@ const SECTIONS: {
   {
     href: "/einstellungen/audit",
     title: "Audit-Protokoll",
-    desc: "Nachvollziehen, wer in der Praxis wann auf welche Akte zugegriffen und was geändert hat.",
+    desc: "Die protokollierten Vorgänge der Praxis einsehen: wer, wann, welcher Vorgang, an welchem Datensatz.",
     roles: ["owner"],
   },
 ];

@@ -1,7 +1,9 @@
 """Audit service: append-only event recording, and the clinic's read of its own trail.
 
 Callers pass identifiers, codes, and timings only. Detail must never contain names,
-emails, observation values, free text, document contents, or secrets.
+emails, observation values, free text, document contents, or secrets. That is a rule for the
+code that writes an event, held by review; `record_audit` backs it with a guard on a set of
+top-level key names, which is not a schema — a nested key or another spelling passes it.
 """
 
 from __future__ import annotations
@@ -14,11 +16,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import and_, not_, or_, select
+from sqlalchemy import literal, not_, or_, select, tuple_
 from sqlalchemy.orm import Session
 
 from hadp_api.errors import ValidationFailed
 from hadp_api.modules.audit.models import AuditEvent
+from hadp_api.modules.enums import AuditCategory
 
 logger = logging.getLogger(__name__)
 
@@ -137,8 +140,8 @@ def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
 
 
 def is_read_action() -> Any:
-    """Staff reads and listings (`*.read`, `*.list`) — the bulk of a trail. A patient opening
-    their released report (`report.patient_view`) is not one of them."""
+    """Staff reads and listings (`*.read`, `*.list`) — the bulk of a trail. A released report
+    opened through a patient link (`report.patient_view`) is not one of them."""
     return or_(
         AuditEvent.action.endswith(".read", autoescape=True),
         AuditEvent.action.endswith(".list", autoescape=True),
@@ -151,7 +154,7 @@ def list_tenant_events(
     tenant_id: uuid.UUID,
     limit: int = 50,
     cursor: str | None = None,
-    category: str | None = None,
+    category: AuditCategory | None = None,
     actor_user_id: uuid.UUID | None = None,
     target_id: uuid.UUID | None = None,
     since: datetime | None = None,
@@ -165,15 +168,10 @@ def list_tenant_events(
     clinic is selected — of every user of the platform), and those belong to no clinic.
     """
     query = select(AuditEvent).where(AuditEvent.tenant_id == tenant_id)
-    if category:
-        # "report" selects report.approved, report.released, …; an action without a dot
-        # ("rate_limited") is its own category.
-        query = query.where(
-            or_(
-                AuditEvent.action == category,
-                AuditEvent.action.startswith(f"{category}.", autoescape=True),
-            )
-        )
+    if category is not None:
+        # "report" selects report.approved, report.released, …. Every action recorded with a
+        # tenant has a dot; "_" in a category is a letter, not a wildcard.
+        query = query.where(AuditEvent.action.startswith(f"{category.value}.", autoescape=True))
     if actor_user_id is not None:
         query = query.where(AuditEvent.actor_user_id == actor_user_id)
     if target_id is not None:
@@ -187,13 +185,14 @@ def list_tenant_events(
     if cursor:
         at, ident = _decode_cursor(cursor)
         # Keyset: strictly older than the last event already shown. Events written in one
-        # transaction share a timestamp; the id breaks the tie, so no event is skipped or shown
-        # twice however many are appended while someone pages.
+        # transaction share a timestamp (it is the transaction's start); the id breaks the tie,
+        # so a page boundary inside one instant neither repeats nor drops an event, and events
+        # appended later never shift a page. NOT covered: an event whose transaction began
+        # before a page was read and committed after it sorts into a range already passed — a
+        # reader who pages on does not see it, a fresh read does. Whatever is built on this
+        # cursor to copy the whole trail has to deal with that.
         query = query.where(
-            or_(
-                AuditEvent.created_at < at,
-                and_(AuditEvent.created_at == at, AuditEvent.id < ident),
-            )
+            tuple_(AuditEvent.created_at, AuditEvent.id) < tuple_(literal(at), literal(ident))
         )
     size = max(1, min(limit, MAX_PAGE))
     rows = list(

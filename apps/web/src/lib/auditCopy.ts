@@ -1,14 +1,15 @@
 // German labels for the audit trail (go-live plan A9). An audit action is a stable code the
-// API writes; the label says what happened in plain words. A code without a label is shown as
-// it is — a new action must never disappear from the trail because nobody named it yet.
+// API writes; the label says what the event records, and no more than that. The three tables
+// are held against the API's own audit writes (apps/api/tests/test_audit_read.py): a label for
+// an action that is never written, or a written action without a label, fails there. A code
+// this file does not know is still shown — as it is.
 // Covered by the web copy scan (apps/api/tests/test_web_copy_language.py).
+
+import type { AuditCategory } from "./api";
 
 const ACTION_LABELS: Record<string, string> = {
   "tenant.select": "Praxis ausgewählt",
-  "auth.logout": "Abgemeldet",
   "authz.denied": "Zugriff verweigert (Rolle)",
-  "csrf.denied": "Anfrage abgewiesen (Sicherheitsprüfung)",
-  rate_limited: "Anfrage gedrosselt",
   "audit.read": "Audit-Protokoll gelesen",
   "patient.create": "Akte angelegt",
   "patient.read": "Akte geöffnet",
@@ -19,8 +20,7 @@ const ACTION_LABELS: Record<string, string> = {
   "interpretation.authored": "Interpretation erfasst",
   "document.upload": "Datei hochgeladen",
   "document.list": "Dateiliste gelesen",
-  "document.import": "Datei eingelesen",
-  "import.run": "Werte übernommen",
+  "import.run": "Einlesevorgang ausgeführt",
   "import.refused": "Einlesen abgelehnt",
   "review_queue.read": "Review-Queue gelesen",
   "review_item.resolved": "Review-Eintrag entschieden",
@@ -33,20 +33,17 @@ const ACTION_LABELS: Record<string, string> = {
   "report.approved": "Bericht genehmigt",
   "report.rejected": "Bericht zurückgewiesen",
   "report.released": "Bericht freigegeben",
-  "report.release": "Freigabe angefordert",
-  "report.patient_view": "Bericht von der Patientin geöffnet",
-  "report.patient_view_denied": "Berichtszugriff abgewiesen",
-  patient_view: "Patientenansicht aufgerufen",
+  // The event knows that the holder of a link opened the report — not who that was.
+  "report.patient_view": "Bericht über einen Zugriffslink geöffnet",
+  "report.patient_view_denied": "Zugriff über einen Zugriffslink abgewiesen",
   "invitation.create": "Patienteneinladung erstellt",
   "invitation.revoked": "Patienteneinladung widerrufen",
-  "invitation.redeem": "Patienteneinladung geöffnet",
   "invitation.redeemed": "Patienteneinladung eingelöst",
-  "invitation.redeem_denied": "Patienteneinladung abgewiesen",
+  "invitation.redeem_denied": "Einlösen einer Patienteneinladung abgewiesen",
   "staff_invite.create": "Teameinladung erstellt",
   "staff_invite.revoked": "Teameinladung widerrufen",
-  "staff_invite.redeem": "Teameinladung geöffnet",
   "staff_invite.redeemed": "Teameinladung eingelöst",
-  "staff_invite.redeem_denied": "Teameinladung abgewiesen",
+  "staff_invite.redeem_denied": "Einlösen einer Teameinladung abgewiesen",
   "member.role_changed": "Rolle geändert",
   "member.removed": "Mitglied entfernt",
   "privacy.export": "Datenauskunft erstellt",
@@ -66,24 +63,37 @@ export function actionLabel(action: string): string {
   return ACTION_LABELS[action] ?? action;
 }
 
-// The part of an action before its first dot. Offered as a filter; the order is the order of
-// the list a reader scans.
-export const AUDIT_CATEGORIES: { key: string; label: string }[] = [
-  { key: "patient", label: "Akten" },
-  { key: "report", label: "Berichte" },
-  { key: "interpretation", label: "Interpretation" },
-  { key: "document", label: "Dateien" },
-  { key: "import", label: "Übernahme von Werten" },
-  { key: "review_item", label: "Review-Entscheidungen" },
-  { key: "consent", label: "Einwilligungen" },
-  { key: "privacy", label: "Löschung und Datenauskunft" },
-  { key: "invitation", label: "Patienteneinladungen" },
-  { key: "staff_invite", label: "Teameinladungen" },
-  { key: "member", label: "Mitglieder" },
-  { key: "tenant", label: "Eintritt in die Praxis" },
-  { key: "authz", label: "Verweigerte Zugriffe" },
-  { key: "audit", label: "Lesen dieses Protokolls" },
-];
+// The families of events a clinic's trail can hold — the API's closed set (the part of an
+// action before its first dot). In the order a reader scans the filter.
+const CATEGORY_LABELS: Record<AuditCategory, string> = {
+  patient: "Akten",
+  observation: "Werte",
+  interpretation: "Interpretation",
+  report: "Berichte",
+  document: "Dateien",
+  import: "Einlesevorgänge",
+  review_item: "Review-Entscheidungen",
+  review_queue: "Review-Queue",
+  consent: "Einwilligungen",
+  privacy: "Löschung und Datenauskunft",
+  invitation: "Patienteneinladungen",
+  staff_invite: "Teameinladungen",
+  member: "Mitglieder",
+  tenant: "Eintritt in die Praxis",
+  authz: "Verweigerte Zugriffe",
+  worklist: "Übersicht",
+  audit: "Lesen dieses Protokolls",
+};
+
+export const AUDIT_CATEGORIES = (
+  Object.keys(CATEGORY_LABELS) as AuditCategory[]
+).map((key) => ({ key, label: CATEGORY_LABELS[key] }));
+
+export function auditCategory(
+  value: string | undefined,
+): AuditCategory | undefined {
+  return AUDIT_CATEGORIES.find((c) => c.key === value)?.key;
+}
 
 const TARGET_LABELS: Record<string, string> = {
   patient: "Akte",

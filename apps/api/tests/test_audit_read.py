@@ -2,24 +2,39 @@
 
 OWNER only; exactly the events recorded for that clinic — never another clinic's, and never
 the tenant-less events (sign-ins, denials before a clinic is selected) that row-level security
-would let through; newest first, paged by an opaque cursor without skipping or repeating an
-event; filtered by category, actor, target and time; and the read is itself recorded.
+would let through; newest first, paged by an opaque cursor that neither repeats nor drops an
+event at a page boundary; filtered by a closed set of categories, by actor, target and time;
+and the read is itself recorded.
 """
 
 from __future__ import annotations
 
+import ast
+import base64
+import re
 import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, select, text
 
 from hadp_api.config import get_settings
+from hadp_api.modules.audit import service as audit_service
 from hadp_api.modules.audit.models import AuditEvent
-from hadp_api.modules.enums import Role
-from tests.helpers import login, login_as, select_tenant, switch_role
+from hadp_api.modules.enums import AuditCategory, Role
+from tests.helpers import (
+    login,
+    login_as,
+    make_membership,
+    provision_staff,
+    select_tenant,
+    switch_role,
+)
 
 URL = "/api/v1/audit-events"
+_API_SRC = Path(__file__).resolve().parents[1] / "src" / "hadp_api"
+_AUDIT_COPY = Path(__file__).resolve().parents[2] / "web" / "src" / "lib" / "auditCopy.ts"
 
 
 def _owner(client, admin_session, slug: str):  # type: ignore[no-untyped-def]
@@ -58,6 +73,11 @@ def _walk(client, **params: object) -> list[dict]:  # type: ignore[no-untyped-de
     return items
 
 
+def _tenant_event_ids(admin_session, tenant_id) -> set[str]:  # type: ignore[no-untyped-def]
+    rows = admin_session.execute(select(AuditEvent.id).where(AuditEvent.tenant_id == tenant_id))
+    return {str(i) for i in rows.scalars()}
+
+
 def test_an_owner_reads_the_clinics_own_trail_newest_first(client, admin_session) -> None:  # type: ignore[no-untyped-def]
     user, tenant = _owner(client, admin_session, "own")
     pid = client.post("/api/v1/patients", json={"display_name": "Synthetic Audit"}).json()["id"]
@@ -66,14 +86,27 @@ def test_an_owner_reads_the_clinics_own_trail_newest_first(client, admin_session
 
     actions = [i["action"] for i in body["items"]]
     assert actions[0] == "patient.create"
-    assert "tenant.select" in actions
     created = body["items"][0]
     assert (created["target_type"], created["target_id"]) == ("patient", pid)
-    # Who acted, by name: a colleague in the reader's own clinic.
+    # Who acted: the account's name and e-mail — a colleague in the reader's own clinic.
     assert created["actor"] == {
         "user_id": str(user.id),
         "display_name": user.display_name,
         "email": user.email,
+    }
+    # The detail is returned as it was written; the time in UTC.
+    entered = next(i for i in body["items"] if i["action"] == "tenant.select")
+    assert entered["detail"] == {"role": "owner"}
+    assert entered["occurred_at"].endswith(("Z", "+00:00"))
+    # The request's correlation id is the operator's handle, not part of what a clinic reads.
+    assert set(created) == {
+        "id",
+        "occurred_at",
+        "action",
+        "actor",
+        "target_type",
+        "target_id",
+        "detail",
     }
     assert body["next_cursor"] is None
     # Exactly this clinic's events — compared with what the table holds for it.
@@ -97,7 +130,7 @@ def test_reading_the_trail_is_itself_recorded(client, admin_session) -> None:  #
         select(AuditEvent).where(AuditEvent.action == "audit.read")
     ).scalar_one()
     assert (read.tenant_id, read.actor_user_id) == (tenant.id, user.id)
-    # Which filters were set — never their values (the target id is not in the event).
+    # Which filters were set. Of their values only the category — one of a closed set.
     assert read.detail == {
         "count": 0,
         "category": "patient",
@@ -108,8 +141,30 @@ def test_reading_the_trail_is_itself_recorded(client, admin_session) -> None:  #
         "continued": False,
     }
     assert str(target) not in str(read.detail)
-    # And the next read shows it.
+    # The next read shows it — and "who read this trail" is a question the trail answers.
     assert client.get(URL).json()["items"][0]["action"] == "audit.read"
+    reads = _walk(client, category="audit")
+    assert reads and {i["action"] for i in reads} == {"audit.read"}
+    assert all(i["actor"]["user_id"] == str(user.id) for i in reads)
+    # Asking for that family without reads is asking for nothing.
+    assert _walk(client, category="audit", exclude_reads="true") == []
+
+
+def test_reading_is_throttled(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """Every read writes an event into a table nothing is removed from."""
+    _user, tenant = _owner(client, admin_session, "throttle")
+    for _ in range(120):
+        assert client.get(URL, params={"limit": 1}).status_code == 200
+
+    refused = client.get(URL, params={"limit": 1})
+
+    assert refused.status_code == 429
+    written = admin_session.execute(
+        select(AuditEvent).where(
+            AuditEvent.tenant_id == tenant.id, AuditEvent.action == "audit.read"
+        )
+    ).scalars()
+    assert len(list(written)) == 120
 
 
 @pytest.mark.parametrize("role", [Role.CLINICIAN, Role.ASSISTANT, Role.MEDICAL_DIRECTOR])
@@ -137,8 +192,10 @@ def test_another_clinics_events_and_tenantless_events_never_appear(client, admin
     """Row-level security lets a tenant-less event through (it must, for sign-in). Such an event
     is no clinic's: a sign-in or a failed sign-in of ANY user of the platform. The read must not
     return one — and must not return another clinic's either."""
-    _other_user, other = _owner(client, admin_session, "other")
-    client.post("/api/v1/patients", json={"display_name": "Synthetic Other Clinic"})
+    other_user, other = _owner(client, admin_session, "other")
+    other_patient = client.post(
+        "/api/v1/patients", json={"display_name": "Synthetic Other Clinic"}
+    ).json()["id"]
     foreign = _event(admin_session, other.id, "report.released")
     tenantless = _event(admin_session, None, "login.failed")
     admin_session.commit()
@@ -151,7 +208,6 @@ def test_another_clinics_events_and_tenantless_events_never_appear(client, admin
     assert str(tenantless.id) not in ids
     actions = {i["action"] for i in items}
     assert actions <= {"tenant.select", "audit.read"}, actions
-    assert "auth.dev_login" not in actions and "login.failed" not in actions
     # The sign-ins exist, tenant-less — and the APPLICATION ROLE can read them with this clinic
     # selected: the filter in the service is what keeps them out, not row-level security.
     engine = create_engine(get_settings().effective_app_database_url)
@@ -170,10 +226,75 @@ def test_another_clinics_events_and_tenantless_events_never_appear(client, admin
             assert foreign_rows == 0  # another clinic's rows ARE hidden by the policy
     finally:
         engine.dispose()
-    # Asking for the other clinic by a filter changes nothing.
-    assert _walk(client, target_id=str(uuid.uuid4())) == []
-    assert all(i["action"] != "report.released" for i in _walk(client, category="report"))
-    assert tenant.id != other.id
+    # Asking for the other clinic by a filter — its record, its member, its family of events —
+    # returns nothing, and nothing but this clinic's own events however the question is put.
+    mine = _tenant_event_ids(admin_session, tenant.id)
+    assert _walk(client, target_id=other_patient) == []
+    assert _walk(client, actor_user_id=str(other_user.id)) == []
+    assert _walk(client, category="report") == []
+    assert _walk(client, category="patient") == []
+    # A position taken from the other clinic's trail is a position in time, nothing more.
+    forged = audit_service._encode_cursor(foreign)
+    from_there = _walk(client, cursor=forged)
+    assert {i["id"] for i in from_there} <= mine
+    assert {i["id"] for i in _walk(client)} <= _tenant_event_ids(admin_session, tenant.id)
+
+
+def test_the_tenant_filter_alone_isolates_a_clinic(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """The explicit tenant filter is the control. Proven on a session that bypasses row-level
+    security, where nothing else could keep another clinic's or a tenant-less event out."""
+    _mine_user, mine = provision_staff(
+        admin_session,
+        email="bypass-mine@synthetic.example",
+        tenant_name="Audit Bypass Mine",
+        tenant_slug="audit-bypass-mine",
+        role=Role.OWNER,
+    )
+    _other_user, other = provision_staff(
+        admin_session,
+        email="bypass-other@synthetic.example",
+        tenant_name="Audit Bypass Other",
+        tenant_slug="audit-bypass-other",
+        role=Role.OWNER,
+    )
+    own = _event(admin_session, mine.id, "report.released")
+    foreign = _event(admin_session, other.id, "report.released")
+    tenantless = _event(admin_session, None, "login.failed")
+    admin_session.commit()
+
+    page = audit_service.list_tenant_events(admin_session, tenant_id=mine.id, limit=200)
+
+    ids = {e.id for e in page.events}
+    assert own.id in ids
+    assert foreign.id not in ids
+    assert tenantless.id not in ids
+    assert {e.tenant_id for e in page.events} == {mine.id}
+
+
+def test_a_colleague_who_also_works_elsewhere_shows_only_what_they_did_here(  # type: ignore[no-untyped-def]
+    client, admin_session
+) -> None:
+    person, here = _owner(client, admin_session, "multi-here")
+    _elsewhere_owner, elsewhere = provision_staff(
+        admin_session,
+        email="owner-multi-elsewhere@synthetic.example",
+        tenant_name="Audit Multi Elsewhere",
+        tenant_slug="audit-multi-elsewhere",
+        role=Role.OWNER,
+    )
+    make_membership(admin_session, user_id=person.id, tenant_id=elsewhere.id, role=Role.CLINICIAN)
+    admin_session.commit()
+    select_tenant(client, elsewhere.id)
+    made = client.post("/api/v1/patients", json={"display_name": "Synthetic Elsewhere"})
+    assert made.status_code == 201, made.text
+    select_tenant(client, here.id)
+
+    items = _walk(client, actor_user_id=str(person.id))
+
+    assert items
+    assert {i["id"] for i in items} <= _tenant_event_ids(admin_session, here.id)
+    assert "patient.create" not in {i["action"] for i in items}
+    assert _walk(client, target_id=made.json()["id"]) == []
 
 
 def test_paging_neither_skips_nor_repeats_an_event(client, admin_session) -> None:  # type: ignore[no-untyped-def]
@@ -217,26 +338,30 @@ def test_paging_neither_skips_nor_repeats_an_event(client, admin_session) -> Non
 
 
 def test_filters(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """Events as the routes write them: a read of a record is filed under the record; a report,
+    under the report."""
     user, tenant = _owner(client, admin_session, "filters")
-    patient, other_patient = uuid.uuid4(), uuid.uuid4()
+    patient, report, item = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
     colleague = uuid.uuid4()
     day = datetime(2026, 3, 10, 9, tzinfo=UTC)
     rows = [
-        ("patient.read", patient, user.id, day),
-        ("patient.create", patient, user.id, day + timedelta(hours=1)),
-        ("patient.list", None, user.id, day + timedelta(hours=2)),
-        ("patient_view", other_patient, None, day + timedelta(hours=3)),
-        ("report.patient_view", patient, None, day + timedelta(days=1)),
-        ("report.released", patient, None, day + timedelta(days=2)),
-        ("rate_limited", None, None, day + timedelta(days=3)),
+        ("patient.read", "patient", patient, user.id, day),
+        ("patient.create", "patient", patient, user.id, day + timedelta(hours=1)),
+        ("patient.list", None, None, user.id, day + timedelta(hours=2)),
+        ("observation.read", "patient", patient, user.id, day + timedelta(hours=3)),
+        ("review_item.resolved", "review_item", item, user.id, day + timedelta(hours=4)),
+        # Only a wildcard would take this for the "review_item" family.
+        ("reviewXitem.resolved", "review_item", item, user.id, day + timedelta(hours=5)),
+        ("report.released", "report", report, user.id, day + timedelta(days=1)),
+        ("report.patient_view", "report", report, None, day + timedelta(days=2)),
     ]
-    for action, target, actor, at in rows:
+    for action, target_type, target, actor, at in rows:
         _event(
             admin_session,
             tenant.id,
             action,
             target_id=target,
-            target_type="patient" if target else None,
+            target_type=target_type,
             actor_user_id=actor,
             created_at=at,
         )
@@ -244,66 +369,78 @@ def test_filters(client, admin_session) -> None:  # type: ignore[no-untyped-def]
     window = {"since": "2026-03-01T00:00:00Z", "until": "2026-04-01T00:00:00Z"}
 
     def actions(**params: object) -> list[str]:
-        return sorted(i["action"] for i in _walk(client, **window, **params))
+        return sorted(i["action"] for i in _walk(client, **{**window, **params}))
 
-    # A category is the part before the first dot — "patient" is not "patient_view".
+    # A category is the part before the first dot.
     assert actions(category="patient") == ["patient.create", "patient.list", "patient.read"]
+    assert actions(category="observation") == ["observation.read"]
     assert actions(category="report") == ["report.patient_view", "report.released"]
-    assert actions(category="rate_limited") == ["rate_limited"]
-    assert actions(category="patient_view") == ["patient_view"]
     # "_" is a letter here, not a wildcard.
-    assert actions(category="patien_") == []
-    # Staff reads and listings are the bulk of a trail; a patient opening a report is not one.
+    assert actions(category="review_item") == ["review_item.resolved"]
+    # Staff reads and listings can be left out; a report opened through a patient link is not
+    # one of them.
     assert actions(exclude_reads="true") == [
         "patient.create",
-        "patient_view",
-        "rate_limited",
         "report.patient_view",
         "report.released",
+        "reviewXitem.resolved",
+        "review_item.resolved",
     ]
-    assert actions(target_id=str(patient)) == [
-        "patient.create",
-        "patient.read",
-        "report.patient_view",
-        "report.released",
-    ]
-    assert actions(actor_user_id=str(user.id)) == ["patient.create", "patient.list", "patient.read"]
+    # By record: what is filed under that record — its reads included, the report not.
+    assert actions(target_id=str(patient)) == ["observation.read", "patient.create", "patient.read"]
+    assert actions(target_id=str(report)) == ["report.patient_view", "report.released"]
+    assert len(actions(actor_user_id=str(user.id))) == 7
     assert actions(actor_user_id=str(colleague)) == []
-    # since is inclusive, until exclusive.
-    one_day = {"since": "2026-03-10T00:00:00Z", "until": "2026-03-11T09:00:00Z"}
-    assert sorted(i["action"] for i in _walk(client, **one_day)) == [
-        "patient.create",
-        "patient.list",
-        "patient.read",
-        "patient_view",
-    ]
+    # since is inclusive, until exclusive — to the instant.
+    first = day.isoformat()
+    assert "patient.read" in actions(since=first)
+    assert "patient.read" not in actions(since=(day + timedelta(microseconds=1)).isoformat())
+    assert "patient.read" not in actions(until=first)
+    assert "patient.read" in actions(until=(day + timedelta(microseconds=1)).isoformat())
     # An event nobody signed in caused has no actor.
-    released = next(i for i in _walk(client, **window) if i["action"] == "report.released")
-    assert released["actor"] is None
+    opened = next(i for i in _walk(client, **window) if i["action"] == "report.patient_view")
+    assert opened["actor"] is None
+
+
+def _cursor(raw: str) -> str:
+    return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
 
 
 @pytest.mark.parametrize(
     "params",
     [
         {"cursor": "not-a-cursor"},
-        {"cursor": "MjAyNi0wMS0wMVQxMjowMDowMHxub3QtYS11dWlk"},  # "2026-01-01T12:00:00|not-a-uuid"
+        {"cursor": _cursor("2026-01-01T12:00:00+00:00|not-a-uuid")},
+        # No offset: a position in which zone?
+        {"cursor": _cursor("2026-01-01T12:00:00|3f0b2c1e-7a55-4c0e-9d53-0a4f6f0d2b11")},
         {"limit": 0},
         {"limit": 201},
+        # A category is one of a closed set — not a pattern, and not a place to put text.
         {"category": "Report"},
         {"category": "report.released"},
         {"category": "re%"},
+        {"category": "patien_"},
+        {"category": "rate_limited"},
+        {"category": "auth"},
+        {"category": "erika_mustermann_diabetes"},
         {"target_id": "not-a-uuid"},
         {"since": "2026-03-10T00:00:00"},  # no offset: which day is meant?
         {"until": "yesterday"},
     ],
 )
 def test_a_malformed_request_is_refused(client, admin_session, params: dict) -> None:  # type: ignore[no-untyped-def, type-arg]
-    _owner(client, admin_session, "bad")
+    _user, tenant = _owner(client, admin_session, "bad")
     resp = client.get(URL, params=params)
     assert resp.status_code == 422, (params, resp.text)
     for value in params.values():
         if isinstance(value, str) and len(value) > 6:
             assert value not in resp.text  # the input is not echoed
+    # A refused read is not a read: nothing was returned, nothing is recorded as read — and
+    # nothing of the request reached the trail.
+    recorded = admin_session.execute(
+        select(AuditEvent.action).where(AuditEvent.tenant_id == tenant.id)
+    ).scalars()
+    assert set(recorded) == {"tenant.select"}
 
 
 def test_a_member_who_left_still_has_a_name_in_the_trail(client, admin_session) -> None:  # type: ignore[no-untyped-def]
@@ -325,5 +462,139 @@ def test_a_member_who_left_still_has_a_name_in_the_trail(client, admin_session) 
 
     created = next(i for i in _walk(client) if i["action"] == "patient.create")
 
-    assert created["actor"]["user_id"] == str(clinician.id)
-    assert created["actor"]["display_name"] == clinician.display_name
+    assert created["actor"] == {
+        "user_id": str(clinician.id),
+        "display_name": clinician.display_name,
+        "email": clinician.email,
+    }
+
+
+# --- The vocabulary of the trail, held against the code that writes it ---------------------
+
+
+def _audit_writes() -> list[tuple[str, bool, str | None, str]]:
+    """Every audit write in the API source: (action, recorded with a tenant, target type, where)."""
+    writes: list[tuple[str, bool, str | None, str]] = []
+    unresolved: list[str] = []
+    for path in sorted(_API_SRC.rglob("*.py")):
+        tree = ast.parse(path.read_text())
+        constants = {
+            target.id: node.value.value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Assign)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+            for target in node.targets
+            if isinstance(target, ast.Name)
+        }
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+            if name not in {"record_audit", "record_security_event"}:
+                continue
+            where = f"{path.relative_to(_API_SRC)}:{node.lineno}"
+            keywords = {k.arg: k.value for k in node.keywords if k.arg}
+            action = keywords.get("action")
+            if isinstance(action, ast.Constant) and isinstance(action.value, str):
+                code = action.value
+            elif isinstance(action, ast.Name) and action.id in constants:
+                code = constants[action.id]
+            else:
+                unresolved.append(where)
+                continue
+            tenant = keywords.get("tenant_id")
+            with_tenant = tenant is not None and not (
+                isinstance(tenant, ast.Constant) and tenant.value is None
+            )
+            target = keywords.get("target_type")
+            target_type = target.value if isinstance(target, ast.Constant) else None
+            assert target is None or target_type, f"{where}: target type is not a literal"
+            writes.append((code, with_tenant, target_type, where))
+    # The one write whose action is not a literal: record_security_event passing its own on.
+    assert [w.split(":")[0] for w in unresolved] == ["modules/audit/service.py"], unresolved
+    return writes
+
+
+def _copy_keys(name: str) -> set[str]:
+    """The keys of one `const NAME… = { … };` table in the web's audit copy."""
+    source = _AUDIT_COPY.read_text()
+    block = re.search(rf"const {name}\b[^=]*= \{{\n(.*?)\n\}};", source, re.DOTALL)
+    assert block, name
+    return set(re.findall(r'^  "?([A-Za-z_.]+)"?:', block.group(1), re.MULTILINE))
+
+
+def test_the_categories_are_the_families_of_events_a_clinic_can_hold() -> None:
+    writes = _audit_writes()
+    with_tenant = {action for action, tenant, _target, _where in writes if tenant}
+    # The category filter is "<family>." — it relies on every such action having a dot.
+    assert all("." in action for action in with_tenant)
+    families = {action.split(".")[0] for action in with_tenant}
+
+    assert families == {c.value for c in AuditCategory}
+    # What is recorded without a tenant, and so never in any clinic's trail. The page that shows
+    # the trail says so; a new family here needs that sentence looked at.
+    tenantless = {action for action, tenant, _target, _where in writes if not tenant}
+    assert tenantless == {
+        "auth.dev_login",
+        "auth.logout",
+        "login.failed",
+        "csrf.denied",
+        "rate_limited",
+        "authz.denied",  # before a clinic is selected, or by someone who is no longer a member
+    }
+
+
+def test_the_web_names_exactly_what_the_trail_can_hold() -> None:
+    """A label for an action that is never written is a claim about a trail that does not
+    exist; an action without a label is shown as a bare code."""
+    writes = _audit_writes()
+    assert _copy_keys("ACTION_LABELS") == {action for action, tenant, _t, _w in writes if tenant}
+    assert _copy_keys("TARGET_LABELS") == {target for _a, _tenant, target, _w in writes if target}
+    assert _copy_keys("CATEGORY_LABELS") == {c.value for c in AuditCategory}
+    # What the page says a search by patient record finds (AuditContent.tsx, "Was dieses
+    # Protokoll nicht zeigt"): the events filed under the record itself.
+    assert {action for action, _tenant, target, _w in writes if target == "patient"} == {
+        "patient.create",
+        "patient.read",
+        "observation.read",
+        "interpretation.read",
+        "consent.read",
+        "consent.granted",
+        "consent.withdrawn",
+        "document.list",
+        "privacy.export",
+    }
+
+
+def test_the_reads_that_leave_no_trace_are_the_ones_the_page_names() -> None:
+    """The page lists what is not recorded. A read that starts or stops being recorded changes
+    that sentence (AuditContent.tsx) — this fails until someone has looked at it."""
+    silent: set[tuple[str, str]] = set()
+    for path in sorted((_API_SRC / "api").glob("*.py")):
+        for node in ast.parse(path.read_text()).body:
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            is_get = any(
+                isinstance(d, ast.Call) and getattr(d.func, "attr", None) == "get"
+                for d in node.decorator_list
+            )
+            records = any(
+                isinstance(call, ast.Call) and getattr(call.func, "id", None) == "record_audit"
+                for call in ast.walk(node)
+            )
+            if is_get and not records:
+                silent.add((path.name, node.name))
+
+    assert silent == {
+        # No clinic's data: liveness, and the session's own identity and clinics.
+        ("health.py", "health"),
+        ("auth_routes.py", "me"),
+        ("tenancy_routes.py", "my_tenants"),
+        # Named on the page as not recorded.
+        ("reports_routes.py", "get_report"),
+        ("members_routes.py", "list_members"),
+        ("staff_invitations_routes.py", "list_staff_invitations"),
+        ("privacy_routes.py", "list_deletion_requests"),
+        ("privacy_routes.py", "list_patient_data_exports"),
+    }

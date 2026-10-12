@@ -1,23 +1,27 @@
-"use client";
-
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import type { CSSProperties } from "react";
 
-import type { AuditEvent, AuditPage } from "@/lib/api";
+import type { AuditCategory, AuditEvent, AuditPage } from "@/lib/api";
 import { AUDIT_CATEGORIES, actionLabel, targetLabel } from "@/lib/auditCopy";
+import { CLINIC_TIME_ZONE, clinicTime } from "@/lib/clinicTime";
 
-// The audit trail as a table: when, who, what, on which record, with which details. Filters
-// and the paging position are URL parameters (the server reads them), so the table itself
-// holds no data of its own. Times are shown in the reader's own time zone once the page runs
-// in the browser; until then in UTC, said so.
+// The audit trail as a table: when, who, what, on which record, with which details. Rendered
+// on the server — only what is shown leaves it. Filters and the paging position are URL
+// parameters the page has already validated; the filter is a plain GET form. Times are on the
+// clinic's wall clock, and say so.
+//
+// No link on this page is prefetched. A row carries up to two links and a page fifty rows; a
+// prefetch asks the server for a page nobody chose to open. (Measured on the production build,
+// Next 15.5: such a request is answered with the shell only and records no read. Not
+// prefetching keeps this page from depending on that.)
 
 export interface AuditQuery {
-  category?: string;
+  category?: AuditCategory;
   target?: string;
-  since?: string;
-  until?: string;
-  reads: boolean;
+  // Calendar days (YYYY-MM-DD) on the clinic's wall clock; `to` is the last day shown.
+  from?: string;
+  to?: string;
+  hideReads: boolean;
 }
 
 const cardStyle: CSSProperties = {
@@ -72,36 +76,20 @@ const labelStyle: CSSProperties = {
   color: "var(--text-muted)",
 };
 
+const noteStyle: CSSProperties = { fontSize: "12.5px", margin: "0 0 12px" };
+
+const PATH = "/einstellungen/audit";
+
 function href(query: AuditQuery, extra?: { cursor?: string }): string {
   const qs = new URLSearchParams();
   if (query.category) qs.set("category", query.category);
   if (query.target) qs.set("target", query.target);
-  if (query.since) qs.set("since", query.since);
-  if (query.until) qs.set("until", query.until);
-  if (query.reads) qs.set("reads", "1");
+  if (query.from) qs.set("from", query.from);
+  if (query.to) qs.set("to", query.to);
+  if (query.hideReads) qs.set("reads", "0");
   if (extra?.cursor) qs.set("cursor", extra.cursor);
   const text = qs.toString();
-  return text ? `/einstellungen/audit?${text}` : "/einstellungen/audit";
-}
-
-// A calendar day in the reader's zone -> the instant it begins.
-function dayStart(day: string, addDays = 0): string | undefined {
-  const [y, m, d] = day.split("-").map(Number);
-  if (!y || !m || !d) return undefined;
-  const at = new Date(y, m - 1, d + addDays);
-  return Number.isNaN(at.getTime()) ? undefined : at.toISOString();
-}
-
-// An instant -> the calendar day it falls on in the reader's zone (YYYY-MM-DD).
-function localDay(iso: string | undefined, shiftMs = 0): string {
-  if (!iso) return "";
-  const at = new Date(new Date(iso).getTime() + shiftMs);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
-}
-
-function shortId(id: string): string {
-  return id.slice(0, 8);
+  return text ? `${PATH}?${text}` : PATH;
 }
 
 function detailText(value: unknown): string {
@@ -112,32 +100,14 @@ function detailText(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function When({ iso, local }: { iso: string; local: boolean }) {
-  const at = new Date(iso);
-  const text = local
-    ? `${at.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}, ${at.toLocaleTimeString("de-DE")}`
-    : `${iso.slice(0, 10)} ${iso.slice(11, 19)} UTC`;
-  return (
-    <time dateTime={iso} style={{ whiteSpace: "nowrap" }}>
-      {text}
-    </time>
-  );
-}
-
-function Row({
-  event,
-  query,
-  local,
-}: {
-  event: AuditEvent;
-  query: AuditQuery;
-  local: boolean;
-}) {
+function Row({ event, query }: { event: AuditEvent; query: AuditQuery }) {
   const details = Object.entries(event.detail);
   return (
     <tr>
       <td style={{ ...tdStyle, paddingLeft: "22px" }}>
-        <When iso={event.occurred_at} local={local} />
+        <time dateTime={event.occurred_at} style={{ whiteSpace: "nowrap" }}>
+          {clinicTime(event.occurred_at)}
+        </time>
       </td>
       <td style={tdStyle}>
         {event.actor ? (
@@ -166,14 +136,17 @@ function Row({
             <div style={mono}>
               <Link
                 href={href({ ...query, target: event.target_id })}
+                prefetch={false}
                 title="Nur Einträge zu diesem Datensatz anzeigen"
               >
-                {shortId(event.target_id)}
+                {event.target_id.slice(0, 8)}
               </Link>
               {event.target_type === "patient" && (
                 <>
                   {" · "}
-                  <Link href={`/patients/${event.target_id}`}>Akte öffnen</Link>
+                  <Link href={`/patients/${event.target_id}`} prefetch={false}>
+                    Akte öffnen
+                  </Link>
                 </>
               )}
             </div>
@@ -206,30 +179,8 @@ export function AuditContent({
   continued: boolean;
   stalePosition: boolean;
 }) {
-  const router = useRouter();
-  // The reader's time zone is known only in the browser.
-  const [local, setLocal] = useState(false);
-  useEffect(() => setLocal(true), []);
-
-  const apply = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    const from = String(form.get("from") ?? "");
-    const to = String(form.get("to") ?? "");
-    router.push(
-      href({
-        category: String(form.get("category") ?? "") || undefined,
-        target: query.target,
-        since: from ? dayStart(from) : undefined,
-        // "bis" is the last day shown: the window ends when the next day begins.
-        until: to ? dayStart(to, 1) : undefined,
-        reads: form.get("reads") === "on",
-      }),
-    );
-  };
-
   const filtered = Boolean(
-    query.category || query.target || query.since || query.until || query.reads,
+    query.category || query.target || query.from || query.to || query.hideReads,
   );
 
   return (
@@ -240,22 +191,76 @@ export function AuditContent({
           color: "var(--text-muted)",
           fontSize: "13px",
           lineHeight: 1.55,
+          margin: "0 0 10px",
+          maxWidth: "92ch",
+        }}
+      >
+        Die protokollierten Vorgänge dieser Praxis: wer, wann, welcher Vorgang,
+        an welchem Datensatz. Ein Eintrag enthält Kennungen, Codes, Zähler und
+        Zeitpunkte – keine Messwerte und keine Namen von Patientinnen und
+        Patienten. Wer gehandelt hat, ist mit dem Namen und der E-Mail-Adresse
+        des Kontos angegeben. Die Anwendung fügt Einträge nur an; sie ändert und
+        löscht keine. Zeiten in der Zeitzone {CLINIC_TIME_ZONE}.
+      </p>
+      <details
+        style={{
+          color: "var(--text-muted)",
+          fontSize: "12.5px",
+          lineHeight: 1.55,
           margin: "0 0 18px",
           maxWidth: "92ch",
         }}
       >
-        Was in dieser Praxis geschehen ist: wer, wann, welcher Vorgang, an
-        welchem Datensatz. Das Protokoll enthält Kennungen, Codes und Zeitpunkte
-        — keine Messwerte und keine Namen von Patientinnen und Patienten.
-        Einträge werden nur angefügt, nie geändert oder gelöscht. Anmeldungen
-        werden erfasst, bevor eine Praxis ausgewählt ist, und erscheinen deshalb
-        hier nicht; der Eintritt in die Praxis schon.
-      </p>
+        <summary style={{ cursor: "pointer", color: "var(--text-body)" }}>
+          Was dieses Protokoll nicht zeigt
+        </summary>
+        <ul style={{ margin: "8px 0 0", paddingLeft: "18px" }}>
+          <li>
+            Vorgänge ohne Bezug zu einer Praxis: Anmeldung und Abmeldung,
+            fehlgeschlagene Anmeldungen, gedrosselte und aus Sicherheitsgründen
+            abgewiesene Anfragen sowie Zugriffsversuche ohne ausgewählte Praxis
+            oder nach dem Ende einer Mitgliedschaft. Der Eintritt in die Praxis
+            ist protokolliert.
+          </li>
+          <li>
+            Derzeit nicht protokolliert: das Lesen eines Berichts durch
+            Mitarbeitende und das Lesen der Verwaltungslisten (Mitglieder,
+            Teameinladungen, Löschanträge, Verlauf der Datenauskünfte).
+          </li>
+          <li>
+            Ein Eintrag steht unter dem Datensatz, an dem er protokolliert ist.
+            Unter einer Akte stehen das Anlegen und Öffnen der Akte, das Lesen
+            von Werten, Interpretation, Einwilligungen und Dateiliste, die
+            Einwilligungen und die Datenauskunft. Berichte, Dateien,
+            Einlesevorgänge, Review-Einträge, Einladungen und Löschanträge
+            stehen unter ihrer eigenen Kennung und erscheinen bei der Auswahl
+            einer Akte nicht.
+          </li>
+          <li>
+            Listenansichten (Aktenliste, Übersicht, Review-Queue) sind als
+            Lesezugriff protokolliert, ohne die einzelnen Akten zu nennen.
+          </li>
+          <li>
+            Einträge zu einer gelöschten Akte bleiben mit der Kennung der Akte
+            erhalten.
+          </li>
+          <li>
+            Einträge, die in derselben Anfrage entstehen, tragen denselben
+            Zeitpunkt; ihre Reihenfolge untereinander ist nicht festgelegt.
+          </li>
+          <li>
+            Beim Blättern zu älteren Einträgen kann ein Eintrag fehlen, der erst
+            während des Lesens gespeichert wurde. Ein erneutes Laden der ersten
+            Seite zeigt ihn.
+          </li>
+        </ul>
+      </details>
 
       <form
-        // The URL is the state: a new filter set re-mounts the form with its values.
-        key={href(query) + String(local)}
-        onSubmit={apply}
+        // The URL is the state: another selection re-mounts the form with its values.
+        key={href(query)}
+        method="get"
+        action={PATH}
         style={{
           ...cardStyle,
           padding: "16px 22px",
@@ -286,7 +291,7 @@ export function AuditContent({
           <input
             type="date"
             name="from"
-            defaultValue={local ? localDay(query.since) : ""}
+            defaultValue={query.from ?? ""}
             style={fieldStyle}
           />
         </label>
@@ -295,8 +300,7 @@ export function AuditContent({
           <input
             type="date"
             name="to"
-            // The window ends at the start of the next day; show the day before that.
-            defaultValue={local ? localDay(query.until, -1) : ""}
+            defaultValue={query.to ?? ""}
             style={fieldStyle}
           />
         </label>
@@ -310,9 +314,17 @@ export function AuditContent({
             color: "var(--text-body)",
           }}
         >
-          <input type="checkbox" name="reads" defaultChecked={query.reads} />
-          Lesezugriffe anzeigen
+          <input
+            type="checkbox"
+            name="reads"
+            value="0"
+            defaultChecked={query.hideReads}
+          />
+          Lesezugriffe ausblenden
         </label>
+        {query.target && (
+          <input type="hidden" name="target" value={query.target} />
+        )}
         <button
           type="submit"
           style={{
@@ -328,25 +340,31 @@ export function AuditContent({
           Anwenden
         </button>
         {filtered && (
-          <Link
-            href="/einstellungen/audit"
-            style={{ fontSize: "12.5px", lineHeight: "36px" }}
-          >
+          <a href={PATH} style={{ fontSize: "12.5px", lineHeight: "36px" }}>
             Filter zurücksetzen
-          </Link>
+          </a>
         )}
       </form>
 
       {query.target && (
-        <p style={{ fontSize: "12.5px", margin: "0 0 12px" }}>
-          Nur Einträge zum Datensatz <span style={mono}>{query.target}</span>.{" "}
-          <Link href={href({ ...query, target: undefined })}>
+        <p style={noteStyle}>
+          Nur Einträge, die unter dem Datensatz{" "}
+          <span style={mono}>{query.target}</span> protokolliert sind.{" "}
+          <Link href={href({ ...query, target: undefined })} prefetch={false}>
             Alle Datensätze anzeigen
           </Link>
         </p>
       )}
+      {query.hideReads && (
+        <p style={noteStyle}>
+          Lesezugriffe sind ausgeblendet.{" "}
+          <Link href={href({ ...query, hideReads: false })} prefetch={false}>
+            Lesezugriffe einblenden
+          </Link>
+        </p>
+      )}
       {stalePosition && (
-        <p role="status" style={{ fontSize: "12.5px", margin: "0 0 12px" }}>
+        <p role="status" style={noteStyle}>
           Die aufgerufene Position ist nicht gültig. Angezeigt werden die
           neuesten Einträge.
         </p>
@@ -380,21 +398,26 @@ export function AuditContent({
             >
               <thead>
                 <tr>
-                  <th style={{ ...thStyle, paddingLeft: "22px" }}>Zeit</th>
-                  <th style={thStyle}>Wer</th>
-                  <th style={thStyle}>Vorgang</th>
-                  <th style={thStyle}>Datensatz</th>
-                  <th style={{ ...thStyle, paddingRight: "22px" }}>Details</th>
+                  <th scope="col" style={{ ...thStyle, paddingLeft: "22px" }}>
+                    Zeit
+                  </th>
+                  <th scope="col" style={thStyle}>
+                    Wer
+                  </th>
+                  <th scope="col" style={thStyle}>
+                    Vorgang
+                  </th>
+                  <th scope="col" style={thStyle}>
+                    Datensatz
+                  </th>
+                  <th scope="col" style={{ ...thStyle, paddingRight: "22px" }}>
+                    Details
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {page.items.map((event) => (
-                  <Row
-                    key={event.id}
-                    event={event}
-                    query={query}
-                    local={local}
-                  />
+                  <Row key={event.id} event={event} query={query} />
                 ))}
               </tbody>
             </table>
@@ -411,11 +434,18 @@ export function AuditContent({
         }}
       >
         {page.next_cursor && (
-          <Link href={href(query, { cursor: page.next_cursor })}>
+          <Link
+            href={href(query, { cursor: page.next_cursor })}
+            prefetch={false}
+          >
             Ältere Einträge
           </Link>
         )}
-        {continued && <Link href={href(query)}>Zu den neuesten Einträgen</Link>}
+        {continued && (
+          <Link href={href(query)} prefetch={false}>
+            Zu den neuesten Einträgen
+          </Link>
+        )}
       </p>
     </div>
   );

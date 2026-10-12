@@ -54,10 +54,14 @@ surface rather than a clinic-staff role.
   — one file with the person's own data and released content only, never stored, audited;
   `docs/product/DATA_EXPORT.md`. Erasure is a two-person gate with the medical director,
   `docs/notes/0012`. The owner reads the clinic's audit trail under Einstellungen →
-  Audit-Protokoll: newest first, filtered by area, day and record, each entry with who acted;
-  it shows the events recorded for this clinic — identifiers, codes and timings — and reading
-  it is itself recorded. Sign-ins are recorded before a clinic is selected and are not part of
-  a clinic's trail; entering the clinic is.)_
+  Audit-Protokoll: newest first, filtered by area, day and record, each entry with the account
+  that acted (name and e-mail address); it shows the events recorded for this clinic —
+  identifiers, codes, counts and timings, on the clinic's wall clock, reads included unless the
+  reader hides them — and reading it is itself recorded. The page states what the trail does
+  not hold: events without a clinic (sign-in and sign-out, requests refused before a clinic is
+  selected), reads that are not recorded yet (a report, the administrative lists), and that a
+  report, a file or an import is filed under its own id, not under the patient record;
+  `docs/notes/0006`.)_
 - Captures the per-clinic preparation-time **baseline** at onboarding (see §6).
 - May not approve or release patient-facing reports unless that user is also a clinician — approval
   is a clinical act (§4.3).

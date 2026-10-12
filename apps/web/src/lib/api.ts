@@ -436,8 +436,9 @@ export const revokeStaffInvitation = (invitationId: string) =>
 // The clinic's own audit trail (owner-only server-side): newest first, paged by a cursor.
 export type AuditEvent = Schemas["AuditEventOut"];
 export type AuditPage = Schemas["AuditPageOut"];
+export type AuditCategory = Schemas["AuditCategory"];
 export interface AuditFilters {
-  category?: string;
+  category?: AuditCategory;
   target_id?: string;
   since?: string;
   until?: string;
