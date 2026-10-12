@@ -61,7 +61,10 @@ from hadp_api.modules.reports import service as reports_service
 from hadp_api.modules.tenancy.models import Tenant
 
 FORMAT_NAME = "hadp-patient-export"
-FORMAT_VERSION = "1"
+# 2: `reference_low` / `reference_high` are also given for a value that is not normalized, in
+# the source's unit (version 1 gave them for normalized values only), and decimals are written
+# in plain notation (version 1 could write "0E-7").
+FORMAT_VERSION = "2"
 # The package is built in memory (about twice the size of the files while it is assembled):
 # beyond this the original files do not fit one request.
 MAX_DOCUMENT_BYTES = 100 * 1024 * 1024

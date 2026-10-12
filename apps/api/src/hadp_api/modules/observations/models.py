@@ -84,10 +84,12 @@ class Observation(UUIDPrimaryKey, TimestampCreated, Base):
 
     # --- The value as a number, and its normalized representation ---
     # numeric_value: the SOURCE's value as a number, in the source's unit (original_unit); NULL
-    # when the source did not write a plain number.
-    # normalized_value / normalized_unit: the value in the catalog's canonical unit — set only
-    # when the name resolved to a catalog KPI and the unit is its canonical unit or converts by
-    # an approved factor. NULL otherwise: the value is then held as numeric_value/original_unit.
+    # when it is not one number — a text result, a number with an addition, or a number that
+    # reads two ways ("4.000").
+    # normalized_value / normalized_unit: the value in its KPI's canonical unit — set only for
+    # a name the import acts on by itself (imports/normalize.py) whose unit is that unit or
+    # converts to it by an approved factor. NULL otherwise: the value is then held as
+    # numeric_value/original_unit.
     # reference_low / reference_high: the source's bounds as numbers, in the unit of the value
     # the platform holds (normalized_unit when normalized, else original_unit).
     value_type: Mapped[ValueType] = mapped_column(pg_enum(ValueType), nullable=False)

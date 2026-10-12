@@ -17,7 +17,7 @@ from hadp_api.modules.enums import (
     KpiStatus,
 )
 from hadp_api.modules.kpi.catalog_data import CATALOG_VERSION, kpi_rows
-from hadp_api.modules.kpi.models import KpiCatalog
+from hadp_api.modules.kpi.models import KpiAlias, KpiCatalog
 from hadp_api.modules.kpi.service import load_terminology, resolve_kpi_code, seed_terminology
 
 _BLOCKED = {
@@ -97,9 +97,9 @@ def test_the_import_terminology_is_the_seeded_catalog(admin_session: Session) ->
     assert loaded == seed_terminology()
     term = loaded.resolve("  LDL Cholesterol ")
     assert term is not None
-    assert (term.kpi_code, term.canonical_unit, term.automatic) == ("cardio.ldl_c", "mmol/L", True)
+    assert (term.kpi_code, term.canonical_unit) == ("cardio.ldl_c", "mmol/L")
     grip = loaded.resolve("Griffstärke")
-    assert grip is not None and grip.automatic is False  # a functional test needs its context
+    assert grip is not None and grip.kpi_code == "msk.grip_strength"
     assert loaded.resolve("totally unknown marker") is None
 
 
@@ -112,6 +112,23 @@ def test_a_kpi_that_is_not_active_resolves_to_nothing(admin_session: Session) ->
         loaded = load_terminology(admin_session)
         assert loaded.resolve("LDL Cholesterol") is None
         assert loaded.resolve("HDL cholesterol") is not None
+    finally:
+        admin_session.rollback()
+
+
+def test_an_alias_of_one_source_system_is_not_part_of_the_global_terminology(
+    admin_session: Session,
+) -> None:
+    """A name one laboratory uses for a KPI says nothing about what another source means by
+    it. Only global aliases resolve."""
+    try:
+        admin_session.add(
+            KpiAlias(kpi_code="immune.ferritin", alias_normalized="fer-x", source_system="lab-x")
+        )
+        admin_session.flush()
+        loaded = load_terminology(admin_session)
+        assert loaded.resolve("FER-X") is None
+        assert loaded.resolve("Ferritin") is not None
     finally:
         admin_session.rollback()
 

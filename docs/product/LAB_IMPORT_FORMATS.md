@@ -46,38 +46,43 @@ Common to all readers:
 What normalization then does (`modules/imports/normalize.py`, version `norm-2`; it applies to
 manual entry as well):
 
-- **The terminology is the KPI catalog** (ADR-0004). A name resolves to a catalog KPI through an
-  exact alias — the KPI's own name or a listed alias, compared without case and outer blanks — or
-  it does not resolve. "Creatinine" resolves; "Creatinin", "Serum creatinine" and "Creatinine
-  (urine)" do not. A name that does not resolve is `unmapped_metric` and waits for a human.
-- **Only where values compare on KPI and unit alone**: laboratory values, vital signs and
-  anthropometric measures. A body-composition, functional-test, wearable, imaging or omics KPI
-  means one measurement only together with its device, instrument version or protocol; a row
-  with a name and a number carries none of that, so it is not normalized (`unmapped_metric`),
-  whatever its name.
-- **The unit must be the KPI's canonical unit, or an approved pair.** The canonical unit is
-  recognized in the catalog's notation (UCUM); two spellings are brought into it, and neither is
-  a conversion: the micro sign (`µmol/l` = `umol/L`) and the litre (`mmol/l` = `mmol/L`).
-  Everything else is compared exactly, case included — `G/l` (10⁹ per litre) is not `g/l`.
+- **A name is looked up in the KPI catalog** (ADR-0004) through an exact alias — the KPI's own
+  name or a listed alias, compared without case and outer blanks. "Creatinine" resolves;
+  "Creatinin", "Serum creatinine" and "Creatinine (urine)" do not. The KPI is recorded on the row
+  as where the value belongs. That is all the catalog decides.
+- **The import acts on six names by itself, as before:** `LDL`, `LDL Cholesterol`,
+  `Total cholesterol`, `HDL cholesterol`, `Glucose`, `HbA1c` — each bound to its KPI and unit, and
+  only while the catalog says the same. Their values are normalized, and published without a human
+  when nothing else speaks against it. **Every other value waits for a clinician**
+  (`unmapped_metric`), whatever the catalog knows about its name: the catalog says what a name may
+  mean, not that a value under it may go unread. The import does not know the specimen (a
+  "Material" column is ignored; LDT fields 8428–8431 are not read), whether the number is
+  plausible, or who typed it. Which further names may publish unseen is a clinical decision per
+  name — ADR-0004 §18.
+- **For the six, the unit must be the KPI's unit or an approved pair.** Three spellings are
+  accepted in any letter case (`mg/dL`, `mmol/L`, `%`); every other unit is compared as written.
   Four KPI/unit pairs have an approved factor (LDL, HDL and total cholesterol, glucose:
-  mg/dL → mmol/L); reference bounds convert with the same factor. Any other unit — also one that
-  is the same quantity, such as ferritin in ng/mL against the canonical µg/L, or `U/L` against
-  `[IU]/L` — is `unsupported_unit` and waits for a human. No missing unit is read as the
-  canonical one.
+  mg/dL → mmol/L); reference bounds convert with the same factor. Any other unit is
+  `unsupported_unit` and waits for a human. No missing unit is read as the KPI's unit.
 - **A value that is not normalized keeps its number.** The source's number and its reference
-  bounds are stored as numbers, in the source's unit. Once a clinician has published the value
-  it is shown that way — value, unit, reference interval, position against that interval — and
-  marked "Einheit der Quelle". It takes no part in a change calculation: a change is computed
-  only between normalized values of one KPI.
+  bounds are stored as numbers, in the source's unit. In the tables it is shown that way, marked
+  "Einheit der Quelle", with its review status; a position against its reference interval is
+  shown only once a clinician has published it. It takes no part in a change calculation: a
+  change is computed only between normalized values of one KPI.
 - A value is a number only if it is a plain decimal: ASCII digits, an optional sign, `.` or `,` as
   the decimal separator, an optional small exponent. `NaN`, `Infinity`, digit-group underscores
-  (`3_4`) and other scripts' digits are **not** numbers; for a catalog KPI they go to review as
-  `unparseable_value`.
-- A reference bound the source gives but that is not such a number goes to review
-  (`unparseable_reference`) instead of silently turning a two-sided interval into a one-sided one.
-- A source code (LOINC) is stamped on six names only, exactly as before (`LDL`, `LDL Cholesterol`,
-  `Total cholesterol`, `HDL cholesterol`, `Glucose`, `HbA1c`). Every other resolved value carries
-  the catalog code and no external code.
+  (`3_4`), other scripts' digits and a number with two marks (`1.234,5`) are **not** numbers.
+- **A number that reads two ways is not read.** One to three digits, a mark, exactly three digits
+  — `4.000`, `1,250`, `150.000` — is a decimal number or a number grouped in thousands, and
+  nothing in the value says which. Such a value keeps the source's wording and has no number (for
+  one of the six names: `unparseable_value`). This is new with `norm-2`, also for the six names:
+  before, `4.000` was read as 4.
+- A reference bound the source gives but that cannot be read goes to review instead of silently
+  turning a two-sided interval into a one-sided one: `unparseable_reference` when it is not a
+  number, `ambiguous_reference` when it reads two ways. A pair whose lower bound lies above the
+  upper is not an interval: neither bound is held (`ambiguous_reference`).
+- A source code (LOINC) is stamped on the six names only, exactly as before. Every other value
+  carries the catalog code, if its name has one, and no external code.
 
 ## CSV — `hadp-csv` version 1
 

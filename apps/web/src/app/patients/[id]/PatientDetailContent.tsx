@@ -1075,6 +1075,18 @@ export function PatientDetailContent({
                   }}
                 >
                   {m.name}
+                  {m.statusLabel && (
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "var(--text-body)",
+                      }}
+                    >
+                      {m.statusLabel}
+                    </span>
+                  )}
                   {m.superseded && (
                     <span
                       style={{
@@ -1129,6 +1141,20 @@ export function PatientDetailContent({
                   }}
                 >
                   {m.current}
+                  {m.sourceNote && (
+                    <span
+                      title={m.sourceNote.full}
+                      style={{
+                        display: "block",
+                        fontFamily: "var(--font-text)",
+                        fontSize: "11px",
+                        fontWeight: 500,
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      {m.sourceNote.short}
+                    </span>
+                  )}
                 </span>
                 <span
                   style={{
@@ -1140,7 +1166,8 @@ export function PatientDetailContent({
                   {m.change}
                 </span>
                 <span>
-                  <LagePill pos={m.lagePosition} />
+                  {/* No position is stated for a value nobody has reviewed. */}
+                  {m.reviewRequired ? "—" : <LagePill pos={m.lagePosition} />}
                 </span>
                 <span>
                   <ReferenceBar marker={m} />
@@ -1629,7 +1656,9 @@ export function PatientDetailContent({
               >
                 {openMarker.current}
               </span>
-              <LagePill pos={openMarker.lagePosition} />
+              {!openMarker.reviewRequired && (
+                <LagePill pos={openMarker.lagePosition} />
+              )}
             </div>
             <div style={{ marginBottom: "16px" }}>
               <ReferenceBar marker={openMarker} />
@@ -1710,7 +1739,7 @@ export function PatientDetailContent({
                     color: "var(--text-body)",
                   }}
                 >
-                  {openMarker.status}
+                  {openMarker.statusLabel ?? "veröffentlicht"}
                 </span>
               </div>
             </div>
@@ -1746,9 +1775,15 @@ export function PatientDetailContent({
                 color: "var(--text-faint)",
               }}
             >
-              Lage relativ zum Quellreferenzintervall · keine automatische
-              Diagnose oder Therapieempfehlung.{" "}
-              {lageLabel(openMarker.lagePosition).sentence}.
+              {openMarker.reviewRequired ? (
+                "Für einen nicht veröffentlichten Wert wird keine Lage zum Referenzintervall angegeben."
+              ) : (
+                <>
+                  Lage relativ zum Quellreferenzintervall · keine automatische
+                  Diagnose oder Therapieempfehlung.{" "}
+                  {lageLabel(openMarker.lagePosition).sentence}.
+                </>
+              )}
             </p>
           </div>
         </Dialog>

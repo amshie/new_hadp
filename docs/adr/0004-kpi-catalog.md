@@ -701,39 +701,69 @@ re-verify external terminology mappings against the current releases before real
 
 - any unified or biological-age score;
 
-## 18. Addendum (2026-10-12) — the normalizer reads the catalog (§13 "Normalizer", go-live plan A2)
+## 18. Addendum (2026-10-12) — the import looks names up in the catalog (§13 "Normalizer", go-live plan A2)
 
-Until now the import normalizer (`modules/imports/normalize.py`) kept its own six-name table; the
-catalog only supplied `kpi_code`. Every other analyte was `unmapped_metric`, and on the read side
-such a value had no number at all. With normalization version `norm-2`:
+Until now the import normalizer (`modules/imports/normalize.py`) kept its own six-name table, and
+the catalog supplied `kpi_code` beside it. Every other analyte was `unmapped_metric`, and on the
+read side such a value had no number at all. With normalization version `norm-2`:
 
-- **`_TERMINOLOGY` is gone.** A name resolves through `load_terminology` — a per-import snapshot
-  of the global aliases of ACTIVE KPIs — to a KPI code and that KPI's canonical unit, or it does not
-  resolve. A deprecated or blocked KPI resolves to nothing.
-- **The conversion registry stays separate**, keyed by `(kpi_code, source unit)`. It holds the four
-  pairs that were approved before; none was added.
-- **A unit is compared in catalog notation.** Micro sign → `u` and litre → `L` are notation, not
-  conversion; everything else is exact and case-sensitive.
+- **A name is looked up in the catalog.** `load_terminology` — a per-import snapshot of the global
+  aliases of ACTIVE KPIs — gives the KPI a name may mean and that KPI's canonical unit. A deprecated
+  or blocked KPI resolves to nothing. The KPI is recorded on the row (`kpi_code`), as before.
+- **What the import acts on without a human has not changed: norm-1's six names.** They are bound in
+  the module (`_AUTOMATIC`) to their KPI and their unit, and the catalog has to say the same. Where
+  it does not — the KPI retired, the alias pointing elsewhere, another unit — the row waits for a
+  human. A catalog edit can take a name out of automatic handling; it cannot put one in.
+- **The conversion registry stays separate**, keyed by `(kpi_code, source unit, target unit)`. It
+  holds the four pairs that were approved before; none was added.
+- **Units are compared as norm-1 compared them:** three spellings in any letter case (`mg/dL`,
+  `mmol/L`, `%`), every other unit as written.
 - **A value that is not normalized keeps its number** (`observations.numeric_value`, with its bounds,
   in the source's unit; migration 0018 brings stored rows to that meaning). It stays out of every
-  change calculation.
+  change calculation, and no position against its reference interval is shown before a clinician
+  has published it.
+- **A number that reads two ways is not read.** One to three digits, a mark, exactly three digits —
+  "4.000", "1,250", "150.000" — is a decimal number, or a number grouped in thousands; nothing in
+  the value says which, and its size must not decide. Such a value has no number; such a reference
+  bound is not held (`ambiguous_reference`), and neither is a pair whose lower bound lies above the
+  upper. This holds for the six names too: norm-1 read "4.000" as 4.
+
+**Why "the catalog knows the name" is not "the import may act on it".** The first version of this
+step normalized — and so published without a human — every KPI whose comparison policy defaults to
+`method_aware`: 57 KPIs under 62 names. An independent review refused it. That policy answers
+whether two values may be compared without recorded context, not whether one value may go unread.
+An alias carries no sign-off (unlike `kpi_external_code`), display-name aliases are generated, and
+the import knows neither the specimen (§8) nor whether a number is plausible nor who typed it — an
+assistant may enter values and may not resolve the review queue. Which names publish unseen is a
+clinical decision, name by name, for a laboratory whose test list is known. Carrying it needs a
+signed fact in the catalog (an import mode on `kpi_alias`, with the write posture of migration 0004)
+and, for specimen-bound analytes, a specimen on the observation. Neither exists yet.
 
 **Deliberate limits — what §9/§13/§14 ask for and this step does not do:**
 
+- **§14's "every canonical code imports without `unmapped_metric`" is not met**, and engineering
+  alone cannot meet it (see above). A row whose name the catalog knows now waits under
+  `unmapped_metric` like any other: the reason says what the import did — it mapped nothing — not
+  what the catalog contains.
 - **Aliases only.** §9.1 puts a verified external code first. No reader carries a code from a
   source yet, so that path has nothing to resolve; `kpi_external_code` is unused by the import.
 - **Global aliases only.** A source-system namespace (§9.2) needs the import to know its
   laboratory; that arrives with the pilot laboratory.
-- **Automatic normalization only where the comparison policy is `method_aware`** (laboratory, vital
-  sign, anthropometric). §14's "every canonical code imports without `unmapped_metric`" therefore
-  holds for those 57 KPIs. The other 63 need recorded context to mean one measurement (§8); until
-  an import can carry it, a bare row of such a KPI waits for a human — under the reason
-  `unmapped_metric`, which is no longer an accurate name for "the catalog knows this, the import
-  may not act on it".
-- **No new alias, no new conversion.** The catalog's aliases are English display names plus the
-  thirteen seed aliases. German laboratory names, the unit spellings laboratories use (`U/l`,
-  `/nl`, `ng/ml`) and every further factor are catalog content: they need the pilot laboratory's
-  test list and a named clinician's sign-off, not an engineer's memory.
+- **No new alias, no new conversion, no unit notation.** German laboratory names, the unit spellings
+  laboratories use (`U/l`, `/nl`, `ng/ml`, the micro sign) and every further factor are catalog
+  content: they need the pilot laboratory's test list and a named clinician's sign-off, not an
+  engineer's memory.
+- **The readers do not carry the specimen.** The CSV reader ignores a column it does not know (a
+  "Material" column among them), and the LDT 2 reader does not read fields 8428–8431. For the six
+  names this is as it was under norm-1 — see the findings below.
+
+**Departures from earlier sections, recorded:**
+
+- **M3.** In the web, a value is tied to its analyte by the catalog code first and the source code
+  second (the review page's domain tables); before, by the source code only. A value that is not
+  normalized has no source code.
+- **§13 "Remove `_MARKERS_BY_AXIS`"** is not done here; the seed script still carries it.
+- **§6 tiers** play no part in the import.
 
 **Findings recorded for that sign-off (not changed here):**
 
@@ -741,10 +771,10 @@ such a value had no number at all. With normalization version `norm-2`:
   `13457-7`, `2093-3`, `2085-9` and `2345-7` are **mass-concentration** terms (`[Mass/volume]`),
   while the platform normalizes these analytes to `mmol/L`; the substance-concentration terms are
   `39469-2`, `14647-2`, `14646-4` and `14749-6`. None of the four is in the verified set of §11.
-  Only `4548-4` (HbA1c) is.
-- The alias `glucose` resolves to `metabolic.fasting_plasma_glucose`, and `vo2max` to
-  `regen.vo2peak_direct`. §9.8 says fasting status is never inferred, and §9.9 that an estimated
-  VO₂max never merges with a directly measured VO₂peak. Both aliases come from the seed
-  reconciliation (M4).
-- A name alone does not tell the specimen ("Creatinine" in serum or in urine). The readers do not
-  carry the specimen, so an exact alias can still map the wrong one.
+  Only `4548-4` (HbA1c) is. The codes are still stamped on new rows and are part of the data export.
+- Nobody has signed the six names either; they are what the platform did before. The weakest is
+  `glucose`: it resolves to `metabolic.fasting_plasma_glucose` (§9.8: fasting status is never
+  inferred), and a glucose from urine or cerebrospinal fluid in a file is published as that KPI and
+  compared with the last one. `vo2max` resolves to `regen.vo2peak_direct` (§9.9); it is not one of
+  the six. Both aliases come from the seed reconciliation (M4).
+- A name alone does not tell the specimen ("Creatinine" in serum or in urine).

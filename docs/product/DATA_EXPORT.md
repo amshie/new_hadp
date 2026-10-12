@@ -1,4 +1,4 @@
-# Patient data export — format `hadp-patient-export`, version 1
+# Patient data export — format `hadp-patient-export`, version 2
 
 Status: **built on synthetic data, 2026-10-12.** Not legal advice: what a complete answer to a
 subject-access request (GDPR Art. 15) or a portability request (Art. 20) must contain is a
@@ -71,7 +71,9 @@ product.
     (`metric_code`, `kpi_code`, `mapping_confidence`) and the measurement context the source
     supplied (method, protocol, device, versions). `reference_low` / `reference_high` are the
     source's bounds as numbers — in `normalized_unit` when a normalized value exists, otherwise
-    in the source's own unit (`original_unit`); `reference_text` is what the source wrote;
+    in the source's own unit (`original_unit`); a bound that could not be read one way is absent;
+    `reference_text` is what the source wrote. (Format version 1 gave the bounds for normalized
+    values only, and could write a small decimal with an exponent, "0E-7".);
   - when it was sampled (`observed_at`; a day only when the source named only a day) and received;
   - where it came from (`source_document_id`, `source_record_locator`); `source_document_withheld`
     is true when the value cites a stored file that is not part of the package (rule 1);

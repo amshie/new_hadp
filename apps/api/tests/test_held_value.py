@@ -1,24 +1,30 @@
 """A value the platform could not normalize keeps its number.
 
-Until normalization version norm-2 a value the terminology did not know — or in a unit
-without an approved conversion — had no number at all on the read side: the timeline, the
-tables and the interpretation evidence showed "—" under a name, although the source had
-written a number, a unit and a reference interval. Such a value is still not normalized and
-still waits for a human; once published it is shown as the source wrote it, in the source's
-unit, with the source's bounds — and it takes no part in a change calculation.
+Until normalization version norm-2 a value the import did not normalize — a name it does not
+act on by itself, or a unit without an approved conversion — had no number at all on the read
+side: the timeline, the tables and the interpretation evidence showed "—" under a name,
+although the source had written a number, a unit and a reference interval. Such a value is
+still not normalized and still waits for a human; once published it is shown as the source
+wrote it, in the source's unit, with the source's bounds — and it takes no part in a change
+calculation.
 """
 
 from __future__ import annotations
 
 import importlib.util
+import os
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
-from sqlalchemy import select
+import pytest
+from sqlalchemy import create_engine, select, text
+from sqlalchemy.exc import ProgrammingError
 
+from hadp_api.config import get_settings
 from hadp_api.modules.enums import ReviewStatus, Role, ValueType
+from hadp_api.modules.imports.normalize import is_one_number
 from hadp_api.modules.observations.models import Observation
 from hadp_api.modules.observations.service import held_value
 from tests.helpers import login_as
@@ -72,7 +78,7 @@ def test_the_timeline_shows_each_value_in_the_form_the_platform_holds(
                 "reference_high": "120",
                 **DAY,
             },
-            # Known, in a unit with no approved conversion: the same.
+            # A catalog KPI the import does not act on by itself: the same, with its KPI.
             {
                 "original_name": "Ferritin",
                 "original_value": "85",
@@ -81,7 +87,7 @@ def test_the_timeline_shows_each_value_in_the_form_the_platform_holds(
                 "reference_high": "400",
                 **DAY,
             },
-            # Known, converted by an approved factor.
+            # One of the six names, converted by an approved factor.
             {
                 "original_name": "LDL Cholesterol",
                 "original_value": "130",
@@ -90,7 +96,7 @@ def test_the_timeline_shows_each_value_in_the_form_the_platform_holds(
                 "reference_high": "116",
                 **DAY,
             },
-            # Known, in its canonical unit written the usual way.
+            # A catalog KPI in the catalog's own unit — still the source's writing.
             {
                 "original_name": "Creatinine",
                 "original_value": "80",
@@ -99,6 +105,15 @@ def test_the_timeline_shows_each_value_in_the_form_the_platform_holds(
             },
             # Not a number at all.
             {"original_name": "HIV-1/2 Screening", "original_value": "reaktiv", **DAY},
+            # A number that reads two ways: the source's wording, and no number.
+            {
+                "original_name": "Thrombozyten",
+                "original_value": "98.000",
+                "original_unit": "/µl",
+                "reference_low": "150.000",
+                "reference_high": "400.000",
+                **DAY,
+            },
         ],
     )
 
@@ -124,15 +139,18 @@ def test_the_timeline_shows_each_value_in_the_form_the_platform_holds(
     assert (ldl["reference_low"], ldl["reference_high"]) == ("0.0000000", "2.9997368")
 
     creatinine = by_name["Creatinine"]
-    assert (creatinine["value"], creatinine["unit"]) == ("80", "umol/L")
-    assert (creatinine["normalized"], creatinine["converted"]) == (True, False)
-    assert (creatinine["original_value"], creatinine["original_unit"]) == ("80", "µmol/l")
+    assert (creatinine["value"], creatinine["unit"]) == ("80", "µmol/l")
+    assert (creatinine["normalized"], creatinine["converted"]) == (False, False)
     assert (creatinine["kpi_code"], creatinine["metric_code"]) == ("regen.creatinine", None)
 
     text_result = by_name["HIV-1/2 Screening"]
     assert (text_result["value"], text_result["unit"]) == (None, None)
     assert text_result["original_value"] == "reaktiv"
     assert (text_result["normalized"], text_result["converted"]) == (False, False)
+
+    platelets = by_name["Thrombozyten"]
+    assert (platelets["value"], platelets["original_value"]) == (None, "98.000")
+    assert (platelets["reference_low"], platelets["reference_high"]) == (None, None)
 
 
 def test_a_value_that_is_not_normalized_takes_no_part_in_a_change(client, admin_session) -> None:  # type: ignore[no-untyped-def]
@@ -190,7 +208,7 @@ def test_a_value_that_is_not_normalized_takes_no_part_in_a_change(client, admin_
 def test_interpretation_evidence_shows_the_held_value_and_the_catalog_identity(
     client, admin_session
 ) -> None:  # type: ignore[no-untyped-def]
-    """A clinician may cite a published value the catalog does not know. The evidence then
+    """A clinician may cite a published value the import did not normalize. The evidence then
     shows the source's number, unit and bounds — not "—" — and, for a catalog KPI, its code."""
     _clinician(client, admin_session, "evidence")
     pid = _import(
@@ -235,38 +253,63 @@ def _legacy_row(tenant_id: uuid.UUID, patient_id: uuid.UUID, **fields: object) -
     return Observation(**values)
 
 
-def test_the_migration_gives_stored_rows_the_number_their_source_wrote(
-    client, admin_session
-) -> None:  # type: ignore[no-untyped-def]
-    """norm-1 wrote the NORMALIZED value into numeric_value: nothing for an unknown analyte,
-    the converted number for a converted one. Migration 0018 reads the number from the
-    immutable source string, with the import's own grammar."""
+def test_the_held_unit_of_a_value_that_is_not_normalized_is_the_sources_unit_trimmed() -> None:
+    tenant, patient = uuid.uuid4(), uuid.uuid4()
+    for written, held in (("  ng/mL ", "ng/mL"), ("µg/dL", "µg/dL"), ("   ", None), (None, None)):
+        row = _legacy_row(tenant, patient, original_unit=written, numeric_value=Decimal("85"))
+        assert held_value(row) == (Decimal("85"), held)
+    normalized = _legacy_row(
+        tenant,
+        patient,
+        original_unit=" mg/dL ",
+        numeric_value=Decimal("130"),
+        normalized_value=Decimal("3.361774"),
+        normalized_unit="mmol/L",
+    )
+    assert held_value(normalized) == (Decimal("3.361774"), "mmol/L")
+
+
+def _migration_0018():  # type: ignore[no-untyped-def]
     path = Path(__file__).parents[1] / "alembic/versions/0018_observation_source_number.py"
     spec = importlib.util.spec_from_file_location("migration_0018", path)
     assert spec is not None and spec.loader is not None
     migration = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(migration)
+    return migration
 
-    _user, tenant = _clinician(client, admin_session, "migration")
-    pid = uuid.UUID(
-        client.post("/api/v1/patients", json={"display_name": "Synthetic Legacy"}).json()["id"]
-    )
-    legacy = {
-        # name: (original_value, numeric_value as norm-1 stored it, normalized_value)
-        "unknown analyte": ("85", None, None),
-        "decimal comma": (" 2,80 ", None, None),
-        "converted": ("130", Decimal("3.361774"), Decimal("3.361774")),
-        "same unit": ("2.8", Decimal("2.8"), Decimal("2.8")),
-        "text result": ("reaktiv", None, None),
-        "flagged": ("12,4 H", None, None),
-        "comparator": ("<0.5", None, None),
-        "thousands separator": ("1.234,5", None, None),
-    }
-    for name, (original, numeric, normalized) in legacy.items():
+
+# What norm-1 stored, and what the source's number is.
+# name: (original_value, numeric_value as norm-1 stored it, normalized_value, expected)
+LEGACY: dict[str, tuple[str, Decimal | None, Decimal | None, Decimal | None]] = {
+    "unknown analyte": ("85", None, None, Decimal("85")),
+    "decimal comma": (" 2,80 ", None, None, Decimal("2.80")),
+    # The source's number, no longer the converted one.
+    "converted": ("130", Decimal("3.361774"), Decimal("3.361774"), Decimal("130")),
+    "same unit": ("2.8", Decimal("2.8"), Decimal("2.8"), Decimal("2.8")),
+    "same number, another scale": ("2.80", Decimal("2.8"), Decimal("2.8"), Decimal("2.80")),
+    "text result": ("reaktiv", None, None, None),
+    "flagged": ("12,4 H", None, None, None),
+    "comparator": ("<0.5", None, None, None),
+    "two marks": ("1.234,5", None, None, None),
+    # A number that reads two ways is not read — also where norm-1 had read it.
+    "grouped": ("4.000", Decimal("4.000"), Decimal("4.000"), None),
+    "grouped comma": ("1,250", None, None, None),
+    # The letter v is not white space (PostgreSQL has no escape for the vertical tab).
+    "trailing v": ("12,4 v", None, None, None),
+    "leading v": ("v5", None, None, None),
+    "vertical tab": ("\x0b 7,5 \x0b", None, None, Decimal("7.5")),
+    "ascii separators": ("\x1c6\x1f", None, None, Decimal("6")),
+    # Fails closed: the import would read 5, the migration leaves the source's wording.
+    "no-break space": ("5\u00a0", None, None, None),
+}
+
+
+def _store_legacy(admin_session, tenant_id: uuid.UUID, patient_id: uuid.UUID) -> None:  # type: ignore[no-untyped-def]
+    for name, (original, numeric, normalized, _expected) in LEGACY.items():
         admin_session.add(
             _legacy_row(
-                tenant.id,
-                pid,
+                tenant_id,
+                patient_id,
                 original_name=name,
                 original_value=original,
                 numeric_value=numeric,
@@ -276,27 +319,132 @@ def test_the_migration_gives_stored_rows_the_number_their_source_wrote(
         )
     admin_session.flush()
 
-    admin_session.execute(migration.BACKFILL)
-    admin_session.expire_all()
 
-    rows = {
-        o.original_name: o
-        for o in admin_session.execute(
-            select(Observation).where(Observation.patient_id == pid)
-        ).scalars()
-    }
+def _numbers(admin_session, patient_id: uuid.UUID) -> dict[str, Observation]:  # type: ignore[no-untyped-def]
+    admin_session.expire_all()
+    rows = admin_session.execute(select(Observation).where(Observation.patient_id == patient_id))
+    return {o.original_name: o for o in rows.scalars()}
+
+
+def test_the_migration_gives_stored_rows_the_number_their_source_wrote(
+    client, admin_session
+) -> None:  # type: ignore[no-untyped-def]
+    """norm-1 wrote the NORMALIZED value into numeric_value: nothing for an unknown analyte,
+    the converted number for a converted one. Migration 0018 reads the number from the
+    immutable source string, with the import's own grammar."""
+    migration = _migration_0018()
+    _user, tenant = _clinician(client, admin_session, "migration")
+    pid = uuid.UUID(
+        client.post("/api/v1/patients", json={"display_name": "Synthetic Legacy"}).json()["id"]
+    )
+    _store_legacy(admin_session, tenant.id, pid)
+
+    changed = admin_session.execute(migration.BACKFILL).rowcount
+
+    rows = _numbers(admin_session, pid)
     assert {name: row.numeric_value for name, row in rows.items()} == {
-        "unknown analyte": Decimal("85"),
-        "decimal comma": Decimal("2.80"),
-        "converted": Decimal("130"),  # the source's number, no longer the converted one
-        "same unit": Decimal("2.8"),
-        "text result": None,
-        "flagged": None,
-        "comparator": None,
-        "thousands separator": None,
+        name: expected for name, (_o, _n, _norm, expected) in LEGACY.items()
     }
+    # Exactly as written: "2.80" keeps its scale although 2.8 was stored for it.
+    assert str(rows["same number, another scale"].numeric_value) == "2.80"
+    # The statement agrees with the import's own reading of every ASCII case — the one
+    # difference is the no-break space, which the import strips and the migration does not.
+    for name, (original, _n, _norm, expected) in LEGACY.items():
+        if name != "no-break space":
+            assert is_one_number(original) == (expected is not None), name
+    # Only rows whose number changes are written: a second run touches nothing.
+    assert changed == sum(
+        1 for _o, numeric, _norm, expected in LEGACY.values() if str(numeric) != str(expected)
+    )
+    assert admin_session.execute(migration.BACKFILL).rowcount == 0
     # The read side: a normalized row is unchanged, an un-normalized one now has its number.
     assert held_value(rows["converted"]) == (Decimal("3.361774"), "mmol/L")
+    assert held_value(rows["grouped"]) == (Decimal("4.000"), "mmol/L")  # as norm-1 published it
     assert held_value(rows["unknown analyte"]) == (Decimal("85"), None)
     assert held_value(rows["text result"]) == (None, None)
+
+    # And back: the former meaning.
+    admin_session.execute(migration.RESTORE)
+    rows = _numbers(admin_session, pid)
+    assert {name: row.numeric_value for name, row in rows.items()} == {
+        name: normalized for name, (_o, _n, normalized, _e) in LEGACY.items()
+    }
     admin_session.rollback()
+
+
+def test_the_migration_runs_through_alembic_in_both_directions(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """The statements above, as the migration itself runs them — down to the revision before,
+    and up again over rows stored in between."""
+    from alembic import command
+    from alembic.config import Config
+
+    cfg = Config(os.path.join(Path(__file__).parents[1], "alembic.ini"))
+    _user, tenant = _clinician(client, admin_session, "alembic")
+    pid = uuid.UUID(
+        client.post("/api/v1/patients", json={"display_name": "Synthetic Legacy"}).json()["id"]
+    )
+    try:
+        command.downgrade(cfg, "0017_report_rejection_reason")
+        _store_legacy(admin_session, tenant.id, pid)
+        admin_session.commit()
+
+        command.upgrade(cfg, "head")
+
+        rows = _numbers(admin_session, pid)
+        assert {name: row.numeric_value for name, row in rows.items()} == {
+            name: expected for name, (_o, _n, _norm, expected) in LEGACY.items()
+        }
+
+        command.downgrade(cfg, "0017_report_rejection_reason")
+        rows = _numbers(admin_session, pid)
+        assert {name: row.numeric_value for name, row in rows.items()} == {
+            name: normalized for name, (_o, _n, normalized, _e) in LEGACY.items()
+        }
+    finally:
+        admin_session.rollback()
+        command.upgrade(cfg, "head")
+
+
+def test_the_migration_switches_row_security_off_before_it_writes(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Both directions: the switch comes first, in the same transaction as the statement."""
+    migration = _migration_0018()
+    executed: list[object] = []
+    monkeypatch.setattr(migration.op, "execute", executed.append)
+
+    migration.upgrade()
+    migration.downgrade()
+
+    assert executed == [
+        migration.ROW_SECURITY_OFF,
+        migration.BACKFILL,
+        migration.ROW_SECURITY_OFF,
+        migration.RESTORE,
+    ]
+
+
+def test_the_migration_fails_loudly_for_a_role_under_row_level_security(
+    client, admin_session
+) -> None:  # type: ignore[no-untyped-def]
+    """`observations` is under row-level security. Without a tenant bound, the application
+    role's UPDATE matches no row and reports success — a migration run by such a role would
+    change nothing and say nothing. With row security switched off for the statement, as the
+    migration does, the same role is refused."""
+    migration = _migration_0018()
+    _user, tenant = _clinician(client, admin_session, "rls")
+    pid = uuid.UUID(
+        client.post("/api/v1/patients", json={"display_name": "Synthetic Legacy"}).json()["id"]
+    )
+    _store_legacy(admin_session, tenant.id, pid)
+    admin_session.commit()
+
+    engine = create_engine(get_settings().effective_app_database_url)
+    try:
+        with engine.begin() as conn:
+            # What would happen without the switch: nothing, silently.
+            assert conn.execute(migration.BACKFILL).rowcount == 0
+        with pytest.raises(ProgrammingError, match="row-level security"), engine.begin() as conn:
+            conn.execute(text(migration.ROW_SECURITY_OFF))
+            conn.execute(migration.BACKFILL)
+    finally:
+        engine.dispose()
+    assert _numbers(admin_session, pid)["unknown analyte"].numeric_value is None

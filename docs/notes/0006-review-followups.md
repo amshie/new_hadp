@@ -108,26 +108,48 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   number written with a thousands separator ("1,234") is read as 1.234; the day-only fix in
   the interpretation evidence has no test under a database session west of UTC;
   `LAB_LOCAL_TIMEZONE` is not validated at startup.
-- **The catalog is the import's terminology; a value keeps its number (go-live plan A2,
-  2026-10-12):** ✅ `norm-2` resolves a name through the KPI catalog (ADR-0004 §18) instead of
-  a six-name table, and a value that is not normalized — unknown name, or a unit without an
-  approved factor — keeps its number and its reference bounds in the source's unit: the
-  tables, the interpretation evidence and the report statement show it as written (they
-  showed "—" and no interval). It stays out of change calculations. **What this does not
-  do:** it adds no alias and no conversion. A German laboratory file still sends almost every
-  row to the review queue, because the catalog's names are English and laboratories write
-  `U/l`, `/nl`, `ng/ml`. Closing that is catalog content: it needs the pilot laboratory's test
-  list (plan item A1) and a named clinician's sign-off. **Decisions:** the six names that
-  still get a LOINC code stamped — four of them mass-concentration terms on values the
-  platform holds in mmol/L, none of the four in the verified set (ADR-0004 §18); the aliases
-  `glucose` → fasting plasma glucose and `vo2max` → directly measured VO₂peak; whether a
-  change may be computed between two values of one KPI held in the same source unit (today:
-  no — only between normalized values). **Gaps:** a KPI that needs recorded context
-  (functional test, wearable, imaging, body composition, omics) waits under the reason
-  `unmapped_metric`, which no longer says what is wrong; a value imported before `norm-2`
-  without a normalized form has its number back (migration 0018) but not its bounds; the
-  specimen is not carried, so an exact alias can map a urine value to a serum KPI; a converted
-  value and its bounds show every computed digit; property-based tests for the conversions
-  are still missing (the register claimed them).
+- **The import looks names up in the catalog; a value keeps its number (go-live plan A2,
+  2026-10-12):** ✅ `norm-2` (ADR-0004 §18). A name is looked up in the KPI catalog and the KPI
+  recorded on the row. **What the import normalizes — and may publish without a human — is
+  unchanged: norm-1's six names**, bound in code to their KPI and unit, and only while the
+  catalog agrees. A value that is not normalized keeps its number and its reference bounds in
+  the source's unit: the tables, the interpretation evidence and the report statement show it
+  as written (they showed "—" and no interval), with its review status, and a position against
+  the interval only once a clinician has published it. It stays out of change calculations. A
+  number or a bound that reads two ways ("4.000", "1,250") is not read — also for the six
+  names, where norm-1 read "4.000" as 4 — and a pair with the lower bound above the upper is
+  not an interval. The review queue shows the bounds publishing puts into effect. The data
+  export is format version 2 (bounds for values that are not normalized; plain decimals).
+  - **What an independent review refused, and why it matters beyond this slice:** the first
+    version normalized, and so published unseen, every KPI whose comparison policy is
+    `method_aware` — 57 KPIs under 62 names, where norm-1 had six. An assistant, who may enter
+    values and may not resolve the queue, could put a urine creatinine, a research assay or a
+    body weight of 820 kg into a released report with no clinician having looked at the value.
+    Which names publish unseen is a clinical decision per name (ADR-0004 §18); the next step
+    is a signed import mode on `kpi_alias` and a specimen on the observation — not more aliases.
+  - **What this does not do:** it adds no alias, no conversion and no unit notation. A German
+    laboratory file sends every row but the six names to the review queue. Closing that needs
+    the pilot laboratory's test list (plan item A1) and a named clinician's sign-off.
+  - **Decisions:** (1) which names may publish unseen; (2) the six names themselves — nobody
+    signed them either, and `glucose` is published as fasting plasma glucose whatever the
+    specimen (a file's "Material" column and LDT fields 8428–8431 are not read); (3) the LOINC
+    codes still stamped on new rows and exported — four mass-concentration terms on values held
+    in mmol/L, none of them in the verified set; (4) whether "Referenzintervall der Quelle" may
+    stand for an interval a person typed or a device reported (register row "Source
+    reference-interval display"); (5) whether a change may be computed between two values of
+    one KPI held in the same source unit (today: no — only between normalized values).
+  - **Gaps:** a number that reads two ways has no way back to being a number — a clinician can
+    publish or reject the value, not say which reading is meant; a value imported before
+    `norm-2` without a normalized form has its number back (migration 0018) but not its
+    bounds, and a stored row is never re-normalized; `reference_text` is still synthesized as
+    "None-120 …" for a one-sided interval; a converted value and its bounds show every computed
+    digit, and a statement restates a bound without its trailing zeros; the glucose factor has
+    three significant digits; the web has no tests of its own; property-based tests for the
+    conversions are still missing (the register claimed them); the clinician tables show the
+    catalog code where no source code exists; the web ties a value to a domain's cited value
+    by the catalog code first, so a stored value that has a source code and no catalog code
+    is not listed beside a cited value that has both; a drafting provider other than the
+    deterministic one would receive the source's unit text unfiltered (`EvidenceItem.unit`);
+    nothing enforces that a stored alias is lower-case, and one that is not never resolves.
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

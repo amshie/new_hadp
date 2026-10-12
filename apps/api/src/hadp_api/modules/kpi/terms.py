@@ -10,9 +10,9 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class CatalogTerm:
+    """The KPI an alias names, and the unit its values are held in. What a name MAY mean —
+    not a statement that a value under it may be acted on without a human: that is decided
+    where values are imported (`modules/imports/normalize.py`)."""
+
     kpi_code: str
     canonical_unit: str | None
-    # A value of this KPI may be normalized by the import alone. False for a KPI whose values
-    # only compare with recorded measurement context (device, instrument, protocol, formula):
-    # a file or a typed row carries none of that, so a human looks first.
-    automatic: bool

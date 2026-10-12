@@ -151,7 +151,7 @@ def test_the_package_holds_the_patients_own_data_and_released_content_only(
     assert sorted(archive.namelist()) == ["LIESMICH.txt", stored_path, "export.json"]
     assert archive.read(stored_path) == _CSV  # the original file, byte for byte
 
-    assert (data["format"], data["format_version"]) == ("hadp-patient-export", "1")
+    assert (data["format"], data["format_version"]) == ("hadp-patient-export", "2")
     assert data["patient"] == {
         "id": pid,
         "display_name": "Erika Mustermann (synthetic)",
@@ -226,7 +226,7 @@ def test_the_package_holds_the_patients_own_data_and_released_content_only(
         "withdrawn_report_versions": 0,
         "byte_size": len(resp.content),
         "checksum_sha256": resp.headers["x-checksum-sha256"],
-        "format_version": "1",
+        "format_version": "2",
     }
 
     listed = client.get(f"/api/v1/patients/{pid}/data-exports")
@@ -238,6 +238,32 @@ def test_the_package_holds_the_patients_own_data_and_released_content_only(
         len(resp.content),
     )
     assert client.get(f"/api/v1/patients/{other}/data-exports").json() == []
+
+
+def test_numbers_are_written_plainly_and_bounds_say_their_unit(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """A converted bound of zero is "0.0000000", not "0E-7". A value that is not normalized
+    carries its bounds too — in the source's unit, which the row names."""
+    _owner(client, admin_session, "export-numbers")
+    pid = _patient(client, "Erika Mustermann (synthetic)")
+    _upload_and_import(
+        client,
+        pid,
+        b"Analyt;Wert;Einheit;Referenz_von;Referenz_bis;Abnahmedatum\n"
+        b"LDL Cholesterol;130;mg/dL;0;116;10.06.2025\n"
+        b"Ferritin;85;ng/mL;30;400;10.06.2025\n",
+        "befund.csv",
+    )
+
+    _archive, data = _open(_export(client, pid))
+
+    values = {o["original_name"]: o for o in data["observations"]}
+    ldl = values["LDL Cholesterol"]
+    assert (ldl["normalized_value"], ldl["normalized_unit"]) == ("3.3617740", "mmol/L")
+    assert (ldl["reference_low"], ldl["reference_high"]) == ("0.0000000", "2.9997368")
+    ferritin = values["Ferritin"]
+    assert (ferritin["normalized_value"], ferritin["normalized_unit"]) == (None, None)
+    assert (ferritin["reference_low"], ferritin["reference_high"]) == ("30", "400")
+    assert ferritin["original_unit"] == "ng/mL"
 
 
 def test_only_the_owner_may_export_and_only_in_their_clinic(client, admin_session) -> None:  # type: ignore[no-untyped-def]

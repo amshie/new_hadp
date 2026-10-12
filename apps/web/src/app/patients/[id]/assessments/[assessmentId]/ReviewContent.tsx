@@ -64,6 +64,8 @@ function fmtNum(n: number): string {
 // sr-only sentence (never colour alone). A marker with no lab interval renders "keine Skala" — no
 // dot, never a guessed position (doctrine: never read as normal/stable).
 function LageCell({ marker }: { marker: MarkerView }) {
+  // No position is stated for a value nobody has reviewed.
+  if (marker.reviewRequired) return <span className="pos-bar-noscale">—</span>;
   const l = lageLabel(marker.lagePosition);
   const bar = marker.lageBar;
   const intervalText =
@@ -743,7 +745,9 @@ export function ReviewContent({
                   <td>{m.reference}</td>
                   <td className="source">
                     {m.code}
-                    {m.reviewRequired ? ` · ${m.status}` : ""}
+                    {m.statusLabel && (
+                      <span className="marker-status">{m.statusLabel}</span>
+                    )}
                     {m.superseded ? " · durch Laborkorrektur ersetzt" : ""}
                     {m.inputReplaced
                       ? " · Eingangswert durch Laborkorrektur ersetzt"
@@ -833,7 +837,9 @@ export function ReviewContent({
                       <td>{m.reference}</td>
                       <td className="source">
                         {m.code}
-                        {m.reviewRequired ? ` · ${m.status}` : ""}
+                        {m.statusLabel && (
+                          <span className="marker-status">{m.statusLabel}</span>
+                        )}
                         {m.superseded ? " · durch Laborkorrektur ersetzt" : ""}
                         {m.inputReplaced
                           ? " · Eingangswert durch Laborkorrektur ersetzt"

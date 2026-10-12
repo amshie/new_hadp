@@ -290,6 +290,14 @@ def list_open_review_items(db: Session, tenant_id: uuid.UUID) -> list[dict[str, 
                 "original_name": obs.original_name,
                 "original_value": obs.original_value,
                 "original_unit": obs.original_unit,
+                # What publishing this value puts into effect beside it: the reference bounds
+                # the platform holds, in the unit it holds the value in.
+                "reference_low": obs_service.plain(obs.reference_low),
+                "reference_high": obs_service.plain(obs.reference_high),
+                "reference_unit": obs_service.held_value(obs)[1],
+                "reference_converted": normalize_mod.unit_was_converted(
+                    obs.original_unit, obs.normalized_unit
+                ),
                 "observed_at": obs.observed_at,
                 "observed_at_is_date_only": obs.observed_at_is_date_only,
                 "created_at": item.created_at,

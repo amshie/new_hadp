@@ -41,6 +41,8 @@ export function referencePosition(
   const hi = num(referenceHigh);
   if (v == null) return "not_evaluable";
   if (lo == null && hi == null) return "no_reference";
+  // A pair with the lower bound above the upper is not an interval.
+  if (lo != null && hi != null && lo > hi) return "not_evaluable";
   if (hi != null && v > hi) return "above";
   if (lo != null && v < lo) return "below";
   if (lo != null && hi != null) return "within";
@@ -50,6 +52,8 @@ export function referencePosition(
 // Position bar geometry (the Claude Design "Lage zur Referenz" comp). Scale is [0, scaleMax] —
 // natural for lab values (≥ 0). scaleMax fits the larger of the upper reference bound and the value
 // (+ a little headroom) so the value dot is always on-scale and "how far outside" stays readable.
+// A value or an interval below zero (a base excess) has no place on that scale: no bar is drawn,
+// and the pill alone says where the value lies.
 // The reference BAND reflects ONLY the lab-provided interval — never an introduced "optimal"/normal
 // bound, never a clinical target; the axis extent is a cosmetic choice, not a bound. The bar is
 // decorative: the pill + screen-reader sentence carry the meaning (never colour alone).
@@ -71,6 +75,7 @@ export function referenceBar(
   const hi = num(referenceHigh);
   // A two-sided, non-degenerate interval is required to draw a meaningful band.
   if (lo == null || hi == null || hi <= lo) return empty;
+  if (lo < 0 || (v != null && v < 0)) return empty;
 
   const top = Math.max(hi, v ?? hi);
   const scaleMax = top * 1.07; // headroom so the dot/end never sits flush against the edge

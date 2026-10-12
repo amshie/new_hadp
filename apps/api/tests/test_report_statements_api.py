@@ -101,11 +101,12 @@ def test_an_analyte_the_terminology_does_not_know_is_stated_as_the_source_wrote_
     assert cited["value"] is None  # no normalized form — and the view does not pretend one
 
 
-def test_a_known_analyte_in_a_unit_without_an_approved_conversion_is_not_converted(
+def test_a_catalog_kpi_the_import_does_not_act_on_is_stated_as_written(
     client, admin_session
 ) -> None:  # type: ignore[no-untyped-def]
-    """The catalog knows ferritin in ug/L. ng/mL is not an approved pair: the value goes to
-    review, and once published it is stated as written — nothing "(umgerechnet)"."""
+    """The catalog knows ferritin; the import acts on six names, and this is not one of them.
+    The value goes to review, and once published it is stated as written — nothing
+    "(umgerechnet)"."""
     _clinician(client, admin_session, "unit")
     pid = _import(
         client,
@@ -204,6 +205,54 @@ def test_an_unreadable_bound_is_not_turned_into_a_one_sided_interval(client, adm
         "LDL Cholesterol am 10.06.2025: 0.2 mmol/L. "
         "Referenzintervall der Quelle: obere Grenze 3 mmol/L."
     )
+
+
+def test_a_number_or_an_interval_that_reads_two_ways_is_quoted_and_not_judged(
+    client, admin_session
+) -> None:  # type: ignore[no-untyped-def]
+    """ "1.250 µg/l" against 30 to 400 is one and a quarter — or twelve hundred and fifty. The
+    statement repeats what the source wrote and says nothing about where the value lies. A
+    bound that reads two ways ("4.000 – 10.000") is not restated, and neither is a pair with
+    the lower bound above the upper: no interval, no position."""
+    _clinician(client, admin_session, "two-ways")
+    pid = _import(
+        client,
+        [
+            {
+                "original_name": "Ferritin",
+                "original_value": "1.250",
+                "original_unit": "µg/l",
+                "reference_low": "30",
+                "reference_high": "400",
+                **DAY,
+            },
+            {
+                "original_name": "Leukozyten",
+                "original_value": "950",
+                "original_unit": "/µl",
+                "reference_low": "4.000",
+                "reference_high": "10.000",
+                **DAY,
+            },
+            {
+                "original_name": "Cystatin C",
+                "original_value": "0.9",
+                "original_unit": "mg/l",
+                "reference_low": "1.2",
+                "reference_high": "0.6",
+                **DAY,
+            },
+        ],
+        publish_review=True,
+    )
+
+    texts = {statement["text"] for statement in _draft(client, pid)["statements"]}
+
+    assert texts == {
+        "Ferritin am 10.06.2025: 1.250 µg/l. Referenzintervall der Quelle: 30 bis 400 µg/l.",
+        "Leukozyten am 10.06.2025: 950 /µl.",
+        "Cystatin C am 10.06.2025: 0.9 mg/l.",
+    }
 
 
 def test_sampling_times_use_the_configured_zone(

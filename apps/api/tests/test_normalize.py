@@ -1,8 +1,10 @@
-"""Deterministic normalization: terminology resolution, conversions, confusable units, review
-routing — and what happens to a value that is NOT normalized: it keeps its number.
+"""Deterministic normalization: which names the import acts on by itself, conversions,
+confusable units, review routing — and what happens to a value that is NOT normalized: it
+keeps its number, when that number reads one way only.
 
-The terminology is the KPI catalog (ADR-0004 §13). These tests resolve against the catalog's
-seed data, which is what a seeded database resolves (test_kpi_catalog pins that the two agree).
+A name is looked up in the KPI catalog (ADR-0004 §13). These tests resolve against the
+catalog's seed data, which is what a seeded database resolves (test_kpi_catalog pins that the
+two agree).
 """
 
 from __future__ import annotations
@@ -16,10 +18,12 @@ from hadp_api.modules.imports import normalize as normalize_mod
 from hadp_api.modules.imports.normalize import (
     NORMALIZATION_VERSION,
     NormalizationResult,
-    unit_notation,
+    is_one_number,
+    is_plain_number,
+    unit_was_converted,
 )
-from hadp_api.modules.kpi.catalog_data import kpi_rows
-from hadp_api.modules.kpi.service import seed_terminology
+from hadp_api.modules.kpi.service import CatalogTerminology, seed_terminology
+from hadp_api.modules.kpi.terms import CatalogTerm
 
 TERMINOLOGY = seed_terminology()
 
@@ -30,7 +34,7 @@ def normalize(**row: Any) -> NormalizationResult:
 
 def test_same_unit_passthrough() -> None:
     r = normalize(original_name="LDL Cholesterol", original_value="2.8", original_unit="mmol/L")
-    assert r.metric_code == "13457-7"
+    assert (r.kpi_code, r.metric_code, r.code_system) == ("cardio.ldl_c", "13457-7", "LOINC")
     assert r.normalized_value == Decimal("2.8")
     assert r.normalized_unit == "mmol/L"
     assert not r.needs_review
@@ -138,15 +142,17 @@ def test_very_large_value_converts_without_false_review() -> None:
         "-inf",
         "3_4",  # Decimal() reads this as 34
         "1e999",
-        "\u0663.\u0664",  # other scripts' digits
+        "٣.٤",  # other scripts' digits
         "1.234,5",
+        "12.345.678",
+        "1,234,567",
         "3,4 mmol",
         "",
     ],
 )
 def test_only_a_plain_decimal_number_is_a_value(raw: str) -> None:
     r = normalize(original_name="LDL", original_value=raw, original_unit="mmol/L")
-    assert r.normalized_value is None
+    assert (r.numeric_value, r.normalized_value) == (None, None)
     assert "unparseable_value" in r.review_reasons
 
 
@@ -160,22 +166,134 @@ def test_plain_decimal_notations_are_read(raw: str, expected: str) -> None:
     assert r.review_reasons == []
 
 
-def test_a_reference_bound_that_is_not_a_number_is_never_dropped_silently() -> None:
-    # "3_0" used to parse as 30; "<3" used to vanish and leave a one-sided interval.
-    for low, high in (("0", "3_0"), ("0", "<3"), ("n/a", "3.0")):
-        r = normalize(
-            original_name="LDL",
-            original_value="2.8",
-            original_unit="mmol/L",
-            reference_low=low,
-            reference_high=high,
-        )
-        assert r.review_reasons == ["unparseable_reference"]
-    # A bound the source simply does not give is not a problem.
+# ---------------------------------------------------------------------------------------------
+# A number that reads two ways is not read
+# ---------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "raw",
+    ["4.000", "1,250", "150.000", "98.000", "-1.250", "+4.000", " 4.000 "],
+)
+def test_a_number_that_groups_digits_in_threes_is_not_read(raw: str) -> None:
+    """ "4.000" is four — or four thousand; "1,250" is one and a quarter — or twelve hundred
+    and fifty. Nothing in the value says which, and its size must not decide."""
+    assert is_plain_number(raw)  # written like a number: a statement may repeat it as written
+    assert not is_one_number(raw)  # but the platform does not read a number from it
+    # For a name the import acts on by itself: no number, and a human looks.
+    automatic = normalize(original_name="LDL", original_value=raw, original_unit="mmol/L")
+    assert (automatic.numeric_value, automatic.normalized_value) == (None, None)
+    assert automatic.review_reasons == ["unparseable_value"]
+    # For any other name: the source's wording stays, no number is held.
+    other = normalize(original_name="Leukozyten", original_value=raw, original_unit="/µl")
+    assert other.numeric_value is None
+    assert other.review_reasons == ["unmapped_metric"]
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("0.005", "0.005"),  # a leading zero groups nothing
+        ("0,125", "0.125"),
+        ("1000.000", "1000.000"),  # four digits lead: not a group of thousands
+        ("1.25", "1.25"),
+        ("1.0000", "1.0000"),
+        ("12.5", "12.5"),
+        ("950", "950"),
+        ("1.234e2", "123.4"),  # an exponent says the mark is a decimal mark
+    ],
+)
+def test_a_number_that_reads_one_way_is_read(raw: str, expected: str) -> None:
+    assert is_one_number(raw)
+    r = normalize(original_name="Leukozyten", original_value=raw, original_unit="/µl")
+    assert r.numeric_value == Decimal(expected)
+
+
+# ---------------------------------------------------------------------------------------------
+# Reference bounds: read, or a reason for a human
+# ---------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("name", ["LDL", "Leukozyten"])
+@pytest.mark.parametrize(
+    ("low", "high", "held", "reason"),
+    [
+        # "3_0" used to parse as 30; "<3" used to vanish and leave a one-sided interval.
+        ("0", "3_0", ("0", None), "unparseable_reference"),
+        ("0", "<3", ("0", None), "unparseable_reference"),
+        ("n/a", "3.0", (None, "3.0"), "unparseable_reference"),
+        ("70*", "120", (None, "120"), "unparseable_reference"),
+        # A bound that reads two ways: "4.000 – 10.000" per microlitre is 4 to 10, or
+        # 4000 to 10000.
+        ("4.000", "10.000", (None, None), "ambiguous_reference"),
+        ("150", "400.000", ("150", None), "ambiguous_reference"),
+        ("1,250", "5", (None, "5"), "ambiguous_reference"),
+    ],
+)
+def test_a_bound_that_cannot_be_read_is_never_dropped_silently(
+    name: str, low: str, high: str, held: tuple[str | None, str | None], reason: str
+) -> None:
     r = normalize(
+        original_name=name,
+        original_value="2.8",
+        original_unit="mmol/L",
+        reference_low=low,
+        reference_high=high,
+    )
+    expected = tuple(Decimal(b) if b is not None else None for b in held)
+    assert (r.reference_low, r.reference_high) == expected
+    assert reason in r.review_reasons
+    assert r.needs_review
+    # The value itself is untouched by a problem with its interval.
+    assert r.numeric_value == Decimal("2.8")
+
+
+@pytest.mark.parametrize("name", ["LDL", "Leukozyten"])
+@pytest.mark.parametrize(("low", "high"), [("1.2", "0.6"), ("400", "30"), ("0.5", "-0.5")])
+def test_a_lower_bound_above_the_upper_is_not_an_interval(name: str, low: str, high: str) -> None:
+    r = normalize(
+        original_name=name,
+        original_value="0.9",
+        original_unit="mg/L",
+        reference_low=low,
+        reference_high=high,
+    )
+    assert (r.reference_low, r.reference_high) == (None, None)
+    assert "ambiguous_reference" in r.review_reasons
+
+
+def test_an_interval_the_source_gives_is_held_as_given() -> None:
+    both = normalize(
+        original_name="LDL",
+        original_value="2.8",
+        original_unit="mmol/L",
+        reference_low="0",
+        reference_high="3.0",
+    )
+    assert (both.reference_low, both.reference_high, both.review_reasons) == (
+        Decimal("0"),
+        Decimal("3.0"),
+        [],
+    )
+    # A bound the source simply does not give is not a problem.
+    upper = normalize(
         original_name="LDL", original_value="2.8", original_unit="mmol/L", reference_high="3.0"
     )
-    assert (r.reference_low, r.reference_high, r.review_reasons) == (None, Decimal("3.0"), [])
+    assert (upper.reference_low, upper.reference_high, upper.review_reasons) == (
+        None,
+        Decimal("3.0"),
+        [],
+    )
+    # Equal bounds are an interval (of one point).
+    point = normalize(
+        original_name="LDL",
+        original_value="2.8",
+        original_unit="mmol/L",
+        reference_low="3.0",
+        reference_high="3.0",
+    )
+    assert (point.reference_low, point.reference_high) == (Decimal("3.0"), Decimal("3.0"))
+    assert point.review_reasons == []
 
 
 # ---------------------------------------------------------------------------------------------
@@ -198,33 +316,22 @@ def test_an_unknown_analyte_keeps_its_number_and_its_bounds_in_the_source_unit()
     assert (r.reference_low, r.reference_high) == (Decimal("70"), Decimal("120"))
 
 
-def test_a_known_analyte_in_a_unit_without_an_approved_conversion_keeps_its_number() -> None:
-    # Ferritin's canonical unit is ug/L. ng/mL is the same quantity — and still not converted:
-    # only an approved KPI/unit pair is, and this pair is not in the registry.
+def test_a_catalog_kpi_the_import_does_not_act_on_keeps_its_number_and_names_its_kpi() -> None:
+    # Ferritin is a catalog KPI, written here in the catalog's own unit. It is still held for a
+    # human: the import acts on six names, and this is not one of them.
     r = normalize(
         original_name="Ferritin",
         original_value="85",
-        original_unit="ng/mL",
+        original_unit="ug/L",
         reference_low="30",
         reference_high="400",
     )
     assert r.kpi_code == "immune.ferritin"
-    assert r.review_reasons == ["unsupported_unit"]
+    assert (r.metric_code, r.code_system) == (None, None)
+    assert r.review_reasons == ["unmapped_metric"]
     assert (r.normalized_value, r.normalized_unit) == (None, None)
     assert r.numeric_value == Decimal("85")
     assert (r.reference_low, r.reference_high) == (Decimal("30"), Decimal("400"))
-
-
-def test_an_unreadable_bound_of_an_unknown_analyte_is_a_reason_too() -> None:
-    r = normalize(
-        original_name="Zink",
-        original_value="85",
-        original_unit="µg/dL",
-        reference_low="70*",
-        reference_high="120",
-    )
-    assert r.review_reasons == ["unmapped_metric", "unparseable_reference"]
-    assert (r.reference_low, r.reference_high) == (None, Decimal("120"))
 
 
 def test_a_text_result_has_no_number() -> None:
@@ -233,8 +340,8 @@ def test_a_text_result_has_no_number() -> None:
     assert r.review_reasons == ["unmapped_metric"]
 
 
-def test_a_negative_number_of_an_unknown_analyte_is_not_called_impossible() -> None:
-    # "Non-negative" is what the catalog knows about ITS quantities; it knows nothing here.
+def test_a_negative_number_of_another_analyte_is_not_called_impossible() -> None:
+    # "Non-negative" is what this module knows about ITS six quantities; it knows nothing here.
     r = normalize(original_name="Base Excess", original_value="-2.1", original_unit="mmol/L")
     assert r.numeric_value == Decimal("-2.1")
     assert r.review_reasons == ["unmapped_metric"]
@@ -247,100 +354,102 @@ def test_a_converted_value_keeps_the_source_number_beside_the_normalized_one() -
     assert r.normalization_version == NORMALIZATION_VERSION == "norm-2"
 
 
-# ---------------------------------------------------------------------------------------------
-# The terminology is the catalog (ADR-0004 §13)
-# ---------------------------------------------------------------------------------------------
-
-_AUTOMATIC_CLASSES = {"laboratory", "vital_sign", "anthropometric"}
-
-
-@pytest.mark.parametrize(
-    "row",
-    [r for r in kpi_rows() if r["measurement_class"] in _AUTOMATIC_CLASSES],
-    ids=lambda r: str(r["code"]),
-)
-def test_every_laboratory_vital_and_anthropometric_kpi_normalizes_under_its_own_name(
-    row: dict[str, object],
-) -> None:
-    """ADR-0004 §14: every canonical code imports without `unmapped_metric`."""
+def test_a_value_in_an_unsupported_unit_keeps_its_number_and_its_interval() -> None:
     r = normalize(
-        original_name=str(row["display_name"]),
-        original_value="1.5",
-        original_unit=str(row["canonical_unit_ucum"]),
+        original_name="LDL Cholesterol",
+        original_value="9.9",
+        original_unit="µkat/L",
         reference_low="1",
-        reference_high="2",
+        reference_high="12",
     )
+    assert r.review_reasons == ["unsupported_unit"]
+    assert (r.normalized_value, r.normalized_unit) == (None, None)
+    assert r.numeric_value == Decimal("9.9")
+    assert (r.reference_low, r.reference_high) == (Decimal("1"), Decimal("12"))
+
+
+# ---------------------------------------------------------------------------------------------
+# What the import acts on without a human: six names, and the catalog has to agree
+# ---------------------------------------------------------------------------------------------
+
+# norm-1's terminology, as it stood: name -> (source code, unit). Which names publish unseen is
+# a clinical decision; this list changes when someone has made one.
+NORM_1 = {
+    "ldl cholesterol": ("13457-7", "mmol/L"),
+    "ldl": ("13457-7", "mmol/L"),
+    "total cholesterol": ("2093-3", "mmol/L"),
+    "hdl cholesterol": ("2085-9", "mmol/L"),
+    "glucose": ("2345-7", "mmol/L"),
+    "hba1c": ("4548-4", "%"),
+}
+ALIASES = sorted(TERMINOLOGY._terms)
+
+
+def test_the_names_the_import_acts_on_are_exactly_those_of_norm_1() -> None:
+    assert {
+        name: (automatic.legacy_code, automatic.unit)
+        for name, automatic in normalize_mod._AUTOMATIC.items()
+    } == NORM_1
+
+
+@pytest.mark.parametrize("name", sorted(NORM_1))
+def test_each_of_the_six_names_normalizes_in_its_unit(name: str) -> None:
+    code, unit = NORM_1[name]
+    r = normalize(original_name=name.upper(), original_value="4.2", original_unit=unit)
+    assert (r.metric_code, r.normalized_value, r.normalized_unit) == (code, Decimal("4.2"), unit)
+    assert r.kpi_code == TERMINOLOGY.resolve(name).kpi_code  # type: ignore[union-attr]
     assert r.review_reasons == []
-    assert r.kpi_code == row["code"]
-    assert (r.normalized_value, r.normalized_unit) == (Decimal("1.5"), row["canonical_unit_ucum"])
-    assert (r.reference_low, r.reference_high) == (Decimal("1"), Decimal("2"))
-    assert r.mapping_confidence == 1.0
+
+
+@pytest.mark.parametrize("alias", [a for a in ALIASES if a not in NORM_1])
+def test_no_other_catalog_name_is_acted_on_without_a_human(alias: str) -> None:
+    """Every alias the catalog holds, in the catalog's own unit — the best case a source could
+    offer. The catalog says what the name may mean; that is not a decision that a value under
+    it may be published unread (specimen, method, plausibility, and who typed it are all
+    unknown to the import)."""
+    term = TERMINOLOGY.resolve(alias)
+    assert term is not None
+
+    r = normalize(original_name=alias, original_value="4.2", original_unit=term.canonical_unit)
+
+    assert r.needs_review and r.review_reasons == ["unmapped_metric"]
+    assert (r.normalized_value, r.normalized_unit) == (None, None)
+    assert (r.metric_code, r.code_system) == (None, None)
+    # Where the value belongs is recorded; the number stays the source's.
+    assert r.kpi_code == term.kpi_code
+    assert r.numeric_value == Decimal("4.2")
+
+
+def _catalog(**terms: CatalogTerm) -> CatalogTerminology:
+    return CatalogTerminology(dict(terms))
 
 
 @pytest.mark.parametrize(
-    "row",
+    "catalog",
     [
-        r
-        for r in kpi_rows()
-        if r["measurement_class"] not in _AUTOMATIC_CLASSES and r["canonical_unit_ucum"]
+        _catalog(),  # the catalog does not know the name (an unseeded or retired entry)
+        _catalog(ldl=CatalogTerm("cardio.ldl_particle_number", "mmol/L")),  # another KPI
+        _catalog(ldl=CatalogTerm("cardio.ldl_c", "g/L")),  # another unit
+        _catalog(ldl=CatalogTerm("cardio.ldl_c", None)),
     ],
-    ids=lambda r: str(r["code"]),
+    ids=["unknown", "other-kpi", "other-unit", "no-unit"],
 )
-def test_a_kpi_that_compares_only_with_recorded_context_is_never_normalized_from_a_bare_row(
-    row: dict[str, object],
-) -> None:
-    """Body composition, functional tests, wearables, imaging, omics and derived values need the
-    device, the instrument version, the protocol or the formula to mean one measurement. A
-    name and a number carry none of that: the row waits for a human, with its number kept."""
-    r = normalize(
-        original_name=str(row["display_name"]),
-        original_value="1.5",
-        original_unit=str(row["canonical_unit_ucum"]),
-    )
-    assert r.review_reasons == ["unmapped_metric"]
-    assert r.kpi_code == row["code"]  # the catalog link is still recorded
-    assert r.normalized_value is None
-    assert r.numeric_value == Decimal("1.5")
-
-
-def test_only_the_six_names_of_norm_1_carry_a_source_code() -> None:
-    """A code from an external terminology is stamped only where norm-1 stamped it; the
-    catalog-resolved rest carries the KPI code and no LOINC code on a guess."""
-    stamped = {
-        "LDL": "13457-7",
-        "LDL Cholesterol": "13457-7",
-        "Total cholesterol": "2093-3",
-        "HDL cholesterol": "2085-9",
-        "Glucose": "2345-7",
-        "HbA1c": "4548-4",
-    }
-    for name, code in stamped.items():
-        unit = "%" if name == "HbA1c" else "mmol/L"
-        r = normalize(original_name=name, original_value="1", original_unit=unit)
-        assert (r.metric_code, r.code_system) == (code, "LOINC"), name
-    for name, unit in (("Creatinine", "umol/L"), ("Triglycerides", "mmol/L"), ("Ferritin", "ug/L")):
-        r = normalize(original_name=name, original_value="1", original_unit=unit)
-        assert r.review_reasons == []
-        assert (r.metric_code, r.code_system) == (None, None), name
-
-
-def test_an_alias_resolves_like_the_canonical_name() -> None:
-    r = normalize(original_name="Nüchternglukose", original_value="95", original_unit="mg/dL")
-    assert r.kpi_code == "metabolic.fasting_plasma_glucose"
-    assert r.normalized_value == Decimal("95") * Decimal("0.0555")
-    assert r.review_reasons == []
-
-
-def test_a_name_resolves_exactly_or_not_at_all() -> None:
-    for name in ("Creatinine (urine)", "Creatinin", "Serum creatinine", "Creatinine ratio"):
-        r = normalize(original_name=name, original_value="80", original_unit="umol/L")
-        assert (r.kpi_code, r.review_reasons) == (None, ["unmapped_metric"]), name
-    r = normalize(original_name="  CREATININE ", original_value="80", original_unit="umol/L")
-    assert (r.kpi_code, r.review_reasons) == ("regen.creatinine", [])
+def test_where_the_catalog_disagrees_nothing_is_acted_on(catalog: CatalogTerminology) -> None:
+    """The six names are bound to a KPI and a unit here AND in the catalog. A catalog edit can
+    take a name out of automatic handling; it cannot put one in, or change what a name
+    converts to."""
+    for unit in ("mmol/L", "mg/dL", "g/L"):
+        r = normalize_mod.normalize(
+            terminology=catalog, original_name="LDL", original_value="3.0", original_unit=unit
+        )
+        assert r.review_reasons == ["unmapped_metric"]
+        assert (r.normalized_value, r.normalized_unit, r.metric_code) == (None, None, None)
+        assert r.numeric_value == Decimal("3.0")
 
 
 def test_generic_crp_never_becomes_hs_crp() -> None:
-    """ADR-0004 §9: the two are different KPIs; neither name resolves to the other."""
+    """ADR-0004 §9: the two are different KPIs; neither name resolves to the other, and the
+    bare abbreviation resolves to neither."""
     generic = normalize(
         original_name="C-reactive protein", original_value="4", original_unit="mg/L"
     )
@@ -350,94 +459,67 @@ def test_generic_crp_never_becomes_hs_crp() -> None:
     assert (bare.kpi_code, bare.review_reasons) == (None, ["unmapped_metric"])
 
 
-def test_lipoprotein_a_is_never_converted_between_mass_and_molar_units() -> None:
-    """ADR-0004 §9: Lp(a) mg/dL and nmol/L are not interconvertible by a fixed factor."""
-    molar = normalize(original_name="Lipoprotein(a)", original_value="75", original_unit="nmol/L")
-    mass = normalize(original_name="Lipoprotein(a)", original_value="30", original_unit="mg/dL")
-    assert (molar.normalized_value, molar.review_reasons) == (Decimal("75"), [])
-    assert (mass.normalized_value, mass.review_reasons) == (None, ["unsupported_unit"])
-    assert mass.numeric_value == Decimal("30")
+def test_a_name_resolves_exactly_or_not_at_all() -> None:
+    assert TERMINOLOGY.resolve("  LDL  ") == TERMINOLOGY.resolve("ldl")
+    for near in ("LDL-C direct", "LDL Cholesterol (calc.)", "Cholesterol"):
+        r = normalize(original_name=near, original_value="3.0", original_unit="mmol/L")
+        assert r.normalized_value is None, near
 
 
-def test_every_approved_conversion_names_a_catalog_kpi_and_a_unit_other_than_its_own() -> None:
-    units = {str(r["code"]): r["canonical_unit_ucum"] for r in kpi_rows()}
-    for (kpi_code, source_unit), factor in normalize_mod._CONVERSIONS.items():
-        assert kpi_code in units, kpi_code
-        assert source_unit != units[kpi_code], (kpi_code, source_unit)
-        assert source_unit == unit_notation(source_unit), "registry keys are in catalog notation"
+# ---------------------------------------------------------------------------------------------
+# Conversions and units
+# ---------------------------------------------------------------------------------------------
+
+
+def test_every_approved_conversion_belongs_to_one_of_the_six_and_names_its_target() -> None:
+    held_in = {a.kpi_code: a.unit for a in normalize_mod._AUTOMATIC.values()}
+    assert normalize_mod._CONVERSIONS
+    for (kpi_code, source_unit, target_unit), factor in normalize_mod._CONVERSIONS.items():
+        assert held_in[kpi_code] == target_unit
+        assert source_unit != target_unit
         assert factor > 0
 
 
-# ---------------------------------------------------------------------------------------------
-# Unit notation is not conversion
-# ---------------------------------------------------------------------------------------------
+def test_a_conversion_is_to_the_unit_it_names_and_to_no_other() -> None:
+    """If the catalog's unit for HDL changed, 55 mg/dL would not become "1.42 g/L"."""
+    drifted = _catalog(**{"hdl cholesterol": CatalogTerm("cardio.hdl_c", "g/L")})
+    r = normalize_mod.normalize(
+        terminology=drifted,
+        original_name="HDL cholesterol",
+        original_value="55",
+        original_unit="mg/dL",
+        reference_low="40",
+        reference_high="60",
+    )
+    assert (r.normalized_value, r.normalized_unit) == (None, None)
+    assert (r.numeric_value, r.reference_low, r.reference_high) == (
+        Decimal("55"),
+        Decimal("40"),
+        Decimal("60"),
+    )
+    assert r.needs_review
 
 
-@pytest.mark.parametrize(
-    ("written", "notation"),
-    [
-        ("mmol/l", "mmol/L"),
-        ("µmol/l", "umol/L"),  # micro sign U+00B5
-        ("μmol/L", "umol/L"),  # Greek mu U+03BC
-        ("µg/l", "ug/L"),
-        ("ng/ml", "ng/mL"),
-        ("pg/ml", "pg/mL"),
-        ("mg/dl", "mg/dL"),
-        ("MG/DL", "mg/dL"),  # norm-1 accepted these three in any letter case
-        ("10*9/l", "10*9/L"),
-        ("/nl", "/nL"),
-        ("fl", "fL"),
-        ("ml/min", "mL/min"),
-        (" mmol/L ", "mmol/L"),
-        ("%", "%"),
-        ("mm/h", "mm/h"),
-        # Left exactly as written: nothing here is a litre, and case carries meaning.
-        ("mol", "mol"),
-        ("G/l", "G/L"),
-        ("g/l", "g/L"),
-        ("U/l", "U/L"),
-        ("mU/l", "mU/L"),
-        ("MU/l", "MU/L"),
-        ("Tsd/µl", "Tsd/uL"),
-        ("", ""),
-    ],
-)
-def test_a_unit_is_brought_into_catalog_notation_without_changing_it(
-    written: str, notation: str
-) -> None:
-    assert unit_notation(written) == notation
+@pytest.mark.parametrize("unit", ["mmol/L", "mmol/l", "MMOL/L", "Mmol/L", " mmol/L "])
+def test_three_spellings_are_accepted_in_any_letter_case(unit: str) -> None:
+    r = normalize(original_name="LDL", original_value="3.0", original_unit=unit)
+    assert (r.normalized_value, r.normalized_unit, r.review_reasons) == (
+        Decimal("3.0"),
+        "mmol/L",
+        [],
+    )
+    assert not unit_was_converted(unit, "mmol/L")
 
 
-def test_notation_never_folds_two_different_units_into_one() -> None:
-    """Giga per litre and gram per litre differ only in the case of one letter."""
-    assert unit_notation("G/l") != unit_notation("g/l")
-    assert unit_notation("mU/L") != unit_notation("MU/L")
-    assert unit_notation("mg/L") != unit_notation("Mg/L")
-    # And so a cell count written in giga per litre is not read as grams per litre.
-    r = normalize(original_name="Albumin", original_value="45", original_unit="G/l")
+@pytest.mark.parametrize("unit", ["umol/L", "µmol/L", "nmol/L", "mmol/dL", "mmol", "g/L", "mM"])
+def test_any_other_unit_is_compared_as_written(unit: str) -> None:
+    r = normalize(original_name="LDL", original_value="3.0", original_unit=unit)
+    assert r.normalized_value is None
     assert r.review_reasons == ["unsupported_unit"]
 
 
-@pytest.mark.parametrize("unit", ["umol/L", "µmol/L", "µmol/l", "μmol/l", "umol/l"])
-def test_a_canonical_unit_is_recognized_in_its_usual_spellings(unit: str) -> None:
-    r = normalize(original_name="Creatinine", original_value="80", original_unit=unit)
-    assert (r.normalized_value, r.normalized_unit, r.review_reasons) == (
-        Decimal("80"),
-        "umol/L",
-        [],
-    )
-
-
-@pytest.mark.parametrize("unit", ["U/L", "IU/L", "U/l", "µkat/L"])
-def test_an_enzyme_unit_other_than_the_canonical_one_is_not_assumed_equal(unit: str) -> None:
-    # U/L and [IU]/L are numerically equal for enzymes by convention — a convention is an
-    # approval, and no such pair is in the registry yet.
-    r = normalize(original_name="Alanine aminotransferase", original_value="30", original_unit=unit)
-    assert (r.normalized_value, r.review_reasons) == (None, ["unsupported_unit"])
-    assert r.numeric_value == Decimal("30")
-
-
 def test_a_missing_unit_is_never_read_as_the_canonical_one() -> None:
-    for unit in (None, "", "  "):
-        r = normalize(original_name="Creatinine", original_value="80", original_unit=unit)
-        assert (r.normalized_value, r.review_reasons) == (None, ["unsupported_unit"])
+    for unit in (None, "", "   "):
+        r = normalize(original_name="LDL", original_value="3.0", original_unit=unit)
+        assert r.normalized_value is None
+        assert r.review_reasons == ["unsupported_unit"]

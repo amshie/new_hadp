@@ -208,11 +208,11 @@ def plain(value: Decimal | None) -> str | None:
 def held_value(observation: Observation) -> tuple[Decimal | None, str | None]:
     """The number the platform holds for an observation, and its unit.
 
-    The normalized value in the catalog's canonical unit when normalization succeeded;
-    otherwise the source's own number in the source's own unit — a value the terminology does
-    not know, or in a unit without an approved conversion, is not normalized, and it is not
-    lost either. `reference_low`/`reference_high` are in the same unit. None when the source
-    did not write a number.
+    The normalized value in its KPI's canonical unit when the import normalized it; otherwise
+    the source's own number in the source's own unit — a value the import does not act on by
+    itself, or in a unit without an approved conversion, is not normalized, and it is not
+    lost either. `reference_low`/`reference_high` are in the same unit. None when the
+    source's writing is not one number.
     """
     if observation.normalized_value is not None:
         return observation.normalized_value, observation.normalized_unit

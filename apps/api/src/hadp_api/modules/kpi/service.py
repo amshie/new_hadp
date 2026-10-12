@@ -252,22 +252,11 @@ def resolve_comparison_policies(db: Session, kpi_codes: set[str]) -> dict[str, K
     return out
 
 
-def _automatic(measurement_class: KpiMeasurementClass, policy: KpiComparisonPolicy | None) -> bool:
-    """Whether an import may normalize a value of such a KPI by itself.
-
-    Only where values compare on KPI + unit alone (laboratory, vital sign, anthropometric by
-    default). A KPI whose values compare only with recorded context — the device, the
-    instrument version, the protocol, the formula — is never normalized from a bare name and
-    number: that context is what makes two such values the same measurement (ADR-0004 §8/§9).
-    """
-    effective = policy or policy_for_measurement_class(measurement_class)
-    return effective is KpiComparisonPolicy.METHOD_AWARE
-
-
 @dataclass(frozen=True)
 class CatalogTerminology:
     """A snapshot of the catalog as the import's terminology (ADR-0004 §13): exact global
-    alias -> active KPI. Loaded once per import; resolving is a dictionary lookup."""
+    alias -> active KPI. Loaded once per import; resolving is a dictionary lookup. It says
+    which KPI a name may mean; it does not say that a value may be published unread."""
 
     _terms: dict[str, CatalogTerm]
 
@@ -282,23 +271,12 @@ def load_terminology(db: Session) -> CatalogTerminology:
     source-system namespace are not part of the global terminology.
     """
     rows = db.execute(
-        select(
-            KpiAlias.alias_normalized,
-            KpiCatalog.code,
-            KpiCatalog.canonical_unit_ucum,
-            KpiCatalog.measurement_class,
-            KpiCatalog.comparison_policy,
-        )
+        select(KpiAlias.alias_normalized, KpiCatalog.code, KpiCatalog.canonical_unit_ucum)
         .join(KpiCatalog, KpiCatalog.code == KpiAlias.kpi_code)
         .where(KpiAlias.source_system == "", KpiCatalog.status == KpiStatus.ACTIVE)
     ).all()
     return CatalogTerminology(
-        {
-            alias: CatalogTerm(
-                kpi_code=code, canonical_unit=unit, automatic=_automatic(measurement_class, policy)
-            )
-            for alias, code, unit, measurement_class, policy in rows
-        }
+        {alias: CatalogTerm(kpi_code=code, canonical_unit=unit) for alias, code, unit in rows}
     )
 
 
@@ -312,8 +290,6 @@ def seed_terminology() -> CatalogTerminology:
         row = by_code[code]
         unit = row["canonical_unit_ucum"]
         terms[alias] = CatalogTerm(
-            kpi_code=code,
-            canonical_unit=unit if isinstance(unit, str) else None,
-            automatic=_automatic(KpiMeasurementClass(str(row["measurement_class"])), None),
+            kpi_code=code, canonical_unit=unit if isinstance(unit, str) else None
         )
     return CatalogTerminology(terms)
