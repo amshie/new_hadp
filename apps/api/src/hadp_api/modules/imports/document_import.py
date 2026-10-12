@@ -75,6 +75,21 @@ def _first_import(db: Session, job: ImportJob) -> DocumentImportResult:
     )
 
 
+def import_outcome(
+    db: Session, *, tenant_id: uuid.UUID, document_id: uuid.UUID
+) -> tuple[DocumentImportResult, ImportJob] | None:
+    """The import that consumed this document, or None if it has not been imported."""
+    job = db.execute(
+        select(ImportJob).where(
+            ImportJob.tenant_id == tenant_id,
+            ImportJob.idempotency_key == f"document:{document_id}",
+        )
+    ).scalar_one_or_none()
+    if job is None:
+        return None
+    return _first_import(db, job), job
+
+
 def import_source_document(
     db: Session,
     *,

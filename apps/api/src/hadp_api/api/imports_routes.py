@@ -12,10 +12,10 @@ from hadp_api.auth.authz import Action
 from hadp_api.auth.dependencies import TenantContext, require
 from hadp_api.errors import Conflict, ValidationFailed
 from hadp_api.modules.audit.service import record_audit, record_security_event
-from hadp_api.modules.documents.service import store_source_document
+from hadp_api.modules.documents.service import list_source_documents, store_source_document
 from hadp_api.modules.enums import ReviewDecision, ReviewStatus
 from hadp_api.modules.imports import service as imports_service
-from hadp_api.modules.imports.document_import import import_source_document
+from hadp_api.modules.imports.document_import import import_outcome, import_source_document
 from hadp_api.modules.imports.service import ValueInput, ingest_values
 from hadp_api.modules.patients import service as patients_service
 from hadp_api.security.rate_limit import check_rate_limit
@@ -267,6 +267,76 @@ class HeldValueOut(BaseModel):
     review_status: str
     # A published correction has replaced this value.
     superseded: bool
+
+
+class DocumentImportSummary(BaseModel):
+    """What the one import of a stored document did (as it was imported)."""
+
+    import_job_id: uuid.UUID
+    imported_at: datetime
+    parser_name: str
+    parser_version: str
+    published_count: int
+    review_count: int
+    duplicate_count: int
+    not_imported_count: int
+
+
+class SourceDocumentOut(BaseModel):
+    id: uuid.UUID
+    filename: str
+    content_type: str
+    byte_size: int
+    uploaded_at: datetime
+    # None while the document is stored but has not been imported.
+    imported: DocumentImportSummary | None
+
+
+@router.get("/patients/{patient_id}/documents", response_model=list[SourceDocumentOut])
+def list_documents(
+    patient_id: uuid.UUID,
+    ctx: TenantContext = Depends(require(Action.OBSERVATION_READ)),
+) -> list[SourceDocumentOut]:
+    """The patient's stored source documents with the outcome of their import (metadata only)."""
+    patients_service.get_patient(ctx.db, ctx.tenant_id, patient_id)
+    documents = list_source_documents(ctx.db, tenant_id=ctx.tenant_id, patient_id=patient_id)
+    out: list[SourceDocumentOut] = []
+    for document in documents:
+        outcome = import_outcome(ctx.db, tenant_id=ctx.tenant_id, document_id=document.id)
+        summary = None
+        if outcome is not None:
+            result, job = outcome
+            summary = DocumentImportSummary(
+                import_job_id=job.id,
+                imported_at=job.created_at,
+                parser_name=result.parser_name,
+                parser_version=result.parser_version,
+                published_count=result.published_count,
+                review_count=result.review_count,
+                duplicate_count=result.duplicate_count,
+                not_imported_count=result.not_imported_count,
+            )
+        out.append(
+            SourceDocumentOut(
+                id=document.id,
+                filename=document.filename,
+                content_type=document.content_type,
+                byte_size=document.byte_size,
+                uploaded_at=document.created_at,
+                imported=summary,
+            )
+        )
+    record_audit(
+        ctx.db,
+        action="document.list",
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        target_type="patient",
+        target_id=patient_id,
+        correlation_id=ctx.correlation_id,
+        detail={"count": len(out)},
+    )
+    return out
 
 
 class ReviewItemOut(BaseModel):

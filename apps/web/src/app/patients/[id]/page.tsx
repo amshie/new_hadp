@@ -6,10 +6,12 @@ import {
   getPatient,
   getReport,
   interpretation,
+  listDocuments,
   me,
   timeline,
   worklist,
   type ReportView,
+  type SourceDocument,
 } from "@/lib/api";
 import { shellIdentity } from "@/lib/identity";
 import { presentDetail, type DetailView } from "@/lib/presenters/patientDetail";
@@ -21,15 +23,18 @@ import { PatientDetailContent } from "./PatientDetailContent";
 // tenant-scoped API — authenticated principal + active tenant (enforced by the API session
 // cookie + RLS), deny-by-default, UUID-guarded. The patient's latest report is resolved via
 // the worklist; a patient without a draft renders an early-lifecycle "Kein Entwurf" state.
-async function loadView(patientId: string): Promise<DetailView> {
+async function loadView(
+  patientId: string,
+): Promise<{ view: DetailView; documents: SourceDocument[] }> {
   try {
     const rows = await worklist();
     const row = rows.find((r) => r.patient_id === patientId);
     const reportId = row?.report_id ?? null;
-    const [patient, points, matrix, report] = await Promise.all([
+    const [patient, points, matrix, documents, report] = await Promise.all([
       getPatient(patientId),
       timeline(patientId),
       interpretation(patientId),
+      listDocuments(patientId),
       // A stale/RLS-filtered report id must not 404 the whole patient — fall through to the
       // no-report state. Only the patient/timeline/interpretation loads gate the page.
       reportId
@@ -48,7 +53,10 @@ async function loadView(patientId: string): Promise<DetailView> {
       narrative_version: "",
       statements: [],
     };
-    return presentDetail(patient, resolved, points, matrix);
+    return {
+      view: presentDetail(patient, resolved, points, matrix),
+      documents,
+    };
   } catch (e) {
     if (e instanceof ApiError) {
       if (e.status === 401 || e.status === 403) redirect("/login");
@@ -67,7 +75,7 @@ export default async function PatientDetailPage({
   if (!isUuid(id)) notFound();
   // The session role drives which staff actions render (invite); the API enforces them.
   // The report draft + Freigabe workflow lives on the dedicated review page, not here.
-  const [view, session] = await Promise.all([
+  const [{ view, documents }, session] = await Promise.all([
     loadView(id),
     me().catch(() => null),
   ]);
@@ -78,7 +86,11 @@ export default async function PatientDetailPage({
       crumbParent={{ label: "Patienten", href: "/patients" }}
       identity={shellIdentity(session)}
     >
-      <PatientDetailContent view={view} sessionRole={session?.role ?? null} />
+      <PatientDetailContent
+        view={view}
+        documents={documents}
+        sessionRole={session?.role ?? null}
+      />
     </VitaShell>
   );
 }

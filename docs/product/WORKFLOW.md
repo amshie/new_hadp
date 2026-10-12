@@ -113,7 +113,10 @@ audit event (`audit_events`) carrying identifiers/codes/timings only — never h
 3. **Upload or enter laboratory data.** An assistant or clinician uploads a lab file or enters
    observations manually. The original source file is stored before parsing, with a content checksum
    for idempotent re-upload, file-type inspection by content (not extension), and size/page limits
-   (`documents`, `imports` modules; planned, Milestone 1).
+   (`documents`, `imports` modules). _(Shipped 2026-10-12: care staff upload and read a structured
+   file — CSV, LDT 2, LDT 3 — from the patient page, which also lists the stored files and what
+   each import did. Manual entry has no form yet; PDF has no reader.
+   `docs/product/LAB_IMPORT_FORMATS.md`.)_
 4. **Extract, map, validate, normalize.** The ingestion pipeline advances explicitly:
    `RECEIVED -> STORED -> EXTRACTED -> MAPPED -> VALIDATED -> REVIEW_REQUIRED | READY ->
 PUBLISHED | REJECTED`. Each observation retains **both** the immutable source representation

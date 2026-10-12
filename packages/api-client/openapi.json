@@ -1268,6 +1268,52 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "List Documents",
+        "description": "The patient's stored source documents with the outcome of their import (metadata only).",
+        "operationId": "list_documents_api_v1_patients__patient_id__documents_get",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SourceDocumentOut"
+                  },
+                  "title": "Response List Documents Api V1 Patients  Patient Id  Documents Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/patients/{patient_id}/imports": {
@@ -2377,6 +2423,57 @@
           "created"
         ],
         "title": "DocumentImportOut"
+      },
+      "DocumentImportSummary": {
+        "properties": {
+          "import_job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Import Job Id"
+          },
+          "imported_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Imported At"
+          },
+          "parser_name": {
+            "type": "string",
+            "title": "Parser Name"
+          },
+          "parser_version": {
+            "type": "string",
+            "title": "Parser Version"
+          },
+          "published_count": {
+            "type": "integer",
+            "title": "Published Count"
+          },
+          "review_count": {
+            "type": "integer",
+            "title": "Review Count"
+          },
+          "duplicate_count": {
+            "type": "integer",
+            "title": "Duplicate Count"
+          },
+          "not_imported_count": {
+            "type": "integer",
+            "title": "Not Imported Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "import_job_id",
+          "imported_at",
+          "parser_name",
+          "parser_version",
+          "published_count",
+          "review_count",
+          "duplicate_count",
+          "not_imported_count"
+        ],
+        "title": "DocumentImportSummary",
+        "description": "What the one import of a stored document did (as it was imported)."
       },
       "DocumentOut": {
         "properties": {
@@ -3581,6 +3678,52 @@
           "role"
         ],
         "title": "SelectTenantResponse"
+      },
+      "SourceDocumentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "byte_size": {
+            "type": "integer",
+            "title": "Byte Size"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Uploaded At"
+          },
+          "imported": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentImportSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "content_type",
+          "byte_size",
+          "uploaded_at",
+          "imported"
+        ],
+        "title": "SourceDocumentOut"
       },
       "StaffInvitationListItem": {
         "properties": {
