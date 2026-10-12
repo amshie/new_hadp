@@ -339,7 +339,9 @@ def main() -> int:
             r.status_code,
         )
         assert "nur für Inhaber" in r.text, "the metric is not refused to a non-owner"
-        assert "Angaben der Praxis" not in r.text and "<form" not in r.text
+        # (The shell has a form of its own — the sign-out button.)
+        assert "Angaben der Praxis" not in r.text, "the metric is shown to a non-owner"
+        assert 'name="median_minutes"' not in r.text, "the metric form is shown to a non-owner"
 
     # The owner reads the clinic's trail: who did what, on the clinic's wall clock.
     owner = staff_session("owner@demo.synthetic")
@@ -377,8 +379,9 @@ def main() -> int:
             assert 'name="median_minutes"' in r.text, "no form to state a preparation time"
             # An outcome code that is not one of the page's own shows no message.
             r = web.get("/einstellungen/vorbereitungszeit?fehler=nope&gespeichert=yes")
-            assert r.status_code == 200
-            assert "nicht gespeichert" not in r.text and "wurde gespeichert" not in r.text
+            assert r.status_code == 200, ("metric page with unknown outcome codes", r.status_code)
+            assert "nicht gespeichert" not in r.text, "an unknown code shows a failure message"
+            assert "wurde gespeichert" not in r.text, "an unknown code shows a success message"
             r = web.get("/einstellungen/audit")
             assert r.status_code == 200, (
                 "/einstellungen/audit as owner",
