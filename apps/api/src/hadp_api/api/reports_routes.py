@@ -105,6 +105,34 @@ def edit_report(
     return reports_service.assemble_report_view(ctx.db, report)
 
 
+@router.post("/reports/{report_id}/redraft")
+def redraft_report(
+    report_id: uuid.UUID,
+    ctx: TenantContext = Depends(require(Action.REPORT_REDRAFT)),
+) -> dict[str, Any]:
+    """Open a new draft version from the values that stand, for a report that cites a value
+    a laboratory correction has replaced. A released report is thereby withdrawn from the
+    patient until it is approved and released again."""
+    version, retracted = reports_service.redraft_report(
+        ctx.db,
+        report_id=report_id,
+        tenant_id=ctx.tenant_id,
+        generated_by_user_id=ctx.user.id,
+    )
+    record_audit(
+        ctx.db,
+        action="report.redrafted",
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        target_type="report_version",
+        target_id=version.id,
+        correlation_id=ctx.correlation_id,
+        detail={"version_no": version.version_no, "patient_access_withdrawn": retracted},
+    )
+    report = _get_report(ctx.db, report_id, ctx.tenant_id)
+    return reports_service.assemble_report_view(ctx.db, report)
+
+
 @router.post("/reports/{report_id}/approve")
 def approve_report(
     report_id: uuid.UUID,

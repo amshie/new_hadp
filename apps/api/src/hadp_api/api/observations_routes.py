@@ -38,6 +38,12 @@ class TimelinePointOut(BaseModel):
     # was withheld because required measurement context is missing/differs.
     comparability: str | None
     comparability_reason: str | None
+    # Correction lineage: the value this one was sent to correct (a proposal until this value
+    # is published), and the published correction that has replaced this value.
+    supersedes_observation_id: uuid.UUID | None
+    superseded_by_observation_id: uuid.UUID | None
+    # A derived value computed from an input that a published correction has replaced.
+    input_replaced: bool
 
 
 @router.get("/patients/{patient_id}/observations", response_model=list[TimelinePointOut])
@@ -76,6 +82,9 @@ def timeline(
             kpi_secondary_domains=p.kpi_secondary_domains,
             comparability=p.comparability,
             comparability_reason=p.comparability_reason,
+            supersedes_observation_id=p.supersedes_observation_id,
+            superseded_by_observation_id=p.superseded_by_observation_id,
+            input_replaced=p.input_replaced,
         )
         for p in points
     ]

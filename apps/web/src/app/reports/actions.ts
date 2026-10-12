@@ -6,6 +6,7 @@ import {
   ApiError,
   approveReport,
   editReport,
+  redraftReport,
   generateReport,
   rejectReport,
   releaseReport,
@@ -34,6 +35,9 @@ function safeMessage(e: unknown): string {
       }
       if (detail.includes("already rejected")) {
         return "Der Bericht wurde bereits zurückgewiesen.";
+      }
+      if (detail.includes("correction has replaced")) {
+        return "Nicht möglich: Ein zitierter Wert wurde vom Labor korrigiert. Bitte einen neuen Entwurf aus den aktuellen Werten erstellen.";
       }
       if (detail.includes("cannot approve")) {
         return "Genehmigung nicht möglich: nicht jeder Beleg ist einsehbar.";
@@ -140,6 +144,12 @@ export async function editReportAction(
           ok: false,
           error: `Nicht gespeichert: Der Text enthält für Berichte nicht zulässige Begriffe (${restricted[1]}).`,
         };
+      if (e.message.includes("correction has replaced"))
+        return {
+          ok: false,
+          error:
+            "Nicht gespeichert: Ein zitierter Wert wurde vom Labor korrigiert. Bitte die betroffene Aussage entfernen oder einen neuen Entwurf erstellen.",
+        };
       if (e.message.includes("evidence"))
         return {
           ok: false,
@@ -147,6 +157,30 @@ export async function editReportAction(
             "Nicht gespeichert: Nicht jeder Beleg ist einsehbar. Bitte die betroffene Aussage entfernen.",
         };
     }
+    return { ok: false, error: safeMessage(e) };
+  }
+  revalidatePath(path);
+  return { ok: true };
+}
+
+// A new draft version from the values that stand — the way on once a laboratory correction
+// has replaced a cited value. For a released report this withdraws patient access until the
+// new version is approved and released again (the API revokes the link).
+export async function redraftReportAction(
+  reportId: string,
+  path: string,
+): Promise<ReportActionResult> {
+  const invalid = guard(reportId, path);
+  if (invalid) return { ok: false, error: invalid };
+  try {
+    await redraftReport(reportId);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 422)
+      return {
+        ok: false,
+        error:
+          "Kein Entwurf möglich: Es liegen keine veröffentlichten Beobachtungen vor.",
+      };
     return { ok: false, error: safeMessage(e) };
   }
   revalidatePath(path);

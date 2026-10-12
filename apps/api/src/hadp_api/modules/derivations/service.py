@@ -28,11 +28,13 @@ def _latest_input(
     db: Session, patient_id: uuid.UUID, kpi_code: str, unit: str
 ) -> Observation | None:
     """The latest PUBLISHED, correct-unit, non-superseded observation for an input KPI, or None."""
+    # A correction replaces a value only once it is published (observations.service).
     superseded = (
         select(Observation.supersedes_observation_id)
         .where(
             Observation.patient_id == patient_id,
             Observation.supersedes_observation_id.is_not(None),
+            Observation.review_status == ReviewStatus.PUBLISHED,
         )
         .scalar_subquery()
     )

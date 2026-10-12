@@ -32,11 +32,14 @@ export default async function AuthorRunPage({
     ]);
     if (session?.role !== "clinician") redirect(`/patients/${id}`);
 
-    // Evidence choices: the patient's PUBLISHED observations (the service refuses
-    // anything else, fail-closed).
+    // Evidence choices: the patient's PUBLISHED observations that no laboratory correction
+    // has replaced (the service refuses anything else, fail-closed).
     const seen = new Set<string>();
     const evidenceOptions: EvidenceOption[] = points
       .filter((p) => p.review_status === "published")
+      .filter(
+        (p) => p.superseded_by_observation_id == null && !p.input_replaced,
+      )
       .filter((p) =>
         seen.has(p.observation_id) ? false : (seen.add(p.observation_id), true),
       )
@@ -56,7 +59,11 @@ export default async function AuthorRunPage({
             tri_state_axis: c.tri_state_axis,
             state: c.state,
             endpoint_adequacy: c.endpoint_adequacy,
-            evidence: c.evidence.map((e) => e.observation_id),
+            // A replaced value is not carried into the new run: the cell then asks for
+            // evidence again instead of silently keeping a corrected value.
+            evidence: c.evidence
+              .filter((e) => e.superseded !== true)
+              .map((e) => e.observation_id),
             rationale: c.rationale ?? "",
           })),
         }))

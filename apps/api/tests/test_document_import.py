@@ -115,6 +115,7 @@ def test_csv_import_publishes_mapped_values_and_queues_the_rest(client, admin_se
     assert audit.detail == {
         "published": 1,
         "review": 1,
+        "duplicates": 0,
         "not_imported": 0,
         "parser": "hadp-csv",
         "parser_version": "1",

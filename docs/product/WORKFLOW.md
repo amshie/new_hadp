@@ -127,8 +127,13 @@ PUBLISHED | REJECTED`. Each observation retains **both** the immutable source re
    Review-Queue (publish or reject; a reject is immediate and fail-closed, a publish takes effect
    only with the last open item; shipped 2026-07-03). Corrections supersede via
    `supersedes_observation_id` (new version, prior provenance preserved — never silently
-   overwritten); ambiguous correction/duplicate matches enter review rather than auto-superseding
-   _(supersession matching: planned, Milestone 1.)_
+   overwritten); ambiguous correction/duplicate matches enter review rather than auto-superseding.
+   _(Shipped 2026-10-12: a value nothing distinguishes from a held one is not imported twice; a
+   source-marked correction is a proposal that takes effect only when a clinician publishes it;
+   any other value for an occupied analyte and sampling time is held for review; a replaced value
+   can no longer back a draft, an approval, a release or a new interpretation run, and a report
+   that cites one is continued with a new draft version from the values that stand. Rule and
+   limits: `docs/product/LAB_IMPORT_FORMATS.md`.)_
 6. **Clinician reviews timeline and context.** The clinician sees longitudinal charts (with an
    accessible table/text alternative), source reference intervals, deterministic deltas/percentages,
    data freshness, missing/stale/duplicate/conflicting flags, and rule matches — each reproducible

@@ -7,9 +7,9 @@ import type { ReviewQueueItem } from "@/lib/api";
 
 import { resolveReviewItemAction } from "./actions";
 
-// Closed reason vocabulary (imports/normalize.py + imports/parsers/base.py) → neutral German
-// labels. No verdict
-// language: a queued value is undecided, never "auffällig" or graded.
+// Closed reason vocabulary (imports/normalize.py + imports/parsers/base.py +
+// imports/matching.py) → neutral German labels. No verdict language: a queued value is
+// undecided, never "auffällig" or graded.
 const REASON_LABELS: Record<string, string> = {
   unmapped_metric: "Kennzahl nicht zugeordnet",
   unparseable_value: "Wert nicht lesbar",
@@ -23,7 +23,29 @@ const REASON_LABELS: Record<string, string> = {
   source_comment: "Laborkommentar zum Wert — Quelle prüfen",
   ambiguous_reference: "Referenzbereich nicht eindeutig — Quelle prüfen",
   multiple_result_values: "Mehrere Werte zu einer Analyse — Quelle prüfen",
+  possible_duplicate:
+    "Für diese Analyse und Abnahmezeit liegt bereits ein Wert vor",
+  ambiguous_correction:
+    "Korrektur ohne eindeutigen Bezug — frühere Werte prüfen",
 };
+
+type HeldValue = NonNullable<ReviewQueueItem["replaces"]>;
+
+const HELD_STATUS: Record<string, string> = {
+  published: "veröffentlicht",
+  pending: "in Prüfung",
+  rejected: "abgelehnt",
+};
+
+// A value the patient already holds, as the source wrote it, with its sampling time and
+// where it stands. The time matters: a value of the same day is not always the same sample.
+function heldLabel(held: HeldValue): string {
+  const value = `${held.original_value} ${held.original_unit ?? ""}`.trim();
+  const status = held.superseded
+    ? "ersetzt"
+    : (HELD_STATUS[held.review_status] ?? held.review_status);
+  return `${value} · ${fmtObserved(held.observed_at, held.observed_at_is_date_only)} (${status})`;
+}
 
 function reasonLabel(reason: string): string {
   return REASON_LABELS[reason] ?? reason;
@@ -64,6 +86,13 @@ const tdStyle: CSSProperties = {
   color: "var(--text-body)",
   borderBottom: "1px solid var(--border-subtle)",
   verticalAlign: "top",
+};
+
+const contextStyle: CSSProperties = {
+  marginTop: "4px",
+  fontSize: "11.5px",
+  lineHeight: 1.4,
+  color: "var(--text-muted)",
 };
 
 const btnSec: CSSProperties = {
@@ -215,6 +244,18 @@ export function ReviewQueueContent({
                     >
                       {item.original_value} {item.original_unit ?? ""}
                     </div>
+                    {item.replaces && (
+                      <div style={contextStyle}>
+                        Ersetzt bei Veröffentlichung: {heldLabel(item.replaces)}
+                        {item.replaces_cited_in_report_count > 0 &&
+                          ` — in ${item.replaces_cited_in_report_count} Bericht(en) zitiert`}
+                      </div>
+                    )}
+                    {item.related.map((held) => (
+                      <div key={held.observation_id} style={contextStyle}>
+                        Bereits vorhanden: {heldLabel(held)}
+                      </div>
+                    ))}
                   </td>
                   <td style={tdStyle}>{reasonLabel(item.reason)}</td>
                   <td style={tdStyle}>
@@ -316,6 +357,23 @@ export function ReviewQueueContent({
               ? "Der Wert wird veröffentlicht und erscheint in der klinischen Zeitleiste. Bleibt eine weitere offene Prüfaufgabe zu diesem Wert bestehen, bleibt er bis zu deren Entscheidung zurückgehalten."
               : "Der Wert wird abgelehnt und nie veröffentlicht. Die Entscheidung wird Ihnen zugeordnet und auditiert."}
           </p>
+          {confirm.item.replaces && (
+            <p
+              style={{
+                margin: "10px 0 0",
+                fontSize: "12.5px",
+                lineHeight: 1.5,
+                color: "var(--text-strong)",
+              }}
+            >
+              {confirm.decision === "publish"
+                ? `Mit der Veröffentlichung ersetzt dieser Wert den früheren Wert ${heldLabel(confirm.item.replaces)}. Der frühere Wert bleibt unverändert erhalten und wird als ersetzt gekennzeichnet.`
+                : `Der frühere Wert ${heldLabel(confirm.item.replaces)} bleibt bestehen.`}
+              {confirm.decision === "publish" &&
+                confirm.item.replaces_cited_in_report_count > 0 &&
+                ` Er ist in ${confirm.item.replaces_cited_in_report_count} Bericht(en) zitiert: Diese können erst mit einem neuen Entwurf genehmigt oder freigegeben werden; ein bereits freigegebener Bericht bleibt für die Patientin sichtbar, bis auf der Berichtsseite ein neuer Entwurf erstellt wird.`}
+            </p>
+          )}
           {error && (
             <p
               role="alert"

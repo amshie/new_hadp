@@ -20,6 +20,7 @@ from hadp_api.errors import Conflict, NotFound, ValidationFailed
 from hadp_api.modules.documents.blob import get_blob_store
 from hadp_api.modules.documents.models import SourceDocument
 from hadp_api.modules.enums import ImportStatus
+from hadp_api.modules.imports.matching import DUPLICATE_VALUE
 from hadp_api.modules.imports.models import ImportJob, ImportRow
 from hadp_api.modules.imports.parsers import SourceParseError, parse_source_document
 from hadp_api.modules.imports.service import ValueInput, ingest_values
@@ -33,6 +34,9 @@ class DocumentImportResult:
     parser_version: str
     published_count: int
     review_count: int
+    # Values the patient already holds: recorded with the observation they repeat, not
+    # imported a second time.
+    duplicate_count: int
     # Results the file contains but the pipeline cannot carry (text results, results still to
     # come). Each is recorded as a rejected import row with its locator and reason.
     not_imported_count: int
@@ -50,13 +54,23 @@ def _first_import(db: Session, job: ImportJob) -> DocumentImportResult:
         .tuples()
         .all()
     )
+    duplicates = db.execute(
+        select(func.count())
+        .select_from(ImportRow)
+        .where(
+            ImportRow.import_job_id == job.id,
+            ImportRow.status == ImportStatus.REJECTED,
+            ImportRow.raw["not_imported_reason"].astext == DUPLICATE_VALUE,
+        )
+    ).scalar_one()
     return DocumentImportResult(
         import_job_id=job.id,
         parser_name=job.parser_name,
         parser_version=job.parser_version,
         published_count=counts.get(ImportStatus.PUBLISHED, 0),
         review_count=counts.get(ImportStatus.REVIEW_REQUIRED, 0),
-        not_imported_count=counts.get(ImportStatus.REJECTED, 0),
+        duplicate_count=duplicates,
+        not_imported_count=counts.get(ImportStatus.REJECTED, 0) - duplicates,
         created=False,
     )
 
@@ -150,11 +164,6 @@ def import_source_document(
                 status=ImportStatus.REJECTED,
             )
         )
-    if not parsed.values:
-        # Nothing in the file could be carried: the job must not read as published.
-        job = db.get(ImportJob, result.import_job_id)
-        if job is not None:
-            job.status = ImportStatus.REJECTED
     db.flush()
     return DocumentImportResult(
         import_job_id=result.import_job_id,
@@ -162,6 +171,7 @@ def import_source_document(
         parser_version=parsed.parser_version,
         published_count=result.published_count,
         review_count=result.review_count,
+        duplicate_count=result.duplicate_count,
         not_imported_count=len(parsed.not_imported),
         created=True,
     )

@@ -17,13 +17,14 @@ A reader turns a stored source document into rows for the existing import pipeli
 - nothing is normalized, converted, or interpreted by a reader — that stays with
   `modules/imports/normalize.py` and the human review queue.
 
-Three outcomes exist, and none of them hides data:
+Four outcomes exist, and none of them hides data:
 
-| Outcome          | When                                                            | Effect                                                                       |
-| ---------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| **Refused**      | The file cannot be read structurally (see the lists below).     | Nothing is imported — a file is read whole or not at all. HTTP 422, audited. |
-| **Imported**     | A row with a value and a date.                                  | Normal pipeline: published, or held in the review queue with its reasons.    |
-| **Not imported** | LDT only: a result the pipeline cannot carry (see each format). | Recorded as a rejected import row (locator + reason) and counted.            |
+| Outcome          | When                                                                        | Effect                                                                       |
+| ---------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **Refused**      | The file cannot be read structurally (see the lists below).                 | Nothing is imported — a file is read whole or not at all. HTTP 422, audited. |
+| **Imported**     | A row with a value and a date.                                              | Normal pipeline: published, or held in the review queue with its reasons.    |
+| **Not imported** | LDT only: a result the pipeline cannot carry (see each format).             | Recorded as a rejected import row (locator + reason) and counted.            |
+| **Already held** | The patient holds exactly this value (see "Repeated and corrected values"). | Recorded as a rejected import row naming the held observation, and counted.  |
 
 Endpoint: `POST /api/v1/patients/{patient_id}/documents/{document_id}/import` (care staff). A
 document is imported **at most once**; a repeat returns the first import (HTTP 200) and writes
@@ -167,6 +168,82 @@ sample is not a patient's report); two range specifications (8424) in one range 
 result status or time-zone notation; reports for more than one patient; a date of birth that
 differs from the patient record (HTTP 409).
 
+## Repeated and corrected values — all inputs, `modules/imports/matching.py`
+
+A laboratory sends one measurement more than once: a final report repeats a partial one, a file is
+sent again, a result is corrected. Every incoming value — from a file or from manual entry — is
+therefore matched against what the patient already holds. The rule is conservative on purpose and
+never replaces anything without a human.
+
+**The same measurement** means: same patient, same analyte, same sampling time.
+
+- _Same analyte:_ the same name (case and spacing ignored), or the same metric code, or the same
+  catalog KPI. Specimen and method are not carried, so they cannot tell two values apart.
+- _Same sampling time:_ the same instant. If only one side names a time of day, the other side's
+  day in `LAB_LOCAL_TIMEZONE` is compared instead: it may be the same sample, so a human looks —
+  but such a pair is never certain, and nothing is dropped or linked on it.
+- A day-only value from manual entry is stored as the calendar day the client wrote, whatever
+  offset it was written with.
+- Derived values are never matched. Matching never reaches another patient or clinic.
+- Imports and review decisions for one patient run one after the other (one transaction-scoped
+  advisory lock per patient).
+
+| The incoming value …                                                                               | Outcome                                                                                            |
+| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| meets no held value for its analyte and sampling time                                              | Normal pipeline.                                                                                   |
+| is indistinguishable from a value that stands (see below)                                          | **Not imported twice** — recorded as `duplicate_value` with the held observation's id.             |
+| is marked corrected by the source, and exactly one value stands, sampled at exactly that time      | Held for review (`corrected_result`) as a **proposed replacement** of that value.                  |
+| is marked corrected, and several values stand — or the one that stands only shares the day         | Held for review (`corrected_result` + `ambiguous_correction`); nothing is linked.                  |
+| is marked corrected, and nothing stands that it could correct                                      | Held for review (`corrected_result`) as before.                                                    |
+| is anything else for an occupied analyte and sampling time (other value, notation, unit, interval) | Held for review (`possible_duplicate`). Publishing it lets both values stand; nothing is replaced. |
+
+A value **stands** when it is published or waiting for review, and no published correction has
+replaced it. A value a reviewer rejected, or a correction replaced, does not stand: the same number
+arriving again is held for review, never dropped and never published unseen.
+
+**Indistinguishable** is strict. All of the following hold:
+
+- same name, same instant (not just the same day), and the same value, unit, reference text and
+  stored reference bounds — `2,8` and `2.8` are not the same writing;
+- **neither value carries a laboratory status or note** (preliminary, corrected, a comment, an
+  ambiguous range or time, several written values). "Already reported" (LDT 8418 = `B` / `07`) is
+  not such a status: it is the laboratory saying the value is a repeat;
+- the held value is not from the same file — twice in one file is more likely a second measurement
+  than a file sent again, so the second one is held for review;
+- if the held value is itself still waiting as "already reported", only another "already reported"
+  copy is dropped against it. A reviewer may reject that waiting copy as a mere repeat; the
+  publishable original must not disappear behind it.
+
+Together these mean: whatever is decided about the held value is what would have been decided about
+the copy that was not imported.
+
+**A correction is a proposal until a human publishes it.** A value is proposed for replacement at
+most once; a further correction waits without a link. The review queue shows the value a
+correction would replace, with its sampling time, and how many reports cite that value; every queue item also lists
+the other values held for the same analyte and sampling time, read when the queue is shown.
+Publishing the correction makes the replacement take effect; rejecting it leaves the earlier value
+standing. The replaced observation is never changed or deleted — it carries no new field;
+"replaced" means "a published source value points at it" (`supersedes_observation_id`, one
+definition: `observations.service.superseded_by`). A recomputed derived value is lineage, not a
+correction.
+
+A value that no longer stands — a replaced value, and any value derived from it — is no longer
+evidence:
+
+- the timeline keeps it, marked, and computes no change against it;
+- a new report draft and a new interpretation run cannot cite it; an existing run that cites it is
+  preserved and marked;
+- a report that cites it cannot be approved or released, and an edit cannot keep the statement.
+  The way on is a **new draft version from the values that stand** (`POST /reports/{id}/redraft`,
+  on the report page, clinician only). The earlier version is preserved as a record, but its
+  wording — including a clinician's edits — is not carried over, and the product has no view of
+  an earlier version. If it was released, the patient's access is withdrawn until the new version
+  is approved and released again;
+- a derived value no longer takes it as an input.
+
+Two values that both stand for one sampling time — or for one day, when only one of them names a
+time — are not a change over time: no change is computed between them.
+
 ## Upload
 
 An LDT file is accepted at upload by content inspection: **every** line must be a well-formed line
@@ -189,9 +266,28 @@ declared is neither trusted nor kept. Anything else still needs an allow-listed 
 - **Laboratory attention messages hold a value for review.** In the KBV example files every result
   flagged high or low carries one; if a laboratory does the same, its flagged values wait for a
   human while unflagged ones publish.
-- **No supersession and no duplicate detection.** A corrected or repeated value is held for review;
-  it is not matched to the value it replaces. A final report that repeats the values of an earlier
-  partial report without marking them imports them again.
+- **A released report is not withdrawn automatically when a value it cites is replaced.** The
+  reviewer is told how many reports cite the value before accepting the correction, the report
+  page marks it and offers a new draft — but until a clinician creates that draft, the released
+  version stays visible to the patient. Whether accepting a correction should itself retract a
+  release is a governance decision, not built.
+- **A correction is only recognized when the source marks it.** An unmarked changed value is held
+  for review as a possible duplicate; a reviewer can publish or reject it but cannot declare it
+  the replacement of the earlier value, and cannot retire a published value by hand. When two
+  values stand for one sample, later changes are computed against the one received last.
+- **A marked correction with exactly one candidate can only be published as its replacement** (or
+  rejected); a reviewer cannot publish it next to the earlier value.
+- **Matching does not know specimen, method or order number** (the readers do not carry them), so
+  two different specimens with the same analyte name and sampling time meet in review — or, in
+  two different files with identical values, count as a repeat — and the same test under two
+  different names is not recognized as a repeat.
+- **A value with a laboratory note is never dropped as a repeat**, so a re-sent file brings its
+  commented, preliminary and corrected values back into the review queue.
+- **Reference bounds are compared as stored.** Numeric bounds are stored only for a mapped analyte
+  with a plain number in a supported unit; in every other case only the reference text is
+  compared — with six mapped names today, that is the normal case.
+- **A derived value is not recomputed when an input is replaced** (computation is a controlled
+  call, not automatic); the earlier derived value is marked and can no longer be cited.
 - **Exactly-once rests on a row lock** on the source document; there is no unique index on the
   import job's idempotency key.
 - **LDT 2: the record length (8100) is not checked**; every line's own length is. LDT 3 has a file
