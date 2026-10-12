@@ -239,7 +239,10 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   edit of an approved or rejected version adds a version; a failed sign-out call is swallowed
   by the web app (the session then stays valid server-side until it expires); a 503 from the
   limiter is shown as the generic failure; uvicorn's own startup log does not pass the
-  redaction filter; the erasure function is SECURITY DEFINER without a pinned `search_path`.
+  redaction filter. (The erasure function — SECURITY DEFINER, owned by the migrating superuser,
+  with unqualified table names — had no `search_path` of its own, so a session of the
+  application role could place a temporary table in front of a real one and have its code run
+  as the owner: fixed by migration 0020, `tests/test_security_definer_functions.py`.)
 - **Preparation-time metric (go-live plan A6, 2026-10-12): PART 1 — A6 stays open.**
   Einstellungen → Vorbereitungszeit holds the clinic's own statements (baseline, follow-ups;
   append-only) and one measured interval, draft to first standing approval
