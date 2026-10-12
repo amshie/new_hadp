@@ -58,6 +58,9 @@ export async function recordStatementAction(formData: FormData): Promise<void> {
       redirect(`${PATH}?fehler=rolle`);
     if (e instanceof ApiError && e.status === 422)
       redirect(`${PATH}?fehler=eingabe`);
+    // Refused before anything was written: the API limits how often a statement is recorded.
+    if (e instanceof ApiError && e.status === 429)
+      redirect(`${PATH}?fehler=zuviele`);
     redirect(`${PATH}?fehler=allgemein`);
   }
   revalidatePath(PATH);

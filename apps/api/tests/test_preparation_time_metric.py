@@ -1,16 +1,16 @@
-"""The preparation-time metric (go-live plan A6; docs/product/WORKFLOW.md §6).
+"""The preparation-time metric, part 1 (go-live plan A6; docs/product/WORKFLOW.md §6).
 
 What the clinic STATES (a median in minutes, per appointment: the baseline and later
 follow-ups — append-only, owner-only, tenant-scoped) and what the platform MEASURES (the time
-from a report's first draft to its first approval, read from the report rows) are two
-quantities and are kept apart. Counts, durations and staff identifiers only — nothing about a
-patient.
+from a report's first draft to its first approval that stood, read from the report rows) are
+two quantities and are kept apart. Counts, durations and the recording colleague's name —
+nothing about a patient.
 """
 
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -20,13 +20,28 @@ from sqlalchemy.orm import Session
 
 from hadp_api.db.engine import get_sessionmaker, set_tenant_context
 from hadp_api.modules.audit.models import AuditEvent
-from hadp_api.modules.enums import ReportStatus, Role
+from hadp_api.modules.enums import (
+    PreparationStatementBasis,
+    PreparationStatementKind,
+    ReportRejectionReason,
+    ReportStatus,
+    Role,
+)
 from hadp_api.modules.metrics import service as metrics_service
 from hadp_api.modules.metrics.models import PreparationTimeStatement
 from hadp_api.modules.patients.models import Patient
+from hadp_api.modules.reports import timing as report_timing
 from hadp_api.modules.reports.models import Report, ReportVersion
 from hadp_api.modules.tenancy.models import Tenant
-from tests.helpers import login_as, make_membership, make_tenant, make_user, switch_role
+from tests.helpers import (
+    login,
+    login_as,
+    make_membership,
+    make_tenant,
+    make_user,
+    select_tenant,
+    switch_role,
+)
 
 READ = "/api/v1/metrics/preparation-time"
 STATE = "/api/v1/metrics/preparation-time/statements"
@@ -51,9 +66,13 @@ def _report(
     *,
     drafted: datetime,
     approvals: list[datetime | None],
+    refused: frozenset[int] = frozenset(),
+    version_gap: timedelta = timedelta(0),
 ) -> Report:
     """A report as the lifecycle leaves it: created at `drafted`, one version per entry of
-    `approvals` — approved at that time, or never (None)."""
+    `approvals` — approved at that time, or never (None). A version whose number is in
+    `refused` was rejected after its approval and keeps both timestamps, as `reject_report`
+    leaves it. Version n is created `version_gap` after version n-1."""
     patient = Patient(tenant_id=tenant.id, display_name="P", is_synthetic=True)
     db.add(patient)
     db.flush()
@@ -66,17 +85,26 @@ def _report(
     db.add(report)
     db.flush()
     for number, approved_at in enumerate(approvals, start=1):
+        rejected = number in refused
+        if rejected:
+            status = ReportStatus.REJECTED
+        elif approved_at:
+            status = ReportStatus.APPROVED
+        else:
+            status = ReportStatus.DRAFT_GENERATED
         db.add(
             ReportVersion(
                 tenant_id=tenant.id,
                 report_id=report.id,
                 version_no=number,
-                status=ReportStatus.APPROVED if approved_at else ReportStatus.DRAFT_GENERATED,
+                status=status,
                 body={"statements": []},
                 narrative_provider="deterministic-test",
                 narrative_version="0",
-                created_at=drafted,
+                created_at=drafted + version_gap * (number - 1),
                 approved_at=approved_at,
+                rejected_at=(approved_at or drafted) + timedelta(minutes=1) if rejected else None,
+                rejection_reason=ReportRejectionReason.WORDING if rejected else None,
             )
         )
     db.commit()
@@ -113,7 +141,8 @@ def test_the_owner_states_a_baseline_and_reads_it_back(client, admin_session) ->
     assert statement["recorded_at"].endswith(("Z", "+00:00"))
 
     read = client.get(READ).json()
-    assert read["definition"] == "prep-time-1"
+    assert read["definition"] == "draft-to-approval-1"
+    assert read["statements_total"] == 1
     assert read["baseline"] == statement
     assert read["statements"] == [statement]
     assert read["latest_follow_up"] is None
@@ -153,6 +182,12 @@ def test_a_correction_is_a_new_statement_and_the_earlier_one_stays(client, admin
         {**BASELINE, "median_minutes": 601},
         {**BASELINE, "median_minutes": 12.5},
         {**BASELINE, "median_minutes": "about half an hour"},
+        # A JSON integer, and nothing that merely converts to one.
+        {**BASELINE, "median_minutes": "30"},
+        {**BASELINE, "median_minutes": 30.0},
+        {**BASELINE, "median_minutes": True},
+        {**BASELINE, "basis": "timed_sample", "sample_size": "12"},
+        {**BASELINE, "basis": "timed_sample", "sample_size": True},
         {**BASELINE, "median_minutes": None},
         {"kind": "baseline", "basis": "estimate"},
         {**BASELINE, "sample_size": 10},  # an estimate has no sample
@@ -177,6 +212,136 @@ def test_the_limits_of_the_range_are_accepted(client, admin_session) -> None:  #
     _owner(client, admin_session)
     for minutes in (1, 600):
         assert client.post(STATE, json={**BASELINE, "median_minutes": minutes}).status_code == 201
+
+
+def _statement(
+    tenant: Tenant,
+    user_id: uuid.UUID,
+    *,
+    kind: PreparationStatementKind,
+    minutes: int,
+    at: datetime,
+) -> PreparationTimeStatement:
+    return PreparationTimeStatement(
+        tenant_id=tenant.id,
+        recorded_by_user_id=user_id,
+        kind=kind,
+        basis=PreparationStatementBasis.ESTIMATE,
+        median_minutes=minutes,
+        created_at=at,
+    )
+
+
+def test_the_standing_baseline_is_not_hidden_by_a_long_history(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """The history returns the newest 50; the statements that stand are looked up on their
+    own — a baseline followed by 51 follow-ups is still the baseline."""
+    owner, tenant = _owner(client, admin_session, "prep-long")
+    start = datetime.now(UTC) - timedelta(days=100)
+    admin_session.add(
+        _statement(tenant, owner.id, kind=PreparationStatementKind.BASELINE, minutes=42, at=start)
+    )
+    for day in range(1, 52):
+        admin_session.add(
+            _statement(
+                tenant,
+                owner.id,
+                kind=PreparationStatementKind.FOLLOW_UP,
+                minutes=20,
+                at=start + timedelta(days=day),
+            )
+        )
+    admin_session.commit()
+
+    read = client.get(READ).json()
+    assert read["baseline"]["median_minutes"] == 42
+    assert read["statements_total"] == 52
+    assert len(read["statements"]) == metrics_service.MAX_STATEMENTS == 50
+    assert {s["kind"] for s in read["statements"]} == {"follow_up"}
+    assert read["latest_follow_up"]["id"] == read["statements"][0]["id"]
+
+
+def test_the_statement_queries_filter_by_clinic_themselves(admin_session) -> None:  # type: ignore[no-untyped-def]
+    """As the admin role, which row-level security does not bind: the filter is in each query."""
+    clinic_a = make_tenant(admin_session, name="Clinic prep-q-a", slug="prep-q-a")
+    clinic_b = make_tenant(admin_session, name="Clinic prep-q-b", slug="prep-q-b")
+    user = make_user(admin_session, email="owner@prep-q.synthetic.example")
+    now = datetime.now(UTC)
+    admin_session.add_all(
+        [
+            _statement(
+                clinic_a, user.id, kind=PreparationStatementKind.BASELINE, minutes=30, at=now
+            ),
+            _statement(
+                clinic_b, user.id, kind=PreparationStatementKind.BASELINE, minutes=45, at=now
+            ),
+            _statement(
+                clinic_b, user.id, kind=PreparationStatementKind.FOLLOW_UP, minutes=15, at=now
+            ),
+        ]
+    )
+    admin_session.commit()
+
+    listed = metrics_service.list_statements(admin_session, tenant_id=clinic_a.id)
+    assert [s.median_minutes for s in listed] == [30]
+    assert metrics_service.count_statements(admin_session, tenant_id=clinic_a.id) == 1
+    assert metrics_service.count_statements(admin_session, tenant_id=clinic_b.id) == 2
+    follow_up, baseline = PreparationStatementKind.FOLLOW_UP, PreparationStatementKind.BASELINE
+    assert (
+        metrics_service.standing_statement(admin_session, tenant_id=clinic_a.id, kind=follow_up)
+        is None
+    )
+    standing = metrics_service.standing_statement(
+        admin_session, tenant_id=clinic_b.id, kind=baseline
+    )
+    assert standing is not None and standing.median_minutes == 45
+
+
+def test_a_time_is_given_in_utc_whatever_zone_the_database_session_reports(  # type: ignore[no-untyped-def]
+    client, admin_session, monkeypatch
+) -> None:
+    owner, tenant = _owner(client, admin_session, "prep-zone")
+    berlin = timezone(timedelta(hours=2))
+    statement = _statement(
+        tenant,
+        owner.id,
+        kind=PreparationStatementKind.BASELINE,
+        minutes=30,
+        at=datetime(2026, 10, 12, 18, 59, 30, tzinfo=berlin),
+    )
+    statement.id = uuid.uuid4()
+    monkeypatch.setattr(metrics_service, "list_statements", lambda *_a, **_k: [statement])
+
+    (listed,) = client.get(READ).json()["statements"]
+
+    assert listed["recorded_at"] in ("2026-10-12T16:59:30Z", "2026-10-12T16:59:30+00:00")
+
+
+def test_stating_is_throttled_per_account_and_clinic(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """A statement is a row nobody can remove: 30 a minute per account and clinic."""
+    _owner(client, admin_session, "prep-rl-write")
+    for _ in range(30):
+        assert client.post(STATE, json=BASELINE).status_code == 201
+    blocked = client.post(STATE, json=BASELINE)
+    assert blocked.status_code == 429, blocked.text
+    assert len(admin_session.execute(select(PreparationTimeStatement)).scalars().all()) == 30
+    throttled = (
+        admin_session.execute(select(AuditEvent).where(AuditEvent.action == "rate_limited"))
+        .scalars()
+        .one()
+    )
+    assert throttled.detail == {"action": "metric.record"}
+
+
+def test_reading_is_throttled_per_account_and_clinic(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """Every read writes an audit event: 120 a minute per account and clinic."""
+    _owner(client, admin_session, "prep-rl-read")
+    for _ in range(120):
+        assert client.get(READ).status_code == 200
+    assert client.get(READ).status_code == 429
+    reads = admin_session.execute(
+        select(AuditEvent).where(AuditEvent.action == "metric.read")
+    ).scalars()
+    assert len(reads.all()) == 120
 
 
 # ---- who may ----------------------------------------------------------------------------
@@ -294,6 +459,7 @@ def test_a_statement_is_never_changed_or_removed(client, admin_session) -> None:
         {"sample_size": 10},  # with basis 'estimate'
         {"basis": "timed_sample"},  # without a sample size
         {"basis": "timed_sample", "sample_size": 0},
+        {"basis": "timed_sample", "sample_size": 100_001},
     ],
 )
 def test_the_database_refuses_what_the_api_refuses(admin_session, columns: dict[str, Any]) -> None:  # type: ignore[no-untyped-def]
@@ -415,15 +581,205 @@ def test_the_service_measures_one_clinic_and_one_window(admin_session) -> None: 
     _approved_after(admin_session, clinic_b, [90, 90, 90, 90, 90, 90], ago=timedelta(days=1))
     now = datetime.now(UTC)
 
-    a = metrics_service.measure(admin_session, tenant_id=clinic_a.id, since=None, until=now)
-    b = metrics_service.measure(admin_session, tenant_id=clinic_b.id, since=None, until=now)
+    (a,) = metrics_service.measure(admin_session, tenant_id=clinic_a.id, until=now, windows=[None])
+    (b,) = metrics_service.measure(admin_session, tenant_id=clinic_b.id, until=now, windows=[None])
     assert (a.reports, a.median_seconds) == (5, 600)
     assert (b.reports, b.median_seconds) == (6, 5400)
-    # `until` is exclusive and `since` inclusive: a window that ends before the approvals is empty.
-    earlier = metrics_service.measure(
-        admin_session, tenant_id=clinic_a.id, since=None, until=now - timedelta(days=2)
+    # A window that ends before the approvals is empty.
+    (earlier,) = metrics_service.measure(
+        admin_session, tenant_id=clinic_a.id, until=now - timedelta(days=2), windows=[None]
     )
     assert earlier.reports == 0 and earlier.median_seconds is None
+
+
+def test_a_window_includes_its_start_and_excludes_its_end(admin_session) -> None:  # type: ignore[no-untyped-def]
+    tenant = make_tenant(admin_session, name="Clinic prep-edge", slug="prep-edge")
+    admin_session.commit()
+    start = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+    end = start + timedelta(days=7)
+    for approved in (start, start + timedelta(days=3), end):
+        _report(
+            admin_session, tenant, drafted=approved - timedelta(minutes=15), approvals=[approved]
+        )
+
+    whole, from_start = report_timing.draft_to_approval(
+        admin_session, tenant_id=tenant.id, until=end, windows=[None, start]
+    )
+    # The approval exactly at `until` is outside; the one exactly at `since` is inside.
+    assert whole.reports == 2 and from_start.reports == 2
+    (after_start,) = report_timing.draft_to_approval(
+        admin_session,
+        tenant_id=tenant.id,
+        until=end + timedelta(microseconds=1),
+        windows=[start + timedelta(microseconds=1)],
+    )
+    assert after_start.reports == 2  # the one at `start` left, the one at `end` came in
+    assert whole.median_seconds == 15 * 60
+
+
+def test_an_approval_that_was_refused_does_not_end_the_measurement(admin_session) -> None:  # type: ignore[no-untyped-def]
+    tenant = make_tenant(admin_session, name="Clinic prep-refused", slug="prep-refused")
+    admin_session.commit()
+    day = datetime.now(UTC) - timedelta(days=10)
+    # Approved after 2 minutes, refused at the release gate, reworked, approved 3 days later.
+    _report(
+        admin_session,
+        tenant,
+        drafted=day,
+        approvals=[day + timedelta(minutes=2), day + timedelta(days=3)],
+        refused=frozenset({1}),
+        version_gap=timedelta(days=2),
+    )
+    # Approved once, and that approval was refused: no approval stands.
+    _report(
+        admin_session,
+        tenant,
+        drafted=day,
+        approvals=[day + timedelta(minutes=2)],
+        refused=frozenset({1}),
+    )
+
+    (stats,) = report_timing.draft_to_approval(
+        admin_session, tenant_id=tenant.id, until=datetime.now(UTC), windows=[None]
+    )
+    assert stats.reports == 1
+    assert stats.median_seconds == timedelta(days=3).total_seconds()
+
+
+def test_the_interval_starts_at_the_reports_first_draft_not_at_a_later_version(  # type: ignore[no-untyped-def]
+    admin_session,
+) -> None:
+    tenant = make_tenant(admin_session, name="Clinic prep-start", slug="prep-start")
+    admin_session.commit()
+    day = datetime.now(UTC) - timedelta(days=10)
+    # The second version was created two days after the first and approved ten minutes later.
+    _report(
+        admin_session,
+        tenant,
+        drafted=day,
+        approvals=[None, day + timedelta(days=2, minutes=10)],
+        version_gap=timedelta(days=2),
+    )
+
+    (stats,) = report_timing.draft_to_approval(
+        admin_session, tenant_id=tenant.id, until=datetime.now(UTC), windows=[None]
+    )
+    assert stats.median_seconds == timedelta(days=2, minutes=10).total_seconds()
+
+
+def test_two_clocks_never_give_a_negative_interval(admin_session) -> None:  # type: ignore[no-untyped-def]
+    """The draft's time is the database's, the approval's the application's."""
+    tenant = make_tenant(admin_session, name="Clinic prep-skew", slug="prep-skew")
+    admin_session.commit()
+    day = datetime.now(UTC) - timedelta(days=2)
+    for _ in range(5):
+        _report(admin_session, tenant, drafted=day, approvals=[day - timedelta(seconds=3)])
+
+    (measured,) = metrics_service.measure(
+        admin_session, tenant_id=tenant.id, until=datetime.now(UTC), windows=[None]
+    )
+    assert (measured.reports, measured.q1_seconds, measured.median_seconds) == (5, 0, 0)
+
+
+def test_the_measure_follows_what_the_lifecycle_writes(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """Through the real services: a draft, an approval, a refusal at the release gate, a
+    rework, a second approval. Nothing here inserts a report row."""
+    clinician, tenant = login_as(
+        client,
+        admin_session,
+        email="clinician@prep-life.synthetic.example",
+        tenant_name="Clinic prep-life",
+        tenant_slug="prep-life",
+        role=Role.CLINICIAN,
+    )
+
+    def stats() -> report_timing.IntervalStats:
+        admin_session.expire_all()
+        (window,) = report_timing.draft_to_approval(
+            admin_session,
+            tenant_id=tenant.id,
+            until=datetime.now(UTC) + timedelta(minutes=1),
+            windows=[None],
+        )
+        return window
+
+    def version(number: int) -> ReportVersion:
+        admin_session.expire_all()
+        return admin_session.execute(
+            select(ReportVersion).where(ReportVersion.version_no == number)
+        ).scalar_one()
+
+    pid = client.post("/api/v1/patients", json={"display_name": "Lifecycle (synthetic)"}).json()[
+        "id"
+    ]
+    imported = client.post(
+        f"/api/v1/patients/{pid}/imports",
+        json={
+            "values": [
+                {
+                    "original_name": "LDL Cholesterol",
+                    "original_value": "2.8",
+                    "original_unit": "mmol/L",
+                    "observed_at": "2025-06-10T00:00:00Z",
+                    "observed_at_is_date_only": True,
+                }
+            ]
+        },
+    )
+    assert imported.status_code in (200, 201), imported.text
+    drafted = client.post(f"/api/v1/patients/{pid}/reports")
+    assert drafted.status_code == 201, drafted.text
+    report = drafted.json()
+    rid = report["report_id"]
+    assert stats().reports == 0  # a draft is not a data point
+
+    assert client.post(f"/api/v1/reports/{rid}/approve").status_code == 200
+    created_at = admin_session.execute(select(Report.created_at)).scalar_one()
+    first = stats()
+    assert first.reports == 1
+    assert first.median_seconds == pytest.approx(
+        max((version(1).approved_at - created_at).total_seconds(), 0), abs=1e-3
+    )
+
+    # The medical director refuses at the release gate: that approval did not stand.
+    switch_role(
+        client,
+        admin_session,
+        email="director@prep-life.synthetic.example",
+        tenant=tenant,
+        role=Role.MEDICAL_DIRECTOR,
+    )
+    refused = client.post(f"/api/v1/reports/{rid}/reject", json={"reason": "wording"})
+    assert refused.status_code == 200, refused.text
+    assert version(1).approved_at is not None and version(1).rejected_at is not None
+    assert stats().reports == 0
+
+    # The clinician reworks it and approves the new version: the report counts again, once,
+    # and up to the approval that stands.
+    login(client, clinician.email)
+    select_tenant(client, tenant.id)
+    reworked = client.post(
+        f"/api/v1/reports/{rid}/edit",
+        json={
+            "statements": [
+                {
+                    "id": s["id"],
+                    "text": s["text"] + " (überarbeitet)",
+                    "evidence_observation_ids": [e["observation_id"] for e in s["evidence"]],
+                }
+                for s in report["statements"]
+            ]
+        },
+    )
+    assert reworked.status_code == 200, reworked.text
+    assert stats().reports == 0
+    assert client.post(f"/api/v1/reports/{rid}/approve").status_code == 200
+    final = stats()
+    assert final.reports == 1
+    assert final.median_seconds == pytest.approx(
+        max((version(2).approved_at - created_at).total_seconds(), 0), abs=1e-3
+    )
+    assert final.median_seconds >= first.median_seconds
 
 
 # ---- the trail, and what the answer carries -----------------------------------------------
@@ -451,7 +807,7 @@ def test_stating_and_reading_are_recorded_without_the_numbers(client, admin_sess
     assert recorded.detail == {"kind": "baseline", "basis": "timed_sample"}
     read = events["metric.read"]
     assert read.tenant_id == tenant.id and read.actor_user_id == owner.id
-    assert read.detail == {"metric": "preparation_time", "definition": "prep-time-1"}
+    assert read.detail == {"metric": "preparation_time", "definition": "draft-to-approval-1"}
 
 
 def test_the_answer_carries_counts_and_durations_and_nothing_about_a_patient(  # type: ignore[no-untyped-def]
@@ -468,6 +824,7 @@ def test_the_answer_carries_counts_and_durations_and_nothing_about_a_patient(  #
         "baseline",
         "latest_follow_up",
         "statements",
+        "statements_total",
         "measured_all_time",
         "measured_last_30_days",
     }

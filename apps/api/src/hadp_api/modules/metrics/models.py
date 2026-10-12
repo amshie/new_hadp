@@ -31,7 +31,7 @@ class PreparationTimeStatement(UUIDPrimaryKey, TimestampCreated, Base):
         # A timed sample says over how many appointments; an estimate has no sample.
         CheckConstraint(
             "(basis = 'timed_sample') = (sample_size IS NOT NULL)",
-            name="sample_size_only_for_timed_sample",
+            name="sample_size_iff_timed_sample",
         ),
         CheckConstraint(
             f"sample_size IS NULL OR sample_size BETWEEN 1 AND {MAX_SAMPLE_SIZE}",
@@ -39,8 +39,10 @@ class PreparationTimeStatement(UUIDPrimaryKey, TimestampCreated, Base):
         ),
     )
 
-    # ON DELETE RESTRICT, as on the other append-only tables: the trigger that blocks row
-    # deletes would turn a cascade (or a SET NULL, which is an UPDATE) into a confusing abort.
+    # ON DELETE RESTRICT on both references: the trigger that blocks row changes would turn a
+    # cascade — or a SET NULL, which is an UPDATE — into a confusing abort, so the constraint
+    # says what actually happens. Consequence: an account that recorded a statement cannot be
+    # hard-deleted while the statement exists (a retention question for the DPO; register row).
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="RESTRICT"),

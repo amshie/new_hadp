@@ -4197,6 +4197,10 @@
             "type": "array",
             "title": "Statements"
           },
+          "statements_total": {
+            "type": "integer",
+            "title": "Statements Total"
+          },
           "measured_all_time": {
             "$ref": "#/components/schemas/PreparationMeasuredOut"
           },
@@ -4211,6 +4215,7 @@
           "baseline",
           "latest_follow_up",
           "statements",
+          "statements_total",
           "measured_all_time",
           "measured_last_30_days"
         ],

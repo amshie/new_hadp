@@ -24,6 +24,7 @@ const FAILURES = [
   "stichprobe",
   "schaetzung",
   "rolle",
+  "zuviele",
   "allgemein",
 ] as const;
 
@@ -71,6 +72,14 @@ export default async function PreparationTimePage({
   } catch (e) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403))
       redirect("/login");
+    if (e instanceof ApiError && e.status === 429)
+      return notice(
+        "Die Seite wurde in kurzer Zeit sehr oft abgerufen. Bitte versuchen Sie es in einer Minute erneut.",
+      );
+    if (e instanceof ApiError && e.status === 503)
+      return notice(
+        "Die Kennzahl ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.",
+      );
     throw e;
   }
 

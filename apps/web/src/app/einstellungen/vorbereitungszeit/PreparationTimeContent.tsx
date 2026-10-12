@@ -12,8 +12,10 @@ import { recordStatementAction } from "./actions";
 // The preparation-time metric as the owner reads it. Two quantities, in two sections that do
 // not borrow from each other: what the clinic STATES (minutes of preparation per appointment,
 // as a median) and what the platform MEASURES (elapsed time from a report's first draft to its
-// first approval). The second is not minutes of work, and the page never subtracts one from
-// the other. Covered by the web copy scan (apps/api/tests/test_web_copy_language.py).
+// first approval that stood). The second is not minutes of work, and the page never subtracts
+// one from the other — and it says that a measure which could be set against the stated
+// minutes does not exist yet. Covered by the web copy scan
+// (apps/api/tests/test_web_copy_language.py).
 
 export type Outcome = {
   saved?: boolean;
@@ -23,6 +25,7 @@ export type Outcome = {
     | "stichprobe"
     | "schaetzung"
     | "rolle"
+    | "zuviele"
     | "allgemein";
 };
 
@@ -35,8 +38,11 @@ const FAILURE_TEXT: Record<NonNullable<Outcome["failure"]>, string> = {
   schaetzung:
     "Die Angabe wurde nicht gespeichert: Eine Schätzung hat keine Anzahl gemessener Termine. Bitte das Feld leer lassen oder „Zeitmessung“ wählen.",
   rolle: "Die Angabe wurde nicht gespeichert: Das ist nur Inhabern erlaubt.",
+  zuviele:
+    "Die Angabe wurde nicht gespeichert: zu viele Angaben in kurzer Zeit. Bitte warten Sie eine Minute.",
+  // The API may have recorded it although its answer did not arrive: say what is known.
   allgemein:
-    "Die Angabe wurde nicht gespeichert. Bitte später erneut versuchen.",
+    "Ob die Angabe gespeichert wurde, konnte nicht bestätigt werden. Bitte prüfen Sie den Verlauf, bevor Sie sie erneut eingeben.",
 };
 
 const KIND_LABEL: Record<PreparationStatement["kind"], string> = {
@@ -130,9 +136,9 @@ export function elapsed(seconds: number): string {
 }
 
 function basisText(statement: PreparationStatement): string {
-  return statement.basis === "timed_sample"
-    ? `Zeitmessung über ${statement.sample_size} Termine`
-    : "Schätzung";
+  if (statement.basis !== "timed_sample") return BASIS_LABEL.estimate;
+  const appointments = statement.sample_size === 1 ? "Termin" : "Termine";
+  return `${BASIS_LABEL.timed_sample} über ${statement.sample_size} ${appointments}`;
 }
 
 function Stated({
@@ -196,8 +202,8 @@ function Measured({
         <>
           <div style={figureStyle}>{elapsed(measured.median_seconds!)}</div>
           <div style={{ fontSize: "12.5px", color: "var(--text-body)" }}>
-            Median vom ersten Entwurf bis zur ersten Genehmigung ·{" "}
-            {measured.reports} Berichte
+            Median vom ersten Entwurf bis zur ersten Genehmigung, die Bestand
+            hatte · {measured.reports} Berichte
           </div>
           <div style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>
             Mittlere Hälfte der Berichte: {elapsed(measured.q1_seconds!)} bis{" "}
@@ -293,7 +299,10 @@ export function PreparationTimeContent({
               : `Die letzte Folgeangabe liegt ${Math.abs(difference)} Min. ${
                   difference < 0 ? "unter" : "über"
                 } dem Ausgangswert.`}{" "}
-            Beide Zahlen sind Angaben der Praxis.
+            Beide Zahlen sind Angaben der Praxis
+            {baseline && followUp && baseline.basis !== followUp.basis
+              ? ` – auf unterschiedlicher Grundlage (${BASIS_LABEL[baseline.basis]} und ${BASIS_LABEL[followUp.basis]}).`
+              : "."}
           </p>
         )}
 
@@ -371,6 +380,12 @@ export function PreparationTimeContent({
           </p>
         </form>
 
+        {metric.statements_total > metric.statements.length && (
+          <p style={{ ...leadStyle, margin: "14px 0 0" }}>
+            Der Verlauf zeigt die neuesten {metric.statements.length} von{" "}
+            {metric.statements_total} Angaben.
+          </p>
+        )}
         {metric.statements.length > 0 && (
           <div style={{ ...cardStyle, padding: 0, marginTop: "14px" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -409,11 +424,7 @@ export function PreparationTimeContent({
                     </td>
                     <td style={tdStyle}>{KIND_LABEL[s.kind]}</td>
                     <td style={tdStyle}>{s.median_minutes} Min.</td>
-                    <td style={tdStyle}>
-                      {s.basis === "timed_sample"
-                        ? `${BASIS_LABEL[s.basis]} über ${s.sample_size} Termine`
-                        : BASIS_LABEL[s.basis]}
-                    </td>
+                    <td style={tdStyle}>{basisText(s)}</td>
                     <td style={tdStyle}>
                       {s.recorded_by?.display_name ?? "–"}
                     </td>
@@ -431,8 +442,9 @@ export function PreparationTimeContent({
         </h2>
         <p style={leadStyle}>
           Die Zeit vom ersten Entwurf eines Berichts bis zu seiner ersten
-          klinischen Genehmigung, aus den Zeitpunkten, die die Plattform dabei
-          ohnehin festhält. Das ist Durchlaufzeit, keine Arbeitszeit.
+          klinischen Genehmigung, die Bestand hatte – aus den Zeitpunkten, die
+          die Plattform dabei ohnehin festhält. Das ist Durchlaufzeit, keine
+          Arbeitszeit, und noch nicht die Vorbereitungszeit selbst.
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "14px" }}>
           <Measured
@@ -441,7 +453,7 @@ export function PreparationTimeContent({
             minimum={metric.minimum_reports}
           />
           <Measured
-            title="Alle Berichte der Praxis"
+            title="Alle genehmigten Berichte der Praxis"
             measured={metric.measured_all_time}
             minimum={metric.minimum_reports}
           />
@@ -467,21 +479,28 @@ export function PreparationTimeContent({
           </li>
           <li>
             Sie wird deshalb nicht mit den Minuten-Angaben der Praxis
-            verrechnet: Es sind zwei verschiedene Größen.
+            verrechnet: Es sind zwei verschiedene Größen. Eine Messung, die sich
+            mit dem Ausgangswert vergleichen lässt, gibt es noch nicht – die
+            Plattform hält bisher keinen Beginn der Vorbereitung fest.
           </li>
           <li>
-            Ein Bericht zählt einmal, zum Zeitpunkt seiner ersten Genehmigung –
-            auch wenn er später überarbeitet und erneut genehmigt wird. Berichte
-            ohne Genehmigung zählen nicht.
+            Ein Bericht zählt einmal: mit seiner ersten Genehmigung, die nicht
+            wieder zurückgewiesen wurde. Eine Genehmigung, die bei der
+            ärztlichen Freigabe abgelehnt oder zurückgezogen wurde, beendet die
+            Messung nicht. Berichte ohne Genehmigung zählen nicht.
           </li>
           <li>
             Unter {metric.minimum_reports} Berichten wird kein Median angegeben:
-            Er wäre eine Aussage über einzelne Personen, nicht über den Ablauf
-            der Praxis.
+            Bei so wenigen Berichten entspricht jede Zahl nahezu der Zeit eines
+            einzelnen Berichts. Das ist eine Vorsicht bei kleinen Zahlen, kein
+            Schutz einzelner Personen: Genehmigen in der Praxis nur wenige, so
+            beschreibt die Zahl auch bei vielen Berichten deren Arbeit.
           </li>
           <li>
-            Die Kennzahl wird aus den vorhandenen Berichten gebildet. Wird eine
-            Akte gelöscht, entfallen ihre Berichte auch hier.
+            Die Kennzahl wird bei jedem Aufruf aus den vorhandenen Berichten
+            gebildet. Wird eine Akte gelöscht, entfallen ihre Berichte auch hier
+            – eine früher abgelesene Zahl lässt sich dann nicht mehr
+            nachrechnen.
           </li>
           <li>
             Das Lesen dieser Seite und jede erfasste Angabe stehen im

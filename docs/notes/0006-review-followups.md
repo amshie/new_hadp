@@ -213,13 +213,21 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
     the default is a product decision.
   - **Before real data:** "no names in the trail" is held by review, a key-name guard and a
     suite-wide check after every test (`tests/conftest.py`) — not by a schema per action.
-- **Preparation-time metric (go-live plan A6, 2026-10-12):** ✅ Einstellungen →
-  Vorbereitungszeit — the clinic's own statements (baseline, follow-ups; append-only) and the
-  measured draft-to-first-approval time (`prep-time-1`); `docs/product/WORKFLOW.md` §6.4.
-  Still open: the measured interval starts at the draft, so it leaves out the work before it and
-  cannot be set against the clinic's stated minutes — a comparable measure needs a recorded
-  "preparation started" moment, and which moment that is has to be decided first; no chart or
-  history of the measured value over time; no export; the windows are fixed (all reports, the
-  last 30 days); the web page has no tests of its own.
+- **Preparation-time metric (go-live plan A6, 2026-10-12): PART 1 — A6 stays open.**
+  Einstellungen → Vorbereitungszeit holds the clinic's own statements (baseline, follow-ups;
+  append-only) and one measured interval, draft to first standing approval
+  (`draft-to-approval-1`); `docs/product/WORKFLOW.md` §6.4. **Not built: a measure that can be
+  set against the baseline.** The interval starts at the draft, so it leaves out the work
+  before it; a comparable measure needs a recorded "preparation started" moment, and which
+  moment that is has to be decided first (founder).
+  From the independent review, taken: the standing baseline is looked up on its own (a long
+  history hid it); an approval that was refused no longer ends the interval; both routes are
+  rate limited; integers are strict; the report-timing query lives in the reports module; a
+  negative interval (two clocks) counts as zero; the page no longer calls the minimum of five a
+  protection of persons.
+  Still open: a double submit records twice (no idempotency key) and a lost answer is reported
+  as "not confirmed"; no chart or history of the measured value; no export; fixed windows; the
+  figure cannot be reproduced after an erasure; `elapsed()` and the page have no tests of their
+  own (the web has no test runner); the form loses its input on a refused submission.
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

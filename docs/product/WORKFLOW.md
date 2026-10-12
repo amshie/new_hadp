@@ -300,38 +300,58 @@ pilot conversion criterion.
 - The metric is surfaced so a pilot can be evaluated against the success criterion without exposing
   any health data.
 
-### 6.4 As built (2026-10-12, definition `prep-time-1`)
+### 6.4 As built — part 1 (2026-10-12, definition `draft-to-approval-1`)
+
+**A6 is not complete.** What exists is the baseline capture and one measured interval of the
+report lifecycle. A measure that can be set against the baseline — preparation time from its
+start — does not exist yet: the product records no "preparation started" moment, and which
+moment that should be is a product decision that has not been taken.
 
 Einstellungen → Vorbereitungszeit, owner only (`GET /api/v1/metrics/preparation-time`,
-`POST /api/v1/metrics/preparation-time/statements`). Two quantities, kept apart on the page and in
-the API:
+`POST /api/v1/metrics/preparation-time/statements`, both rate limited per account and clinic).
+Two quantities, kept apart on the page and in the API:
 
 - **What the clinic states.** A median preparation time per appointment in whole minutes (1–600):
   the **baseline** and later **follow-ups**, each with its basis — an **estimate**, or a **timed
   sample** over a stated number of appointments. Append-only (a correction is a new statement; the
   earlier one stays in the history), tenant-scoped under RLS, attributable, audited
-  (`metric.statement_recorded`, codes only). The platform takes these numbers as stated.
+  (`metric.statement_recorded`, codes only). The platform takes these numbers as stated. The
+  statement of each kind that stands is the newest; the history shows the newest 50 and says how
+  many there are.
 - **What the platform measures.** Per report, the time from the creation of its first draft to
-  the earliest approval of any of its versions, read from the report rows — nothing is stored for
-  it. Median and quartiles, for all of the clinic's reports and for the last 30 days (by the date
-  of the first approval). A report counts once; a report never approved does not count. **Below
-  5 reports no median is given**: over two or three reports it would describe the people who
-  approved them.
+  the earliest approval **that stood** — an approval the medical director refused at the release
+  gate, or the clinician withdrew, does not end it. Read from the report rows on every request;
+  nothing is stored for it. Median and quartiles, for all approved reports and for the last 30
+  days (by the date of that approval). A report counts once; a report without a standing approval
+  does not count.
 
-What `prep-time-1` is not, and the page says so:
+What `draft-to-approval-1` is not, and the page says so:
 
 - It is **elapsed time, not minutes of work**: every wait between draft and approval is in it,
   nights and weekends included.
 - **Nothing before the draft is in it** — looking through the values, resolving review items,
-  authoring the interpretation. The product records no "preparation started" moment; which
-  moment that should be is a product decision, not yet taken.
+  authoring the interpretation.
 - So the measured time is **never set against the clinic's stated minutes**. The ≥ 50 % criterion
-  can today be read from the clinic's own statements (baseline against follow-up); the measured
-  interval is the product's own evidence beside it, not the same quantity.
+  can today only be read from the clinic's own statements (baseline against follow-up) — which is
+  a second statement, not a measurement.
+- **Below 5 reports no median is given.** That is a guard against reading single reports off a
+  small sample; it is **not** a protection of persons. It counts reports, not the clinicians who
+  approved them: in a clinic where one clinician approves, every figure describes that person's
+  turnaround. The owner can read the same timestamps, with names, in the audit trail.
+- It is **not reproducible later**: the figure is formed from the reports that exist when the
+  page is read, and an erased patient's reports are gone from it. A number quoted in a contract
+  cannot be recomputed after an erasure.
+- It must never become a per-person view or a target: an interval that ends at approval rewards
+  approving quickly.
 
-Open: the two vocabularies and the interval are engineering proposals (register row
-"Preparation-time metric"); the minimum of 5, owner-only access and retention are questions for
-the DPO; a pilot contract that names the metric should name this definition.
+Open:
+
+- **Founder:** what starts the interval (today: the first draft) and what ends it (today: the
+  first approval that stood); the definition's name in any pilot contract.
+- **DPO:** owner access to staff timing, the minimum of 5 (or "at least k different approvers",
+  or minutes only), retention of the statements — an account that recorded one cannot be
+  hard-deleted while it exists — and the works-council position.
+- The two vocabularies are engineering proposals (register row "Preparation-time metric").
 
 ---
 

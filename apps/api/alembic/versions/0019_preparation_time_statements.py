@@ -71,14 +71,15 @@ def upgrade() -> None:
         "preparation_time_statements",
         ["tenant_id"],
     )
-    # Bare names: the metadata naming convention expands them to ck_<table>_<name>.
+    # Bare names: the metadata naming convention expands them to ck_<table>_<name> — kept
+    # short enough that the full name stays within PostgreSQL's 63 characters.
     op.create_check_constraint("kind", "preparation_time_statements", f"kind IN ({_in(_KINDS)})")
     op.create_check_constraint("basis", "preparation_time_statements", f"basis IN ({_in(_BASES)})")
     op.create_check_constraint(
         "median_minutes_range", "preparation_time_statements", "median_minutes BETWEEN 1 AND 600"
     )
     op.create_check_constraint(
-        "sample_size_only_for_timed_sample",
+        "sample_size_iff_timed_sample",
         "preparation_time_statements",
         "(basis = 'timed_sample') = (sample_size IS NOT NULL)",
     )

@@ -4,10 +4,12 @@ The pilot's criterion is the clinic's preparation time per appointment against a
 clinic stated at onboarding. This surface holds both halves and keeps them apart: what the
 clinic states (minutes, as a median, with how it arrived at them) and what the platform
 measures from the report lifecycle (elapsed time from a report's first draft to its first
-approval). See `modules/metrics/service.py` for what the measured number is and is not.
+approval that stood). See `modules/metrics/service.py` for what the measured number is and is
+not — and for what is still missing: a measure that can be set against the baseline.
 
 OWNER only: the numbers show how quickly the clinic's clinicians work through their reports.
-Counts, durations and identifiers of the clinic's own staff — nothing about any patient.
+Counts, durations, and the name of the colleague who recorded a statement — nothing about any
+patient.
 """
 
 from __future__ import annotations
@@ -31,6 +33,7 @@ from hadp_api.modules.metrics.models import (
     MIN_MINUTES,
     PreparationTimeStatement,
 )
+from hadp_api.security.rate_limit import check_rate_limit
 
 router = APIRouter(tags=["metrics"])
 
@@ -58,7 +61,8 @@ class PreparationMeasuredOut(BaseModel):
     since: datetime | None
     # Reports whose first approval falls in the window.
     reports: int
-    # From a report's first draft to its first approval — elapsed time, not minutes of work.
+    # From a report's first draft to its first approval that stood — elapsed time, not
+    # minutes of work.
     # All three are null while `reports` is below `minimum_reports`.
     median_seconds: int | None
     q1_seconds: int | None
@@ -72,8 +76,10 @@ class PreparationTimeOut(BaseModel):
     # The statements that stand: the newest of each kind.
     baseline: PreparationStatementOut | None
     latest_follow_up: PreparationStatementOut | None
-    # Every statement, newest first (a correction is a new statement; nothing is replaced).
+    # The newest statements, newest first (a correction is a new statement; nothing is
+    # replaced) — at most 50; `statements_total` says how many the clinic has recorded.
     statements: list[PreparationStatementOut]
+    statements_total: int
     measured_all_time: PreparationMeasuredOut
     measured_last_30_days: PreparationMeasuredOut
 
@@ -81,8 +87,9 @@ class PreparationTimeOut(BaseModel):
 class RecordPreparationStatementRequest(BaseModel):
     kind: PreparationStatementKind
     basis: PreparationStatementBasis
-    median_minutes: int = Field(ge=MIN_MINUTES, le=MAX_MINUTES)
-    sample_size: int | None = Field(default=None, ge=1, le=MAX_SAMPLE_SIZE)
+    # Strict: a JSON integer and nothing that merely converts to one ("30", 30.0, true).
+    median_minutes: int = Field(strict=True, ge=MIN_MINUTES, le=MAX_MINUTES)
+    sample_size: int | None = Field(default=None, strict=True, ge=1, le=MAX_SAMPLE_SIZE)
 
     @model_validator(mode="after")
     def _a_sample_has_a_size_and_an_estimate_has_none(self) -> RecordPreparationStatementRequest:
@@ -129,18 +136,35 @@ def _measured(measured: metrics_service.Measured) -> PreparationMeasuredOut:
     )
 
 
+def _throttle(ctx: TenantContext, *, action: str, limit: int) -> None:
+    """A read writes an audit event and a statement is a row nobody can remove: both are
+    bounded per account and clinic, far above what the page needs."""
+    check_rate_limit(
+        action=action,
+        key=f"{ctx.tenant_id}:{ctx.user.id}",
+        limit=limit,
+        window_seconds=60,
+        correlation_id=ctx.correlation_id,
+    )
+
+
 @router.get("/metrics/preparation-time", response_model=PreparationTimeOut)
 def read_preparation_time(
     ctx: TenantContext = Depends(require(Action.METRIC_READ)),
 ) -> PreparationTimeOut:
+    _throttle(ctx, action="metric.read", limit=120)
     statements = metrics_service.list_statements(ctx.db, tenant_id=ctx.tenant_id)
-    names = _names(ctx, statements)
-    baseline = metrics_service.latest(statements, PreparationStatementKind.BASELINE)
-    follow_up = metrics_service.latest(statements, PreparationStatementKind.FOLLOW_UP)
+    # The statements that stand are looked up on their own: a long history must not hide them.
+    baseline = metrics_service.standing_statement(
+        ctx.db, tenant_id=ctx.tenant_id, kind=PreparationStatementKind.BASELINE
+    )
+    follow_up = metrics_service.standing_statement(
+        ctx.db, tenant_id=ctx.tenant_id, kind=PreparationStatementKind.FOLLOW_UP
+    )
+    names = _names(ctx, [*statements, *(s for s in (baseline, follow_up) if s is not None)])
     now = datetime.now(UTC)
-    all_time = metrics_service.measure(ctx.db, tenant_id=ctx.tenant_id, since=None, until=now)
-    recent = metrics_service.measure(
-        ctx.db, tenant_id=ctx.tenant_id, since=now - timedelta(days=30), until=now
+    all_time, recent = metrics_service.measure(
+        ctx.db, tenant_id=ctx.tenant_id, until=now, windows=[None, now - timedelta(days=30)]
     )
     record_audit(
         ctx.db,
@@ -156,6 +180,7 @@ def read_preparation_time(
         baseline=_out(baseline, names) if baseline else None,
         latest_follow_up=_out(follow_up, names) if follow_up else None,
         statements=[_out(s, names) for s in statements],
+        statements_total=metrics_service.count_statements(ctx.db, tenant_id=ctx.tenant_id),
         measured_all_time=_measured(all_time),
         measured_last_30_days=_measured(recent),
     )
@@ -168,6 +193,7 @@ def record_preparation_time_statement(
     body: RecordPreparationStatementRequest,
     ctx: TenantContext = Depends(require(Action.METRIC_RECORD)),
 ) -> PreparationStatementOut:
+    _throttle(ctx, action="metric.record", limit=30)
     statement = metrics_service.record_statement(
         ctx.db,
         tenant_id=ctx.tenant_id,
