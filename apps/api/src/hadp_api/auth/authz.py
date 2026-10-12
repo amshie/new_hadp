@@ -36,6 +36,9 @@ class Action(str, Enum):
     # Data export (GDPR Art. 15/20): the whole record of one patient leaves in one file —
     # tenant administration, like requesting an erasure.
     PRIVACY_EXPORT = "privacy.export"
+    # The clinic's own audit trail: who did what, and when. The clinic is the controller and
+    # answers for its staff's access — tenant administration.
+    AUDIT_READ = "audit.read"
     REVIEW_RESOLVE = "review.resolve"
     INTERPRETATION_AUTHOR = "interpretation.author"
     REPORT_DRAFT = "report.draft"
@@ -88,6 +91,8 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.PRIVACY_REQUEST_DECIDE: frozenset({Role.MEDICAL_DIRECTOR}),
     Action.PRIVACY_REQUEST_EXECUTE: frozenset({Role.OWNER, Role.MEDICAL_DIRECTOR}),
     Action.PRIVACY_EXPORT: frozenset({Role.OWNER}),
+    # Reading the audit trail shows every colleague's access to every record: OWNER only.
+    Action.AUDIT_READ: frozenset({Role.OWNER}),
     # Review-queue resolution is a clinical judgement (WORKFLOW §2.2/§2.4: the
     # assistant triages the queue but may not resolve clinically).
     Action.REVIEW_RESOLVE: frozenset({Role.CLINICIAN}),

@@ -15,6 +15,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 
 from hadp_api.api import (
+    audit_routes,
     auth_routes,
     consents_routes,
     health,
@@ -75,7 +76,11 @@ def create_app() -> FastAPI:
     async def context_and_security(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        correlation_id = request.headers.get("x-correlation-id") or uuid.uuid4().hex
+        # Generated here, never taken from the caller: the id is written into every audit
+        # event of the request, and the surfaces that take no session (invitation redemption,
+        # the patient view) record under the clinic the request names — a caller's
+        # `X-Correlation-ID` would be the caller's own text in a clinic's append-only trail.
+        correlation_id = uuid.uuid4().hex
         request.state.correlation_id = correlation_id
         response = await call_next(request)
         response.headers["x-correlation-id"] = correlation_id
@@ -123,7 +128,6 @@ def create_app() -> FastAPI:
             if not ok:
                 record_security_event(
                     action="csrf.denied",
-                    correlation_id=request.headers.get("x-correlation-id"),
                     detail={"method": request.method},
                 )
                 return JSONResponse(
@@ -150,6 +154,7 @@ def create_app() -> FastAPI:
         staff_invitations_routes.router,
         members_routes.router,
         privacy_routes.router,
+        audit_routes.router,
         worklist_routes.router,
         # Milestone 0.5 vertical spike:
         imports_routes.router,

@@ -29,6 +29,12 @@ const SECTIONS: {
     desc: "Anträge auf Patientenlöschung prüfen und ausführen (Vier-Augen-Prinzip).",
     roles: ["owner", "medical_director"],
   },
+  {
+    href: "/einstellungen/audit",
+    title: "Audit-Protokoll",
+    desc: "Die protokollierten Vorgänge der Praxis einsehen: wer, wann, welcher Vorgang, an welchem Datensatz.",
+    roles: ["owner"],
+  },
 ];
 
 export default async function EinstellungenPage() {

@@ -35,6 +35,35 @@ class Role(str, Enum):
     MEDICAL_DIRECTOR = "medical_director"
 
 
+# --- Audit trail, as a clinic reads it (go-live plan A9) ---
+#
+# The families of events a clinic's own trail can hold: the part of an action before its first
+# dot, for every action that is recorded WITH a tenant. The trail is filtered by one of these or
+# not at all. Events recorded without a tenant (`auth.*`, `login.failed`, `csrf.denied`,
+# `rate_limited`) belong to no clinic and have no category. tests/test_audit_read.py holds this
+# list against every audit write in the source: a new family needs a decision, not a guess.
+
+
+class AuditCategory(str, Enum):
+    PATIENT = "patient"
+    OBSERVATION = "observation"
+    INTERPRETATION = "interpretation"
+    REPORT = "report"
+    DOCUMENT = "document"
+    IMPORT = "import"
+    REVIEW_ITEM = "review_item"
+    REVIEW_QUEUE = "review_queue"
+    CONSENT = "consent"
+    PRIVACY = "privacy"
+    INVITATION = "invitation"
+    STAFF_INVITE = "staff_invite"
+    MEMBER = "member"
+    TENANT = "tenant"
+    AUTHZ = "authz"
+    WORKLIST = "worklist"
+    AUDIT = "audit"
+
+
 class ValueType(str, Enum):
     NUMERIC = "numeric"
     TEXT = "text"
