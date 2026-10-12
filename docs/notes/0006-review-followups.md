@@ -303,5 +303,19 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   as "not confirmed"; no chart or history of the measured value; no export; fixed windows; the
   figure cannot be reproduced after an erasure; `elapsed()` and the page have no tests of their
   own (the web has no test runner); the form loses its input on a refused submission.
+- **Container images and a production-shaped stack (go-live plan C, 2026-10-13):** ✅ three
+  images, a migrate step that seeds the KPI catalog, `make stack-smoke` (37 checks) and an image
+  scan in CI — `infra/docker/README.md`. From the independent review, taken: production mode is
+  the API image's default (it would have started in development mode, password-less sign-in
+  live, if `APP_ENV` was forgotten); the seeding command no longer reports success on a stale
+  catalog and refuses another release before it writes; unfixed scanner findings are shown.
+  Still open: **nobody can sign in to a production-mode stack** (no identity provider), so the
+  smoke proves boot and posture only; a catalog release cannot be replaced (no upgrade path) and
+  the API does not check the catalog at start (ADR-0004 §18); base images are pinned by tag, not
+  by digest, and `postgres:16-alpine` / `redis:7-alpine` float; the scanner downloads its
+  database at run time, so a new advisory or an outage can turn an unrelated pull request red;
+  the job runs on every pull request without a layer cache; the stack's object store is a test
+  double that accepts any credentials; everything in workstream C that needs a vendor (TLS,
+  managed PostgreSQL, backups and restore, a secret manager, a deploy job, monitoring, runbooks).
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.
