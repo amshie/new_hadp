@@ -3113,6 +3113,17 @@
             ],
             "title": "Metric Code"
           },
+          "kpi_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpi Code"
+          },
           "superseded": {
             "type": "boolean",
             "title": "Superseded",
@@ -3338,12 +3349,14 @@
             "type": "string",
             "maxLength": 200,
             "minLength": 1,
+            "pattern": "\\S",
             "title": "Original Name"
           },
           "original_value": {
             "type": "string",
             "maxLength": 120,
             "minLength": 1,
+            "pattern": "\\S",
             "title": "Original Value"
           },
           "original_unit": {
@@ -4288,6 +4301,21 @@
             "type": "string",
             "title": "Original Name"
           },
+          "original_value": {
+            "type": "string",
+            "title": "Original Value"
+          },
+          "original_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Unit"
+          },
           "value": {
             "anyOf": [
               {
@@ -4309,6 +4337,14 @@
               }
             ],
             "title": "Unit"
+          },
+          "normalized": {
+            "type": "boolean",
+            "title": "Normalized"
+          },
+          "converted": {
+            "type": "boolean",
+            "title": "Converted"
           },
           "reference_low": {
             "anyOf": [
@@ -4453,8 +4489,12 @@
           "observation_id",
           "metric_code",
           "original_name",
+          "original_value",
+          "original_unit",
           "value",
           "unit",
+          "normalized",
+          "converted",
           "reference_low",
           "reference_high",
           "observed_at",

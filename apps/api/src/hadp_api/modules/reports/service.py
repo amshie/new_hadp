@@ -515,7 +515,7 @@ def _evidence_for_statement(
                 # Source representation (verbatim) and, where one exists, the normalized one.
                 "original_value": obs.original_value,
                 "original_unit": obs.original_unit,
-                "value": str(obs.normalized_value) if obs.normalized_value is not None else None,
+                "value": obs_service.plain(obs.normalized_value),
                 "unit": obs.normalized_unit,
                 "observed_at": obs.observed_at.astimezone(UTC).date().isoformat()
                 if obs.observed_at_is_date_only

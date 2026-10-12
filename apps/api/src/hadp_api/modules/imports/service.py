@@ -33,7 +33,7 @@ from hadp_api.modules.enums import (
 from hadp_api.modules.imports import matching
 from hadp_api.modules.imports import normalize as normalize_mod
 from hadp_api.modules.imports.models import ImportJob, ImportRow, ReviewItem
-from hadp_api.modules.kpi.service import resolve_kpi_code
+from hadp_api.modules.kpi.service import load_terminology
 from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.observations.models import Observation
 from hadp_api.modules.patients.models import Patient
@@ -103,8 +103,11 @@ def ingest_values(
         zone=ZoneInfo(get_settings().lab_local_timezone),
     )
 
+    terminology = load_terminology(db)
+
     for index, row in enumerate(rows):
         norm = normalize_mod.normalize(
+            terminology=terminology,
             original_name=row.original_name,
             original_value=row.original_value,
             original_unit=row.original_unit,
@@ -128,10 +131,10 @@ def ingest_values(
             ),
             metric_code=norm.metric_code,
             code_system=norm.code_system,
-            kpi_code=resolve_kpi_code(db, row.original_name, norm.metric_code),
+            kpi_code=norm.kpi_code,
             mapping_confidence=norm.mapping_confidence,
             value_type=ValueType.NUMERIC,
-            numeric_value=norm.normalized_value,
+            numeric_value=norm.numeric_value,
             normalized_value=norm.normalized_value,
             normalized_unit=norm.normalized_unit,
             reference_low=norm.reference_low,

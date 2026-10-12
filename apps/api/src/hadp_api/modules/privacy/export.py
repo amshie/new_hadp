@@ -42,6 +42,7 @@ import uuid
 import zipfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -134,8 +135,9 @@ def _instant(value: datetime | None) -> str | None:
     return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
-def _decimal(value: Any) -> str | None:
-    return None if value is None else str(value)
+def _decimal(value: Decimal | None) -> str | None:
+    # Plain notation: str() writes a small magnitude with an exponent ("0E-7").
+    return None if value is None else format(value, "f")
 
 
 _UNSAFE = re.compile(r"[^A-Za-z0-9._ \-äöüÄÖÜß]")

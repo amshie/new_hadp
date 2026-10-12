@@ -101,14 +101,33 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   200 characters, as on `main`) and a unit token of up to 20 characters without whitespace,
   refused only when it carries an English restricted stem ("Therapie-empfohlen" passes); both
   have been published by a clinician from the review queue, and either can block a later
-  rework at the edit guard. **Gaps the review found, not fixed here:** a value the terminology
-  does not know gets no reference interval in its statement and shows as "—" in the tables
-  (bounds are parsed only for mapped analytes — plan item A2); every import path carries a
+  rework at the edit guard. **Gaps the review found, not fixed here:** every import path carries a
   text result as a numeric observation without a value (see
   `docs/product/LAB_IMPORT_FORMATS.md`, "Known limits"); a manual-entry time without an
   offset is stored as UTC, while file readers read the same time in the laboratory zone; a
   number written with a thousands separator ("1,234") is read as 1.234; the day-only fix in
   the interpretation evidence has no test under a database session west of UTC;
   `LAB_LOCAL_TIMEZONE` is not validated at startup.
+- **The catalog is the import's terminology; a value keeps its number (go-live plan A2,
+  2026-10-12):** ✅ `norm-2` resolves a name through the KPI catalog (ADR-0004 §18) instead of
+  a six-name table, and a value that is not normalized — unknown name, or a unit without an
+  approved factor — keeps its number and its reference bounds in the source's unit: the
+  tables, the interpretation evidence and the report statement show it as written (they
+  showed "—" and no interval). It stays out of change calculations. **What this does not
+  do:** it adds no alias and no conversion. A German laboratory file still sends almost every
+  row to the review queue, because the catalog's names are English and laboratories write
+  `U/l`, `/nl`, `ng/ml`. Closing that is catalog content: it needs the pilot laboratory's test
+  list (plan item A1) and a named clinician's sign-off. **Decisions:** the six names that
+  still get a LOINC code stamped — four of them mass-concentration terms on values the
+  platform holds in mmol/L, none of the four in the verified set (ADR-0004 §18); the aliases
+  `glucose` → fasting plasma glucose and `vo2max` → directly measured VO₂peak; whether a
+  change may be computed between two values of one KPI held in the same source unit (today:
+  no — only between normalized values). **Gaps:** a KPI that needs recorded context
+  (functional test, wearable, imaging, body composition, omics) waits under the reason
+  `unmapped_metric`, which no longer says what is wrong; a value imported before `norm-2`
+  without a normalized form has its number back (migration 0018) but not its bounds; the
+  specimen is not carried, so an exact alias can map a urine value to a serum KPI; a converted
+  value and its bounds show every computed digit; property-based tests for the conversions
+  are still missing (the register claimed them).
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

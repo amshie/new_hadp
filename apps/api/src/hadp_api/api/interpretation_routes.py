@@ -42,6 +42,8 @@ class EvidenceObsOut(BaseModel):
     observed_at: str
     review_status: str
     metric_code: str | None
+    # The catalog identity of the cited value (the source code is a fallback).
+    kpi_code: str | None = None
     # A published laboratory correction has replaced this value since the run cited it.
     superseded: bool = False
 

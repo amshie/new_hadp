@@ -81,10 +81,22 @@ export interface StatementView {
 }
 export interface MarkerView {
   name: string;
+  // The value the platform holds: normalized where it could be, otherwise the source's own
+  // number in the source's unit — or, for a result that is no number, the source's writing.
   current: string;
   change: string;
   reference: string;
+  // Shown: the source code where one is stamped, else the catalog code.
   code: string;
+  // What ties a value to the same analyte elsewhere (catalog code first, like the timeline).
+  identity: string | null;
+  // How `current` relates to what the source wrote — null when it is the source's own
+  // number in a unit the catalog uses. Provenance, never a verdict.
+  sourceNote: {
+    kind: "text" | "converted" | "source_unit";
+    short: string;
+    full: string;
+  } | null;
   status: string;
   reviewRequired: boolean;
   // A published laboratory correction has replaced this value; it stays as a preserved record.
@@ -170,6 +182,31 @@ function unitJoin(
 ): string {
   if (value == null) return "—";
   return unit ? `${value} ${unit}` : value;
+}
+
+// How the shown value relates to the source's writing. Three cases need saying: the platform
+// converted the unit; the value is held as the source wrote it (no catalog unit, so no change
+// over time is computed); the result is not a number at all.
+function sourceNote(p: TimelinePoint): MarkerView["sourceNote"] {
+  if (p.value == null)
+    return {
+      kind: "text",
+      short: "kein Zahlenwert",
+      full: "Die Quelle nennt für diese Analyse keinen Zahlenwert; angezeigt wird ihre Angabe im Wortlaut.",
+    };
+  if (p.converted)
+    return {
+      kind: "converted",
+      short: `umgerechnet aus ${unitJoin(p.original_value, p.original_unit)}`,
+      full: `Die Quelle nennt ${unitJoin(p.original_value, p.original_unit)}; Wert und Referenzintervall wurden in ${p.unit ?? "die Einheit des Katalogs"} umgerechnet.`,
+    };
+  if (!p.normalized)
+    return {
+      kind: "source_unit",
+      short: "Einheit der Quelle",
+      full: "Wert und Referenzintervall stehen in der Einheit der Quelle: Die Analyse oder ihre Einheit ist im Katalog nicht hinterlegt. Eine Veränderung zum Vorwert wird deshalb nicht berechnet.",
+    };
+  return null;
 }
 
 function auditSteps(status: string): AuditStepView[] {
@@ -342,7 +379,7 @@ export function presentReview(
       new Set(
         d.cells.flatMap((c) =>
           c.evidence
-            .map((e) => e.metric_code)
+            .map((e) => e.kpi_code ?? e.metric_code)
             .filter((code): code is string => code != null),
         ),
       ),
@@ -408,13 +445,18 @@ export function presentReview(
     })),
     markers: timeline.map((p) => ({
       name: p.original_name,
-      current: unitJoin(p.value, p.unit),
+      current:
+        p.value != null
+          ? unitJoin(p.value, p.unit)
+          : unitJoin(p.original_value, p.original_unit),
       change: p.delta_vs_previous ?? "—",
       reference:
         p.reference_low != null || p.reference_high != null
           ? `${p.reference_low ?? "—"}–${p.reference_high ?? "—"} ${p.unit ?? ""}`.trim()
           : "—",
-      code: p.metric_code ?? "—",
+      code: p.metric_code ?? p.kpi_code ?? "—",
+      identity: p.kpi_code ?? p.metric_code ?? null,
+      sourceNote: sourceNote(p),
       status: p.review_status,
       reviewRequired: p.review_status !== "published",
       superseded: p.superseded_by_observation_id != null,

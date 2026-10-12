@@ -82,7 +82,14 @@ class Observation(UUIDPrimaryKey, TimestampCreated, Base):
     formula_version: Mapped[str | None] = mapped_column(String(40), nullable=True)
     algorithm_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
-    # --- Normalized representation ---
+    # --- The value as a number, and its normalized representation ---
+    # numeric_value: the SOURCE's value as a number, in the source's unit (original_unit); NULL
+    # when the source did not write a plain number.
+    # normalized_value / normalized_unit: the value in the catalog's canonical unit — set only
+    # when the name resolved to a catalog KPI and the unit is its canonical unit or converts by
+    # an approved factor. NULL otherwise: the value is then held as numeric_value/original_unit.
+    # reference_low / reference_high: the source's bounds as numbers, in the unit of the value
+    # the platform holds (normalized_unit when normalized, else original_unit).
     value_type: Mapped[ValueType] = mapped_column(pg_enum(ValueType), nullable=False)
     numeric_value: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
     text_value: Mapped[str | None] = mapped_column(String(500), nullable=True)

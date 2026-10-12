@@ -38,8 +38,9 @@ class EvidenceItem:
     # The source writes decimals with a comma: numbers the platform writes beside its value
     # follow that mark (reports/evidence.py reads it from the value and its reference text).
     decimal_comma: bool
-    # The normalized representation (None when the value could not be normalized, e.g. an
-    # analyte the terminology does not know). Reference bounds are in the normalized unit.
+    # The number the platform holds and its unit: the normalized value when one exists,
+    # otherwise the source's number in the source's unit (None when the source wrote no
+    # number). The reference bounds are in the same unit.
     value: Decimal | None
     unit: str | None
     # True when normalization converted the unit, so `value`, `unit` and the bounds are the

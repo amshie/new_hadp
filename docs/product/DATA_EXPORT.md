@@ -69,7 +69,9 @@ product.
     of the computation);
   - the normalized representation where one exists, with the normalization version, the mapping
     (`metric_code`, `kpi_code`, `mapping_confidence`) and the measurement context the source
-    supplied (method, protocol, device, versions);
+    supplied (method, protocol, device, versions). `reference_low` / `reference_high` are the
+    source's bounds as numbers — in `normalized_unit` when a normalized value exists, otherwise
+    in the source's own unit (`original_unit`); `reference_text` is what the source wrote;
   - when it was sampled (`observed_at`; a day only when the source named only a day) and received;
   - where it came from (`source_document_id`, `source_record_locator`); `source_document_withheld`
     is true when the value cites a stored file that is not part of the package (rule 1);

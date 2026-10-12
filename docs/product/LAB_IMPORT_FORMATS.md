@@ -43,13 +43,41 @@ Common to all readers:
   else). A date without a time stays date-only. A time that falls into a daylight-saving gap or
   repeats at the change back is held for review (`ambiguous_local_time`).
 
-What normalization then requires (it applies to manual entry as well):
+What normalization then does (`modules/imports/normalize.py`, version `norm-2`; it applies to
+manual entry as well):
 
+- **The terminology is the KPI catalog** (ADR-0004). A name resolves to a catalog KPI through an
+  exact alias — the KPI's own name or a listed alias, compared without case and outer blanks — or
+  it does not resolve. "Creatinine" resolves; "Creatinin", "Serum creatinine" and "Creatinine
+  (urine)" do not. A name that does not resolve is `unmapped_metric` and waits for a human.
+- **Only where values compare on KPI and unit alone**: laboratory values, vital signs and
+  anthropometric measures. A body-composition, functional-test, wearable, imaging or omics KPI
+  means one measurement only together with its device, instrument version or protocol; a row
+  with a name and a number carries none of that, so it is not normalized (`unmapped_metric`),
+  whatever its name.
+- **The unit must be the KPI's canonical unit, or an approved pair.** The canonical unit is
+  recognized in the catalog's notation (UCUM); two spellings are brought into it, and neither is
+  a conversion: the micro sign (`µmol/l` = `umol/L`) and the litre (`mmol/l` = `mmol/L`).
+  Everything else is compared exactly, case included — `G/l` (10⁹ per litre) is not `g/l`.
+  Four KPI/unit pairs have an approved factor (LDL, HDL and total cholesterol, glucose:
+  mg/dL → mmol/L); reference bounds convert with the same factor. Any other unit — also one that
+  is the same quantity, such as ferritin in ng/mL against the canonical µg/L, or `U/L` against
+  `[IU]/L` — is `unsupported_unit` and waits for a human. No missing unit is read as the
+  canonical one.
+- **A value that is not normalized keeps its number.** The source's number and its reference
+  bounds are stored as numbers, in the source's unit. Once a clinician has published the value
+  it is shown that way — value, unit, reference interval, position against that interval — and
+  marked "Einheit der Quelle". It takes no part in a change calculation: a change is computed
+  only between normalized values of one KPI.
 - A value is a number only if it is a plain decimal: ASCII digits, an optional sign, `.` or `,` as
   the decimal separator, an optional small exponent. `NaN`, `Infinity`, digit-group underscores
-  (`3_4`) and other scripts' digits are **not** numbers and go to review (`unparseable_value`).
+  (`3_4`) and other scripts' digits are **not** numbers; for a catalog KPI they go to review as
+  `unparseable_value`.
 - A reference bound the source gives but that is not such a number goes to review
   (`unparseable_reference`) instead of silently turning a two-sided interval into a one-sided one.
+- A source code (LOINC) is stamped on six names only, exactly as before (`LDL`, `LDL Cholesterol`,
+  `Total cholesterol`, `HDL cholesterol`, `Glucose`, `HbA1c`). Every other resolved value carries
+  the catalog code and no external code.
 
 ## CSV — `hadp-csv` version 1
 
@@ -314,9 +342,10 @@ and no manual-entry form; values can be entered manually through the API only.
   different names is not recognized as a repeat.
 - **A value with a laboratory note is never dropped as a repeat**, so a re-sent file brings its
   commented, preliminary and corrected values back into the review queue.
-- **Reference bounds are compared as stored.** Numeric bounds are stored only for a mapped analyte
-  with a plain number in a supported unit; in every other case only the reference text is
-  compared — with six mapped names today, that is the normal case.
+- **Reference bounds are compared as stored.** Since `norm-2` every readable bound is stored as
+  a number (in the unit of the value the platform holds). A value imported earlier without a
+  normalized form has no stored bounds, so a later copy of it is not recognized as a repeat and
+  meets it in review.
 - **A derived value is not recomputed when an input is replaced** (computation is a controlled
   call, not automatic); the earlier derived value is marked and can no longer be cited.
 - **Exactly-once rests on a row lock** on the source document; there is no unique index on the

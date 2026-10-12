@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import func, select
@@ -31,6 +32,7 @@ from hadp_api.modules.kpi.models import (
     KpiExternalCode,
     KpiSecondaryDomain,
 )
+from hadp_api.modules.kpi.terms import CatalogTerm
 
 
 def _aliases_for(rows: list[dict[str, object]]) -> dict[str, str]:
@@ -248,3 +250,70 @@ def resolve_comparison_policies(db: Session, kpi_codes: set[str]) -> dict[str, K
     ).all():
         out[code] = policy or policy_for_measurement_class(measurement_class)
     return out
+
+
+def _automatic(measurement_class: KpiMeasurementClass, policy: KpiComparisonPolicy | None) -> bool:
+    """Whether an import may normalize a value of such a KPI by itself.
+
+    Only where values compare on KPI + unit alone (laboratory, vital sign, anthropometric by
+    default). A KPI whose values compare only with recorded context — the device, the
+    instrument version, the protocol, the formula — is never normalized from a bare name and
+    number: that context is what makes two such values the same measurement (ADR-0004 §8/§9).
+    """
+    effective = policy or policy_for_measurement_class(measurement_class)
+    return effective is KpiComparisonPolicy.METHOD_AWARE
+
+
+@dataclass(frozen=True)
+class CatalogTerminology:
+    """A snapshot of the catalog as the import's terminology (ADR-0004 §13): exact global
+    alias -> active KPI. Loaded once per import; resolving is a dictionary lookup."""
+
+    _terms: dict[str, CatalogTerm]
+
+    def resolve(self, source_name: str) -> CatalogTerm | None:
+        return self._terms.get(source_name.strip().lower())
+
+
+def load_terminology(db: Session) -> CatalogTerminology:
+    """The terminology an import resolves against: every global alias of an ACTIVE KPI.
+
+    A deprecated or blocked KPI resolves to nothing (its values wait for a human). Aliases in a
+    source-system namespace are not part of the global terminology.
+    """
+    rows = db.execute(
+        select(
+            KpiAlias.alias_normalized,
+            KpiCatalog.code,
+            KpiCatalog.canonical_unit_ucum,
+            KpiCatalog.measurement_class,
+            KpiCatalog.comparison_policy,
+        )
+        .join(KpiCatalog, KpiCatalog.code == KpiAlias.kpi_code)
+        .where(KpiAlias.source_system == "", KpiCatalog.status == KpiStatus.ACTIVE)
+    ).all()
+    return CatalogTerminology(
+        {
+            alias: CatalogTerm(
+                kpi_code=code, canonical_unit=unit, automatic=_automatic(measurement_class, policy)
+            )
+            for alias, code, unit, measurement_class, policy in rows
+        }
+    )
+
+
+def seed_terminology() -> CatalogTerminology:
+    """The same terminology built from the catalog's seed data, without a database — what a
+    freshly seeded catalog resolves. For code that normalizes outside a request (tests)."""
+    rows = kpi_rows()
+    by_code = {str(row["code"]): row for row in rows}
+    terms: dict[str, CatalogTerm] = {}
+    for alias, code in _aliases_for(rows).items():
+        row = by_code[code]
+        unit = row["canonical_unit_ucum"]
+        terms[alias] = CatalogTerm(
+            kpi_code=code,
+            canonical_unit=unit if isinstance(unit, str) else None,
+            automatic=_automatic(KpiMeasurementClass(str(row["measurement_class"])), None),
+        )
+    return CatalogTerminology(terms)

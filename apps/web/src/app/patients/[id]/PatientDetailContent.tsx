@@ -394,7 +394,8 @@ export function PatientDetailContent({
     const codes = new Set(curDomain.markerCodes);
     return review.markers.filter(
       (m) =>
-        codes.has(m.code) || m.secondaryDomains.includes(curDomain.domainAxis),
+        (m.identity != null && codes.has(m.identity)) ||
+        m.secondaryDomains.includes(curDomain.domainAxis),
     );
   }, [curDomain, review.markers]);
 
@@ -1123,6 +1124,8 @@ export function PatientDetailContent({
                     fontSize: "13px",
                     fontWeight: 600,
                     color: "var(--text-strong)",
+                    // A result that is no number shows the source's wording, which can be long.
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {m.current}
@@ -1711,6 +1714,18 @@ export function PatientDetailContent({
                 </span>
               </div>
             </div>
+            {openMarker.sourceNote && (
+              <p
+                style={{
+                  margin: "14px 0 0",
+                  fontSize: "12px",
+                  lineHeight: 1.5,
+                  color: "var(--text-muted)",
+                }}
+              >
+                {openMarker.sourceNote.full}
+              </p>
+            )}
             {openMarker.comparabilityFull && (
               <p
                 style={{

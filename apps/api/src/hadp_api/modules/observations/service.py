@@ -2,10 +2,11 @@
 
 Changes are computed only between comparable observations (same metric code AND same
 normalized unit) — never across incompatible units/methods (CLAUDE.md). Deltas are exact
-decimal subtraction. Review-required observations are surfaced with their status but are
-not treated as published evidence. An observation a published correction has replaced — and a
-value derived from one — stays on the timeline as a preserved record, marked, and takes no
-part in a change calculation.
+decimal subtraction. A value that could not be normalized is shown as the source wrote it,
+in the source's unit, and takes no part in a change calculation. Review-required
+observations are surfaced with their status but are not treated as published evidence. An
+observation a published correction has replaced — and a value derived from one — stays on
+the timeline as a preserved record, marked, and takes no part in a change calculation.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from hadp_api.modules.enums import (
     KpiMeasurementClass,
     ReviewStatus,
 )
+from hadp_api.modules.imports.normalize import unit_was_converted
 from hadp_api.modules.kpi.service import domain_membership, resolve_comparison_policies
 from hadp_api.modules.observations.comparability import is_comparable
 from hadp_api.modules.observations.models import Observation
@@ -38,8 +40,16 @@ class TimelinePoint:
     observation_id: uuid.UUID
     metric_code: str | None
     original_name: str
+    # The source representation, verbatim.
+    original_value: str
+    original_unit: str | None
+    # The number the platform holds and its unit (see `held_value`); the bounds are in that unit.
     value: Decimal | None
     unit: str | None
+    # normalized: value/unit are the catalog's canonical representation. converted: getting
+    # there changed the unit, so value and bounds are the platform's conversion of the source's.
+    normalized: bool
+    converted: bool
     reference_low: Decimal | None
     reference_high: Decimal | None
     observed_at: datetime
@@ -189,6 +199,26 @@ def not_standing(db: Session, patient_id: uuid.UUID) -> set[uuid.UUID]:
     return replaced | derived_from(db, replaced)
 
 
+def plain(value: Decimal | None) -> str | None:
+    """An exact decimal as a plain string. `str()` switches to exponent notation for small
+    magnitudes — a reference bound of 0 converted by a seven-digit factor reads "0E-7"."""
+    return None if value is None else format(value, "f")
+
+
+def held_value(observation: Observation) -> tuple[Decimal | None, str | None]:
+    """The number the platform holds for an observation, and its unit.
+
+    The normalized value in the catalog's canonical unit when normalization succeeded;
+    otherwise the source's own number in the source's own unit — a value the terminology does
+    not know, or in a unit without an approved conversion, is not normalized, and it is not
+    lost either. `reference_low`/`reference_high` are in the same unit. None when the source
+    did not write a number.
+    """
+    if observation.normalized_value is not None:
+        return observation.normalized_value, observation.normalized_unit
+    return observation.numeric_value, (observation.original_unit or "").strip() or None
+
+
 def build_timeline(db: Session, patient_id: uuid.UUID) -> list[TimelinePoint]:
     observations = list_observations(db, patient_id)
     kpi_codes = {o.kpi_code for o in observations if o.kpi_code is not None}
@@ -236,13 +266,18 @@ def build_timeline(db: Session, patient_id: uuid.UUID) -> list[TimelinePoint]:
             last_published[key] = obs
 
         primary, secondary = membership.get(obs.kpi_code or "", (None, []))
+        value, unit = held_value(obs)
         points.append(
             TimelinePoint(
                 observation_id=obs.id,
                 metric_code=obs.metric_code,
                 original_name=obs.original_name,
-                value=obs.normalized_value,
-                unit=obs.normalized_unit,
+                original_value=obs.original_value,
+                original_unit=obs.original_unit,
+                value=value,
+                unit=unit,
+                normalized=obs.normalized_value is not None,
+                converted=unit_was_converted(obs.original_unit, obs.normalized_unit),
                 reference_low=obs.reference_low,
                 reference_high=obs.reference_high,
                 observed_at=obs.observed_at,

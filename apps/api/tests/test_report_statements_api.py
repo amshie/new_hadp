@@ -66,9 +66,47 @@ def _draft(client, pid: str) -> dict:  # type: ignore[no-untyped-def]
 def test_an_analyte_the_terminology_does_not_know_is_stated_as_the_source_wrote_it(
     client, admin_session
 ) -> None:  # type: ignore[no-untyped-def]
-    """Ferritin is not in the terminology: no normalized value exists. The source still wrote
-    85 ng/mL — the statement says that, and the evidence under it shows it."""
+    """The catalog has no zinc: no normalized value exists. The source still wrote 85 µg/dL
+    with its reference interval — the statement says both, and the position against that
+    interval, all in the source's unit; the evidence under it shows what the source wrote."""
     _clinician(client, admin_session, "unmapped")
+    pid = _import(
+        client,
+        [
+            {
+                "original_name": "Zink",
+                "original_value": "65",
+                "original_unit": "µg/dL",
+                "reference_low": "70",
+                "reference_high": "120",
+                **DAY,
+            }
+        ],
+        publish_review=True,
+    )
+
+    report = _draft(client, pid)
+
+    assert (report["narrative_provider"], report["narrative_version"]) == (
+        "deterministic",
+        "narr-2",
+    )
+    (statement,) = report["statements"]
+    assert statement["text"] == (
+        "Zink am 10.06.2025: 65 µg/dL. Referenzintervall der Quelle: 70 bis 120 µg/dL. "
+        "Der Wert liegt unter dem Referenzintervall der Quelle."
+    )
+    (cited,) = statement["evidence"]
+    assert (cited["original_value"], cited["original_unit"]) == ("65", "µg/dL")
+    assert cited["value"] is None  # no normalized form — and the view does not pretend one
+
+
+def test_a_known_analyte_in_a_unit_without_an_approved_conversion_is_not_converted(
+    client, admin_session
+) -> None:  # type: ignore[no-untyped-def]
+    """The catalog knows ferritin in ug/L. ng/mL is not an approved pair: the value goes to
+    review, and once published it is stated as written — nothing "(umgerechnet)"."""
+    _clinician(client, admin_session, "unit")
     pid = _import(
         client,
         [
@@ -84,17 +122,11 @@ def test_an_analyte_the_terminology_does_not_know_is_stated_as_the_source_wrote_
         publish_review=True,
     )
 
-    report = _draft(client, pid)
+    (statement,) = _draft(client, pid)["statements"]
 
-    assert (report["narrative_provider"], report["narrative_version"]) == (
-        "deterministic",
-        "narr-2",
+    assert statement["text"] == (
+        "Ferritin am 10.06.2025: 85 ng/mL. Referenzintervall der Quelle: 30 bis 400 ng/mL."
     )
-    (statement,) = report["statements"]
-    assert statement["text"] == "Ferritin am 10.06.2025: 85 ng/mL."
-    (cited,) = statement["evidence"]
-    assert (cited["original_value"], cited["original_unit"]) == ("85", "ng/mL")
-    assert cited["value"] is None  # no normalized form — and the view does not pretend one
 
 
 def test_a_converted_unit_shows_the_source_value_and_names_the_conversion(

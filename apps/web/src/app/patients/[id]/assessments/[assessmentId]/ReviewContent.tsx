@@ -298,7 +298,9 @@ export function ReviewContent({
     selectedDomain != null ? (view.domains[selectedDomain] ?? null) : null;
   // Beobachtungsnachweis shows the selected domain's own biomarkers, or all when none is selected.
   const primaryMarkers = selected
-    ? view.markers.filter((m) => selected.markerCodes.includes(m.code))
+    ? view.markers.filter(
+        (m) => m.identity != null && selected.markerCodes.includes(m.identity),
+      )
     : view.markers;
   const visiblePrimary = primaryMarkers.filter((m) =>
     matchesRefFilter(m, refFilter),
@@ -310,7 +312,7 @@ export function ReviewContent({
     ? view.markers.filter(
         (m) =>
           m.secondaryDomains.includes(selected.domainAxis) &&
-          !selected.markerCodes.includes(m.code),
+          !(m.identity != null && selected.markerCodes.includes(m.identity)),
       )
     : [];
 
@@ -725,7 +727,13 @@ export function ReviewContent({
                   <td>
                     <span className="marker-name">{m.name}</span>
                   </td>
-                  <td className="num">{m.current}</td>
+                  <td
+                    className={
+                      m.sourceNote?.kind === "text" ? "source-text" : "num"
+                    }
+                  >
+                    {m.current}
+                  </td>
                   <td>
                     <LageCell marker={m} />
                   </td>
@@ -740,6 +748,12 @@ export function ReviewContent({
                     {m.inputReplaced
                       ? " · Eingangswert durch Laborkorrektur ersetzt"
                       : ""}
+                    {m.sourceNote && (
+                      <span className="marker-meta" title={m.sourceNote.full}>
+                        {m.sourceNote.short}
+                        <span className="sr-only"> — {m.sourceNote.full}</span>
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -803,7 +817,13 @@ export function ReviewContent({
                         <span className="marker-name">{m.name}</span>
                       </td>
                       <td>{m.primaryDomainLabel ?? "—"}</td>
-                      <td className="num">{m.current}</td>
+                      <td
+                        className={
+                          m.sourceNote?.kind === "text" ? "source-text" : "num"
+                        }
+                      >
+                        {m.current}
+                      </td>
                       <td>
                         <LageCell marker={m} />
                       </td>
@@ -818,6 +838,18 @@ export function ReviewContent({
                         {m.inputReplaced
                           ? " · Eingangswert durch Laborkorrektur ersetzt"
                           : ""}
+                        {m.sourceNote && (
+                          <span
+                            className="marker-meta"
+                            title={m.sourceNote.full}
+                          >
+                            {m.sourceNote.short}
+                            <span className="sr-only">
+                              {" "}
+                              — {m.sourceNote.full}
+                            </span>
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
