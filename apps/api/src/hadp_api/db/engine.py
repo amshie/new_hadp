@@ -20,7 +20,13 @@ _SessionLocal: sessionmaker[Session] | None = None
 
 
 def _assert_rls_enforceable(engine: Engine) -> None:
-    """Refuse to run as a role that bypasses RLS (defense-in-depth for production)."""
+    """Refuse to run as a role that bypasses RLS — in every environment.
+
+    A superuser or BYPASSRLS role ignores every tenant policy without an error, so nothing
+    else would say that isolation is off (docs/notes/0005). Development and tests are held
+    to the same rule: a setup that runs the app as `postgres` shows cross-tenant behaviour
+    production will never have.
+    """
     with engine.connect() as conn:
         is_superuser = conn.execute(text("SELECT current_setting('is_superuser')")).scalar_one()
         bypass = conn.execute(
@@ -36,15 +42,21 @@ def _assert_rls_enforceable(engine: Engine) -> None:
 def get_engine() -> Engine:
     global _engine, _SessionLocal
     if _engine is None:
-        settings = get_settings()
-        _engine = create_engine(
-            settings.effective_app_database_url,
+        engine = create_engine(
+            get_settings().effective_app_database_url,
             pool_pre_ping=True,
             future=True,
         )
-        _SessionLocal = sessionmaker(bind=_engine, expire_on_commit=False, future=True)
-        if settings.is_production:
-            _assert_rls_enforceable(_engine)
+        # Checked BEFORE the engine is kept: a refused engine must not be handed out by the
+        # next call. (It was kept once — the first request failed and every later one ran
+        # with RLS bypassed.)
+        try:
+            _assert_rls_enforceable(engine)
+        except BaseException:
+            engine.dispose()
+            raise
+        _engine = engine
+        _SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, future=True)
     return _engine
 
 

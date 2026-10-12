@@ -36,7 +36,8 @@ class Settings(BaseSettings):
     # Admin/migration DSN (superuser). Used by Alembic and the synthetic seeder.
     database_url: str = "postgresql+psycopg://postgres:postgres@127.0.0.1:55433/hadp"
     # Application DSN (non-superuser `hadp_app`) so PostgreSQL RLS is enforced.
-    # Falls back to the admin DSN only if unset (RLS would then NOT be enforced).
+    # Unset, it falls back to the admin DSN — which the engine then refuses to use, in every
+    # environment (db/engine.py): a superuser ignores RLS, so the app does not run as one.
     app_database_url: str | None = None
 
     redis_url: str = "redis://127.0.0.1:56379/0"

@@ -26,6 +26,9 @@ export type ReportActionResult =
 function safeMessage(e: unknown): string {
   if (e instanceof ApiError) {
     if (e.status === 403) return "Diese Aktion ist Ihrer Rolle nicht erlaubt.";
+    // Drafting and release are throttled per user; the refusal says so and what to do.
+    if (e.status === 429)
+      return "Zu viele Anfragen in kurzer Zeit. Bitte kurz warten und erneut versuchen.";
     if (e.status === 409) {
       const detail = e.message;
       if (detail.includes("consent")) {

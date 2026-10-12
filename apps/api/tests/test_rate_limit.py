@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 from hadp_api.modules.audit.models import AuditEvent
 from hadp_api.modules.enums import Role
-from tests.helpers import provision_staff
+from tests.helpers import login_as, provision_staff, switch_role
 
 
 def test_login_is_rate_limited_per_ip(client, admin_session) -> None:  # type: ignore[no-untyped-def]
@@ -56,3 +56,61 @@ def test_patient_view_token_surface_is_rate_limited(client, admin_session) -> No
         .all()
     )
     assert any(e.detail == {"action": "patient_view"} for e in events)
+
+
+def test_drafting_a_report_is_rate_limited_per_user(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """A draft is a new report, or a new version, that is kept: 30 a minute per user, for
+    generating and for re-drafting together."""
+    _, tenant = login_as(
+        client,
+        admin_session,
+        email="draft-rl@synthetic.example",
+        tenant_name="Draft RL Clinic",
+        tenant_slug="draft-rl",
+        role=Role.CLINICIAN,
+    )
+    patient = client.post("/api/v1/patients", json={"display_name": "Draft Limit (synthetic)"})
+    assert patient.status_code == 201, patient.text
+    drafts = f"/api/v1/patients/{patient.json()['id']}/reports"
+
+    # The patient has no published value, so each call is refused on its merits (422) —
+    # and counts: the limit bounds the attempts, whatever they would have produced.
+    for _ in range(30):
+        assert client.post(drafts).status_code == 422
+    blocked = client.post(drafts)
+    assert blocked.status_code == 429, blocked.text
+    assert blocked.json()["error"]["code"] == "too_many_requests"
+    # The same counter: a new draft version is a draft.
+    assert client.post(f"/api/v1/reports/{uuid.uuid4()}/redraft").status_code == 429
+
+    events = (
+        admin_session.execute(select(AuditEvent).where(AuditEvent.action == "rate_limited"))
+        .scalars()
+        .all()
+    )
+    assert [e.detail for e in events] == [{"action": "report.draft"}] * 2
+
+    # Per user: a colleague in the same clinic is not held back by it.
+    switch_role(
+        client,
+        admin_session,
+        email="draft-rl-colleague@synthetic.example",
+        tenant=tenant,
+        role=Role.CLINICIAN,
+    )
+    assert client.post(drafts).status_code == 422
+
+
+def test_a_role_that_may_not_draft_does_not_use_up_the_limit(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """Authorization comes first: a refused role is a 403 every time, never a 429."""
+    login_as(
+        client,
+        admin_session,
+        email="draft-rl-md@synthetic.example",
+        tenant_name="Draft RL MD Clinic",
+        tenant_slug="draft-rl-md",
+        role=Role.MEDICAL_DIRECTOR,
+    )
+    for _ in range(32):
+        resp = client.post(f"/api/v1/patients/{uuid.uuid4()}/reports")
+        assert resp.status_code == 403, resp.text

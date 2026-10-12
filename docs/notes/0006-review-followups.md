@@ -213,5 +213,17 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
     the default is a product decision.
   - **Before real data:** "no names in the trail" is held by review, a key-name guard and a
     suite-wide check after every test (`tests/conftest.py`) — not by a schema per action.
+- **Security items that need no vendor (go-live plan B, 2026-10-12):** the RLS role guard
+  holds now — every environment, at startup, and a refused engine is never kept
+  ([[0005-rls-fail-open-production-guard]], which records what was wrong); sign-out removes
+  both cookies with the attributes they were set with; report drafting is rate limited
+  (30/min/user, generating and re-drafting together).
+  Found on the way, not changed: (1) the web app stores the two cookies under fixed names
+  (`hadp_session`, `hadp_csrf`) and without `Secure` (`apps/web/src/lib/api.ts`) — harmless
+  while the only sign-in is the development one, which production does not have, but the
+  production sign-in (OIDC) must not inherit it: the API's production names carry
+  `__Host-`; (2) a failed security-event write is still an ERROR log line and nothing
+  else (a 403 must not become a 500) — it needs an alert on that line once monitoring
+  exists (workstream C); (3) no malware-scan step on upload, no nonce-based CSP.
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.
