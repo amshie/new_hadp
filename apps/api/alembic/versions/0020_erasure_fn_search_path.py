@@ -12,7 +12,8 @@ application role could reach superuser rights.
 The function now resolves its names in `pg_catalog`, then `public`, and a temporary schema
 last. Its body is unchanged.
 
-Revision ID: 0020_erasure_function_search_path
+Revision ID: 0020_erasure_fn_search_path
+(The id fits `alembic_version.version_num`, which holds 32 characters.)
 Revises: 0019_preparation_time_statements
 """
 
@@ -20,7 +21,7 @@ from __future__ import annotations
 
 from alembic import op
 
-revision = "0020_erasure_function_search_path"
+revision = "0020_erasure_fn_search_path"
 down_revision = "0019_preparation_time_statements"
 branch_labels = None
 depends_on = None
