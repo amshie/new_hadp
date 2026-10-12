@@ -14,6 +14,17 @@ import { isUuid } from "@/lib/uuid";
 // never from the URL — so it stays out of the address bar, history, and referrers.
 export const dynamic = "force-dynamic";
 
+// The day of release as the patient reads it (de-DE). Rendered on the server, so the zone is
+// named explicitly — the DACH pilot default, the same one the API reads laboratory times in.
+function releaseDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Europe/Berlin",
+  });
+}
+
 export default async function PatientViewPage() {
   const creds = decodePv((await cookies()).get(PV_COOKIE)?.value);
 
@@ -42,7 +53,7 @@ export default async function PatientViewPage() {
         <h1 style={{ fontSize: "22px", marginBottom: "6px" }}>Ihr Bericht</h1>
         <p style={{ color: "var(--text-muted, #5b6b70)", fontSize: "13px" }}>
           Ärztlich freigegeben
-          {view.released_at ? ` am ${view.released_at.slice(0, 10)}` : ""} ·
+          {view.released_at ? ` am ${releaseDay(view.released_at)}` : ""} ·
           synthetische Demo-Inhalte
         </p>
         <p style={{ lineHeight: 1.55, fontSize: "14px" }}>

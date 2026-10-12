@@ -7,65 +7,31 @@ import { signOut } from "@/app/login/actions";
 import { initialsOf, type ShellIdentity } from "@/lib/identity";
 
 import { Icon, type IconName } from "./Icon";
-import { ToastProvider, useToast } from "./Toaster";
+import { ToastProvider } from "./Toaster";
 
-export type NavKey =
-  | "overview"
-  | "patients"
-  | "imports"
-  | "reports"
-  | "rules"
-  | "audit"
-  | "settings";
-
-const NOT_IMPLEMENTED = "Diese Ansicht ist im Prototyp noch nicht umgesetzt.";
+// The same four destinations as the dashboard shell (VitaShell): every entry leads somewhere.
+export type NavKey = "overview" | "patients" | "review" | "settings";
 
 function NavLink({
   icon,
   label,
-  count,
   active,
   href,
 }: {
   icon: IconName;
   label: string;
-  count?: number;
   active?: boolean;
-  href?: string;
+  href: string;
 }) {
-  const toast = useToast();
-  const content = (
-    <>
+  return (
+    <Link
+      className="nav-link"
+      href={href}
+      aria-current={active ? "page" : undefined}
+    >
       <Icon name={icon} />
       {label}
-      {count != null && <span className="nav-count">{count}</span>}
-    </>
-  );
-  if (active && href) {
-    return (
-      <Link className="nav-link" href={href} aria-current="page">
-        {content}
-      </Link>
-    );
-  }
-  if (href) {
-    return (
-      <Link className="nav-link" href={href}>
-        {content}
-      </Link>
-    );
-  }
-  return (
-    <a
-      className="nav-link"
-      href="#"
-      onClick={(e) => {
-        e.preventDefault();
-        toast(NOT_IMPLEMENTED);
-      }}
-    >
-      {content}
-    </a>
+    </Link>
   );
 }
 
@@ -91,7 +57,6 @@ function Sidebar({
         <NavLink
           icon="overview"
           label="Übersicht"
-          count={3}
           active={active === "overview"}
           href="/overview"
         />
@@ -99,17 +64,13 @@ function Sidebar({
           icon="patients"
           label="Patienten"
           active={active === "patients"}
+          href="/patients"
         />
         <NavLink
-          icon="download"
-          label="Importe"
-          count={2}
-          active={active === "imports"}
-        />
-        <NavLink
-          icon="reports"
-          label="Berichte"
-          active={active === "reports"}
+          icon="check"
+          label="Review-Queue"
+          active={active === "review"}
+          href="/review-queue"
         />
       </nav>
 
@@ -117,17 +78,11 @@ function Sidebar({
         Verwaltung
       </div>
       <nav className="nav">
-        <NavLink icon="rules" label="Regeln" active={active === "rules"} />
-        <NavLink
-          icon="auditlog"
-          label="Audit-Protokoll"
-          active={active === "audit"}
-        />
         <NavLink
           icon="settings"
           label="Einstellungen"
           active={active === "settings"}
-          href="/einstellungen/mitglieder"
+          href="/einstellungen"
         />
       </nav>
 
@@ -150,7 +105,6 @@ function Sidebar({
 }
 
 function UserMenu({ identity }: { identity?: ShellIdentity | null }) {
-  const toast = useToast();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -189,29 +143,6 @@ function UserMenu({ identity }: { identity?: ShellIdentity | null }) {
         </span>
       </button>
       <div className={`menu${open ? "" : " hidden"}`} role="menu">
-        <a
-          href="#"
-          role="menuitem"
-          onClick={(e) => {
-            e.preventDefault();
-            toast(NOT_IMPLEMENTED);
-          }}
-        >
-          <Icon name="account" />
-          Konto
-        </a>
-        <a
-          href="#"
-          role="menuitem"
-          onClick={(e) => {
-            e.preventDefault();
-            toast(NOT_IMPLEMENTED);
-          }}
-        >
-          <Icon name="myAudit" />
-          Mein Audit-Log
-        </a>
-        <div className="menu-sep" />
         <form action={signOut} role="none">
           <button className="danger" role="menuitem" type="submit">
             <Icon name="logout" />
@@ -230,7 +161,6 @@ function Topbar({
   breadcrumbs: ReactNode;
   identity?: ShellIdentity | null;
 }) {
-  const toast = useToast();
   return (
     <header className="topbar">
       <Link
@@ -246,27 +176,11 @@ function Topbar({
       </Link>
       {breadcrumbs}
       <div className="topbar-spacer" />
-      <button
-        className="clinic-switch"
-        type="button"
-        onClick={() =>
-          toast("Der Klinikwechsel ist im Prototyp nur visuell dargestellt.")
-        }
-      >
+      <div className="clinic-name">
         <Icon name="building" />
+        <span className="sr-only">Mandant: </span>
         <span>{identity?.tenantName ?? "—"}</span>
-        <Icon name="chevronDown" style={{ width: "14px", height: "14px" }} />
-      </button>
-      <button
-        className="icon-btn"
-        type="button"
-        aria-label="Benachrichtigungen"
-        onClick={() =>
-          toast("Keine weiteren Benachrichtigungen in diesem Prototyp.")
-        }
-      >
-        <Icon name="bell" />
-      </button>
+      </div>
       <UserMenu identity={identity} />
     </header>
   );

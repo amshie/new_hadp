@@ -171,6 +171,22 @@ async function request<T>(
   return (await res.json()) as T;
 }
 
+// Which sign-in this deployment offers. The API is the authority: the development sign-in
+// exists only outside production (it answers 404 there), and no production identity provider
+// is connected yet. The login page shows what exists — never a form that cannot work.
+export type SignInMode = "development" | "none" | "unreachable";
+
+export async function signInMode(): Promise<SignInMode> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/health`, { cache: "no-store" });
+    if (!res.ok) return "unreachable";
+    const health = (await res.json()) as Schemas["HealthOut"];
+    return health.app_env === "production" ? "none" : "development";
+  } catch {
+    return "unreachable";
+  }
+}
+
 export async function devLogin(email: string): Promise<LoginResponse> {
   const res = await fetch(`${API_BASE}/api/v1/auth/dev-login`, {
     method: "POST",

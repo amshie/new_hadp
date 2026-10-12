@@ -221,6 +221,57 @@ function auditSteps(status: string): AuditStepView[] {
   ];
 }
 
+// Where this report version stands, said above its text. Only a version that still awaits a
+// decision is called a draft; an approved or released version is never labelled "nicht
+// freigegeben". An unknown status is treated as not released (fail-safe).
+export interface ReportStageView {
+  key: "draft" | "approved" | "released" | "rejected";
+  title: string;
+  badge: string;
+  headline: string;
+  detail: string;
+}
+
+export function reportStage(status: string, edited: boolean): ReportStageView {
+  if (status === "released")
+    return {
+      key: "released",
+      title: "Quellengebundener Bericht",
+      badge: "Freigegeben",
+      headline: "Ärztlich freigegeben.",
+      detail: "Die Patientin sieht ausschließlich diese Version.",
+    };
+  if (status === "approved")
+    return {
+      key: "approved",
+      title: "Quellengebundener Bericht",
+      badge: "Genehmigt",
+      headline: "Klinisch genehmigt – noch nicht freigegeben.",
+      detail:
+        "Die Freigabe an die Patientin ist der ärztlichen Leitung vorbehalten.",
+    };
+  if (status === "rejected")
+    return {
+      key: "rejected",
+      title: "Zurückgewiesene Fassung",
+      badge: "Zurückgewiesen",
+      headline: "Zurückgewiesen – nicht freigegeben.",
+      detail:
+        "Eine Überarbeitung erstellt eine neue Version; diese Fassung bleibt erhalten.",
+    };
+  return {
+    key: "draft",
+    title: "Quellengebundener Entwurf",
+    badge: "Nicht freigegeben",
+    headline:
+      status === "draft_edited" || edited
+        ? "Überarbeiteter Entwurf – nicht freigegeben."
+        : "Systementwurf – nicht freigegeben.",
+    detail:
+      "Aussagen müssen anhand der Quellen geprüft und vom klinischen Team signiert werden.",
+  };
+}
+
 // Honest, role-aware status line under the Freigabe action bar (shared by the review
 // and detail surfaces; the server enforces the actions — this only explains them).
 export function statusHint(status: string, role: string | null): string {

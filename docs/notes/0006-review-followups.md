@@ -56,5 +56,17 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   intended-use terms (stem-matched to catch plurals + German inflections), strips comments
   and the two sanctioned negated disclaimers, and runs in `make check` / `make test-db`.
   Closes the ADR-0004 §0 "DE/EN labels through the language scan before any UI ships" gate.
+- **Prototype remnants in the web app (go-live plan A10, 2026-10-12):** ✅ removed — the
+  password / second-factor / lock-screen mock and the "Prototyp-Zustände" switcher on the
+  sign-in page, navigation entries and tabs with no page behind them, controls that only raised
+  a notice, and the "nicht freigegeben" wording on approved and released reports. The sign-in
+  page now shows the sign-in the deployment has: the development sign-in outside production, and
+  a plain "not set up" notice in production until an identity provider is connected (workstream
+  B). `scripts/smoke_web.py` fails if mock UI returns and checks the review page's wording as a
+  draft, approved and released (CI). Still open, deliberately: the two Übersicht panels that
+  say why they are empty (ADR-0006 — activity feed, imports) use engineering wording; the legal
+  links (Datenschutz, Nutzungsbedingungen) return when those pages exist (workstream D); the
+  report review page keeps the legacy shell; report statements are still generated in English
+  (the next A10 slice).
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

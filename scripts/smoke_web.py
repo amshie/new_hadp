@@ -6,6 +6,12 @@ unauthenticated requests are pushed to /login, the retired /worklist redirects t
 renders the real dashboard with the synthetic-data banner. Requires the API on
 :8000 (dev mode) and the web app on :3000 against a seeded dev DB. Synthetic data
 only. Exits non-zero on any failure. (Full Playwright e2e is a later slice.)
+
+No page may carry mock UI (a password or second-factor field that checks nothing,
+"Prototyp" wording, a notification control with nothing behind it), and the report
+review page must state the version's real release status. With WEB_SMOKE_RELEASE=1
+(CI) the seeded report is additionally approved and released through the API, so
+the released wording is checked too; without it the report is left as it is.
 """
 
 from __future__ import annotations
@@ -19,6 +25,54 @@ import httpx
 WEB = os.environ.get("WEB_SMOKE_BASE", "http://127.0.0.1:3000")
 API = os.environ.get("API_SMOKE_BASE", "http://127.0.0.1:8000/api/v1")
 REDIRECT = {301, 302, 303, 307, 308}
+EXERCISE_RELEASE = os.environ.get("WEB_SMOKE_RELEASE") == "1"
+
+# The headline the review page shows above a report version, by lifecycle status.
+STAGE_HEADLINE = {
+    "draft_generated": "Systementwurf – nicht freigegeben.",
+    "draft_edited": "Überarbeiteter Entwurf – nicht freigegeben.",
+    "approved": "Klinisch genehmigt – noch nicht freigegeben.",
+    "released": "Ärztlich freigegeben.",
+    "rejected": "Zurückgewiesen – nicht freigegeben.",
+}
+
+
+# German "Prototyp…" wording only: a dev-mode page also embeds JavaScript source, where
+# identifiers such as "ObjectSetPrototypeOf" are not copy.
+MOCK_UI = (r"\bPrototyp(?!e)", "Benachrichtigungen", 'type="password"', 'href="#"')
+
+
+def assert_no_mock_ui(path: str, html: str) -> None:
+    """Nothing on a page pretends: no prototype wording, no control without a function."""
+    for marker in MOCK_UI:
+        assert not re.search(marker, html), f"{path} still carries mock UI: {marker!r}"
+
+
+def assert_stage(path: str, html: str, report: dict) -> None:
+    """The page says where the version stands — never "nicht freigegeben" once released."""
+    status = report["status"]
+    headline = STAGE_HEADLINE[status]
+    if status == "draft_generated" and report.get("edited"):
+        headline = STAGE_HEADLINE["draft_edited"]
+    assert headline in html, (path, status, "status headline missing")
+    if status == "released":
+        assert "nicht freigegeben" not in html.lower(), (
+            f"{path}: a released report is labelled as not released"
+        )
+
+
+def staff_session(email: str) -> httpx.Client:
+    """An API session for a seeded synthetic account, scoped to the demo clinic."""
+    api = httpx.Client(base_url=API, timeout=60.0)
+    r = api.post("/auth/dev-login", json={"email": email})
+    assert r.status_code == 200, ("dev-login", email, r.status_code, r.text)
+    # Double-submit CSRF (P-pre-2): unsafe calls carry the token issued at login.
+    api.headers["x-csrf-token"] = api.cookies.get("hadp_csrf") or ""
+    tenants = api.get("/tenancy/my-tenants").json()
+    tenant = next(t for t in tenants if t["tenant_slug"] == "demo-clinic")
+    r = api.post("/tenancy/select-tenant", json={"tenant_id": tenant["tenant_id"]})
+    assert r.status_code == 200, ("select-tenant", email, r.status_code)
+    return api
 
 
 def main() -> int:
@@ -27,6 +81,10 @@ def main() -> int:
         r = web.get("/login")
         assert r.status_code == 200, ("/login", r.status_code)
         assert "Klinischer Zugang" in r.text, "/login did not render the sign-in card"
+        # The development sign-in asks for an account's e-mail address and nothing else.
+        assert 'name="email"' in r.text, "/login offers no sign-in form in dev mode"
+        assert "Zwei-Faktor" not in r.text, "/login still shows a second-factor step"
+        assert_no_mock_ui("/login", r.text)
 
         for path in ("/", "/overview", "/review-queue"):
             r = web.get(path)
@@ -69,19 +127,11 @@ def main() -> int:
         )
 
     # Real session via the API (same path the login action uses), then authed pages.
-    with httpx.Client(base_url=API, timeout=60.0) as api:
-        r = api.post("/auth/dev-login", json={"email": "clinician@demo.synthetic"})
-        assert r.status_code == 200, ("dev-login", r.status_code, r.text)
-        # Double-submit CSRF (P-pre-2): unsafe calls carry the token issued at login.
-        api.headers["x-csrf-token"] = api.cookies.get("hadp_csrf") or ""
-        tenants = api.get("/tenancy/my-tenants").json()
-        tenant = next(t for t in tenants if t["tenant_slug"] == "demo-clinic")
-        r = api.post("/tenancy/select-tenant", json={"tenant_id": tenant["tenant_id"]})
-        assert r.status_code == 200, ("select-tenant", r.status_code)
-        session = api.cookies.get("hadp_session")
-        assert session, "dev-login issued no hadp_session cookie"
-        patients = api.get("/patients").json()
-        pid = next(p for p in patients if p["external_ref"] == "SYN-0001")["id"]
+    api = staff_session("clinician@demo.synthetic")
+    session = api.cookies.get("hadp_session")
+    assert session, "dev-login issued no hadp_session cookie"
+    patients = api.get("/patients").json()
+    pid = next(p for p in patients if p["external_ref"] == "SYN-0001")["id"]
 
     with httpx.Client(
         base_url=WEB,
@@ -92,12 +142,19 @@ def main() -> int:
         r = web.get("/overview")
         assert r.status_code == 200, ("/overview authed", r.status_code)
         assert "Synthetische Beispieldaten" in r.text, "synthetic banner missing on /overview"
+        assert_no_mock_ui("/overview", r.text)
+        # Every navigation entry leads somewhere: the four real destinations, nothing else.
+        for label in ("Übersicht", "Patienten", "Review-Queue", "Einstellungen"):
+            assert label in r.text, f"navigation entry missing: {label}"
+        assert "Audit-Protokoll" not in r.text, "navigation still lists a view that does not exist"
 
         r = web.get("/patients")
         assert r.status_code == 200, ("/patients authed", r.status_code)
+        assert_no_mock_ui("/patients", r.text)
 
         r = web.get(f"/patients/{pid}")
         assert r.status_code == 200, ("/patients/[id] authed", r.status_code)
+        assert_no_mock_ui("/patients/[id]", r.text)
         # The seeded patient has a report: the detail page must link to its review surface
         # (the only place approve/release live), and that link must resolve.
         review = re.search(rf'href="(/patients/{pid}/assessments/[0-9a-f-]{{36}})"', r.text)
@@ -111,19 +168,55 @@ def main() -> int:
         assert "Freigabe geprüfter Berichte" in r.text, "consent card lists no purposes"
         # The data export is tenant administration (owner): this clinician session sees no card.
         assert "Datenauskunft erstellen" not in r.text, "data-export card shown to a non-owner"
-        r = web.get(review.group(1))
+        review_path = review.group(1)
+        report_id = review_path.rsplit("/", 1)[1]
+        r = web.get(review_path)
         assert r.status_code == 200, ("review page via detail link", r.status_code)
         assert f'href="/patients/{pid}"' in r.text, "review page has no way back to the patient"
+        assert_no_mock_ui("review page", r.text)
+        # The legacy shell's navigation leads to the real pages (it used to be dead links).
+        for target in ("/overview", "/patients", "/review-queue", "/einstellungen"):
+            assert f'href="{target}"' in r.text, f"review page navigation lacks {target}"
+        report = api.get(f"/reports/{report_id}").json()
+        assert_stage("review page", r.text, report)
+        checked = [report["status"]]
+
+        if EXERCISE_RELEASE:
+            # Two-tier gate through the API (clinician approves, medical director releases),
+            # then the same page must say "freigegeben" — and nowhere "nicht freigegeben".
+            if report["status"] in ("draft_generated", "draft_edited"):
+                r = api.post(f"/reports/{report_id}/approve")
+                assert r.status_code == 200, ("approve", r.status_code, r.text)
+                page = web.get(review_path).text
+                approved = api.get(f"/reports/{report_id}").json()
+                assert approved["status"] == "approved", approved["status"]
+                assert_stage("review page (approved)", page, approved)
+                checked.append("approved")
+            if api.get(f"/reports/{report_id}").json()["status"] == "approved":
+                director = staff_session("medical.director@demo.synthetic")
+                try:
+                    r = director.post(f"/reports/{report_id}/release")
+                    assert r.status_code == 200, ("release", r.status_code, r.text)
+                finally:
+                    director.close()
+            released = api.get(f"/reports/{report_id}").json()
+            assert released["status"] == "released", ("release exercise", released["status"])
+            assert_stage("review page (released)", web.get(review_path).text, released)
+            checked.append("released")
 
         r = web.get("/review-queue")
         assert r.status_code == 200, ("/review-queue authed", r.status_code)
         assert "Review-Queue" in r.text, "review queue page did not render"
+        assert_no_mock_ui("/review-queue", r.text)
 
         r = web.get(f"/patients/{pid}/interpretation/neu")
         assert r.status_code == 200, ("/interpretation/neu authed", r.status_code)
         assert "Korrektur-Run erfassen" in r.text or "Interpretation erfassen" in r.text
+        assert_no_mock_ui("/interpretation/neu", r.text)
 
+    api.close()
     print("WEB SMOKE OK: guards, redirects, 404 boundary, and authed dashboard render")
+    print(f"  report status wording checked for: {', '.join(checked)}")
     return 0
 
 
