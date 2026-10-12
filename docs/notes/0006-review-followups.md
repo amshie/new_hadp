@@ -213,5 +213,13 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
     the default is a product decision.
   - **Before real data:** "no names in the trail" is held by review, a key-name guard and a
     suite-wide check after every test (`tests/conftest.py`) — not by a schema per action.
+- **Preparation-time metric (go-live plan A6, 2026-10-12):** ✅ Einstellungen →
+  Vorbereitungszeit — the clinic's own statements (baseline, follow-ups; append-only) and the
+  measured draft-to-first-approval time (`prep-time-1`); `docs/product/WORKFLOW.md` §6.4.
+  Still open: the measured interval starts at the draft, so it leaves out the work before it and
+  cannot be set against the clinic's stated minutes — a comparable measure needs a recorded
+  "preparation started" moment, and which moment that is has to be decided first; no chart or
+  history of the measured value over time; no export; the windows are fixed (all reports, the
+  last 30 days); the web page has no tests of its own.
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

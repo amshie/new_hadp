@@ -35,6 +35,12 @@ const SECTIONS: {
     desc: "Die protokollierten Vorgänge der Praxis einsehen: wer, wann, welcher Vorgang, an welchem Datensatz.",
     roles: ["owner"],
   },
+  {
+    href: "/einstellungen/vorbereitungszeit",
+    title: "Vorbereitungszeit",
+    desc: "Ausgangswert und Folgeangaben der Praxis erfassen und die gemessene Durchlaufzeit der Berichte einsehen.",
+    roles: ["owner"],
+  },
 ];
 
 export default async function EinstellungenPage() {

@@ -39,6 +39,11 @@ class Action(str, Enum):
     # The clinic's own audit trail: who did what, and when. The clinic is the controller and
     # answers for its staff's access — tenant administration.
     AUDIT_READ = "audit.read"
+    # The preparation-time metric (go-live plan A6): what the clinic states about its own
+    # preparation time, and what the platform measures from the report lifecycle. It shows
+    # how quickly the clinic's clinicians work through their reports — tenant administration.
+    METRIC_READ = "metric.read"
+    METRIC_RECORD = "metric.record"
     REVIEW_RESOLVE = "review.resolve"
     INTERPRETATION_AUTHOR = "interpretation.author"
     REPORT_DRAFT = "report.draft"
@@ -93,6 +98,9 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.PRIVACY_EXPORT: frozenset({Role.OWNER}),
     # Reading the audit trail shows every colleague's access to every record: OWNER only.
     Action.AUDIT_READ: frozenset({Role.OWNER}),
+    # The clinic's own preparation-time statements and the measured turnaround: OWNER only.
+    Action.METRIC_READ: frozenset({Role.OWNER}),
+    Action.METRIC_RECORD: frozenset({Role.OWNER}),
     # Review-queue resolution is a clinical judgement (WORKFLOW §2.2/§2.4: the
     # assistant triages the queue but may not resolve clinically).
     Action.REVIEW_RESOLVE: frozenset({Role.CLINICIAN}),
