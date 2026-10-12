@@ -50,6 +50,10 @@ export interface ReportView {
   edited?: boolean; // true once the current version carries a human edit
   // A cited value no longer stands: not approvable or releasable; a new draft is the way on.
   cites_replaced_evidence?: boolean;
+  // Closed vocabulary: why this version was rejected, and — on a version that reworks a
+  // rejected one — why that earlier version was rejected.
+  rejection_reason?: string | null;
+  reworks_rejection_reason?: string | null;
   statements: ReportStatement[];
 }
 export interface PatientView {
@@ -362,9 +366,13 @@ export const approveReport = (reportId: string) =>
   request<ReportView>(`/api/v1/reports/${reportId}/approve`, {
     method: "POST",
   });
-export const rejectReport = (reportId: string) =>
+export const rejectReport = (
+  reportId: string,
+  reason: Schemas["RejectReportRequest"]["reason"],
+) =>
   request<ReportView>(`/api/v1/reports/${reportId}/reject`, {
     method: "POST",
+    body: JSON.stringify({ reason }),
   });
 export const releaseReport = (reportId: string) =>
   request<ReleaseOut>(`/api/v1/reports/${reportId}/release`, {

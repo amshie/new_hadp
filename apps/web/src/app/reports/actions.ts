@@ -12,6 +12,7 @@ import {
   releaseReport,
   type ReportStatementInput,
 } from "@/lib/api";
+import { REJECTION_REASONS, type RejectionReason } from "@/lib/rejectionCopy";
 import { isUuid } from "@/lib/uuid";
 
 // Real Freigabe lifecycle (Gate G2 closed): server-side calls into the governed API.
@@ -202,14 +203,20 @@ export async function approveReportAction(
   return { ok: true };
 }
 
+// A rejection names its reason from the closed vocabulary — never free text, so nothing about
+// the patient can end up in the record or the audit trail through this field.
 export async function rejectReportAction(
   reportId: string,
   path: string,
+  reason: RejectionReason,
 ): Promise<ReportActionResult> {
   const invalid = guard(reportId, path);
   if (invalid) return { ok: false, error: invalid };
+  // Server-action arguments arrive from the client: only the closed vocabulary passes.
+  if (!REJECTION_REASONS.some((r) => r.reason === reason))
+    return { ok: false, error: "Bitte einen Grund wählen." };
   try {
-    await rejectReport(reportId);
+    await rejectReport(reportId, reason);
   } catch (e) {
     return { ok: false, error: safeMessage(e) };
   }

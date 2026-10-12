@@ -842,7 +842,12 @@ def test_an_approved_report_is_not_released_once_its_evidence_was_replaced(
     assert refused.status_code == 409
     assert "laboratory correction has replaced" in refused.json()["error"]["detail"]
     # The medical director can send it back; nothing was released.
-    assert client.post(f"/api/v1/reports/{report_id}/reject").status_code == 200
+    assert (
+        client.post(
+            f"/api/v1/reports/{report_id}/reject", json={"reason": "data_changed"}
+        ).status_code
+        == 200
+    )
 
 
 # --- cases an independent review found (2026-10-12) ---

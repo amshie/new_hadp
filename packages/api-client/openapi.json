@@ -2033,6 +2033,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectReportRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3660,6 +3670,18 @@
         ],
         "title": "RedeemOut"
       },
+      "RejectReportRequest": {
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/ReportRejectionReason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "RejectReportRequest"
+      },
       "ReleaseOut": {
         "properties": {
           "report_id": {
@@ -3688,6 +3710,18 @@
           "patient_view_url"
         ],
         "title": "ReleaseOut"
+      },
+      "ReportRejectionReason": {
+        "type": "string",
+        "enum": [
+          "evidence_insufficient",
+          "wording",
+          "data_incomplete",
+          "data_changed",
+          "other"
+        ],
+        "title": "ReportRejectionReason",
+        "description": "Why a report version was rejected \u2014 a CLOSED vocabulary.\n\nNever free text: the reason is stored on the version and written to the audit trail, and\nneither may carry patient data. Whoever reworks the report reads it to know what to change.\n\nPROPOSED values (engineering proposal, 2026-10-12) awaiting the medical director's\nconfirmation \u2014 see docs/regulatory/CLASSIFICATION_REGISTER.md. Changing the set is a\nmigration (the DB CHECK lists the values)."
       },
       "ResolveReviewIn": {
         "properties": {

@@ -459,7 +459,10 @@ def test_a_withdrawn_released_version_is_marked_and_unreleased_ones_stay_out(
     approved_only = client.post(f"/api/v1/patients/{pid}/reports").json()["report_id"]
     assert client.post(f"/api/v1/reports/{approved_only}/approve").status_code == 200
     rejected = client.post(f"/api/v1/patients/{pid}/reports").json()["report_id"]
-    assert client.post(f"/api/v1/reports/{rejected}/reject").status_code == 200
+    assert (
+        client.post(f"/api/v1/reports/{rejected}/reject", json={"reason": "wording"}).status_code
+        == 200
+    )
     switch_role(
         client,
         admin_session,

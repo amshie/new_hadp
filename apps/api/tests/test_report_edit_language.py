@@ -74,7 +74,9 @@ def test_edit_with_restricted_language_is_refused_and_persists_nothing(  # type:
     report = client.post(f"/api/v1/patients/{pid}/reports").json()
     rid = report["report_id"]
     assert report["edited"] is False  # provider output, untouched
-    assert client.post(f"/api/v1/reports/{rid}/reject").status_code == 200
+    assert (
+        client.post(f"/api/v1/reports/{rid}/reject", json={"reason": "wording"}).status_code == 200
+    )
 
     marker = "ZZ-unique-marker"
     resp = client.post(

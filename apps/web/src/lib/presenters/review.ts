@@ -143,6 +143,10 @@ export interface ReviewView {
   edited: boolean;
   // A cited value no longer stands: not approvable or releasable; a new draft is the way on.
   citesReplaced: boolean;
+  // Why this version was rejected / why the version this one reworks was rejected (closed
+  // vocabulary codes; null when not applicable or not recorded).
+  rejectionReason: string | null;
+  reworksRejectionReason: string | null;
   statements: StatementView[];
   markers: MarkerView[];
   auditSteps: AuditStepView[];
@@ -293,6 +297,8 @@ export function presentReview(
     versionNo: report.version_no,
     edited: report.edited === true,
     citesReplaced: report.cites_replaced_evidence === true,
+    rejectionReason: report.rejection_reason ?? null,
+    reworksRejectionReason: report.reworks_rejection_reason ?? null,
     statements: report.statements.map((s) => ({
       id: s.id,
       text: s.text,
