@@ -7,13 +7,22 @@ import type { ReviewQueueItem } from "@/lib/api";
 
 import { resolveReviewItemAction } from "./actions";
 
-// Closed reason vocabulary (imports/normalize.py) → neutral German labels. No verdict
+// Closed reason vocabulary (imports/normalize.py + imports/parsers/base.py) → neutral German
+// labels. No verdict
 // language: a queued value is undecided, never "auffällig" or graded.
 const REASON_LABELS: Record<string, string> = {
   unmapped_metric: "Kennzahl nicht zugeordnet",
   unparseable_value: "Wert nicht lesbar",
   unsupported_unit: "Einheit nicht unterstützt",
   impossible_value: "Wert außerhalb der plausiblen Spanne",
+  unparseable_reference: "Referenzgrenze nicht lesbar",
+  ambiguous_local_time: "Uhrzeit nicht eindeutig (Zeitumstellung)",
+  preliminary_report: "Vom Labor als vorläufig markiert",
+  previously_reported: "Vom Labor als bereits berichtet markiert",
+  corrected_result: "Vom Labor als korrigiert markiert",
+  source_comment: "Laborkommentar zum Wert — Quelle prüfen",
+  ambiguous_reference: "Referenzbereich nicht eindeutig — Quelle prüfen",
+  multiple_result_values: "Mehrere Werte zu einer Analyse — Quelle prüfen",
 };
 
 function reasonLabel(reason: string): string {

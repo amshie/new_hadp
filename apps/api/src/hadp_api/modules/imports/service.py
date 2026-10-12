@@ -33,6 +33,11 @@ class ValueInput:
     reference_low: str | None = None
     reference_high: str | None = None
     source_record_locator: str | None = None
+    # The source's own wording of the reference interval, when it gives one.
+    reference_text: str | None = None
+    # Reasons a reader found in the SOURCE (e.g. a non-final result) — the row is held for
+    # review even when normalization alone would publish it.
+    review_reasons: tuple[str, ...] = ()
 
 
 @dataclass
@@ -54,6 +59,7 @@ def ingest_values(
     parser_version: str,
     created_by_user_id: uuid.UUID,
     source_document_id: uuid.UUID | None = None,
+    idempotency_key: str | None = None,
 ) -> ImportResult:
     job = ImportJob(
         tenant_id=tenant_id,
@@ -62,6 +68,7 @@ def ingest_values(
         status=ImportStatus.RECEIVED,
         parser_name=parser_name,
         parser_version=parser_version,
+        idempotency_key=idempotency_key,
         created_by_user_id=created_by_user_id,
     )
     db.add(job)
@@ -78,7 +85,8 @@ def ingest_values(
             reference_low=row.reference_low,
             reference_high=row.reference_high,
         )
-        needs_review = norm.needs_review
+        review_reasons = [*norm.review_reasons, *row.review_reasons]
+        needs_review = bool(review_reasons)
         review_status = ReviewStatus.PENDING if needs_review else ReviewStatus.PUBLISHED
 
         observation = Observation(
@@ -89,7 +97,8 @@ def ingest_values(
             original_name=row.original_name,
             original_value=row.original_value,
             original_unit=row.original_unit,
-            reference_text=(
+            reference_text=row.reference_text
+            or (
                 f"{row.reference_low}-{row.reference_high} {row.original_unit or ''}".strip()
                 if (row.reference_low or row.reference_high)
                 else None
@@ -130,7 +139,7 @@ def ingest_values(
         db.flush()
 
         if needs_review:
-            for reason in norm.review_reasons:
+            for reason in review_reasons:
                 item = ReviewItem(
                     tenant_id=tenant_id,
                     import_row_id=import_row.id,

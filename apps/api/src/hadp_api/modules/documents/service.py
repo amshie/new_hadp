@@ -12,9 +12,12 @@ from hadp_api.config import get_settings
 from hadp_api.errors import ValidationFailed
 from hadp_api.modules.documents.blob import get_blob_store
 from hadp_api.modules.documents.models import SourceDocument
+from hadp_api.modules.documents.xdt import is_wellformed_xdt
 
 # Conservative allowlist for the pilot. Structured feeds are preferred over PDF.
 ALLOWED_CONTENT_TYPES = {"text/csv", "text/plain", "application/pdf"}
+# Stored for a file that IS an LDT file, whatever type the client declared for it.
+LDT_CONTENT_TYPE = "application/x-ldt"
 MAX_BYTES = 20 * 1024 * 1024  # 20 MB
 
 
@@ -41,14 +44,21 @@ def store_source_document(
     Returns (document, created). Idempotent: identical content within a tenant returns the
     existing document without re-storing (CLAUDE.md ingestion rules).
     """
-    if content_type not in ALLOWED_CONTENT_TYPES:
-        raise ValidationFailed(f"unsupported content type: {content_type}")
+    # Content inspection decides for the LDT line format: browsers send such files without a
+    # useful content type, and they use the character set the file itself declares. Only a
+    # file whose EVERY line is well-formed counts, and it is stored under a fixed type — the
+    # client's declaration is neither trusted nor kept.
     if len(data) == 0:
         raise ValidationFailed("empty file")
     if len(data) > MAX_BYTES:
         raise ValidationFailed("file too large")
+    is_xdt = is_wellformed_xdt(data)
+    if is_xdt:
+        content_type = LDT_CONTENT_TYPE
+    elif content_type not in ALLOWED_CONTENT_TYPES:
+        raise ValidationFailed("unsupported content type")
     # Content inspection (not extension-only): text formats must actually be UTF-8 text.
-    if content_type in {"text/csv", "text/plain"} and not _looks_like_text(data):
+    if content_type in {"text/csv", "text/plain"} and not is_xdt and not _looks_like_text(data):
         raise ValidationFailed("declared text content is not valid UTF-8")
 
     checksum = hashlib.sha256(data).hexdigest()

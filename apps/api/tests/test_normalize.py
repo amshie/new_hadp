@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import pytest
+
 from hadp_api.modules.imports.normalize import normalize
 
 
@@ -105,3 +107,51 @@ def test_very_large_value_converts_without_false_review() -> None:
     # A large but parseable value is not flagged impossible solely for magnitude.
     r = normalize(original_name="LDL Cholesterol", original_value="9999", original_unit="mmol/L")
     assert r.normalized_value == Decimal("9999")
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "NaN",  # crashed the comparison with zero
+        "Infinity",
+        "-inf",
+        "3_4",  # Decimal() reads this as 34
+        "1e999",
+        "\u0663.\u0664",  # other scripts' digits
+        "1.234,5",
+        "3,4 mmol",
+        "",
+    ],
+)
+def test_only_a_plain_decimal_number_is_a_value(raw: str) -> None:
+    r = normalize(original_name="LDL", original_value=raw, original_unit="mmol/L")
+    assert r.normalized_value is None
+    assert "unparseable_value" in r.review_reasons
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [("3.4", "3.4"), ("3,4", "3.4"), (".5", "0.5"), ("+2", "2"), ("5.00E+01", "50.0")],
+)
+def test_plain_decimal_notations_are_read(raw: str, expected: str) -> None:
+    r = normalize(original_name="LDL", original_value=raw, original_unit="mmol/L")
+    assert r.normalized_value == Decimal(expected)
+    assert r.review_reasons == []
+
+
+def test_a_reference_bound_that_is_not_a_number_is_never_dropped_silently() -> None:
+    # "3_0" used to parse as 30; "<3" used to vanish and leave a one-sided interval.
+    for low, high in (("0", "3_0"), ("0", "<3"), ("n/a", "3.0")):
+        r = normalize(
+            original_name="LDL",
+            original_value="2.8",
+            original_unit="mmol/L",
+            reference_low=low,
+            reference_high=high,
+        )
+        assert r.review_reasons == ["unparseable_reference"]
+    # A bound the source simply does not give is not a problem.
+    r = normalize(
+        original_name="LDL", original_value="2.8", original_unit="mmol/L", reference_high="3.0"
+    )
+    assert (r.reference_low, r.reference_high, r.review_reasons) == (None, Decimal("3.0"), [])

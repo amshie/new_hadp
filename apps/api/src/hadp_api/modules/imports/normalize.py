@@ -10,8 +10,9 @@ This is the highest patient-safety-risk surface (wrong value/unit/interval). Rul
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 NORMALIZATION_VERSION = "norm-1"
 
@@ -60,11 +61,28 @@ def _canonical_unit(unit: str | None) -> str | None:
     return aliases.get(u.lower(), u)
 
 
+# A plain decimal number: ASCII digits, an optional sign, `.` or `,` as the decimal separator,
+# an optional small exponent. Decimal() itself would also accept NaN, Infinity, digit-group
+# underscores ("3_4" -> 34) and other scripts' digits — none of which is a laboratory value.
+_NUMBER = re.compile(r"[+-]?(?:[0-9]+(?:[.,][0-9]*)?|[.,][0-9]+)(?:[eE][+-]?[0-9]{1,2})?")
+
+
 def _parse_decimal(raw: str) -> Decimal | None:
-    try:
-        return Decimal(raw.strip().replace(",", "."))
-    except (InvalidOperation, AttributeError):
+    text = raw.strip()
+    if not _NUMBER.fullmatch(text):
         return None
+    return Decimal(text.replace(",", "."))
+
+
+def _parse_bound(raw: str | None, reasons: list[str]) -> Decimal | None:
+    """Parse a reference bound. A bound the source gives but that is not a number is a reason
+    for review — dropping it silently would turn a two-sided interval into a one-sided one."""
+    if raw is None or not raw.strip():
+        return None
+    bound = _parse_decimal(raw)
+    if bound is None and "unparseable_reference" not in reasons:
+        reasons.append("unparseable_reference")
+    return bound
 
 
 def normalize(
@@ -99,8 +117,8 @@ def normalize(
         reasons.append("unparseable_value")
 
     src_unit = _canonical_unit(original_unit)
-    ref_low = _parse_decimal(reference_low) if reference_low is not None else None
-    ref_high = _parse_decimal(reference_high) if reference_high is not None else None
+    ref_low = _parse_bound(reference_low, reasons)
+    ref_high = _parse_bound(reference_high, reasons)
 
     normalized_value: Decimal | None = None
     norm_low: Decimal | None = None
