@@ -12,10 +12,22 @@ from typing import Protocol
 from hadp_api.config import Settings
 
 
+class BlobUnavailable(Exception):
+    """The object store could not answer (outage, throttling, permissions).
+
+    Deliberately distinct from "the object does not exist": a caller that must not present an
+    incomplete result as complete needs to tell the two apart.
+    """
+
+
 class BlobStore(Protocol):
     def put(self, key: str, data: bytes, content_type: str) -> None: ...
 
     def get(self, key: str) -> bytes: ...
+
+    # The object's bytes, or None ONLY when the object definitely does not exist. Any other
+    # failure raises BlobUnavailable.
+    def get_or_none(self, key: str) -> bytes | None: ...
 
     def exists(self, key: str) -> bool: ...
 
@@ -34,6 +46,9 @@ class InMemoryBlobStore:
 
     def get(self, key: str) -> bytes:
         return self._store[key]
+
+    def get_or_none(self, key: str) -> bytes | None:
+        return self._store.get(key)
 
     def exists(self, key: str) -> bool:
         return key in self._store
@@ -64,6 +79,19 @@ class S3BlobStore:
         resp = self._client.get_object(Bucket=self._bucket, Key=key)
         body: bytes = resp["Body"].read()
         return body
+
+    def get_or_none(self, key: str) -> bytes | None:
+        from botocore.exceptions import BotoCoreError, ClientError
+
+        try:
+            return self.get(key)
+        except ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") in {"NoSuchKey", "404", "NotFound"}:
+                return None
+            raise BlobUnavailable("object store refused the read") from exc
+        except (BotoCoreError, OSError) as exc:
+            # Includes a connection that breaks while the body is being read.
+            raise BlobUnavailable("object store unreachable") from exc
 
     def exists(self, key: str) -> bool:
         from botocore.exceptions import ClientError

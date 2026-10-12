@@ -109,6 +109,8 @@ def main() -> int:
         # Consent state per purpose is shown on the patient page (all staff).
         assert "Einwilligungen" in r.text, "patient detail has no consent card"
         assert "Freigabe geprüfter Berichte" in r.text, "consent card lists no purposes"
+        # The data export is tenant administration (owner): this clinician session sees no card.
+        assert "Datenauskunft erstellen" not in r.text, "data-export card shown to a non-owner"
         r = web.get(review.group(1))
         assert r.status_code == 200, ("review page via detail link", r.status_code)
         assert f'href="/patients/{pid}"' in r.text, "review page has no way back to the patient"

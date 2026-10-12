@@ -111,10 +111,12 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(
+// One authenticated call to the API: forwards the session + CSRF cookies, maps an error
+// response to ApiError, and hands back the raw response (a JSON body or a file).
+async function send(
   path: string,
   init?: RequestInit & { auth?: boolean },
-): Promise<T> {
+): Promise<Response> {
   const headers = new Headers(init?.headers);
   // A multipart body carries its own content type (with the boundary); everything else is JSON.
   if (init?.body && !(init.body instanceof FormData))
@@ -153,6 +155,14 @@ async function request<T>(
     }
     throw new ApiError(res.status, code, detail);
   }
+  return res;
+}
+
+async function request<T>(
+  path: string,
+  init?: RequestInit & { auth?: boolean },
+): Promise<T> {
+  const res = await send(path, init);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
@@ -252,6 +262,15 @@ export const authorInterpretation = (patientId: string, body: RunAuthorIn) =>
       body: JSON.stringify(body),
     },
   );
+
+// Patient data export (GDPR Art. 15/20): the API builds one ZIP per request and stores
+// nothing; `exportPatientData` hands the file response through (see the route handler
+// patients/[id]/datenauskunft). The list is read from the audit trail.
+export type DataExport = Schemas["DataExportOut"];
+export const listDataExports = (patientId: string) =>
+  request<DataExport[]>(`/api/v1/patients/${patientId}/data-exports`);
+export const exportPatientData = (patientId: string) =>
+  send(`/api/v1/patients/${patientId}/data-export`, { method: "POST" });
 
 // Consent (append-only events on a closed purpose vocabulary): current state per purpose, and
 // the two write operations — each appends a NEW event; nothing is ever edited.

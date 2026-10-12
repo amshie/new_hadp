@@ -161,6 +161,27 @@ def derived_from(db: Session, input_ids: set[uuid.UUID]) -> set[uuid.UUID]:
     )
 
 
+def derivation_inputs(
+    db: Session, derived_ids: set[uuid.UUID]
+) -> dict[uuid.UUID, list[tuple[str, uuid.UUID]]]:
+    """Derived observation id -> its (role, input observation id) pairs (append-only lineage)."""
+    out: dict[uuid.UUID, list[tuple[str, uuid.UUID]]] = {}
+    if not derived_ids:
+        return out
+    rows = db.execute(
+        select(
+            ObservationDerivation.derived_observation_id,
+            ObservationDerivation.role,
+            ObservationDerivation.input_observation_id,
+        )
+        .where(ObservationDerivation.derived_observation_id.in_(derived_ids))
+        .order_by(ObservationDerivation.role)
+    ).tuples()
+    for derived_id, role, input_id in rows:
+        out.setdefault(derived_id, []).append((role, input_id))
+    return out
+
+
 def not_standing(db: Session, patient_id: uuid.UUID) -> set[uuid.UUID]:
     """Observations that must not back anything new: replaced by a published correction, or
     derived from a value that was."""
