@@ -7,12 +7,14 @@ import {
   useTransition,
   type CSSProperties,
 } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
   createInvitationAction,
   requestPatientDeletion,
 } from "@/app/patients/actions";
+import { generateReportAction } from "@/app/reports/actions";
 import type { DeletionReason } from "@/lib/api";
 import { Dialog } from "@/components/vitabahn/Dialog";
 import { clickable } from "@/components/vitabahn/interactive";
@@ -40,6 +42,19 @@ const colLabel: CSSProperties = {
   textTransform: "uppercase",
   color: "var(--text-faint)",
   fontWeight: 500,
+};
+const secBtn: CSSProperties = {
+  height: "38px",
+  padding: "0 15px",
+  whiteSpace: "nowrap",
+  borderRadius: "var(--radius-sm)",
+  border: "1px solid var(--border-default)",
+  background: "var(--surface-card)",
+  color: "var(--text-strong)",
+  fontFamily: "var(--font-text)",
+  fontSize: "13px",
+  fontWeight: 600,
+  cursor: "pointer",
 };
 const EGRID =
   "minmax(150px,1.6fr) 110px minmax(96px,0.9fr) 96px minmax(150px,1.2fr) 132px";
@@ -286,6 +301,22 @@ export function PatientDetailContent({
   // Requesting erasure is tenant administration (owner). It only FILES a request; a medical
   // director decides it, and execution is separate — nothing is deleted here.
   const canRequestDeletion = !erased && sessionRole === "owner";
+  // Drafting is operational (care staff) and only offered while the patient has no report:
+  // each call creates a NEW report, so an existing one is opened, never silently duplicated.
+  // Approve/release stay on the review surface the draft leads to.
+  const canDraft = canInvite && review.status === "none";
+  const reportLink = erased ? null : view.reportLink;
+
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [draftPending, startDraftTransition] = useTransition();
+  const runDraft = () => {
+    startDraftTransition(async () => {
+      setDraftError(null);
+      const res = await generateReportAction(view.patientId);
+      if (res.ok) router.push(res.reviewUrl);
+      else setDraftError(res.error);
+    });
+  };
 
   const [deletionState, setDeletionState] = useState<
     { phase: "confirm" } | { phase: "done" } | null
@@ -583,16 +614,44 @@ export function PatientDetailContent({
                 </span>
               </div>
             </div>
-            {canInvite && (
+            {(canInvite || reportLink) && (
               <div
                 style={{
                   marginLeft: "auto",
                   alignSelf: "center",
                   display: "flex",
                   gap: "10px",
+                  flexWrap: "wrap",
                 }}
               >
-                {sessionRole === "clinician" && (
+                {reportLink && (
+                  <Link
+                    href={reportLink}
+                    className="vb-btn-sec"
+                    style={{
+                      ...secBtn,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      textDecoration: "none",
+                    }}
+                  >
+                    Bericht öffnen
+                  </Link>
+                )}
+                {canDraft && (
+                  <button
+                    type="button"
+                    disabled={draftPending}
+                    onClick={runDraft}
+                    className="vb-btn-sec"
+                    style={secBtn}
+                  >
+                    {draftPending
+                      ? "Entwurf wird erstellt …"
+                      : "Berichtsentwurf erstellen"}
+                  </button>
+                )}
+                {canInvite && sessionRole === "clinician" && (
                   <button
                     type="button"
                     onClick={() =>
@@ -618,31 +677,21 @@ export function PatientDetailContent({
                     Interpretation erfassen
                   </button>
                 )}
-                <button
-                  type="button"
-                  disabled={invitePending}
-                  onClick={() => {
-                    setInviteError(null);
-                    setInviteCopied(false);
-                    setInviteState({ phase: "confirm" });
-                  }}
-                  className="vb-btn-sec"
-                  style={{
-                    height: "38px",
-                    padding: "0 15px",
-                    whiteSpace: "nowrap",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border-default)",
-                    background: "var(--surface-card)",
-                    color: "var(--text-strong)",
-                    fontFamily: "var(--font-text)",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  Patient einladen
-                </button>
+                {canInvite && (
+                  <button
+                    type="button"
+                    disabled={invitePending}
+                    onClick={() => {
+                      setInviteError(null);
+                      setInviteCopied(false);
+                      setInviteState({ phase: "confirm" });
+                    }}
+                    className="vb-btn-sec"
+                    style={secBtn}
+                  >
+                    Patient einladen
+                  </button>
+                )}
                 {canRequestDeletion && (
                   <button
                     type="button"
@@ -673,6 +722,18 @@ export function PatientDetailContent({
             )}
           </div>
         </div>
+        {draftError && (
+          <p
+            role="alert"
+            style={{
+              margin: "0 0 14px",
+              fontSize: "12.5px",
+              color: "var(--danger, #b3261e)",
+            }}
+          >
+            {draftError}
+          </p>
+        )}
         <div
           style={{
             display: "flex",
