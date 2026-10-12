@@ -18,7 +18,7 @@ from hadp_api.auth.dependencies import Principal, get_correlation_id, get_curren
 from hadp_api.auth.provider import get_auth_provider
 from hadp_api.auth.sessions import create_session, revoke_session
 from hadp_api.config import get_settings
-from hadp_api.db.session import get_db
+from hadp_api.db.session import RequestSession
 from hadp_api.errors import NotAuthenticated, NotFound
 from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.enums import Role
@@ -79,7 +79,7 @@ def dev_login(
     body: DevLoginRequest,
     response: Response,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = RequestSession,
     correlation_id: str = Depends(get_correlation_id),
 ) -> LoginResponse:
     settings = get_settings()
@@ -128,7 +128,7 @@ def dev_login(
 def logout(
     response: Response,
     principal: Principal = Depends(get_current_principal),
-    db: Session = Depends(get_db),
+    db: Session = RequestSession,
     correlation_id: str = Depends(get_correlation_id),
 ) -> Response:
     revoke_session(db, principal.session)
@@ -147,7 +147,7 @@ def logout(
 @router.get("/me", response_model=MeResponse)
 def me(
     principal: Principal = Depends(get_current_principal),
-    db: Session = Depends(get_db),
+    db: Session = RequestSession,
 ) -> MeResponse:
     active = principal.session.active_tenant_id
     role: Role | None = None
