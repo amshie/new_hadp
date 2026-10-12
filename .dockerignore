@@ -1,0 +1,41 @@
+# Build context for the three images (apps/*/Dockerfile; the context is the repository root).
+#
+# An allowlist: everything is excluded, then only what a build copies is let back in. A file
+# that is not named here cannot reach an image layer — no `.env*`, no reports, no test fixtures,
+# no local dependency trees.
+*
+
+# JS workspace (web image)
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!apps/web
+!packages
+
+# API image (also runs the migrate step, so it carries Alembic)
+!apps/api/pyproject.toml
+!apps/api/uv.lock
+!apps/api/alembic.ini
+!apps/api/alembic
+!apps/api/src
+
+# Worker image
+!apps/worker/pyproject.toml
+!apps/worker/uv.lock
+!apps/worker/src
+
+# Never, wherever they sit inside the directories let in above. These come last: the last
+# matching line decides.
+**/.env*
+**/node_modules
+**/.next
+**/.venv
+**/__pycache__
+**/*.pyc
+**/*.tsbuildinfo
+**/*.log
+# The API client is generated inside the web build from the committed openapi.json.
+packages/api-client/src/generated
+packages/*/test
+apps/web/scripts
+apps/web/DESIGN-VERIFICATION.md

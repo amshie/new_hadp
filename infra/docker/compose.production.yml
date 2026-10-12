@@ -1,0 +1,178 @@
+# Production-SHAPED stack: the three application images in production mode, next to the
+# services they need. It exists to prove that the images boot and hold their posture
+# (`make stack-smoke`). It is NOT a deployment, and nobody can sign in to it: the production
+# identity provider is a stub that raises, and the development sign-in answers 404 in
+# production mode. See infra/docker/README.md.
+#
+#   make images          # build hadp-api / hadp-worker / hadp-web
+#   make stack-smoke     # generate secrets, boot this stack, assert, tear it down
+#
+# Secrets: every one comes from the environment (`${VAR:?}` — the file does not start without
+# them); none is written here. The database passwords and the Redis password are put into
+# URLs, so they must be URL-safe (the smoke uses hex).
+#
+# Nothing is persisted and no host port is published. PostgreSQL, Redis and MinIO keep their
+# data on tmpfs — there is no named volume: this is a smoke stack, not a database of record,
+# and stopping it loses everything in it. Reach a service through
+# `docker compose -p hadp-prodshape -f infra/docker/compose.production.yml exec <service> ...`.
+name: hadp-prodshape
+
+# The application containers need neither root, nor a writable image, nor any capability.
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs: [/tmp]
+
+# What the production configuration guard (hadp_api/config.py) demands, and what the API reads.
+x-api-environment: &api-environment
+  APP_ENV: production
+  # The non-superuser role: row-level security is enforced for everything the API does.
+  APP_DATABASE_URL: postgresql+psycopg://hadp_app:${HADP_APP_DB_PASSWORD:?}@postgres:5432/hadp
+  REDIS_URL: redis://:${REDIS_PASSWORD:?}@redis:6379/0
+  S3_ENDPOINT_URL: http://minio:9000
+  S3_REGION: eu-central-1
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?}
+  S3_BUCKET_SOURCE_DOCUMENTS: hadp-source-documents
+  SESSION_SECRET: ${SESSION_SECRET:?}
+  SESSION_COOKIE_NAME: __Host-hadp_session
+  CSRF_COOKIE_NAME: __Host-hadp_csrf
+  # A deployment names its public https origins here; this stack has none.
+  API_BASE_URL: http://api:8000
+  WEB_BASE_URL: http://web:3000
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: hadp
+      # Read by postgres-init/10-app-role.sh, which creates the application role.
+      HADP_APP_DB_PASSWORD: ${HADP_APP_DB_PASSWORD:?}
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Over TCP: while the init scripts run, the server listens on its socket only, and a
+      # socket check would report "ready" before the application role exists.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d hadp"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+    command:
+      - sh
+      - -c
+      - exec redis-server --save "" --appendonly no --requirepass "$$REDIS_PASSWORD"
+    tmpfs:
+      - /data
+    healthcheck:
+      test:
+        ["CMD-SHELL", 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  minio:
+    image: minio/minio:RELEASE.2024-09-13T20-26-02Z
+    environment:
+      # The stack's only S3 identity is the store's root user. A deployment gives the
+      # application a key that is scoped to its bucket.
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:?}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:?}
+    command: ["server", "/data"]
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  # One-shot: create the source-documents bucket.
+  minio-init:
+    image: minio/mc:RELEASE.2024-09-16T17-43-14Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        mc alias set store http://minio:9000 "$$S3_ACCESS_KEY_ID" "$$S3_SECRET_ACCESS_KEY" > /dev/null
+        mc mb --ignore-existing store/hadp-source-documents
+
+  # One-shot: bring the schema to head, then load the KPI catalog the laboratory import
+  # resolves names against (ADR-0004 §18). The only service that holds the admin DSN. It runs
+  # in production mode like the API, so the synthetic demo seeder refuses to run in it.
+  migrate:
+    <<: *hardening
+    image: ${HADP_API_IMAGE:-hadp-api:local}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *api-environment
+      DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:?}@postgres:5432/hadp
+    command:
+      - sh
+      - -ec
+      - alembic upgrade head && python -m hadp_api.scripts.seed_catalog
+
+  api:
+    <<: *hardening
+    image: ${HADP_API_IMAGE:-hadp-api:local}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment: *api-environment
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - 'import urllib.request as u; u.urlopen("http://127.0.0.1:8000/api/v1/health", timeout=3)'
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  worker:
+    <<: *hardening
+    image: ${HADP_WORKER_IMAGE:-hadp-worker:local}
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://:${REDIS_PASSWORD:?}@redis:6379/0
+
+  web:
+    <<: *hardening
+    image: ${HADP_WEB_IMAGE:-hadp-web:local}
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      # The browser never talks to the API; the web server does, inside the network.
+      API_BASE_URL: http://api:8000
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - 'fetch("http://127.0.0.1:3000/login").then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))'
+      interval: 3s
+      timeout: 8s
+      retries: 30
