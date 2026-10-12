@@ -324,8 +324,9 @@ def main() -> int:
                 r.status_code,
             )
             assert_no_mock_ui("/einstellungen/audit", r.text)
-            # Only what is shown leaves the server.
-            assert "correlation_id" not in r.text, "the page ships more than it shows"
+            # The page says what the trail does not hold.
+            assert "Was dieses Protokoll nicht zeigt" in r.text, "the trail's limits are not stated"
+            assert "Derzeit nicht protokolliert" in r.text
             rows = entries("/einstellungen/audit")
             # A colleague's entry into the clinic, named by the account that acted.
             assert "tenant.select" in rows and "Praxis ausgewählt" in rows

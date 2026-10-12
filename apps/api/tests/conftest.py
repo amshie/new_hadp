@@ -112,6 +112,33 @@ def _clean_db(admin_engine) -> None:  # type: ignore[no-untyped-def]
     redis_lib.Redis.from_url(get_settings().redis_url).flushdb()
 
 
+@pytest.fixture(autouse=True)
+def _the_audit_trail_names_nobody(admin_engine) -> Iterator[None]:  # type: ignore[no-untyped-def]
+    """After every test: no audit event carries, in any column, the name of a patient or the
+    name or address of a member of staff that the database holds. The page that shows a clinic
+    its trail says the trail holds no names; nothing but review held the code to that. This
+    does, for every path a test walks."""
+    yield
+    with admin_engine.connect() as conn:
+        named = conn.execute(
+            text(
+                """
+                SELECT a.action, who.what
+                  FROM audit_events AS a
+                  JOIN (
+                        SELECT display_name AS what FROM patients
+                        UNION SELECT display_name FROM users
+                        UNION SELECT email FROM users
+                       ) AS who
+                    ON length(who.what) >= 6
+                   AND position(lower(who.what) in lower(a::text)) > 0
+                 LIMIT 5
+                """
+            )
+        ).all()
+    assert not named, f"an audit event carries a name: {[tuple(row) for row in named]}"
+
+
 @pytest.fixture()
 def admin_session(admin_engine) -> Iterator[Session]:  # type: ignore[no-untyped-def]
     with Session(admin_engine, expire_on_commit=False) as session:

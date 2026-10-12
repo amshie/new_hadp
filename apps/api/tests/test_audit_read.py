@@ -13,7 +13,7 @@ import ast
 import base64
 import re
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -34,7 +34,9 @@ from tests.helpers import (
 
 URL = "/api/v1/audit-events"
 _API_SRC = Path(__file__).resolve().parents[1] / "src" / "hadp_api"
-_AUDIT_COPY = Path(__file__).resolve().parents[2] / "web" / "src" / "lib" / "auditCopy.ts"
+_WEB_SRC = Path(__file__).resolve().parents[2] / "web" / "src"
+_AUDIT_COPY = _WEB_SRC / "lib" / "auditCopy.ts"
+_AUDIT_PAGE = _WEB_SRC / "app" / "einstellungen" / "audit" / "AuditContent.tsx"
 
 
 def _owner(client, admin_session, slug: str):  # type: ignore[no-untyped-def]
@@ -150,21 +152,47 @@ def test_reading_the_trail_is_itself_recorded(client, admin_session) -> None:  #
     assert _walk(client, category="audit", exclude_reads="true") == []
 
 
-def test_reading_is_throttled(client, admin_session) -> None:  # type: ignore[no-untyped-def]
-    """Every read writes an event into a table nothing is removed from."""
-    _user, tenant = _owner(client, admin_session, "throttle")
+def test_reading_is_throttled_per_account_and_clinic(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """Every read writes an event into a clinic's trail, and nothing is removed from it. The
+    limit bounds what one account's reading adds to one clinic — a colleague, and the same
+    person in another clinic, are not held up by it."""
+    owner, tenant = _owner(client, admin_session, "throttle")
     for _ in range(120):
         assert client.get(URL, params={"limit": 1}).status_code == 200
 
     refused = client.get(URL, params={"limit": 1})
 
     assert refused.status_code == 429
-    written = admin_session.execute(
-        select(AuditEvent).where(
-            AuditEvent.tenant_id == tenant.id, AuditEvent.action == "audit.read"
-        )
-    ).scalars()
-    assert len(list(written)) == 120
+    events = admin_session.execute(select(AuditEvent)).scalars().all()
+    assert sum(1 for e in events if e.action == "audit.read" and e.tenant_id == tenant.id) == 120
+    # The refusal leaves a trace too — without tenant or actor: it says that a read was
+    # throttled, not whose. The table is not bounded by the limit.
+    throttled = [e for e in events if e.action == "rate_limited"]
+    assert [(e.tenant_id, e.actor_user_id, e.detail) for e in throttled] == [
+        (None, None, {"action": "audit.read"})
+    ]
+
+    # The same person in another clinic reads that clinic's trail.
+    _other_owner, elsewhere = provision_staff(
+        admin_session,
+        email="owner-throttle-elsewhere@synthetic.example",
+        tenant_name="Audit Throttle Elsewhere",
+        tenant_slug="audit-throttle-elsewhere",
+        role=Role.OWNER,
+    )
+    make_membership(admin_session, user_id=owner.id, tenant_id=elsewhere.id, role=Role.OWNER)
+    admin_session.commit()
+    select_tenant(client, elsewhere.id)
+    assert client.get(URL, params={"limit": 1}).status_code == 200
+    # And a second owner of the first clinic reads it.
+    switch_role(
+        client,
+        admin_session,
+        email="second-owner-throttle@synthetic.example",
+        tenant=tenant,
+        role=Role.OWNER,
+    )
+    assert client.get(URL, params={"limit": 1}).status_code == 200
 
 
 @pytest.mark.parametrize("role", [Role.CLINICIAN, Role.ASSISTANT, Role.MEDICAL_DIRECTOR])
@@ -350,8 +378,10 @@ def test_filters(client, admin_session) -> None:  # type: ignore[no-untyped-def]
         ("patient.list", None, None, user.id, day + timedelta(hours=2)),
         ("observation.read", "patient", patient, user.id, day + timedelta(hours=3)),
         ("review_item.resolved", "review_item", item, user.id, day + timedelta(hours=4)),
-        # Only a wildcard would take this for the "review_item" family.
+        # Only a wildcard would take this for the "review_item" family …
         ("reviewXitem.resolved", "review_item", item, user.id, day + timedelta(hours=5)),
+        # … and only a prefix without its dot would take this one.
+        ("review_items.resolved", "review_item", item, user.id, day + timedelta(hours=6)),
         ("report.released", "report", report, user.id, day + timedelta(days=1)),
         ("report.patient_view", "report", report, None, day + timedelta(days=2)),
     ]
@@ -385,11 +415,12 @@ def test_filters(client, admin_session) -> None:  # type: ignore[no-untyped-def]
         "report.released",
         "reviewXitem.resolved",
         "review_item.resolved",
+        "review_items.resolved",
     ]
     # By record: what is filed under that record — its reads included, the report not.
     assert actions(target_id=str(patient)) == ["observation.read", "patient.create", "patient.read"]
     assert actions(target_id=str(report)) == ["report.patient_view", "report.released"]
-    assert len(actions(actor_user_id=str(user.id))) == 7
+    assert len(actions(actor_user_id=str(user.id))) == 8
     assert actions(actor_user_id=str(colleague)) == []
     # since is inclusive, until exclusive — to the instant.
     first = day.isoformat()
@@ -400,6 +431,30 @@ def test_filters(client, admin_session) -> None:  # type: ignore[no-untyped-def]
     # An event nobody signed in caused has no actor.
     opened = next(i for i in _walk(client, **window) if i["action"] == "report.patient_view")
     assert opened["actor"] is None
+
+
+def test_a_time_is_given_in_utc_whatever_zone_the_database_session_reports(  # type: ignore[no-untyped-def]
+    client, admin_session, monkeypatch
+) -> None:
+    """The driver hands back a timestamp in the session's zone. The answer names one instant
+    and writes it one way."""
+    _owner(client, admin_session, "zone")
+    berlin = timezone(timedelta(hours=2))
+    event = AuditEvent(
+        id=uuid.uuid4(),
+        action="tenant.select",
+        detail={},
+        created_at=datetime(2026, 10, 12, 18, 59, 30, tzinfo=berlin),
+    )
+    monkeypatch.setattr(
+        audit_service,
+        "list_tenant_events",
+        lambda *_args, **_kwargs: audit_service.AuditPage(events=[event], next_cursor=None),
+    )
+
+    (item,) = client.get(URL).json()["items"]
+
+    assert item["occurred_at"] in ("2026-10-12T16:59:30Z", "2026-10-12T16:59:30+00:00")
 
 
 def _cursor(raw: str) -> str:
@@ -425,6 +480,7 @@ def _cursor(raw: str) -> str:
         {"category": "erika_mustermann_diabetes"},
         {"target_id": "not-a-uuid"},
         {"since": "2026-03-10T00:00:00"},  # no offset: which day is meant?
+        {"until": "2026-03-10T00:00:00"},
         {"until": "yesterday"},
     ],
 )
@@ -567,34 +623,91 @@ def test_the_web_names_exactly_what_the_trail_can_hold() -> None:
     }
 
 
+def test_audit_events_are_written_in_one_way_only() -> None:
+    """The tests in this section read the source for calls of `record_audit` and
+    `record_security_event`, and for route decorators. They see nothing else — so nothing else
+    may write an event or register a route: no audit function under another name, no
+    `AuditEvent(...)` built outside the audit module, no route added by a call."""
+    for path in sorted(_API_SRC.rglob("*.py")):
+        where = str(path.relative_to(_API_SRC))
+        tree = ast.parse(path.read_text())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom | ast.Import):
+                renamed = [
+                    alias.name
+                    for alias in node.names
+                    if alias.asname and alias.name in {"record_audit", "record_security_event"}
+                ]
+                assert not renamed, f"{where}:{node.lineno} imports {renamed} under another name"
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Name | ast.Attribute):
+                bound = getattr(node.value, "id", None) or getattr(node.value, "attr", None)
+                assert bound not in {
+                    "record_audit",
+                    "record_security_event",
+                }, f"{where}:{node.lineno} binds {bound} to another name"
+            if not isinstance(node, ast.Call):
+                continue
+            called = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+            if called == "AuditEvent":
+                assert where == "modules/audit/service.py", f"{where}:{node.lineno} builds an event"
+            assert called not in {
+                "add_api_route",
+                "add_route",
+                "api_route",
+            }, f"{where}:{node.lineno} registers a route by a call"
+
+
+# A GET handler that records nothing -> the words by which the page names that read as not
+# recorded. None: no clinic's data (liveness; the session's own identity and clinics).
+SILENT_READS: dict[tuple[str, str], str | None] = {
+    ("health.py", "health"): None,
+    ("auth_routes.py", "me"): None,
+    ("tenancy_routes.py", "my_tenants"): None,
+    ("reports_routes.py", "get_report"): "das Lesen eines Berichts",
+    ("members_routes.py", "list_members"): "Mitglieder",
+    ("staff_invitations_routes.py", "list_staff_invitations"): "Teameinladungen",
+    ("privacy_routes.py", "list_deletion_requests"): "Löschanträge",
+    ("privacy_routes.py", "list_patient_data_exports"): "Verlauf der Datenauskünfte",
+}
+
+
 def test_the_reads_that_leave_no_trace_are_the_ones_the_page_names() -> None:
     """The page lists what is not recorded. A read that starts or stops being recorded changes
-    that sentence (AuditContent.tsx) — this fails until someone has looked at it."""
+    that list (AuditContent.tsx, "Derzeit nicht protokolliert") — this fails until both the
+    table above and the sentence on the page say what the code does."""
     silent: set[tuple[str, str]] = set()
     for path in sorted((_API_SRC / "api").glob("*.py")):
         for node in ast.parse(path.read_text()).body:
-            if not isinstance(node, ast.FunctionDef):
+            if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
                 continue
             is_get = any(
                 isinstance(d, ast.Call) and getattr(d.func, "attr", None) == "get"
                 for d in node.decorator_list
             )
             records = any(
-                isinstance(call, ast.Call) and getattr(call.func, "id", None) == "record_audit"
+                isinstance(call, ast.Call)
+                and (getattr(call.func, "id", None) or getattr(call.func, "attr", None))
+                == "record_audit"
                 for call in ast.walk(node)
             )
             if is_get and not records:
                 silent.add((path.name, node.name))
 
-    assert silent == {
-        # No clinic's data: liveness, and the session's own identity and clinics.
-        ("health.py", "health"),
-        ("auth_routes.py", "me"),
-        ("tenancy_routes.py", "my_tenants"),
-        # Named on the page as not recorded.
-        ("reports_routes.py", "get_report"),
-        ("members_routes.py", "list_members"),
-        ("staff_invitations_routes.py", "list_staff_invitations"),
-        ("privacy_routes.py", "list_deletion_requests"),
-        ("privacy_routes.py", "list_patient_data_exports"),
+    assert silent == set(SILENT_READS)
+    page = " ".join(_AUDIT_PAGE.read_text().split())
+    sentence = re.search(r"Derzeit nicht protokolliert:(.*?)</li>", page)
+    assert sentence, "the page no longer says what is not recorded"
+    named = sentence.group(1)
+    for handler, words in SILENT_READS.items():
+        if words is not None:
+            assert words in named, f"the page does not name {handler} as not recorded"
+    # Nothing else is claimed to be unrecorded: every listed read is one of the above.
+    listed = {w.strip(" .") for w in re.split(r",|\(|\)| und ", named) if w.strip(" .")}
+    assert listed == {
+        "das Lesen eines Berichts durch Mitarbeitende",
+        "das Lesen der Verwaltungslisten",
+        "Mitglieder",
+        "Teameinladungen",
+        "Löschanträge",
+        "Verlauf der Datenauskünfte",
     }

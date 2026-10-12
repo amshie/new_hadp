@@ -106,6 +106,10 @@ export default async function AuditPageRoute({
       return notice(
         "Das Protokoll wurde in kurzer Zeit sehr oft abgerufen. Bitte versuchen Sie es in einer Minute erneut.",
       );
+    if (e instanceof ApiError && e.status === 503)
+      return notice(
+        "Das Protokoll ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.",
+      );
     throw e;
   }
 

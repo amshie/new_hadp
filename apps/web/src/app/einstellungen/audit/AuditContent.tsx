@@ -6,14 +6,15 @@ import { AUDIT_CATEGORIES, actionLabel, targetLabel } from "@/lib/auditCopy";
 import { CLINIC_TIME_ZONE, clinicTime } from "@/lib/clinicTime";
 
 // The audit trail as a table: when, who, what, on which record, with which details. Rendered
-// on the server — only what is shown leaves it. Filters and the paging position are URL
-// parameters the page has already validated; the filter is a plain GET form. Times are on the
-// clinic's wall clock, and say so.
+// on the server — a production build sends only what is shown. Filters and the paging
+// position are URL parameters the page has already validated; the filter is a plain GET form.
+// Times are on the clinic's wall clock, and say so.
 //
-// No link on this page is prefetched. A row carries up to two links and a page fifty rows; a
-// prefetch asks the server for a page nobody chose to open. (Measured on the production build,
-// Next 15.5: such a request is answered with the shell only and records no read. Not
-// prefetching keeps this page from depending on that.)
+// The links of the table and of the paging are not prefetched (the shell's navigation links
+// are, as on every page). A row carries up to two links and a page fifty rows; a prefetch asks
+// the server for a page nobody chose to open. (Measured on the production build, Next 15.5:
+// such a request is answered with the shell only and records no read. Not prefetching keeps
+// the table from depending on that.)
 
 export interface AuditQuery {
   category?: AuditCategory;
@@ -216,11 +217,11 @@ export function AuditContent({
         </summary>
         <ul style={{ margin: "8px 0 0", paddingLeft: "18px" }}>
           <li>
-            Vorgänge ohne Bezug zu einer Praxis: Anmeldung und Abmeldung,
-            fehlgeschlagene Anmeldungen, gedrosselte und aus Sicherheitsgründen
-            abgewiesene Anfragen sowie Zugriffsversuche ohne ausgewählte Praxis
-            oder nach dem Ende einer Mitgliedschaft. Der Eintritt in die Praxis
-            ist protokolliert.
+            Vorgänge, die ohne Praxis protokolliert werden: Anmeldung und
+            Abmeldung, fehlgeschlagene Anmeldungen, gedrosselte und aus
+            Sicherheitsgründen abgewiesene Anfragen sowie Zugriffsversuche ohne
+            ausgewählte Praxis oder nach dem Ende einer Mitgliedschaft. Der
+            Eintritt in die Praxis ist protokolliert.
           </li>
           <li>
             Derzeit nicht protokolliert: das Lesen eines Berichts durch
@@ -228,17 +229,28 @@ export function AuditContent({
             Teameinladungen, Löschanträge, Verlauf der Datenauskünfte).
           </li>
           <li>
+            Abgewiesene Vorgänge sind nur zum Teil protokolliert:
+            Rollenverweigerungen, abgelehnte Einlesevorgänge und Datenauskünfte,
+            abgewiesene Einladungs- und Zugriffslinks. Andere Ablehnungen – etwa
+            eine Freigabe ohne Einwilligung oder der Aufruf einer unbekannten
+            Kennung – hinterlassen keinen Eintrag.
+          </li>
+          <li>
             Ein Eintrag steht unter dem Datensatz, an dem er protokolliert ist.
             Unter einer Akte stehen das Anlegen und Öffnen der Akte, das Lesen
-            von Werten, Interpretation, Einwilligungen und Dateiliste, die
-            Einwilligungen und die Datenauskunft. Berichte, Dateien,
-            Einlesevorgänge, Review-Einträge, Einladungen und Löschanträge
+            von Werten, Interpretation, Einwilligungen und Dateiliste, die in
+            der Praxis dokumentierten Einwilligungen und Widerrufe und die
+            Datenauskunft. Berichte, Dateien, Einlesevorgänge, erfasste
+            Interpretationen, Review-Einträge, Einladungen und Löschanträge
             stehen unter ihrer eigenen Kennung und erscheinen bei der Auswahl
-            einer Akte nicht.
+            einer Akte nicht; eine über eine Einladung erteilte Einwilligung
+            steht unter der Einladung.
           </li>
           <li>
             Listenansichten (Aktenliste, Übersicht, Review-Queue) sind als
-            Lesezugriff protokolliert, ohne die einzelnen Akten zu nennen.
+            Lesezugriff protokolliert, ohne die einzelnen Akten zu nennen. Das
+            Öffnen einer Akte lädt auch die Übersicht und hinterlässt dafür
+            einen eigenen Eintrag.
           </li>
           <li>
             Einträge zu einer gelöschten Akte bleiben mit der Kennung der Akte
@@ -250,8 +262,8 @@ export function AuditContent({
           </li>
           <li>
             Beim Blättern zu älteren Einträgen kann ein Eintrag fehlen, der erst
-            während des Lesens gespeichert wurde. Ein erneutes Laden der ersten
-            Seite zeigt ihn.
+            während des Lesens gespeichert wurde. Ein erneutes Lesen von der
+            ersten Seite an zeigt ihn.
           </li>
         </ul>
       </details>

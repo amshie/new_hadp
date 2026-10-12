@@ -7,7 +7,6 @@ handling (no echoing of request bodies), and the /api/v1 routers.
 from __future__ import annotations
 
 import hmac
-import re
 import uuid
 from collections.abc import Awaitable, Callable
 
@@ -39,22 +38,6 @@ from hadp_api.logging import configure_logging
 from hadp_api.modules.audit.service import record_security_event
 
 API_PREFIX = "/api/v1"
-
-# A correlation id is an identifier: 32 hexadecimal digits, written like a UUID or without the
-# hyphens. A caller may supply one, to tie its own logs to ours — in that form only. Anything
-# else would be text of the caller's choosing in every audit event of the request, and the
-# surfaces that take no session (invitation redemption, the patient view) would let anyone
-# write it into a clinic's trail.
-_CORRELATION_ID = re.compile(
-    r"[0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
-)
-
-
-def supplied_correlation_id(request: Request) -> str | None:
-    """The caller's correlation id when it is one; None when absent or anything else."""
-    supplied = request.headers.get("x-correlation-id")
-    return supplied if supplied and _CORRELATION_ID.fullmatch(supplied) else None
-
 
 _DESCRIPTION = (
     "Longevity Health Analytics Platform API. Documentation-support software — not an "
@@ -93,7 +76,11 @@ def create_app() -> FastAPI:
     async def context_and_security(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        correlation_id = supplied_correlation_id(request) or uuid.uuid4().hex
+        # Generated here, never taken from the caller: the id is written into every audit
+        # event of the request, and the surfaces that take no session (invitation redemption,
+        # the patient view) record under the clinic the request names — a caller's
+        # `X-Correlation-ID` would be the caller's own text in a clinic's append-only trail.
+        correlation_id = uuid.uuid4().hex
         request.state.correlation_id = correlation_id
         response = await call_next(request)
         response.headers["x-correlation-id"] = correlation_id
@@ -141,7 +128,6 @@ def create_app() -> FastAPI:
             if not ok:
                 record_security_event(
                     action="csrf.denied",
-                    correlation_id=supplied_correlation_id(request),
                     detail={"method": request.method},
                 )
                 return JSONResponse(
