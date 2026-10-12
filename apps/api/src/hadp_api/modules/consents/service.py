@@ -47,6 +47,20 @@ def has_active_consent(
     return latest is not None and latest.event_type == ConsentEventType.GRANTED
 
 
+def current_consents(
+    db: Session, *, tenant_id: uuid.UUID, patient_id: uuid.UUID
+) -> dict[ConsentPurpose, ConsentEvent | None]:
+    """The latest event for EVERY purpose of the closed vocabulary (None = never recorded).
+
+    The read side of the same rule `has_active_consent` applies: a purpose is active iff its
+    latest event is a grant.
+    """
+    return {
+        purpose: _latest_event(db, tenant_id=tenant_id, patient_id=patient_id, purpose=purpose)
+        for purpose in ConsentPurpose
+    }
+
+
 def record_consent(
     db: Session,
     *,

@@ -320,6 +320,52 @@
       }
     },
     "/api/v1/patients/{patient_id}/consents": {
+      "get": {
+        "tags": [
+          "consents"
+        ],
+        "summary": "List Consents",
+        "description": "Current consent state for every purpose of the closed vocabulary (read staff).",
+        "operationId": "list_consents_api_v1_patients__patient_id__consents_get",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConsentStateOut"
+                  },
+                  "title": "Response List Consents Api V1 Patients  Patient Id  Consents Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "consents"
@@ -2156,6 +2202,35 @@
         ],
         "title": "ConsentPurpose",
         "description": "Purpose a consent event scopes \u2014 a CLOSED vocabulary.\n\nThese are SYNTHETIC-ALPHA PLACEHOLDER values. The real, lawful purpose taxonomy and the\nper-purpose Art. 9(2) lawful basis are a DPO/counsel deliverable (PENDING), NOT an engineering\ndefault \u2014 see docs/regulatory (Regulatory-Lead UNASSIGNED). Only `report_release` is enforced as\na gate today (on patient-facing report release); the others name transitions for completeness."
+      },
+      "ConsentStateOut": {
+        "properties": {
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "last_event": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConsentEventOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "purpose",
+          "active",
+          "last_event"
+        ],
+        "title": "ConsentStateOut"
       },
       "CoverageOut": {
         "properties": {

@@ -15,7 +15,7 @@ import {
   requestPatientDeletion,
 } from "@/app/patients/actions";
 import { generateReportAction } from "@/app/reports/actions";
-import type { DeletionReason, SourceDocument } from "@/lib/api";
+import type { ConsentState, DeletionReason, SourceDocument } from "@/lib/api";
 import { Dialog } from "@/components/vitabahn/Dialog";
 import { clickable } from "@/components/vitabahn/interactive";
 import { lageLabel } from "@/lib/lageCopy";
@@ -23,6 +23,7 @@ import type { ReferencePosition } from "@/lib/referencePosition";
 import type { DetailView } from "@/lib/presenters/patientDetail";
 import { DOMAIN_AXIS_LABELS, type MarkerView } from "@/lib/presenters/review";
 
+import { ConsentCard } from "./ConsentCard";
 import { LabDocumentsCard } from "./LabDocumentsCard";
 
 // VitaBahn patient Detail (ADR-0006, real-data path). Consumes the governed DetailView
@@ -247,10 +248,12 @@ function LagePill({ pos }: { pos: ReferencePosition }) {
 export function PatientDetailContent({
   view,
   documents,
+  consents,
   sessionRole,
 }: {
   view: DetailView;
   documents: SourceDocument[];
+  consents: ConsentState[];
   sessionRole: string | null;
 }) {
   const router = useRouter();
@@ -844,6 +847,16 @@ export function PatientDetailContent({
           </div>
         </div>
       </div>
+
+      {/* Consent state per purpose (all staff) + documenting a consent or a withdrawal (care
+          staff). A tombstoned record takes no new entries. */}
+      {!erased && (
+        <ConsentCard
+          patientId={view.patientId}
+          consents={consents}
+          canRecord={canInvite}
+        />
+      )}
 
       {/* Laboratory files: upload + import (care staff), list of stored files (all staff).
           A tombstoned record takes no new data. */}
