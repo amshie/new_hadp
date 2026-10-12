@@ -59,6 +59,7 @@ def _item(value: str, low: str | None, high: str | None, delta: str | None = Non
         name="LDL Cholesterol",
         source_value=value,
         source_unit="mmol/L",
+        decimal_comma=False,
         value=Decimal(value),
         unit="mmol/L",
         converted=False,

@@ -9,8 +9,10 @@ same output contract (strict schema, evidence-linked, validated before persisten
 The text is written in German (de-DE, the product's initial locale): the released version
 is what the patient reads. A statement gives a numeric result the way the source wrote it —
 value and unit verbatim. What the platform adds is named as such: a unit conversion appears
-beside the source value, never instead of it. A result that is not a number is never quoted:
-source free text does not enter a statement (reports/evidence.py decides what may be quoted).
+beside the source value, never instead of it. A result that is not a number is never quoted.
+Of what a source supplied, a statement carries the analyte name as written, a numeric result,
+and a unit that is one short token — nothing else (reports/evidence.py decides what may be
+quoted, and says what that still lets through).
 """
 
 from __future__ import annotations
@@ -33,6 +35,9 @@ class EvidenceItem:
     # value, free text — which a statement mentions but never quotes.
     source_value: str | None
     source_unit: str | None
+    # The source writes decimals with a comma: numbers the platform writes beside its value
+    # follow that mark (reports/evidence.py reads it from the value and its reference text).
+    decimal_comma: bool
     # The normalized representation (None when the value could not be normalized, e.g. an
     # analyte the terminology does not know). Reference bounds are in the normalized unit.
     value: Decimal | None
@@ -118,7 +123,7 @@ class DeterministicNarrativeProvider:
                 # says a result exists and does not repeat source text. Nothing else is said
                 # about a value the reader is not shown.
                 text = (
-                    f"Für {item.name} liegt am {item.observed_at_label} ein Ergebnis der Quelle "
+                    f"Für {item.name} vom {item.observed_at_label} liegt ein Ergebnis der Quelle "
                     "vor, das hier nicht im Wortlaut wiedergegeben wird."
                 )
                 statements.append(
@@ -126,7 +131,7 @@ class DeterministicNarrativeProvider:
                 )
                 continue
 
-            comma = "," in item.source_value
+            comma = item.decimal_comma
             # Unconverted, the platform's numbers are in the source's unit: its spelling is kept.
             unit = item.unit if item.converted else item.source_unit
             stated = _with_unit(item.source_value, item.source_unit)

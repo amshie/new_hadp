@@ -63,9 +63,11 @@ def _canonical_unit(unit: str | None) -> str | None:
 
 def unit_was_converted(original_unit: str | None, normalized_unit: str | None) -> bool:
     """True when normalization changed the unit — and with it the value and the reference
-    bounds. A different spelling of the same unit ("mmol/l") is not a conversion."""
-    return normalized_unit is not None and _canonical_unit(original_unit) != _canonical_unit(
-        normalized_unit
+    bounds. A different spelling of the same unit ("mmol/l") is not a conversion; neither is
+    a value whose source named no unit."""
+    source = _canonical_unit(original_unit)
+    return (
+        bool(source) and normalized_unit is not None and source != _canonical_unit(normalized_unit)
     )
 
 

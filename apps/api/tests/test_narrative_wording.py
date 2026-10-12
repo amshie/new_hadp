@@ -19,8 +19,9 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from hadp_api.modules.imports.normalize import unit_was_converted
 from hadp_api.modules.observations.models import Observation
-from hadp_api.modules.reports.evidence import _label, quotable_result
+from hadp_api.modules.reports.evidence import _label, _utc_offset, decimal_comma, quotable_result
 from hadp_api.modules.reports.narrative import DeterministicNarrativeProvider, EvidenceItem
 
 BERLIN = ZoneInfo("Europe/Berlin")
@@ -47,6 +48,7 @@ def _item(
         name=name,
         source_value=source,
         source_unit=source_unit,
+        decimal_comma="," in source,
         value=Decimal(source.replace(",", ".")) if value == "same" else _dec(value),
         unit=source_unit if unit == "same" else unit,
         converted=converted,
@@ -146,6 +148,7 @@ def test_provider_version_marks_the_german_wording() -> None:
                 name="HIV-1/2 Screening",
                 source_value=None,
                 source_unit=None,
+                decimal_comma=False,
                 value=None,
                 unit=None,
                 converted=False,
@@ -153,7 +156,7 @@ def test_provider_version_marks_the_german_wording() -> None:
                 reference_high=None,
                 observed_at_label="10.06.2025",
             ),
-            "Für HIV-1/2 Screening liegt am 10.06.2025 ein Ergebnis der Quelle vor, "
+            "Für HIV-1/2 Screening vom 10.06.2025 liegt ein Ergebnis der Quelle vor, "
             "das hier nicht im Wortlaut wiedergegeben wird.",
             id="a result that may not be quoted is mentioned, never repeated",
         ),
@@ -293,6 +296,9 @@ def test_the_offset_is_written_the_same_way_in_every_zone(zone: str, expected: s
         ("5.4", "%", ("5.4", "%")),
         ("34", "ml/kg/min", ("34", "ml/kg/min")),
         ("90", "", ("90", None)),
+        ("8432", "Schritte", ("8432", "Schritte")),
+        ("4,8", "Mio./µl", ("4,8", "Mio./µl")),
+        ("45", "Vol.-%", ("45", "Vol.-%")),
         # Not a number: a text result, a flagged value, free text, a second line, markup.
         ("reaktiv", None, (None, None)),
         ("12,4 H", "mg/L", (None, None)),
@@ -306,9 +312,68 @@ def test_the_offset_is_written_the_same_way_in_every_zone(zone: str, expected: s
         ("31", "ng/mL. Wir empfehlen ein Supplement", (None, None)),
         ("5", "Punkte von 10 möglichen", (None, None)),
         ("5", "x" * 21, (None, None)),
+        # A unit of digits or punctuation would change how the value reads ("5 000", "4 ,1").
+        ("5", "000", (None, None)),
+        ("4", ",1", (None, None)),
+        ("5", "/", (None, None)),
+        # A one-token unit carrying a restricted intended-use term (the list knows English stems).
+        ("85", "optimal", (None, None)),
+        ("5", "Diagnose/Krebs", (None, None)),
+        ("2", "abnormal", (None, None)),
+        # Blank is no result.
+        (" ", None, (None, None)),
+        # The price of the rule: numeric results whose unit is not one token are not quoted.
+        ("92", "mL/min/1.73 m²", (None, None)),
+        ("38", "mmol/mol Hb", (None, None)),
+        ("1.234,5", "ng/mL", (None, None)),
+        ("1:160", None, (None, None)),
     ],
 )
 def test_what_a_statement_may_quote_from_a_source(
     value: str, unit: str | None, expected: tuple[str | None, str | None]
 ) -> None:
     assert quotable_result(value, unit) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "reference_text", "expected"),
+    [
+        ("5,40", None, True),
+        ("5.40", "4,0-5,7 %", False),  # the value's own mark decides
+        ("6", "4,0-5,7 %", True),  # no mark in the value: the reference text beside it
+        ("6", "4.0-5.7 %", False),
+        ("130", "0-116 mg/dL", False),  # no mark anywhere: a point
+        ("130", None, False),
+    ],
+)
+def test_the_decimal_mark_is_read_from_the_source(
+    value: str, reference_text: str | None, expected: bool
+) -> None:
+    assert decimal_comma(value, reference_text) is expected
+
+
+def test_an_offset_with_seconds_is_cut_to_whole_minutes_on_both_sides() -> None:
+    def at(offset: timedelta) -> datetime:
+        return datetime(1900, 1, 1, 12, tzinfo=timezone(offset))
+
+    assert _utc_offset(at(timedelta(hours=-4, minutes=-56, seconds=-2))) == "UTC-4:56"
+    assert _utc_offset(at(timedelta(hours=4, minutes=56, seconds=2))) == "UTC+4:56"
+    assert _utc_offset(at(timedelta(seconds=30))) == "UTC"
+
+
+@pytest.mark.parametrize(
+    ("original_unit", "normalized_unit", "expected"),
+    [
+        ("mg/dL", "mmol/L", True),
+        ("mmol/l", "mmol/L", False),  # another spelling of the same unit
+        ("mmol/l", "mmol/l", False),
+        (" MMOL/L ", "mmol/L", False),
+        ("mmol/L", None, False),  # nothing was normalized
+        (None, "kg", False),  # the source named no unit: nothing to convert from
+        ("", "kg", False),
+    ],
+)
+def test_what_counts_as_a_unit_conversion(
+    original_unit: str | None, normalized_unit: str | None, expected: bool
+) -> None:
+    assert unit_was_converted(original_unit, normalized_unit) is expected

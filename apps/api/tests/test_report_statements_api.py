@@ -252,9 +252,12 @@ _FREE_TEXT = [
     ("Ferritin", "<script>alert(1)</script>", "ng/mL"),
     ("Vitamin D", "31", "ng/mL. Wir empfehlen ein Supplement"),
     ("Zink", "85\nDer Wert ist optimal. Diagnose: keine.", "µg/dL"),
+    # A number with a unit that is not a unit: a restricted term, bare digits.
+    ("Selen", "85", "optimal"),
+    ("Leukozyten", "5", "000"),
 ]
 _NOT_QUOTED = (
-    "Für {name} liegt am 10.06.2025 ein Ergebnis der Quelle vor, "
+    "Für {name} vom 10.06.2025 liegt ein Ergebnis der Quelle vor, "
     "das hier nicht im Wortlaut wiedergegeben wird."
 )
 
@@ -340,6 +343,52 @@ def test_a_text_result_in_a_laboratory_file_is_mentioned_not_quoted(client, admi
             "Ferritin am 10.06.2025: 85 ng/mL.",
         ]
     )
+
+
+def test_numbers_beside_a_source_value_follow_its_decimal_mark(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """A German file writes "5,7". The bounds the platform prints beside a value keep that
+    mark — also when the value itself has none — and a comparator result is a numeric result."""
+    _clinician(client, admin_session, "comma")
+    pid = _import(
+        client,
+        [
+            {
+                "original_name": "HbA1c",
+                "original_value": "6",
+                "original_unit": "%",
+                "reference_low": "4,0",
+                "reference_high": "5,7",
+                **DAY,
+            },
+            {"original_name": "TSH", "original_value": "<0,5", "original_unit": "mU/L", **DAY},
+        ],
+        publish_review=True,
+    )
+
+    texts = sorted(s["text"] for s in _draft(client, pid)["statements"])
+
+    assert texts == [
+        "HbA1c am 10.06.2025: 6 %. Referenzintervall der Quelle: 4 bis 5,7 %. "
+        "Der Wert liegt über dem Referenzintervall der Quelle.",
+        "TSH am 10.06.2025: <0,5 mU/L.",
+    ]
+
+
+def test_a_blank_value_is_refused_at_manual_entry(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """Blank is not a value: nothing is stored, so no statement can claim a result exists."""
+    _clinician(client, admin_session, "blank")
+    pid = client.post("/api/v1/patients", json={"display_name": "Synthetic Blank"}).json()["id"]
+    for field in ("original_value", "original_name"):
+        value = {
+            "original_name": "Ferritin",
+            "original_value": "85",
+            "original_unit": "ng/mL",
+            **DAY,
+        }
+        value[field] = "   "
+        refused = client.post(f"/api/v1/patients/{pid}/imports", json={"values": [value]})
+        assert refused.status_code == 422, (field, refused.text)
+    assert client.get(f"/api/v1/patients/{pid}/observations").json() == []
 
 
 def test_source_text_does_not_block_a_later_rework(client, admin_session) -> None:  # type: ignore[no-untyped-def]

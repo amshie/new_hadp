@@ -31,8 +31,9 @@ class DocumentOut(BaseModel):
 
 
 class ImportValueIn(BaseModel):
-    original_name: str = Field(min_length=1, max_length=200)
-    original_value: str = Field(min_length=1, max_length=120)
+    # Blank is not a name and not a value (the file readers refuse an empty cell too).
+    original_name: str = Field(min_length=1, max_length=200, pattern=r"\S")
+    original_value: str = Field(min_length=1, max_length=120, pattern=r"\S")
     original_unit: str | None = Field(default=None, max_length=60)
     observed_at: datetime
     observed_at_is_date_only: bool = False

@@ -21,6 +21,7 @@ from hadp_api.modules.enums import KpiMeasurementClass
 from hadp_api.modules.imports.normalize import is_plain_number, unit_was_converted
 from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.observations.models import Observation
+from hadp_api.modules.reports.language import restricted_terms
 from hadp_api.modules.reports.narrative import EvidenceItem
 
 # What a statement may quote from a source. The value and unit columns hold whatever the
@@ -28,10 +29,14 @@ from hadp_api.modules.reports.narrative import EvidenceItem
 # patient-facing, so only a result that is a number is repeated; a text result, a flagged
 # value ("12,4 H") or free text is mentioned without its wording (see narrative.py).
 _COMPARATOR = re.compile(r"(?:<=|>=|<|>|≤|≥)[ ]?")
-# A unit: one token, no whitespace, no sentence punctuation ("mmol/L", "10*9/L", "mm[Hg]").
-# It cannot rule out a single word typed as a unit; like an analyte name, such a row has
-# passed a clinician's review before it is published.
+# A unit: one token of at most 20 characters, no whitespace ("mmol/L", "10*9/L", "mm[Hg]",
+# "Mio./µl"), with at least one letter or % ‰ ° (a unit of digits would change how the value
+# reads: "5 000"). It may be a word — "Schritte" and "Punkte" are units — so the token is
+# also refused when it carries a restricted intended-use term; that list knows English stems
+# only. What remains is the same residual as the analyte name: a short token a clinician has
+# published from the review queue.
 _UNIT = re.compile(r"[A-Za-zÄÖÜäöüßµμ°%‰/*^.,·×\[\]()0-9²³-]{1,20}")
+_UNIT_SIGN = re.compile(r"[A-Za-zÄÖÜäöüßµμ°%‰]")
 
 
 def quotable_result(
@@ -44,19 +49,32 @@ def quotable_result(
     number = value[comparator.end() :] if comparator else value
     if not is_plain_number(number) or number != number.strip():
         return None, None
-    if unit is not None and not _UNIT.fullmatch(unit):
+    if unit is not None and (
+        not _UNIT.fullmatch(unit) or not _UNIT_SIGN.search(unit) or restricted_terms([unit])
+    ):
         return None, None
     return value, unit
+
+
+def decimal_comma(original_value: str, reference_text: str | None) -> bool:
+    """Whether the source writes decimals with a comma: read from the value, and when the
+    value has no decimal mark, from the reference text beside it. Undecided means a point."""
+    for text in (original_value, reference_text or ""):
+        if re.search(r"\d,\d", text):
+            return True
+        if re.search(r"\d\.\d", text):
+            return False
+    return False
 
 
 def _utc_offset(moment: datetime) -> str:
     """The offset as text — "UTC+2", "UTC-7", "UTC+5:45", "UTC" — the same in every zone."""
     offset = moment.utcoffset()
-    minutes = int(offset.total_seconds() // 60) if offset is not None else 0
-    if minutes == 0:
+    seconds = int(offset.total_seconds()) if offset is not None else 0
+    hours, rest = divmod(abs(seconds) // 60, 60)  # whole minutes, toward zero on both sides
+    if not hours and not rest:
         return "UTC"
-    hours, rest = divmod(abs(minutes), 60)
-    return f"UTC{'+' if minutes > 0 else '-'}{hours}" + (f":{rest:02d}" if rest else "")
+    return f"UTC{'+' if seconds > 0 else '-'}{hours}" + (f":{rest:02d}" if rest else "")
 
 
 def _label(observation: Observation, zone: ZoneInfo) -> str:
@@ -99,6 +117,7 @@ def build_evidence_payload(db: Session, patient_id: uuid.UUID) -> list[EvidenceI
                 name=point.original_name,
                 source_value=source_value,
                 source_unit=source_unit,
+                decimal_comma=decimal_comma(obs.original_value, obs.reference_text),
                 value=point.value,
                 unit=point.unit,
                 converted=unit_was_converted(obs.original_unit, obs.normalized_unit),
