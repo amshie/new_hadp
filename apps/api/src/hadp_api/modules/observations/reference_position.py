@@ -29,6 +29,7 @@ def position_vs_source_interval(
 
     - no value                            -> ``"not_evaluable"``
     - no bound at all                     -> ``"no_reference"``
+    - lower bound above the upper bound   -> ``"not_evaluable"`` (the pair is not an interval)
     - value strictly above the high bound -> ``"above"``
     - value strictly below the low bound  -> ``"below"``
     - both bounds present, not exceeded   -> ``"within"``
@@ -41,6 +42,8 @@ def position_vs_source_interval(
         return "not_evaluable"
     if reference_low is None and reference_high is None:
         return "no_reference"
+    if reference_low is not None and reference_high is not None and reference_low > reference_high:
+        return "not_evaluable"
     if reference_high is not None and value > reference_high:
         return "above"
     if reference_low is not None and value < reference_low:

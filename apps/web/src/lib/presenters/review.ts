@@ -81,12 +81,27 @@ export interface StatementView {
 }
 export interface MarkerView {
   name: string;
+  // The value the platform holds: normalized where it could be, otherwise the source's own
+  // number in the source's unit — or, for a result that is no number, the source's writing.
   current: string;
   change: string;
   reference: string;
+  // Shown: the source code where one is stamped, else the catalog code.
   code: string;
+  // What ties a value to the same analyte elsewhere (catalog code first, like the timeline).
+  identity: string | null;
+  // How `current` relates to what the source wrote — null when the value is normalized in
+  // the unit the source itself used. Provenance, never a verdict.
+  sourceNote: {
+    kind: "text" | "converted" | "source_unit";
+    short: string;
+    full: string;
+  } | null;
   status: string;
+  // Not published: still in the review queue, or rejected there. Such a value is shown as
+  // what it is — with its status, and without a position against its reference interval.
   reviewRequired: boolean;
+  statusLabel: string | null;
   // A published laboratory correction has replaced this value; it stays as a preserved record.
   superseded: boolean;
   // A derived value computed from an input that a laboratory correction has replaced.
@@ -171,6 +186,39 @@ function unitJoin(
   if (value == null) return "—";
   return unit ? `${value} ${unit}` : value;
 }
+
+// How the shown value relates to the source's writing. Three cases need saying: the platform
+// converted the unit; the value is held as the source wrote it (not normalized, so no change
+// over time is computed); no number is read from the source's writing at all — a text result,
+// an addition ("<0,5", "12,4 H"), or a way of writing a number the platform does not read
+// one way ("4.000", "1.234,5").
+function sourceNote(p: TimelinePoint): MarkerView["sourceNote"] {
+  if (p.value == null)
+    return {
+      kind: "text",
+      short: "Angabe im Wortlaut",
+      full: "Aus der Angabe der Quelle liest die Plattform hier keine Zahl – etwa bei einem Textergebnis, einem Zusatz am Wert oder einer Schreibweise, die sie nicht eindeutig lesen kann. Angezeigt wird die Angabe im Wortlaut.",
+    };
+  if (p.converted)
+    return {
+      kind: "converted",
+      short: `umgerechnet aus ${unitJoin(p.original_value, p.original_unit)}`,
+      full: `Die Quelle nennt ${unitJoin(p.original_value, p.original_unit)}; der Wert – und das Referenzintervall, soweit eines angezeigt ist – wurde in ${p.unit ?? "die Einheit der Kennzahl"} umgerechnet.`,
+    };
+  if (!p.normalized)
+    return {
+      kind: "source_unit",
+      short: "Einheit der Quelle",
+      full: "Der Wert steht so, wie die Quelle ihn nennt, in ihrer Einheit – ein angezeigtes Referenzintervall ebenso. Der Wert ist nicht normalisiert; eine Veränderung zum Vorwert wird deshalb nicht berechnet.",
+    };
+  return null;
+}
+
+// Where a value stands in the review of imported values, when it is not published.
+const REVIEW_STATUS_LABELS: Record<string, string> = {
+  pending: "in Prüfung – nicht veröffentlicht",
+  rejected: "im Review abgelehnt",
+};
 
 function auditSteps(status: string): AuditStepView[] {
   const draft = status === "draft_generated" || status === "draft_edited";
@@ -342,7 +390,7 @@ export function presentReview(
       new Set(
         d.cells.flatMap((c) =>
           c.evidence
-            .map((e) => e.metric_code)
+            .map((e) => e.kpi_code ?? e.metric_code)
             .filter((code): code is string => code != null),
         ),
       ),
@@ -406,41 +454,53 @@ export function presentReview(
             },
       ),
     })),
-    markers: timeline.map((p) => ({
-      name: p.original_name,
-      current: unitJoin(p.value, p.unit),
-      change: p.delta_vs_previous ?? "—",
-      reference:
-        p.reference_low != null || p.reference_high != null
-          ? `${p.reference_low ?? "—"}–${p.reference_high ?? "—"} ${p.unit ?? ""}`.trim()
-          : "—",
-      code: p.metric_code ?? "—",
-      status: p.review_status,
-      reviewRequired: p.review_status !== "published",
-      superseded: p.superseded_by_observation_id != null,
-      inputReplaced: p.input_replaced === true,
-      lagePosition: referencePosition(
-        p.value,
-        p.reference_low,
-        p.reference_high,
-      ),
-      lageBar: referenceBar(p.value, p.reference_low, p.reference_high),
-      referenceRange:
-        p.reference_low != null && p.reference_high != null
-          ? `${p.reference_low}–${p.reference_high}`
+    markers: timeline.map((p) => {
+      // A position against the reference interval is stated for a published value only.
+      const published = p.review_status === "published";
+      return {
+        name: p.original_name,
+        current:
+          p.value != null
+            ? unitJoin(p.value, p.unit)
+            : unitJoin(p.original_value, p.original_unit),
+        change: p.delta_vs_previous ?? "—",
+        reference:
+          p.reference_low != null || p.reference_high != null
+            ? `${p.reference_low ?? "—"}–${p.reference_high ?? "—"} ${p.unit ?? ""}`.trim()
+            : "—",
+        code: p.metric_code ?? p.kpi_code ?? "—",
+        identity: p.kpi_code ?? p.metric_code ?? null,
+        sourceNote: sourceNote(p),
+        status: p.review_status,
+        reviewRequired: !published,
+        statusLabel: published
+          ? null
+          : (REVIEW_STATUS_LABELS[p.review_status] ?? p.review_status),
+        superseded: p.superseded_by_observation_id != null,
+        inputReplaced: p.input_replaced === true,
+        lagePosition: published
+          ? referencePosition(p.value, p.reference_low, p.reference_high)
+          : "not_evaluable",
+        lageBar: published
+          ? referenceBar(p.value, p.reference_low, p.reference_high)
+          : referenceBar(null, null, null),
+        referenceRange:
+          p.reference_low != null && p.reference_high != null
+            ? `${p.reference_low}–${p.reference_high}`
+            : null,
+        kpiCode: p.kpi_code ?? null,
+        primaryDomainLabel: p.kpi_primary_domain
+          ? (DOMAIN_AXIS_LABELS[p.kpi_primary_domain] ?? p.kpi_primary_domain)
           : null,
-      kpiCode: p.kpi_code ?? null,
-      primaryDomainLabel: p.kpi_primary_domain
-        ? (DOMAIN_AXIS_LABELS[p.kpi_primary_domain] ?? p.kpi_primary_domain)
-        : null,
-      secondaryDomains: p.kpi_secondary_domains ?? [],
-      comparabilityShort:
-        comparabilityNote(p.comparability, p.comparability_reason)?.short ??
-        null,
-      comparabilityFull:
-        comparabilityNote(p.comparability, p.comparability_reason)?.full ??
-        null,
-    })),
+        secondaryDomains: p.kpi_secondary_domains ?? [],
+        comparabilityShort:
+          comparabilityNote(p.comparability, p.comparability_reason)?.short ??
+          null,
+        comparabilityFull:
+          comparabilityNote(p.comparability, p.comparability_reason)?.full ??
+          null,
+      };
+    }),
     auditSteps: auditSteps(report.status),
   };
 }

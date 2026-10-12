@@ -100,9 +100,14 @@ def test_csv_import_publishes_mapped_values_and_queues_the_rest(client, admin_se
     assert ldl.source_record_locator == "line 2"
     assert str(ldl.source_document_id) == doc_id
     assert ldl.observed_at_is_date_only is True
-    # An analyte the terminology does not know is never published on a guess.
+    # The catalog knows ferritin, and the import records that; it acts on six names, and this
+    # is not one of them. The value is not normalized and not published — and its number is
+    # not lost.
     assert ferritin.review_status == ReviewStatus.PENDING
     assert ferritin.source_record_locator == "line 3"
+    assert (ferritin.kpi_code, ferritin.normalized_value) == ("immune.ferritin", None)
+    assert ferritin.numeric_value == Decimal("85")
+    assert (ferritin.reference_low, ferritin.reference_high) == (Decimal("30"), Decimal("400"))
     reasons = admin_session.execute(select(ReviewItem.reason)).scalars().all()
     assert reasons == ["unmapped_metric"]
 

@@ -43,13 +43,50 @@ Common to all readers:
   else). A date without a time stays date-only. A time that falls into a daylight-saving gap or
   repeats at the change back is held for review (`ambiguous_local_time`).
 
-What normalization then requires (it applies to manual entry as well):
+What normalization then does (`modules/imports/normalize.py`, version `norm-2`; it applies to
+manual entry as well):
 
+- **A name is looked up in the KPI catalog** (ADR-0004) through an exact alias — the KPI's own
+  name or a listed alias, compared without case and outer blanks. "Creatinine" resolves;
+  "Creatinin", "Serum creatinine" and "Creatinine (urine)" do not. The KPI is recorded on the row
+  as where the value belongs. That is all the catalog decides.
+- **The import acts on six names by itself, as before:** `LDL`, `LDL Cholesterol`,
+  `Total cholesterol`, `HDL cholesterol`, `Glucose`, `HbA1c` — each bound to its KPI and unit, and
+  only while the catalog says the same. Their values are normalized, and published without a human
+  when nothing else speaks against it. **Every other value waits for a clinician**
+  (`unmapped_metric`), whatever the catalog knows about its name: the catalog says what a name may
+  mean, not that a value under it may go unread. The import does not know the specimen (a
+  "Material" column is ignored; LDT fields 8428–8431 are not read), whether the number is
+  plausible, or who typed it. Which further names may publish unseen is a clinical decision per
+  name — ADR-0004 §18.
+- **For the six, the unit must be the KPI's unit or an approved pair.** Three spellings are
+  accepted in any letter case (`mg/dL`, `mmol/L`, `%`); every other unit is compared as written.
+  Four KPI/unit pairs have an approved factor (LDL, HDL and total cholesterol, glucose:
+  mg/dL → mmol/L); reference bounds convert with the same factor. Any other unit is
+  `unsupported_unit` and waits for a human. No missing unit is read as the KPI's unit.
+- **A value that is not normalized keeps its number.** The source's number and its reference
+  bounds are stored as numbers, in the source's unit. In the tables it is shown that way, marked
+  "Einheit der Quelle", with its review status; a position against its reference interval is
+  shown only once a clinician has published it. It takes no part in a change calculation: a
+  change is computed only between normalized values of one KPI.
 - A value is a number only if it is a plain decimal: ASCII digits, an optional sign, `.` or `,` as
   the decimal separator, an optional small exponent. `NaN`, `Infinity`, digit-group underscores
-  (`3_4`) and other scripts' digits are **not** numbers and go to review (`unparseable_value`).
-- A reference bound the source gives but that is not such a number goes to review
-  (`unparseable_reference`) instead of silently turning a two-sided interval into a one-sided one.
+  (`3_4`), other scripts' digits and a number with two marks (`1.234,5`) are **not** numbers.
+- **A number that reads two ways is not read.** One to three digits, a mark, exactly three digits
+  — `4.000`, `1,250`, `150.000`, also `04.000` — is a decimal number or a number grouped in
+  thousands, and nothing in the value says which. Only an integer part of zeros settles it
+  (`0.005`, `00.500`). Such a value keeps the source's wording and has no number (for one of the
+  six names: `unparseable_value`). This is new with `norm-2`, also for the six names: before,
+  `4.000` was read as 4. **A laboratory that writes three decimals** therefore sends every value
+  of 1 or more to review without a number, until a reader can state the decimal mark of its
+  format (LDT defines one; CSV and manual entry do not) — an open item.
+- **A reference interval is held whole or not at all.** A bound the source gives but that cannot
+  be read — it is not a number, or it reads two ways — and a pair whose lower bound lies above
+  the upper leave **no** bound held, and the value goes to review (`unparseable_reference`).
+  Keeping the readable half would show a one-sided interval the source did not give. A bound the
+  source simply does not give is no problem: the other one is held, and named as the one bound.
+- A source code (LOINC) is stamped on the six names only, exactly as before. Every other value
+  carries the catalog code, if its name has one, and no external code.
 
 ## CSV — `hadp-csv` version 1
 
@@ -314,9 +351,10 @@ and no manual-entry form; values can be entered manually through the API only.
   different names is not recognized as a repeat.
 - **A value with a laboratory note is never dropped as a repeat**, so a re-sent file brings its
   commented, preliminary and corrected values back into the review queue.
-- **Reference bounds are compared as stored.** Numeric bounds are stored only for a mapped analyte
-  with a plain number in a supported unit; in every other case only the reference text is
-  compared — with six mapped names today, that is the normal case.
+- **Reference bounds are compared as stored.** Since `norm-2` every readable bound is stored as
+  a number (in the unit of the value the platform holds). A value imported earlier without a
+  normalized form has no stored bounds, so a later copy of it is not recognized as a repeat and
+  meets it in review.
 - **A derived value is not recomputed when an input is replaced** (computation is a controlled
   call, not automatic); the earlier derived value is marked and can no longer be cited.
 - **Exactly-once rests on a row lock** on the source document; there is no unique index on the

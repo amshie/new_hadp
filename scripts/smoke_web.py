@@ -254,6 +254,37 @@ def main() -> int:
             assert_stage("review page (released)", web.get(review_path).text, released)
             checked.append("released")
 
+            # A value entered now is not one of the six names the import acts on by itself: it
+            # waits for review. The table shows it as the source wrote it, with its status —
+            # and without a position against its reference interval (65 lies below 70–120).
+            r = api.post(
+                f"/patients/{pid}/imports",
+                json={
+                    "values": [
+                        {
+                            "original_name": "Smoke-Analyt",
+                            "original_value": "65",
+                            "original_unit": "µg/dL",
+                            "reference_low": "70",
+                            "reference_high": "120",
+                            "observed_at": "2025-06-10T00:00:00Z",
+                            "observed_at_is_date_only": True,
+                        }
+                    ]
+                },
+            )
+            assert r.status_code == 201, ("import", r.status_code, r.text)
+            assert r.json()["published_count"] == 0, "a value was published without a human"
+            page = web.get(review_path).text.replace("<!-- -->", "")
+            row = re.search(
+                r"<tr[^>]*>(?:(?!</tr>).)*Smoke-Analyt(?:(?!</tr>).)*</tr>", page, re.DOTALL
+            )
+            assert row, "the value waiting for review is not in the marker table"
+            assert "in Prüfung – nicht veröffentlicht" in row.group(0), "review status not shown"
+            assert "Einheit der Quelle" in row.group(0), "the source-unit note is missing"
+            assert "Unter Referenz" not in row.group(0), "a position is shown for an unread value"
+            checked.append("value in review")
+
             # A second report, rejected straight from the draft and then reworked: the page
             # must not show a clinical sign-off that never happened, and the reworked
             # version is an edited draft again.

@@ -394,7 +394,8 @@ export function PatientDetailContent({
     const codes = new Set(curDomain.markerCodes);
     return review.markers.filter(
       (m) =>
-        codes.has(m.code) || m.secondaryDomains.includes(curDomain.domainAxis),
+        (m.identity != null && codes.has(m.identity)) ||
+        m.secondaryDomains.includes(curDomain.domainAxis),
     );
   }, [curDomain, review.markers]);
 
@@ -1074,6 +1075,18 @@ export function PatientDetailContent({
                   }}
                 >
                   {m.name}
+                  {m.statusLabel && (
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "var(--text-body)",
+                      }}
+                    >
+                      {m.statusLabel}
+                    </span>
+                  )}
                   {m.superseded && (
                     <span
                       style={{
@@ -1123,9 +1136,25 @@ export function PatientDetailContent({
                     fontSize: "13px",
                     fontWeight: 600,
                     color: "var(--text-strong)",
+                    // A result that is no number shows the source's wording, which can be long.
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {m.current}
+                  {m.sourceNote && (
+                    <span
+                      title={m.sourceNote.full}
+                      style={{
+                        display: "block",
+                        fontFamily: "var(--font-text)",
+                        fontSize: "11px",
+                        fontWeight: 500,
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      {m.sourceNote.short}
+                    </span>
+                  )}
                 </span>
                 <span
                   style={{
@@ -1137,7 +1166,8 @@ export function PatientDetailContent({
                   {m.change}
                 </span>
                 <span>
-                  <LagePill pos={m.lagePosition} />
+                  {/* No position is stated for a value nobody has reviewed. */}
+                  {m.reviewRequired ? "—" : <LagePill pos={m.lagePosition} />}
                 </span>
                 <span>
                   <ReferenceBar marker={m} />
@@ -1626,7 +1656,9 @@ export function PatientDetailContent({
               >
                 {openMarker.current}
               </span>
-              <LagePill pos={openMarker.lagePosition} />
+              {!openMarker.reviewRequired && (
+                <LagePill pos={openMarker.lagePosition} />
+              )}
             </div>
             <div style={{ marginBottom: "16px" }}>
               <ReferenceBar marker={openMarker} />
@@ -1707,10 +1739,22 @@ export function PatientDetailContent({
                     color: "var(--text-body)",
                   }}
                 >
-                  {openMarker.status}
+                  {openMarker.statusLabel ?? "veröffentlicht"}
                 </span>
               </div>
             </div>
+            {openMarker.sourceNote && (
+              <p
+                style={{
+                  margin: "14px 0 0",
+                  fontSize: "12px",
+                  lineHeight: 1.5,
+                  color: "var(--text-muted)",
+                }}
+              >
+                {openMarker.sourceNote.full}
+              </p>
+            )}
             {openMarker.comparabilityFull && (
               <p
                 style={{
@@ -1731,9 +1775,15 @@ export function PatientDetailContent({
                 color: "var(--text-faint)",
               }}
             >
-              Lage relativ zum Quellreferenzintervall · keine automatische
-              Diagnose oder Therapieempfehlung.{" "}
-              {lageLabel(openMarker.lagePosition).sentence}.
+              {openMarker.reviewRequired ? (
+                "Für einen nicht veröffentlichten Wert wird keine Lage zum Referenzintervall angegeben."
+              ) : (
+                <>
+                  Lage relativ zum Quellreferenzintervall · keine automatische
+                  Diagnose oder Therapieempfehlung.{" "}
+                  {lageLabel(openMarker.lagePosition).sentence}.
+                </>
+              )}
             </p>
           </div>
         </Dialog>

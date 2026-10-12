@@ -3411,6 +3411,17 @@
             ],
             "title": "Metric Code"
           },
+          "kpi_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpi Code"
+          },
           "superseded": {
             "type": "boolean",
             "title": "Superseded",
@@ -4129,6 +4140,43 @@
             ],
             "title": "Original Unit"
           },
+          "reference_low": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Low"
+          },
+          "reference_high": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference High"
+          },
+          "reference_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Unit"
+          },
+          "reference_converted": {
+            "type": "boolean",
+            "title": "Reference Converted"
+          },
           "observed_at": {
             "type": "string",
             "format": "date-time",
@@ -4176,6 +4224,10 @@
           "original_name",
           "original_value",
           "original_unit",
+          "reference_low",
+          "reference_high",
+          "reference_unit",
+          "reference_converted",
           "observed_at",
           "observed_at_is_date_only",
           "created_at",
@@ -4588,6 +4640,21 @@
             "type": "string",
             "title": "Original Name"
           },
+          "original_value": {
+            "type": "string",
+            "title": "Original Value"
+          },
+          "original_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Unit"
+          },
           "value": {
             "anyOf": [
               {
@@ -4609,6 +4676,14 @@
               }
             ],
             "title": "Unit"
+          },
+          "normalized": {
+            "type": "boolean",
+            "title": "Normalized"
+          },
+          "converted": {
+            "type": "boolean",
+            "title": "Converted"
           },
           "reference_low": {
             "anyOf": [
@@ -4753,8 +4828,12 @@
           "observation_id",
           "metric_code",
           "original_name",
+          "original_value",
+          "original_unit",
           "value",
           "unit",
+          "normalized",
+          "converted",
           "reference_low",
           "reference_high",
           "observed_at",

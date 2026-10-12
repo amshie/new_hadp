@@ -21,8 +21,17 @@ class TimelinePointOut(BaseModel):
     observation_id: uuid.UUID
     metric_code: str | None
     original_name: str
-    value: str | None  # exact decimal as string (no false precision)
+    # The source representation, verbatim.
+    original_value: str
+    original_unit: str | None
+    # The number the platform holds (exact decimal as string) and its unit: the normalized value
+    # in the catalog's canonical unit when `normalized`, otherwise the source's own number in
+    # the source's unit. `converted`: normalizing changed the unit, so `value` and the bounds are
+    # the platform's conversion of what the source wrote. The bounds are in the unit of `value`.
+    value: str | None
     unit: str | None
+    normalized: bool
+    converted: bool
     reference_low: str | None
     reference_high: str | None
     observed_at: datetime
@@ -68,14 +77,18 @@ def timeline(
             observation_id=p.observation_id,
             metric_code=p.metric_code,
             original_name=p.original_name,
-            value=None if p.value is None else str(p.value),
+            original_value=p.original_value,
+            original_unit=p.original_unit,
+            value=obs_service.plain(p.value),
             unit=p.unit,
-            reference_low=None if p.reference_low is None else str(p.reference_low),
-            reference_high=None if p.reference_high is None else str(p.reference_high),
+            normalized=p.normalized,
+            converted=p.converted,
+            reference_low=obs_service.plain(p.reference_low),
+            reference_high=obs_service.plain(p.reference_high),
             observed_at=p.observed_at,
             observed_at_is_date_only=p.observed_at_is_date_only,
             review_status=p.review_status.value,
-            delta_vs_previous=None if p.delta_vs_previous is None else str(p.delta_vs_previous),
+            delta_vs_previous=obs_service.plain(p.delta_vs_previous),
             previous_observation_id=p.previous_observation_id,
             kpi_code=p.kpi_code,
             kpi_primary_domain=p.kpi_primary_domain,

@@ -356,6 +356,14 @@ class ReviewItemOut(BaseModel):
     original_name: str
     original_value: str
     original_unit: str | None
+    # The reference bounds the platform holds for this value — what a position against the
+    # interval will be stated from once the value is published. In `reference_unit`; converted
+    # from the source's when `reference_converted`. None: no bound held (none given, or not
+    # readable — the reason then says so).
+    reference_low: str | None
+    reference_high: str | None
+    reference_unit: str | None
+    reference_converted: bool
     observed_at: datetime
     observed_at_is_date_only: bool
     created_at: datetime

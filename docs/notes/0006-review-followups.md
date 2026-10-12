@@ -101,15 +101,67 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   200 characters, as on `main`) and a unit token of up to 20 characters without whitespace,
   refused only when it carries an English restricted stem ("Therapie-empfohlen" passes); both
   have been published by a clinician from the review queue, and either can block a later
-  rework at the edit guard. **Gaps the review found, not fixed here:** a value the terminology
-  does not know gets no reference interval in its statement and shows as "—" in the tables
-  (bounds are parsed only for mapped analytes — plan item A2); every import path carries a
+  rework at the edit guard. **Gaps the review found, not fixed here:** every import path carries a
   text result as a numeric observation without a value (see
   `docs/product/LAB_IMPORT_FORMATS.md`, "Known limits"); a manual-entry time without an
   offset is stored as UTC, while file readers read the same time in the laboratory zone; a
   number written with a thousands separator ("1,234") is read as 1.234; the day-only fix in
   the interpretation evidence has no test under a database session west of UTC;
   `LAB_LOCAL_TIMEZONE` is not validated at startup.
+- **The import looks names up in the catalog; a value keeps its number (go-live plan A2,
+  2026-10-12):** ✅ `norm-2` (ADR-0004 §18). A name is looked up in the KPI catalog and the KPI
+  recorded on the row. **What the import normalizes — and may publish without a human — is
+  unchanged: norm-1's six names**, bound in code to their KPI and unit, and only while the
+  catalog agrees. A value that is not normalized keeps its number and its reference bounds in
+  the source's unit: the tables, the interpretation evidence and the report statement show it
+  as written (they showed "—" and no interval), with its review status, and a position against
+  the interval only once a clinician has published it. It stays out of change calculations. A
+  number that reads two ways ("4.000", "1,250") is not read — also for the six names, where
+  norm-1 read "4.000" as 4 — and a reference interval is held whole or not at all: an
+  unreadable bound, or a pair with the lower bound above the upper, leaves none held. The
+  review queue shows the bounds publishing puts into effect. The data export is format
+  version 2 (bounds for values that are not normalized; plain decimals).
+  - **What an independent review refused, and why it matters beyond this slice:** the first
+    version normalized, and so published unseen, every KPI whose comparison policy is
+    `method_aware` — 57 KPIs under 62 names, where norm-1 had six. An assistant, who may enter
+    values and may not resolve the queue, could put a urine creatinine, a research assay or a
+    body weight of 820 kg into a released report with no clinician having looked at the value.
+    Which names publish unseen is a clinical decision per name (ADR-0004 §18); the next step
+    is a signed import mode on `kpi_alias` and a specimen on the observation — not more aliases.
+  - **What this does not do:** it adds no alias, no conversion and no unit notation. A German
+    laboratory file sends every row but the six names to the review queue. Closing that needs
+    the pilot laboratory's test list (plan item A1) and a named clinician's sign-off.
+  - **Decisions:** (1) which names may publish unseen; (2) the six names themselves — nobody
+    signed them either, and `glucose` is published as fasting plasma glucose whatever the
+    specimen (a file's "Material" column and LDT fields 8428–8431 are not read); (3) the LOINC
+    codes still stamped on new rows and exported — four mass-concentration terms on values held
+    in mmol/L, none of them in the verified set; (4) whether "Referenzintervall der Quelle" may
+    stand for an interval a person typed or a device reported (register row "Source
+    reference-interval display"); (5) whether a change may be computed between two values of
+    one KPI held in the same source unit (today: no — only between normalized values).
+  - **Gaps:** a number that reads two ways has no way back to being a number — a clinician can
+    publish or reject the value, not say which reading is meant; **a laboratory that writes
+    three decimals** loses the number of every value of 1 or more ("1.250") and the interval
+    beside it, until a reader states the decimal mark of its format (LDT defines one; CSV and
+    manual entry do not); once published, such a value of one of the six names is skipped by
+    later change calculations without a word; **the import depends on a seeded catalog and
+    nothing seeds one in production** (ADR-0004 §18 — an error line in the log is all that
+    says so); a value imported before `norm-2` without a normalized form has its number back
+    (migration 0018) but not its bounds, and a stored row is never re-normalized — a row
+    norm-1 normalized from "1.050 mg/dL" still stands as 1.05; a six-name value is not checked
+    for plausibility (`LDL 820 mmol/L` publishes unseen, as before); a name typed with a tab
+    or a line break is matched, and the statement repeats it as typed; migrations have to be
+    run by a superuser or a role with BYPASSRLS (0018 refuses any other, also on an empty
+    table); `reference_text` is still synthesized as
+    "None-120 …" for a one-sided interval; a converted value and its bounds show every computed
+    digit, and a statement restates a bound without its trailing zeros; the glucose factor has
+    three significant digits; the web has no tests of its own; property-based tests for the
+    conversions are still missing (the register claimed them); the clinician tables show the
+    catalog code where no source code exists; the web ties a value to a domain's cited value
+    by the catalog code first, so a stored value that has a source code and no catalog code
+    is not listed beside a cited value that has both; a drafting provider other than the
+    deterministic one would receive the source's unit text unfiltered (`EvidenceItem.unit`);
+    nothing enforces that a stored alias is lower-case, and one that is not never resolves.
 - **The clinic reads its own audit trail (go-live plan A9, 2026-10-12):** ✅ Einstellungen →
   Audit-Protokoll (owner): newest first, paged by a cursor, filtered by a closed set of areas,
   by day (on the clinic's wall clock) and by record; reads are shown unless the reader hides

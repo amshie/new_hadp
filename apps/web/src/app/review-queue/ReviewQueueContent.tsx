@@ -47,6 +47,21 @@ function heldLabel(held: HeldValue): string {
   return `${value} · ${fmtObserved(held.observed_at, held.observed_at_is_date_only)} (${status})`;
 }
 
+// The reference bounds the platform holds for a queued value: what a position against the
+// interval is stated from once the value is published. Said so the reviewer sees it before.
+function heldReference(item: ReviewQueueItem): string | null {
+  const { reference_low: low, reference_high: high } = item;
+  if (low == null && high == null) return null;
+  const unit = item.reference_unit ? ` ${item.reference_unit}` : "";
+  const bounds =
+    low != null && high != null
+      ? `${low}–${high}`
+      : high != null
+        ? `obere Grenze ${high}`
+        : `untere Grenze ${low}`;
+  return `Referenz der Quelle${item.reference_converted ? " (umgerechnet)" : ""}: ${bounds}${unit}`;
+}
+
 function reasonLabel(reason: string): string {
   return REASON_LABELS[reason] ?? reason;
 }
@@ -244,6 +259,9 @@ export function ReviewQueueContent({
                     >
                       {item.original_value} {item.original_unit ?? ""}
                     </div>
+                    {heldReference(item) && (
+                      <div style={contextStyle}>{heldReference(item)}</div>
+                    )}
                     {item.replaces && (
                       <div style={contextStyle}>
                         Ersetzt bei Veröffentlichung: {heldLabel(item.replaces)}

@@ -64,6 +64,16 @@ function fmtNum(n: number): string {
 // sr-only sentence (never colour alone). A marker with no lab interval renders "keine Skala" — no
 // dot, never a guessed position (doctrine: never read as normal/stable).
 function LageCell({ marker }: { marker: MarkerView }) {
+  // No position is stated for a value nobody has reviewed.
+  if (marker.reviewRequired)
+    return (
+      <span className="pos-bar-noscale">
+        <span aria-hidden="true">—</span>
+        <span className="sr-only">
+          keine Lage: Der Wert ist nicht veröffentlicht
+        </span>
+      </span>
+    );
   const l = lageLabel(marker.lagePosition);
   const bar = marker.lageBar;
   const intervalText =
@@ -123,6 +133,9 @@ const REF_FILTERS: { key: RefFilter; label: string }[] = [
 ];
 
 function matchesRefFilter(marker: MarkerView, filter: RefFilter): boolean {
+  // A value that is not published has no position: it is listed under "Alle" only — not
+  // under "Ohne Referenz", which it may well have.
+  if (marker.reviewRequired) return filter === "all";
   if (filter === "outside")
     return marker.lagePosition === "above" || marker.lagePosition === "below";
   if (filter === "no_ref")
@@ -298,7 +311,9 @@ export function ReviewContent({
     selectedDomain != null ? (view.domains[selectedDomain] ?? null) : null;
   // Beobachtungsnachweis shows the selected domain's own biomarkers, or all when none is selected.
   const primaryMarkers = selected
-    ? view.markers.filter((m) => selected.markerCodes.includes(m.code))
+    ? view.markers.filter(
+        (m) => m.identity != null && selected.markerCodes.includes(m.identity),
+      )
     : view.markers;
   const visiblePrimary = primaryMarkers.filter((m) =>
     matchesRefFilter(m, refFilter),
@@ -310,7 +325,7 @@ export function ReviewContent({
     ? view.markers.filter(
         (m) =>
           m.secondaryDomains.includes(selected.domainAxis) &&
-          !selected.markerCodes.includes(m.code),
+          !(m.identity != null && selected.markerCodes.includes(m.identity)),
       )
     : [];
 
@@ -725,7 +740,13 @@ export function ReviewContent({
                   <td>
                     <span className="marker-name">{m.name}</span>
                   </td>
-                  <td className="num">{m.current}</td>
+                  <td
+                    className={
+                      m.sourceNote?.kind === "text" ? "source-text" : "num"
+                    }
+                  >
+                    {m.current}
+                  </td>
                   <td>
                     <LageCell marker={m} />
                   </td>
@@ -735,11 +756,19 @@ export function ReviewContent({
                   <td>{m.reference}</td>
                   <td className="source">
                     {m.code}
-                    {m.reviewRequired ? ` · ${m.status}` : ""}
+                    {m.statusLabel && (
+                      <span className="marker-status">{m.statusLabel}</span>
+                    )}
                     {m.superseded ? " · durch Laborkorrektur ersetzt" : ""}
                     {m.inputReplaced
                       ? " · Eingangswert durch Laborkorrektur ersetzt"
                       : ""}
+                    {m.sourceNote && (
+                      <span className="marker-meta" title={m.sourceNote.full}>
+                        {m.sourceNote.short}
+                        <span className="sr-only"> — {m.sourceNote.full}</span>
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -803,7 +832,13 @@ export function ReviewContent({
                         <span className="marker-name">{m.name}</span>
                       </td>
                       <td>{m.primaryDomainLabel ?? "—"}</td>
-                      <td className="num">{m.current}</td>
+                      <td
+                        className={
+                          m.sourceNote?.kind === "text" ? "source-text" : "num"
+                        }
+                      >
+                        {m.current}
+                      </td>
                       <td>
                         <LageCell marker={m} />
                       </td>
@@ -813,11 +848,25 @@ export function ReviewContent({
                       <td>{m.reference}</td>
                       <td className="source">
                         {m.code}
-                        {m.reviewRequired ? ` · ${m.status}` : ""}
+                        {m.statusLabel && (
+                          <span className="marker-status">{m.statusLabel}</span>
+                        )}
                         {m.superseded ? " · durch Laborkorrektur ersetzt" : ""}
                         {m.inputReplaced
                           ? " · Eingangswert durch Laborkorrektur ersetzt"
                           : ""}
+                        {m.sourceNote && (
+                          <span
+                            className="marker-meta"
+                            title={m.sourceNote.full}
+                          >
+                            {m.sourceNote.short}
+                            <span className="sr-only">
+                              {" "}
+                              — {m.sourceNote.full}
+                            </span>
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}

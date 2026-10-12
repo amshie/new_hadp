@@ -37,6 +37,12 @@ def _d(x: str) -> Decimal:
         ("1.0", None, "3.0", "not_evaluable"),
         ("1.0", "3.9", None, "below"),
         ("5.0", "3.9", None, "not_evaluable"),
+        # the lower bound above the upper: not an interval, wherever the value lies
+        ("0.9", "1.2", "0.6", "not_evaluable"),
+        ("0.1", "1.2", "0.6", "not_evaluable"),
+        ("5.0", "1.2", "0.6", "not_evaluable"),
+        # equal bounds are an interval of one point
+        ("3.0", "3.0", "3.0", "within"),
     ],
 )
 def test_position(value: str | None, low: str | None, high: str | None, expected: str) -> None:

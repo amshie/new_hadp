@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import func, select
@@ -31,6 +32,7 @@ from hadp_api.modules.kpi.models import (
     KpiExternalCode,
     KpiSecondaryDomain,
 )
+from hadp_api.modules.kpi.terms import CatalogTerm
 
 
 def _aliases_for(rows: list[dict[str, object]]) -> dict[str, str]:
@@ -248,3 +250,46 @@ def resolve_comparison_policies(db: Session, kpi_codes: set[str]) -> dict[str, K
     ).all():
         out[code] = policy or policy_for_measurement_class(measurement_class)
     return out
+
+
+@dataclass(frozen=True)
+class CatalogTerminology:
+    """A snapshot of the catalog as the import's terminology (ADR-0004 §13): exact global
+    alias -> active KPI. Loaded once per import; resolving is a dictionary lookup. It says
+    which KPI a name may mean; it does not say that a value may be published unread."""
+
+    _terms: dict[str, CatalogTerm]
+
+    def resolve(self, source_name: str) -> CatalogTerm | None:
+        return self._terms.get(source_name.strip().lower())
+
+
+def load_terminology(db: Session) -> CatalogTerminology:
+    """The terminology an import resolves against: every global alias of an ACTIVE KPI.
+
+    A deprecated or blocked KPI resolves to nothing (its values wait for a human). Aliases in a
+    source-system namespace are not part of the global terminology.
+    """
+    rows = db.execute(
+        select(KpiAlias.alias_normalized, KpiCatalog.code, KpiCatalog.canonical_unit_ucum)
+        .join(KpiCatalog, KpiCatalog.code == KpiAlias.kpi_code)
+        .where(KpiAlias.source_system == "", KpiCatalog.status == KpiStatus.ACTIVE)
+    ).all()
+    return CatalogTerminology(
+        {alias: CatalogTerm(kpi_code=code, canonical_unit=unit) for alias, code, unit in rows}
+    )
+
+
+def seed_terminology() -> CatalogTerminology:
+    """The same terminology built from the catalog's seed data, without a database — what a
+    freshly seeded catalog resolves. For code that normalizes outside a request (tests)."""
+    rows = kpi_rows()
+    by_code = {str(row["code"]): row for row in rows}
+    terms: dict[str, CatalogTerm] = {}
+    for alias, code in _aliases_for(rows).items():
+        row = by_code[code]
+        unit = row["canonical_unit_ucum"]
+        terms[alias] = CatalogTerm(
+            kpi_code=code, canonical_unit=unit if isinstance(unit, str) else None
+        )
+    return CatalogTerminology(terms)

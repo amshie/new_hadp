@@ -66,9 +66,48 @@ def _draft(client, pid: str) -> dict:  # type: ignore[no-untyped-def]
 def test_an_analyte_the_terminology_does_not_know_is_stated_as_the_source_wrote_it(
     client, admin_session
 ) -> None:  # type: ignore[no-untyped-def]
-    """Ferritin is not in the terminology: no normalized value exists. The source still wrote
-    85 ng/mL — the statement says that, and the evidence under it shows it."""
+    """The catalog has no zinc: no normalized value exists. The source still wrote 85 µg/dL
+    with its reference interval — the statement says both, and the position against that
+    interval, all in the source's unit; the evidence under it shows what the source wrote."""
     _clinician(client, admin_session, "unmapped")
+    pid = _import(
+        client,
+        [
+            {
+                "original_name": "Zink",
+                "original_value": "65",
+                "original_unit": "µg/dL",
+                "reference_low": "70",
+                "reference_high": "120",
+                **DAY,
+            }
+        ],
+        publish_review=True,
+    )
+
+    report = _draft(client, pid)
+
+    assert (report["narrative_provider"], report["narrative_version"]) == (
+        "deterministic",
+        "narr-2",
+    )
+    (statement,) = report["statements"]
+    assert statement["text"] == (
+        "Zink am 10.06.2025: 65 µg/dL. Referenzintervall der Quelle: 70 bis 120 µg/dL. "
+        "Der Wert liegt unter dem Referenzintervall der Quelle."
+    )
+    (cited,) = statement["evidence"]
+    assert (cited["original_value"], cited["original_unit"]) == ("65", "µg/dL")
+    assert cited["value"] is None  # no normalized form — and the view does not pretend one
+
+
+def test_a_catalog_kpi_the_import_does_not_act_on_is_stated_as_written(
+    client, admin_session
+) -> None:  # type: ignore[no-untyped-def]
+    """The catalog knows ferritin; the import acts on six names, and this is not one of them.
+    The value goes to review, and once published it is stated as written — nothing
+    "(umgerechnet)"."""
+    _clinician(client, admin_session, "unit")
     pid = _import(
         client,
         [
@@ -84,17 +123,11 @@ def test_an_analyte_the_terminology_does_not_know_is_stated_as_the_source_wrote_
         publish_review=True,
     )
 
-    report = _draft(client, pid)
+    (statement,) = _draft(client, pid)["statements"]
 
-    assert (report["narrative_provider"], report["narrative_version"]) == (
-        "deterministic",
-        "narr-2",
+    assert statement["text"] == (
+        "Ferritin am 10.06.2025: 85 ng/mL. Referenzintervall der Quelle: 30 bis 400 ng/mL."
     )
-    (statement,) = report["statements"]
-    assert statement["text"] == "Ferritin am 10.06.2025: 85 ng/mL."
-    (cited,) = statement["evidence"]
-    assert (cited["original_value"], cited["original_unit"]) == ("85", "ng/mL")
-    assert cited["value"] is None  # no normalized form — and the view does not pretend one
 
 
 def test_a_converted_unit_shows_the_source_value_and_names_the_conversion(
@@ -148,8 +181,9 @@ def test_the_same_unit_in_another_spelling_is_not_a_conversion(client, admin_ses
 
 
 def test_an_unreadable_bound_is_not_turned_into_a_one_sided_interval(client, admin_session) -> None:  # type: ignore[no-untyped-def]
-    """The source gave two bounds; one could not be read. The statement names the bound the
-    platform holds and claims neither an interval "up to 3" nor a position against it."""
+    """The source gave two bounds; one could not be read. The statement restates no interval
+    at all — not "up to 3", and not "upper bound 3" either: the source gave neither — and
+    states no position."""
     _clinician(client, admin_session, "bound")
     pid = _import(
         client,
@@ -161,17 +195,99 @@ def test_an_unreadable_bound_is_not_turned_into_a_one_sided_interval(client, adm
                 "reference_low": "0.5*",
                 "reference_high": "3.0",
                 **DAY,
-            }
+            },
+            # A three-decimal format: of the bounds only the first reads one way.
+            {
+                "original_name": "TSH",
+                "original_value": "0.950",
+                "original_unit": "mU/l",
+                "reference_low": "0.270",
+                "reference_high": "4.200",
+                **DAY,
+            },
         ],
         publish_review=True,
+    )
+
+    texts = {statement["text"] for statement in _draft(client, pid)["statements"]}
+
+    assert texts == {
+        "LDL Cholesterol am 10.06.2025: 0.2 mmol/L.",
+        "TSH am 10.06.2025: 0.950 mU/l.",
+    }
+
+
+def test_a_bound_the_source_does_not_give_is_said_as_it_is(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """A source that gives one bound gave a one-sided interval: that bound is named."""
+    _clinician(client, admin_session, "one-sided")
+    pid = _import(
+        client,
+        [
+            {
+                "original_name": "LDL Cholesterol",
+                "original_value": "3.4",
+                "original_unit": "mmol/L",
+                "reference_high": "3.0",
+                **DAY,
+            }
+        ],
     )
 
     (statement,) = _draft(client, pid)["statements"]
 
     assert statement["text"] == (
-        "LDL Cholesterol am 10.06.2025: 0.2 mmol/L. "
-        "Referenzintervall der Quelle: obere Grenze 3 mmol/L."
+        "LDL Cholesterol am 10.06.2025: 3.4 mmol/L. "
+        "Referenzintervall der Quelle: obere Grenze 3 mmol/L. "
+        "Der Wert liegt über dem Referenzintervall der Quelle."
     )
+
+
+def test_a_number_or_an_interval_that_reads_two_ways_is_quoted_and_not_judged(
+    client, admin_session
+) -> None:  # type: ignore[no-untyped-def]
+    """ "1.250 µg/l" against 30 to 400 is one and a quarter — or twelve hundred and fifty. The
+    statement repeats what the source wrote and says nothing about where the value lies. A
+    bound that reads two ways ("4.000 – 10.000") is not restated, and neither is a pair with
+    the lower bound above the upper: no interval, no position."""
+    _clinician(client, admin_session, "two-ways")
+    pid = _import(
+        client,
+        [
+            {
+                "original_name": "Ferritin",
+                "original_value": "1.250",
+                "original_unit": "µg/l",
+                "reference_low": "30",
+                "reference_high": "400",
+                **DAY,
+            },
+            {
+                "original_name": "Leukozyten",
+                "original_value": "950",
+                "original_unit": "/µl",
+                "reference_low": "4.000",
+                "reference_high": "10.000",
+                **DAY,
+            },
+            {
+                "original_name": "Cystatin C",
+                "original_value": "0.9",
+                "original_unit": "mg/l",
+                "reference_low": "1.2",
+                "reference_high": "0.6",
+                **DAY,
+            },
+        ],
+        publish_review=True,
+    )
+
+    texts = {statement["text"] for statement in _draft(client, pid)["statements"]}
+
+    assert texts == {
+        "Ferritin am 10.06.2025: 1.250 µg/l. Referenzintervall der Quelle: 30 bis 400 µg/l.",
+        "Leukozyten am 10.06.2025: 950 /µl.",
+        "Cystatin C am 10.06.2025: 0.9 mg/l.",
+    }
 
 
 def test_sampling_times_use_the_configured_zone(

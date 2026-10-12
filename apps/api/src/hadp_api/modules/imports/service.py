@@ -12,6 +12,7 @@ and sampling time is held for review.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -33,11 +34,13 @@ from hadp_api.modules.enums import (
 from hadp_api.modules.imports import matching
 from hadp_api.modules.imports import normalize as normalize_mod
 from hadp_api.modules.imports.models import ImportJob, ImportRow, ReviewItem
-from hadp_api.modules.kpi.service import resolve_kpi_code
+from hadp_api.modules.kpi.service import load_terminology
 from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.observations.models import Observation
 from hadp_api.modules.patients.models import Patient
 from hadp_api.modules.reports import service as reports_service
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -103,8 +106,24 @@ def ingest_values(
         zone=ZoneInfo(get_settings().lab_local_timezone),
     )
 
+    terminology = load_terminology(db)
+    unconfirmed = normalize_mod.unconfirmed_names(terminology)
+    if unconfirmed:
+        # A catalog that was never seeded, or that no longer describes these names as the
+        # import does: their values wait for review instead of being normalized. Nothing else
+        # would show it — the queue only says "not mapped". (The names are the import's own
+        # fixed list, not source text.)
+        logger.error(
+            "KPI catalog does not confirm %d of the import's %d automatic names (%s); "
+            "their values are held for review",
+            len(unconfirmed),
+            len(normalize_mod.automatic_names()),
+            ", ".join(unconfirmed),
+        )
+
     for index, row in enumerate(rows):
         norm = normalize_mod.normalize(
+            terminology=terminology,
             original_name=row.original_name,
             original_value=row.original_value,
             original_unit=row.original_unit,
@@ -128,10 +147,10 @@ def ingest_values(
             ),
             metric_code=norm.metric_code,
             code_system=norm.code_system,
-            kpi_code=resolve_kpi_code(db, row.original_name, norm.metric_code),
+            kpi_code=norm.kpi_code,
             mapping_confidence=norm.mapping_confidence,
             value_type=ValueType.NUMERIC,
-            numeric_value=norm.normalized_value,
+            numeric_value=norm.numeric_value,
             normalized_value=norm.normalized_value,
             normalized_unit=norm.normalized_unit,
             reference_low=norm.reference_low,
@@ -287,6 +306,14 @@ def list_open_review_items(db: Session, tenant_id: uuid.UUID) -> list[dict[str, 
                 "original_name": obs.original_name,
                 "original_value": obs.original_value,
                 "original_unit": obs.original_unit,
+                # What publishing this value puts into effect beside it: the reference bounds
+                # the platform holds, in the unit it holds the value in.
+                "reference_low": obs_service.plain(obs.reference_low),
+                "reference_high": obs_service.plain(obs.reference_high),
+                "reference_unit": obs_service.held_value(obs)[1],
+                "reference_converted": normalize_mod.unit_was_converted(
+                    obs.original_unit, obs.normalized_unit
+                ),
                 "observed_at": obs.observed_at,
                 "observed_at_is_date_only": obs.observed_at_is_date_only,
                 "created_at": item.created_at,

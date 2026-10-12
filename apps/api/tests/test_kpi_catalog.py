@@ -17,8 +17,8 @@ from hadp_api.modules.enums import (
     KpiStatus,
 )
 from hadp_api.modules.kpi.catalog_data import CATALOG_VERSION, kpi_rows
-from hadp_api.modules.kpi.models import KpiCatalog
-from hadp_api.modules.kpi.service import resolve_kpi_code
+from hadp_api.modules.kpi.models import KpiAlias, KpiCatalog
+from hadp_api.modules.kpi.service import load_terminology, resolve_kpi_code, seed_terminology
 
 _BLOCKED = {
     "unified_healthspan_score",
@@ -88,6 +88,49 @@ def test_resolve_kpi_code_maps_the_seed_markers(admin_session: Session) -> None:
     # A verified LOINC resolves even without a name alias; an unknown term does not guess.
     assert resolve_kpi_code(admin_session, "unknown marker", "30522-7") == "immune.hs_crp"
     assert resolve_kpi_code(admin_session, "totally unknown marker") is None
+
+
+def test_the_import_terminology_is_the_seeded_catalog(admin_session: Session) -> None:
+    """What an import resolves against (loaded from the tables) is exactly what the seed data
+    says — the normalizer's unit tests run against the latter."""
+    loaded = load_terminology(admin_session)
+    assert loaded == seed_terminology()
+    term = loaded.resolve("  LDL Cholesterol ")
+    assert term is not None
+    assert (term.kpi_code, term.canonical_unit) == ("cardio.ldl_c", "mmol/L")
+    grip = loaded.resolve("Griffstärke")
+    assert grip is not None and grip.kpi_code == "msk.grip_strength"
+    assert loaded.resolve("totally unknown marker") is None
+
+
+def test_a_kpi_that_is_not_active_resolves_to_nothing(admin_session: Session) -> None:
+    """A deprecated or blocked KPI must not be mapped by an import: its values wait for a human."""
+    try:
+        admin_session.execute(
+            text("UPDATE kpi_catalog SET status = 'deprecated' WHERE code = 'cardio.ldl_c'")
+        )
+        loaded = load_terminology(admin_session)
+        assert loaded.resolve("LDL Cholesterol") is None
+        assert loaded.resolve("HDL cholesterol") is not None
+    finally:
+        admin_session.rollback()
+
+
+def test_an_alias_of_one_source_system_is_not_part_of_the_global_terminology(
+    admin_session: Session,
+) -> None:
+    """A name one laboratory uses for a KPI says nothing about what another source means by
+    it. Only global aliases resolve."""
+    try:
+        admin_session.add(
+            KpiAlias(kpi_code="immune.ferritin", alias_normalized="fer-x", source_system="lab-x")
+        )
+        admin_session.flush()
+        loaded = load_terminology(admin_session)
+        assert loaded.resolve("FER-X") is None
+        assert loaded.resolve("Ferritin") is not None
+    finally:
+        admin_session.rollback()
 
 
 def _catalog_row(**overrides: object) -> KpiCatalog:

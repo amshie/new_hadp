@@ -281,7 +281,9 @@ svg.icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-w
 .marker-table tbody tr:last-child td { border-bottom: 0; }
 .marker-table .marker-name { color: var(--ink); font-weight: 750; white-space: normal; }
 .marker-table .marker-meta { display: block; margin-top: 2px; color: var(--muted); font-size: 9px; font-weight: 500; }
-.marker-table .source { max-width: 150px; overflow: hidden; color: var(--brand-700); text-overflow: ellipsis; }
+.marker-table .source { max-width: 170px; color: var(--brand-700); white-space: normal; overflow-wrap: anywhere; }
+.marker-table .marker-status { display: block; margin-top: 2px; color: var(--ink); font-size: 10px; font-weight: 700; }
+.marker-table .source-text { max-width: 220px; white-space: normal; overflow-wrap: anywhere; font-family: var(--font-mono); }
 
 /* Lage zum Referenzintervall: a direction pill + a cosmetic position bar. The pill (glyph + word +
    sr-only sentence) carries all meaning; the bar is decorative and aria-hidden. Calm, non-alarm

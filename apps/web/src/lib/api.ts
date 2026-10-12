@@ -78,6 +78,7 @@ export interface EvidenceObs {
   observed_at: string;
   review_status: string;
   metric_code: string | null;
+  kpi_code?: string | null; // the catalog identity of the cited value (source code = fallback)
   superseded?: boolean; // a published laboratory correction has replaced the cited value
 }
 export interface TriStateCellView {

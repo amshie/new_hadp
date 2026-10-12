@@ -286,12 +286,14 @@ def _cell_evidence(
         if obs is None or oid in seen:
             continue
         seen.add(oid)
+        # The number the platform holds and its unit; the bounds are in that unit.
+        value, unit = obs_service.held_value(obs)
         has_ref = obs.reference_low is not None or obs.reference_high is not None
         reference = None
         if has_ref:
-            lo = obs.reference_low if obs.reference_low is not None else "—"
-            hi = obs.reference_high if obs.reference_high is not None else "—"
-            reference = f"{lo}–{hi} {obs.normalized_unit or ''}".strip()
+            lo = obs_service.plain(obs.reference_low) or "—"
+            hi = obs_service.plain(obs.reference_high) or "—"
+            reference = f"{lo}–{hi} {unit or ''}".strip()
         observed = (
             obs.observed_at.astimezone(UTC).date().isoformat()
             if obs.observed_at_is_date_only
@@ -302,12 +304,15 @@ def _cell_evidence(
                 # The id lets the authoring UI prefill correction-run evidence refs.
                 "observation_id": str(obs.id),
                 "original_name": obs.original_name,
-                "value": str(obs.normalized_value) if obs.normalized_value is not None else None,
-                "unit": obs.normalized_unit,
+                "value": obs_service.plain(value),
+                "unit": unit,
                 "reference": reference,
                 "observed_at": observed,
                 "review_status": obs.review_status.value,
                 "metric_code": obs.metric_code,
+                # The canonical identity (the source code is a fallback): what ties a cited
+                # value to the same analyte on the timeline.
+                "kpi_code": obs.kpi_code,
                 # A published laboratory correction has replaced this value since the run
                 # cited it. The run is a preserved record; the marker tells the reader.
                 "superseded": obs.id in replaced,

@@ -3,7 +3,7 @@
 The clinic is the controller and answers a data subject's request; this builds the package it
 hands over: ONE self-describing ZIP for ONE patient, generated on request and never stored
 (its record is the audit event, with the package's checksum). Format `hadp-patient-export`,
-version 1 — described in docs/product/DATA_EXPORT.md.
+version 2 — described in docs/product/DATA_EXPORT.md.
 
 The scope is deliberately the data that is the patient's own, or has already been released to
 them: profile, consent events, observations (source and normalized representation, provenance
@@ -42,6 +42,7 @@ import uuid
 import zipfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -60,7 +61,10 @@ from hadp_api.modules.reports import service as reports_service
 from hadp_api.modules.tenancy.models import Tenant
 
 FORMAT_NAME = "hadp-patient-export"
-FORMAT_VERSION = "1"
+# 2: `reference_low` / `reference_high` are also given for a value that is not normalized, in
+# the source's unit (version 1 gave them for normalized values only), and decimals are written
+# in plain notation (version 1 could write "0E-7").
+FORMAT_VERSION = "2"
 # The package is built in memory (about twice the size of the files while it is assembled):
 # beyond this the original files do not fit one request.
 MAX_DOCUMENT_BYTES = 100 * 1024 * 1024
@@ -134,8 +138,9 @@ def _instant(value: datetime | None) -> str | None:
     return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
-def _decimal(value: Any) -> str | None:
-    return None if value is None else str(value)
+def _decimal(value: Decimal | None) -> str | None:
+    # Plain notation: str() writes a small magnitude with an exponent ("0E-7").
+    return None if value is None else format(value, "f")
 
 
 _UNSAFE = re.compile(r"[^A-Za-z0-9._ \-äöüÄÖÜß]")
