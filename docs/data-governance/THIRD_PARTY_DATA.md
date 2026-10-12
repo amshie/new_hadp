@@ -77,9 +77,9 @@ It does **not** apply to:
 No third-party or research datasets are currently in use. The platform operates on
 synthetic data only.
 
-| Source        | Version | Purpose | License / DUA | Access owner | Permitted use | Retention | Redistribution |
-| ------------- | ------- | ------- | ------------- | ------------ | ------------- | --------- | -------------- |
-| _none in use_ | —       | —       | —             | —            | —             | —         | —              |
+| Source                                                                                                                                                          | Version                            | Purpose                                                                                                                              | License / DUA                                                                           | Access owner | Permitted use            | Retention                                                       | Redistribution                                                                               |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ------------ | ------------------------ | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| KBV LDT 3 test files — `LDT3.2.20_Testdateien LDT-KBV.zip` (9 `.ldt` files, fictional patients), from `update.kbv.de/ita-update/Labor/Labordatenkommunikation/` | LDT 3.2.20 (file dated 2026-09-02) | Read once, locally, to check the LDT 3 reader against the publisher's own example files (2026-10-12). **Not** used as test fixtures. | **Not verified** — no licence text was found with the download; treated as "read only". | CTO          | Local verification only. | Not retained: deleted from the working machine after the check. | **None.** Not committed, not redistributed; the repository's LDT fixtures are self-authored. |
 
 When a dataset is adopted, add a row capturing every column above, assign an access
 owner, and record the license/DUA reference. Restricted entries must also name the

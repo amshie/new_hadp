@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import uuid
 
 from sqlalchemy import select
@@ -26,6 +27,11 @@ def _looks_like_text(data: bytes) -> bool:
         return False
 
 
+def _looks_like_xdt(data: bytes) -> bool:
+    """The xDT/LDT line format: a 3-digit length, then the record-type field 8000."""
+    return re.match(rb"\d{3}8000", data) is not None
+
+
 def store_source_document(
     db: Session,
     *,
@@ -41,14 +47,17 @@ def store_source_document(
     Returns (document, created). Idempotent: identical content within a tenant returns the
     existing document without re-storing (CLAUDE.md ingestion rules).
     """
-    if content_type not in ALLOWED_CONTENT_TYPES:
+    # Content inspection decides for the LDT line format: browsers send such files without a
+    # useful content type, and they use the character set the file itself declares.
+    is_xdt = _looks_like_xdt(data)
+    if content_type not in ALLOWED_CONTENT_TYPES and not is_xdt:
         raise ValidationFailed(f"unsupported content type: {content_type}")
     if len(data) == 0:
         raise ValidationFailed("empty file")
     if len(data) > MAX_BYTES:
         raise ValidationFailed("file too large")
     # Content inspection (not extension-only): text formats must actually be UTF-8 text.
-    if content_type in {"text/csv", "text/plain"} and not _looks_like_text(data):
+    if content_type in {"text/csv", "text/plain"} and not is_xdt and not _looks_like_text(data):
         raise ValidationFailed("declared text content is not valid UTF-8")
 
     checksum = hashlib.sha256(data).hexdigest()

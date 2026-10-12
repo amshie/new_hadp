@@ -1323,6 +1323,60 @@
         }
       }
     },
+    "/api/v1/patients/{patient_id}/documents/{document_id}/import": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Import Document",
+        "description": "Read a stored structured laboratory file (CSV or LDT) into the import pipeline.\n\nIdempotent per document: a repeat returns the first import (200) and writes nothing.",
+        "operationId": "import_document_api_v1_patients__patient_id__documents__document_id__import_post",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          },
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentImportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/review-items": {
       "get": {
         "tags": [
@@ -2228,6 +2282,50 @@
           "email"
         ],
         "title": "DevLoginRequest"
+      },
+      "DocumentImportOut": {
+        "properties": {
+          "import_job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Import Job Id"
+          },
+          "parser_name": {
+            "type": "string",
+            "title": "Parser Name"
+          },
+          "parser_version": {
+            "type": "string",
+            "title": "Parser Version"
+          },
+          "published_count": {
+            "type": "integer",
+            "title": "Published Count"
+          },
+          "review_count": {
+            "type": "integer",
+            "title": "Review Count"
+          },
+          "not_imported_count": {
+            "type": "integer",
+            "title": "Not Imported Count"
+          },
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          }
+        },
+        "type": "object",
+        "required": [
+          "import_job_id",
+          "parser_name",
+          "parser_version",
+          "published_count",
+          "review_count",
+          "not_imported_count",
+          "created"
+        ],
+        "title": "DocumentImportOut"
       },
       "DocumentOut": {
         "properties": {

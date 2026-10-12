@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Response, UploadFile
 from pydantic import BaseModel, Field
 
 from hadp_api.auth.authz import Action
@@ -14,6 +14,7 @@ from hadp_api.modules.audit.service import record_audit
 from hadp_api.modules.documents.service import store_source_document
 from hadp_api.modules.enums import ReviewDecision
 from hadp_api.modules.imports import service as imports_service
+from hadp_api.modules.imports.document_import import import_source_document
 from hadp_api.modules.imports.service import ValueInput, ingest_values
 from hadp_api.modules.patients import service as patients_service
 from hadp_api.security.rate_limit import check_rate_limit
@@ -144,6 +145,76 @@ def run_import(
         review_count=result.review_count,
         observation_ids=result.observation_ids,
         review_item_ids=result.review_item_ids,
+    )
+
+
+class DocumentImportOut(BaseModel):
+    import_job_id: uuid.UUID
+    parser_name: str
+    parser_version: str
+    published_count: int
+    review_count: int
+    not_imported_count: int
+    created: bool
+
+
+@router.post(
+    "/patients/{patient_id}/documents/{document_id}/import",
+    response_model=DocumentImportOut,
+    status_code=201,
+)
+def import_document(
+    patient_id: uuid.UUID,
+    document_id: uuid.UUID,
+    response: Response,
+    ctx: TenantContext = Depends(require(Action.IMPORT_RUN)),
+) -> DocumentImportOut:
+    """Read a stored structured laboratory file (CSV or LDT) into the import pipeline.
+
+    Idempotent per document: a repeat returns the first import (200) and writes nothing.
+    """
+    check_rate_limit(
+        action="document.import",
+        key=str(ctx.user.id),
+        limit=30,
+        window_seconds=60,
+        correlation_id=ctx.correlation_id,
+    )
+    patient = patients_service.get_patient(ctx.db, ctx.tenant_id, patient_id)
+    result = import_source_document(
+        ctx.db,
+        tenant_id=ctx.tenant_id,
+        patient=patient,
+        document_id=document_id,
+        created_by_user_id=ctx.user.id,
+    )
+    if result.created:
+        record_audit(
+            ctx.db,
+            action="import.run",
+            actor_user_id=ctx.user.id,
+            tenant_id=ctx.tenant_id,
+            target_type="import_job",
+            target_id=result.import_job_id,
+            correlation_id=ctx.correlation_id,
+            detail={
+                "published": result.published_count,
+                "review": result.review_count,
+                "not_imported": result.not_imported_count,
+                "parser": result.parser_name,
+                "parser_version": result.parser_version,
+            },
+        )
+    else:
+        response.status_code = 200
+    return DocumentImportOut(
+        import_job_id=result.import_job_id,
+        parser_name=result.parser_name,
+        parser_version=result.parser_version,
+        published_count=result.published_count,
+        review_count=result.review_count,
+        not_imported_count=result.not_imported_count,
+        created=result.created,
     )
 
 
