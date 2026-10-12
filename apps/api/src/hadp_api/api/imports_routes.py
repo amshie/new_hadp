@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from hadp_api.auth.authz import Action
 from hadp_api.auth.dependencies import TenantContext, require
-from hadp_api.errors import Conflict, ValidationFailed
+from hadp_api.errors import Conflict, NotFound, ValidationFailed
 from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.documents.service import list_source_documents, store_source_document
 from hadp_api.modules.enums import ReviewDecision, ReviewStatus
@@ -119,6 +119,12 @@ def run_import(
     ctx: TenantContext = Depends(require(Action.IMPORT_RUN)),
 ) -> ImportResultOut:
     patients_service.get_patient(ctx.db, ctx.tenant_id, patient_id)
+    # A value may cite the stored file it was typed from — only a file of THIS patient. An id
+    # from another patient or clinic is not a source of this record (and is invisible: 404).
+    if body.source_document_id is not None and body.source_document_id not in {
+        d.id for d in list_source_documents(ctx.db, tenant_id=ctx.tenant_id, patient_id=patient_id)
+    }:
+        raise NotFound("source document not found")
     rows = [
         ValueInput(
             original_name=v.original_name,

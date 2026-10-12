@@ -61,6 +61,19 @@ def current_consents(
     }
 
 
+def list_consent_events(
+    db: Session, *, tenant_id: uuid.UUID, patient_id: uuid.UUID
+) -> list[ConsentEvent]:
+    """Every consent event of the patient, oldest first (the append-only stream as recorded)."""
+    return list(
+        db.execute(
+            select(ConsentEvent)
+            .where(ConsentEvent.tenant_id == tenant_id, ConsentEvent.patient_id == patient_id)
+            .order_by(ConsentEvent.recorded_at, ConsentEvent.created_at)
+        ).scalars()
+    )
+
+
 def record_consent(
     db: Session,
     *,

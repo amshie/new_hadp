@@ -7,11 +7,13 @@ import {
   getReport,
   interpretation,
   listConsents,
+  listDataExports,
   listDocuments,
   me,
   timeline,
   worklist,
   type ConsentState,
+  type DataExport,
   type ReportView,
   type SourceDocument,
 } from "@/lib/api";
@@ -86,6 +88,12 @@ export default async function PatientDetailPage({
     loadView(id),
     me().catch(() => null),
   ]);
+  // The export list is the owner's (the API refuses every other role), and a tombstoned
+  // record has none. A failed read must not take the patient page down with it.
+  const dataExports: DataExport[] | null =
+    session?.role === "owner" && !view.erased
+      ? await listDataExports(id).catch(() => null)
+      : null;
   return (
     <VitaShell
       nav="patienten"
@@ -97,6 +105,7 @@ export default async function PatientDetailPage({
         view={view}
         documents={documents}
         consents={consents}
+        dataExports={dataExports}
         sessionRole={session?.role ?? null}
       />
     </VitaShell>

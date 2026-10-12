@@ -1128,6 +1128,94 @@
         }
       }
     },
+    "/api/v1/patients/{patient_id}/data-export": {
+      "post": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "Export Patient Data",
+        "description": "Generate and download the patient's data package (a ZIP; see docs/product/DATA_EXPORT.md).",
+        "operationId": "export_patient_data_api_v1_patients__patient_id__data_export_post",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The export package",
+            "content": {
+              "application/zip": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/patients/{patient_id}/data-exports": {
+      "get": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "List Patient Data Exports",
+        "description": "Exports generated for this patient so far, newest first (read from the audit trail).",
+        "operationId": "list_patient_data_exports_api_v1_patients__patient_id__data_exports_get",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DataExportOut"
+                  },
+                  "title": "Response List Patient Data Exports Api V1 Patients  Patient Id  Data Exports Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/worklist": {
       "get": {
         "tags": [
@@ -2319,6 +2407,94 @@
           "display_name"
         ],
         "title": "CreatePatientRequest"
+      },
+      "DataExportOut": {
+        "properties": {
+          "exported_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Exported At"
+          },
+          "exported_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exported By User Id"
+          },
+          "byte_size": {
+            "type": "integer",
+            "title": "Byte Size"
+          },
+          "checksum_sha256": {
+            "type": "string",
+            "title": "Checksum Sha256"
+          },
+          "observations": {
+            "type": "integer",
+            "title": "Observations"
+          },
+          "computed_values": {
+            "type": "integer",
+            "title": "Computed Values"
+          },
+          "consent_events": {
+            "type": "integer",
+            "title": "Consent Events"
+          },
+          "source_documents": {
+            "type": "integer",
+            "title": "Source Documents"
+          },
+          "source_files": {
+            "type": "integer",
+            "title": "Source Files"
+          },
+          "source_files_missing": {
+            "type": "integer",
+            "title": "Source Files Missing"
+          },
+          "source_files_changed": {
+            "type": "integer",
+            "title": "Source Files Changed"
+          },
+          "source_documents_not_imported": {
+            "type": "integer",
+            "title": "Source Documents Not Imported"
+          },
+          "released_report_versions": {
+            "type": "integer",
+            "title": "Released Report Versions"
+          },
+          "withdrawn_report_versions": {
+            "type": "integer",
+            "title": "Withdrawn Report Versions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exported_at",
+          "exported_by_user_id",
+          "byte_size",
+          "checksum_sha256",
+          "observations",
+          "computed_values",
+          "consent_events",
+          "source_documents",
+          "source_files",
+          "source_files_missing",
+          "source_files_changed",
+          "source_documents_not_imported",
+          "released_report_versions",
+          "withdrawn_report_versions"
+        ],
+        "title": "DataExportOut",
+        "description": "One generated export, as its audit event recorded it (no content is kept)."
       },
       "DeletionReasonCategory": {
         "type": "string",

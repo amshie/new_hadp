@@ -1,4 +1,8 @@
-"""Patient-erasure request routes (tenant-scoped, RLS enforced, audited).
+"""Privacy routes: patient-erasure requests and the patient data export (tenant-scoped, RLS
+enforced, audited).
+
+Data export (GDPR Art. 15/20): an owner generates one package for one patient and downloads
+it; nothing is stored. The audit event is its record (counts, size, checksum — never content).
 
 The two-person erasure gate (docs/notes/0012): an owner opens a request, a medical director
 approves or rejects it, the requester may cancel a pending one, and an owner or medical
@@ -14,20 +18,26 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 
 from hadp_api.auth.authz import Action
 from hadp_api.auth.dependencies import TenantContext, require
 from hadp_api.config import get_settings
+from hadp_api.errors import Conflict, NotFound, ServiceUnavailable
+from hadp_api.modules.audit.models import AuditEvent
 from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.documents.blob import get_blob_store
 from hadp_api.modules.enums import DeletionReasonCategory
 from hadp_api.modules.patients.models import Patient
+from hadp_api.modules.privacy import export as export_service
 from hadp_api.modules.privacy import service as privacy_service
 from hadp_api.modules.privacy.models import DeletionRequest
+from hadp_api.modules.tenancy.models import Tenant
+from hadp_api.security.rate_limit import check_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +87,7 @@ def _patient(ctx: TenantContext, patient_id: uuid.UUID) -> Patient:
     patient = ctx.db.execute(
         select(Patient).where(Patient.id == patient_id, Patient.tenant_id == ctx.tenant_id)
     ).scalar_one_or_none()
-    if patient is None:  # pragma: no cover - the service already guards create; defensive here
-        from hadp_api.errors import NotFound
-
+    if patient is None:
         raise NotFound("patient not found")
     return patient
 
@@ -261,3 +269,129 @@ def cancel_deletion_request(
         correlation_id=ctx.correlation_id,
     )
     return _out(req, _patient(ctx, req.patient_id))
+
+
+# --- Data export (GDPR Art. 15 / Art. 20) ---
+
+EXPORT_AUDIT_ACTION = "privacy.export"
+
+
+class DataExportOut(BaseModel):
+    """One generated export, as its audit event recorded it (no content is kept)."""
+
+    exported_at: datetime
+    exported_by_user_id: uuid.UUID | None
+    byte_size: int
+    checksum_sha256: str
+    observations: int
+    computed_values: int
+    consent_events: int
+    # Stored files a reader imported into this record / shipped in the package / no longer
+    # in storage / no longer matching their recorded checksum / stored but never imported.
+    source_documents: int
+    source_files: int
+    source_files_missing: int
+    source_files_changed: int
+    source_documents_not_imported: int
+    released_report_versions: int
+    withdrawn_report_versions: int
+
+
+@router.post(
+    "/patients/{patient_id}/data-export",
+    response_class=Response,
+    responses={200: {"content": {"application/zip": {}}, "description": "The export package"}},
+)
+def export_patient_data(
+    patient_id: uuid.UUID,
+    ctx: TenantContext = Depends(require(Action.PRIVACY_EXPORT)),
+) -> Response:
+    """Generate and download the patient's data package (a ZIP; see docs/product/DATA_EXPORT.md)."""
+    check_rate_limit(
+        action=EXPORT_AUDIT_ACTION,
+        key=str(ctx.user.id),
+        limit=5,
+        window_seconds=600,
+        correlation_id=ctx.correlation_id,
+    )
+    patient = _patient(ctx, patient_id)
+    tenant = ctx.db.get(Tenant, ctx.tenant_id)
+    if tenant is None:  # pragma: no cover - the tenant context was just resolved
+        raise NotFound("tenant not found")
+    try:
+        package = export_service.build_patient_export(ctx.db, tenant=tenant, patient=patient)
+    except (Conflict, ServiceUnavailable) as exc:
+        # A refused export of a whole record is an attempt worth a trace. Recorded on its own
+        # transaction (this request rolls back) with the refusal code only.
+        record_security_event(
+            action="privacy.export_refused",
+            actor_user_id=ctx.user.id,
+            tenant_id=ctx.tenant_id,
+            correlation_id=ctx.correlation_id,
+            detail={"code": exc.detail.split(":", 1)[0], "patient_id": str(patient_id)},
+        )
+        raise
+    record_audit(
+        ctx.db,
+        action=EXPORT_AUDIT_ACTION,
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        target_type="patient",
+        target_id=patient_id,
+        correlation_id=ctx.correlation_id,
+        detail={
+            **package.counts,
+            "byte_size": len(package.data),
+            "checksum_sha256": package.checksum_sha256,
+            "format_version": export_service.FORMAT_VERSION,
+        },
+    )
+    return Response(
+        content=package.data,
+        media_type="application/zip",
+        headers={
+            "content-disposition": f'attachment; filename="{package.filename}"',
+            "x-checksum-sha256": package.checksum_sha256,
+        },
+    )
+
+
+@router.get("/patients/{patient_id}/data-exports", response_model=list[DataExportOut])
+def list_patient_data_exports(
+    patient_id: uuid.UUID,
+    ctx: TenantContext = Depends(require(Action.PRIVACY_EXPORT)),
+) -> list[DataExportOut]:
+    """Exports generated for this patient so far, newest first (read from the audit trail)."""
+    _patient(ctx, patient_id)
+    events = ctx.db.execute(
+        select(AuditEvent)
+        .where(
+            AuditEvent.tenant_id == ctx.tenant_id,
+            AuditEvent.action == EXPORT_AUDIT_ACTION,
+            AuditEvent.target_id == patient_id,
+        )
+        .order_by(AuditEvent.created_at.desc())
+    ).scalars()
+
+    def count(event: AuditEvent, key: str) -> int:
+        return int(event.detail.get(key, 0))
+
+    return [
+        DataExportOut(
+            exported_at=event.created_at,
+            exported_by_user_id=event.actor_user_id,
+            byte_size=count(event, "byte_size"),
+            checksum_sha256=str(event.detail.get("checksum_sha256", "")),
+            observations=count(event, "observations"),
+            computed_values=count(event, "computed_values"),
+            consent_events=count(event, "consent_events"),
+            source_documents=count(event, "source_documents"),
+            source_files=count(event, "source_files"),
+            source_files_missing=count(event, "source_files_missing"),
+            source_files_changed=count(event, "source_files_changed"),
+            source_documents_not_imported=count(event, "source_documents_not_imported"),
+            released_report_versions=count(event, "released_report_versions"),
+            withdrawn_report_versions=count(event, "withdrawn_report_versions"),
+        )
+        for event in events
+    ]

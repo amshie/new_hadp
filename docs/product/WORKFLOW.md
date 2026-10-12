@@ -50,7 +50,10 @@ surface rather than a clinic-staff role.
 - Owns the tenant: configures the clinic, invites and manages staff, assigns roles.
 - Configures clinic rules (`rules` module, planned) and clinic-level settings.
 - Initiates and oversees privacy-request workflows (export, deletion) and reviews the tenant audit
-  trail.
+  trail. _(As built 2026-10-12: the owner generates a patient's data export from the patient page
+  — one file with the person's own data and released content only, never stored, audited;
+  `docs/product/DATA_EXPORT.md`. Erasure is a two-person gate with the medical director,
+  `docs/notes/0012`. The audit-trail view is not built.)_
 - Captures the per-clinic preparation-time **baseline** at onboarding (see §6).
 - May not approve or release patient-facing reports unless that user is also a clinician — approval
   is a clinical act (§4.3).

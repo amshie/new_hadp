@@ -460,6 +460,27 @@ def reject_report(
     return version
 
 
+def released_versions(
+    db: Session, *, tenant_id: uuid.UUID, patient_id: uuid.UUID
+) -> list[tuple[Report, ReportVersion]]:
+    """Every report version of the patient that WAS released (current or since revised).
+
+    A version keeps its RELEASED status when a later version replaces it, so this is exactly
+    the content that passed the release gate — never a draft or an approved-only version.
+    """
+    rows = db.execute(
+        select(Report, ReportVersion)
+        .join(ReportVersion, ReportVersion.report_id == Report.id)
+        .where(
+            Report.tenant_id == tenant_id,
+            Report.patient_id == patient_id,
+            ReportVersion.status == ReportStatus.RELEASED,
+        )
+        .order_by(ReportVersion.released_at, ReportVersion.version_no)
+    ).tuples()
+    return list(rows)
+
+
 def count_reports_citing(db: Session, tenant_id: uuid.UUID, observation_id: uuid.UUID) -> int:
     """How many reports cite this observation in their CURRENT version (any status)."""
     return db.execute(

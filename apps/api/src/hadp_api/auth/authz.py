@@ -33,6 +33,9 @@ class Action(str, Enum):
     PRIVACY_REQUEST_LIST = "privacy_request.list"
     PRIVACY_REQUEST_DECIDE = "privacy_request.decide"
     PRIVACY_REQUEST_EXECUTE = "privacy_request.execute"
+    # Data export (GDPR Art. 15/20): the whole record of one patient leaves in one file —
+    # tenant administration, like requesting an erasure.
+    PRIVACY_EXPORT = "privacy.export"
     REVIEW_RESOLVE = "review.resolve"
     INTERPRETATION_AUTHOR = "interpretation.author"
     REPORT_DRAFT = "report.draft"
@@ -84,6 +87,7 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.PRIVACY_REQUEST_LIST: frozenset({Role.OWNER, Role.MEDICAL_DIRECTOR}),
     Action.PRIVACY_REQUEST_DECIDE: frozenset({Role.MEDICAL_DIRECTOR}),
     Action.PRIVACY_REQUEST_EXECUTE: frozenset({Role.OWNER, Role.MEDICAL_DIRECTOR}),
+    Action.PRIVACY_EXPORT: frozenset({Role.OWNER}),
     # Review-queue resolution is a clinical judgement (WORKFLOW §2.2/§2.4: the
     # assistant triages the queue but may not resolve clinically).
     Action.REVIEW_RESOLVE: frozenset({Role.CLINICIAN}),

@@ -15,7 +15,12 @@ import {
   requestPatientDeletion,
 } from "@/app/patients/actions";
 import { generateReportAction } from "@/app/reports/actions";
-import type { ConsentState, DeletionReason, SourceDocument } from "@/lib/api";
+import type {
+  ConsentState,
+  DataExport,
+  DeletionReason,
+  SourceDocument,
+} from "@/lib/api";
 import { Dialog } from "@/components/vitabahn/Dialog";
 import { clickable } from "@/components/vitabahn/interactive";
 import { lageLabel } from "@/lib/lageCopy";
@@ -24,6 +29,7 @@ import type { DetailView } from "@/lib/presenters/patientDetail";
 import { DOMAIN_AXIS_LABELS, type MarkerView } from "@/lib/presenters/review";
 
 import { ConsentCard } from "./ConsentCard";
+import { DataExportCard } from "./DataExportCard";
 import { LabDocumentsCard } from "./LabDocumentsCard";
 
 // VitaBahn patient Detail (ADR-0006, real-data path). Consumes the governed DetailView
@@ -249,11 +255,14 @@ export function PatientDetailContent({
   view,
   documents,
   consents,
+  dataExports,
   sessionRole,
 }: {
   view: DetailView;
   documents: SourceDocument[];
   consents: ConsentState[];
+  // null: not the owner, an erased record, or the list could not be read — no card.
+  dataExports: DataExport[] | null;
   sessionRole: string | null;
 }) {
   const router = useRouter();
@@ -866,6 +875,11 @@ export function PatientDetailContent({
           documents={documents}
           canImport={canInvite}
         />
+      )}
+
+      {/* Data export (GDPR Art. 15/20): tenant administration, owner only. */}
+      {canRequestDeletion && dataExports !== null && (
+        <DataExportCard patientId={view.patientId} exports={dataExports} />
       )}
 
       {/* domain cards — the six canonical axes always (no A–E grade — doctrine) */}
