@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from hadp_api.auth.authz import Action
 from hadp_api.auth.dependencies import TenantContext, require
 from hadp_api.modules.audit.service import record_audit
+from hadp_api.modules.kpi_config import service as kpi_config_service
 from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.patients import service as patients_service
 
@@ -38,6 +39,12 @@ class TimelinePointOut(BaseModel):
     # was withheld because required measurement context is missing/differs.
     comparability: str | None
     comparability_reason: str | None
+    # Which reference backs the within/above/below marker: "laboratory" (source-provided, always
+    # wins), "clinic" (clinic-defined fallback, used only when the lab gave none and the unit
+    # matches), or null. Clinic fallback bounds are separate; they never overwrite the source.
+    reference_source: str | None
+    clinic_reference_low: str | None
+    clinic_reference_high: str | None
 
 
 @router.get("/patients/{patient_id}/observations", response_model=list[TimelinePointOut])
@@ -46,7 +53,12 @@ def timeline(
     ctx: TenantContext = Depends(require(Action.OBSERVATION_READ)),
 ) -> list[TimelinePointOut]:
     patients_service.get_patient(ctx.db, ctx.tenant_id, patient_id)
-    points = obs_service.build_timeline(ctx.db, patient_id)
+    # Clinician surface: pass the tenant's clinic-defined references so a value with no lab
+    # reference can still show a within/above/below marker (fallback-only, unit-checked). The
+    # report/evidence path deliberately does NOT pass these — patient-facing content stays on
+    # lab-provided references only.
+    clinic_refs = kpi_config_service.clinic_references(ctx.db, tenant_id=ctx.tenant_id)
+    points = obs_service.build_timeline(ctx.db, patient_id, clinic_refs)
     record_audit(
         ctx.db,
         action="observation.read",
@@ -76,6 +88,13 @@ def timeline(
             kpi_secondary_domains=p.kpi_secondary_domains,
             comparability=p.comparability,
             comparability_reason=p.comparability_reason,
+            reference_source=p.reference_source,
+            clinic_reference_low=(
+                None if p.clinic_reference_low is None else str(p.clinic_reference_low)
+            ),
+            clinic_reference_high=(
+                None if p.clinic_reference_high is None else str(p.clinic_reference_high)
+            ),
         )
         for p in points
     ]

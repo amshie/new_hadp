@@ -14,6 +14,7 @@ from hadp_api.modules.imports import models as import_models  # noqa: F401
 from hadp_api.modules.interpretation import models as interpretation_models  # noqa: F401
 from hadp_api.modules.invitations import models as invitation_models  # noqa: F401
 from hadp_api.modules.kpi import models as kpi_models  # noqa: F401
+from hadp_api.modules.kpi_config import models as kpi_config_models  # noqa: F401
 from hadp_api.modules.observations import models as observation_models  # noqa: F401
 from hadp_api.modules.patients import models as patient_models  # noqa: F401
 from hadp_api.modules.privacy import models as privacy_models  # noqa: F401

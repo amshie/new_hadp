@@ -26,6 +26,10 @@ class Action(str, Enum):
     MEMBER_LIST = "member.list"
     MEMBER_ROLE_CHANGE = "member.role_change"
     MEMBER_REMOVE = "member.remove"
+    # Per-tenant KPI configuration: an owner selects which global-catalog KPIs are active/visible
+    # for THEIR clinic. Owner-only (tenant administration); the global catalog stays read-only.
+    KPI_CONFIG_READ = "kpi_config.read"
+    KPI_CONFIG_WRITE = "kpi_config.write"
     # Patient erasure (GDPR Art. 17) — a two-person gate. Requesting is tenant administration
     # (owner); deciding is the governance tier (medical director, like report release); executing
     # the approved, irreversible erasure is permitted to either administrative principal.
@@ -72,6 +76,10 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.MEMBER_LIST: frozenset({Role.OWNER}),
     Action.MEMBER_ROLE_CHANGE: frozenset({Role.OWNER}),
     Action.MEMBER_REMOVE: frozenset({Role.OWNER}),
+    # KPI configuration is tenant administration: OWNER only, like member/staff administration.
+    # It selects from the closed global catalog per clinic; it never edits the catalog itself.
+    Action.KPI_CONFIG_READ: frozenset({Role.OWNER}),
+    Action.KPI_CONFIG_WRITE: frozenset({Role.OWNER}),
     # Erasure two-person gate. Requesting (and cancelling one's own request) is owner-only,
     # like the other tenant-administration actions. Deciding is medical-director-only — the
     # governance tier, deliberately a DIFFERENT role than the requester so no single person can

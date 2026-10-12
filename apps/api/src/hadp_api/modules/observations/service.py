@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from hadp_api.modules.enums import ComparabilityState, KpiComparisonPolicy, ReviewStatus
 from hadp_api.modules.kpi.service import domain_membership, resolve_comparison_policies
+from hadp_api.modules.kpi_config.service import ClinicReference
 from hadp_api.modules.observations.comparability import is_comparable
 from hadp_api.modules.observations.models import Observation
 
@@ -47,6 +48,14 @@ class TimelinePoint:
     # set). None for the first point of a series (nothing to compare). Verdict-free.
     comparability: str | None
     comparability_reason: str | None
+    # Which reference the within/above/below marker is based on: "laboratory" (the source-provided
+    # interval on reference_low/high — always takes precedence), "clinic" (a clinic-defined fallback
+    # used only when the lab gave none AND the unit matches), or None (no reference at all). The
+    # clinic fallback bounds are surfaced separately and NEVER overwrite the source reference above;
+    # they are opt-in per caller (the clinician timeline passes them; the report evidence does not).
+    reference_source: str | None
+    clinic_reference_low: Decimal | None
+    clinic_reference_high: Decimal | None
 
 
 @dataclass
@@ -108,7 +117,42 @@ def list_published(db: Session, patient_id: uuid.UUID) -> list[Observation]:
     ]
 
 
-def build_timeline(db: Session, patient_id: uuid.UUID) -> list[TimelinePoint]:
+def _resolve_reference_source(
+    obs: Observation, clinic_references: dict[str, ClinicReference] | None
+) -> tuple[str | None, Decimal | None, Decimal | None]:
+    """Decide which reference backs the position marker for one observation (fallback-only).
+
+    The lab-provided reference always wins: if the observation carries any source bound, the source
+    is used ("laboratory") and no clinic fallback is applied. Only when the source has NO bound at
+    all is the tenant's clinic reference considered, and then ONLY if its unit matches the
+    observation's normalized unit (never classify across units). Returns
+    (reference_source, clinic_low, clinic_high); clinic bounds are non-None only for "clinic".
+    """
+    if obs.reference_low is not None or obs.reference_high is not None:
+        return "laboratory", None, None
+    if clinic_references is not None and obs.kpi_code is not None:
+        cref = clinic_references.get(obs.kpi_code)
+        if (
+            cref is not None
+            and obs.normalized_unit is not None
+            and obs.normalized_unit == cref.unit
+        ):
+            return "clinic", cref.low, cref.high
+    return None, None, None
+
+
+def build_timeline(
+    db: Session,
+    patient_id: uuid.UUID,
+    clinic_references: dict[str, ClinicReference] | None = None,
+) -> list[TimelinePoint]:
+    """Timeline points for a patient.
+
+    `clinic_references` is opt-in: the clinician timeline passes the tenant's clinic-defined
+    reference intervals so a value with no lab reference can still show a within/above/below marker
+    (fallback-only, unit-checked). The report/evidence path passes nothing, so patient-facing
+    content stays strictly on lab-provided references.
+    """
     observations = list_observations(db, patient_id)
     kpi_codes = {o.kpi_code for o in observations if o.kpi_code is not None}
     # Resolve each observation's catalog domains (Slice 2b) and comparison policies (Slice 3) once.
@@ -142,6 +186,9 @@ def build_timeline(db: Session, patient_id: uuid.UUID) -> list[TimelinePoint]:
             last_published[key] = obs
 
         primary, secondary = membership.get(obs.kpi_code or "", (None, []))
+        reference_source, clinic_low, clinic_high = _resolve_reference_source(
+            obs, clinic_references
+        )
         points.append(
             TimelinePoint(
                 observation_id=obs.id,
@@ -161,6 +208,9 @@ def build_timeline(db: Session, patient_id: uuid.UUID) -> list[TimelinePoint]:
                 kpi_secondary_domains=[axis.value for axis in secondary],
                 comparability=comparability,
                 comparability_reason=comparability_reason,
+                reference_source=reference_source,
+                clinic_reference_low=clinic_low,
+                clinic_reference_high=clinic_high,
             )
         )
     return points
