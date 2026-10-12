@@ -8,6 +8,7 @@ import { useToast } from "@/components/Toaster";
 import {
   approveReportAction,
   editReportAction,
+  redraftReportAction,
   rejectReportAction,
   releaseReportAction,
 } from "@/app/reports/actions";
@@ -148,9 +149,9 @@ export function ReviewContent({
   path: string;
 }) {
   const toast = useToast();
-  const [dialog, setDialog] = useState<"approve" | "reject" | "release" | null>(
-    null,
-  );
+  const [dialog, setDialog] = useState<
+    "approve" | "reject" | "release" | "redraft" | null
+  >(null);
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [releasedUrl, setReleasedUrl] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -161,8 +162,11 @@ export function ReviewContent({
   const isDraft =
     view.status === "draft_generated" || view.status === "draft_edited";
   const isApproved = view.status === "approved";
-  const canApprove = sessionRole === "clinician" && isDraft;
-  const canRelease = sessionRole === "medical_director" && isApproved;
+  // A version that cites a replaced value is refused by the API for both steps.
+  const canApprove =
+    sessionRole === "clinician" && isDraft && !view.citesReplaced;
+  const canRelease =
+    sessionRole === "medical_director" && isApproved && !view.citesReplaced;
   const canReject =
     (sessionRole === "clinician" || sessionRole === "medical_director") &&
     (isDraft || isApproved);
@@ -171,6 +175,9 @@ export function ReviewContent({
   // it as a NEW version — the rejected version stays a preserved record. Each statement keeps
   // its evidence binding; the API re-validates it and refuses restricted language.
   const canRework = sessionRole === "clinician" && view.status === "rejected";
+  // A cited value was corrected by the laboratory: this version can be neither approved nor
+  // released. The clinician opens a new draft from the values that stand.
+  const canRedraft = sessionRole === "clinician" && view.citesReplaced;
   const [editRows, setEditRows] = useState<
     | { id: string; text: string; evidenceIds: string[]; removed: boolean }[]
     | null
@@ -238,14 +245,16 @@ export function ReviewContent({
     setReleasedUrl(null);
   };
 
-  const runAction = (kind: "approve" | "reject" | "release") => {
+  const runAction = (kind: "approve" | "reject" | "release" | "redraft") => {
     startTransition(async () => {
       const res =
         kind === "approve"
           ? await approveReportAction(view.reportId, path)
           : kind === "reject"
             ? await rejectReportAction(view.reportId, path)
-            : await releaseReportAction(view.reportId, path);
+            : kind === "redraft"
+              ? await redraftReportAction(view.reportId, path)
+              : await releaseReportAction(view.reportId, path);
       if (!res.ok) {
         closeDialog();
         toast(res.error);
@@ -258,7 +267,11 @@ export function ReviewContent({
       }
       closeDialog();
       toast(
-        kind === "approve" ? "Bericht genehmigt." : "Bericht zurückgewiesen.",
+        kind === "approve"
+          ? "Bericht genehmigt."
+          : kind === "redraft"
+            ? "Neuer Entwurf aus den aktuellen Werten erstellt."
+            : "Bericht zurückgewiesen.",
       );
     });
   };
@@ -389,6 +402,27 @@ export function ReviewContent({
             Für diesen Bericht liegen keine Aussagen vor.
           </p>
         )}
+        {view.citesReplaced && (
+          <p
+            role="status"
+            style={{
+              marginTop: "12px",
+              padding: "10px 12px",
+              border: "1px solid var(--btn-danger-border)",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "12.5px",
+              lineHeight: 1.5,
+            }}
+          >
+            Ein zitierter Wert wurde vom Labor korrigiert. Diese Fassung kann
+            nicht genehmigt oder freigegeben werden.
+            {view.status === "released" &&
+              " Sie bleibt für die Patientin sichtbar, bis ein neuer Entwurf erstellt wird."}
+            {sessionRole === "clinician"
+              ? " Erstellen Sie einen neuen Entwurf aus den aktuellen Werten."
+              : " Ein neuer Entwurf ist der klinischen Rolle vorbehalten."}
+          </p>
+        )}
         {view.statements.map((s, index) => {
           const row = editRows?.[index];
           return (
@@ -427,7 +461,7 @@ export function ReviewContent({
                     key={i}
                     className={`source-link${e.missing ? " " : ""}`}
                     style={
-                      e.missing
+                      e.missing || e.superseded
                         ? {
                             color: "var(--danger)",
                             borderColor: "var(--btn-danger-border)",
@@ -439,6 +473,7 @@ export function ReviewContent({
                     {e.status && e.status !== "published"
                       ? ` · ${e.status}`
                       : ""}
+                    {e.superseded ? " · vom Labor korrigiert" : ""}
                   </span>
                 ))}
               </div>
@@ -588,6 +623,18 @@ export function ReviewContent({
                   >
                     Follow-up-Adäquanz: {d.adequacyLabel}
                   </p>
+                  {d.citesReplaced && (
+                    <p
+                      style={{
+                        margin: "6px 0 0",
+                        fontSize: "12px",
+                        color: "var(--danger)",
+                      }}
+                    >
+                      Stützt sich auf einen vom Labor korrigierten Wert —
+                      Interpretation prüfen.
+                    </p>
+                  )}
                   <span
                     style={{
                       marginTop: "10px",
@@ -683,6 +730,10 @@ export function ReviewContent({
                   <td className="source">
                     {m.code}
                     {m.reviewRequired ? ` · ${m.status}` : ""}
+                    {m.superseded ? " · durch Laborkorrektur ersetzt" : ""}
+                    {m.inputReplaced
+                      ? " · Eingangswert durch Laborkorrektur ersetzt"
+                      : ""}
                   </td>
                 </tr>
               ))}
@@ -757,6 +808,10 @@ export function ReviewContent({
                       <td className="source">
                         {m.code}
                         {m.reviewRequired ? ` · ${m.status}` : ""}
+                        {m.superseded ? " · durch Laborkorrektur ersetzt" : ""}
+                        {m.inputReplaced
+                          ? " · Eingangswert durch Laborkorrektur ersetzt"
+                          : ""}
                       </td>
                     </tr>
                   ))}
@@ -812,6 +867,16 @@ export function ReviewContent({
               Überarbeiten
             </button>
           )}
+          {canRedraft && !editing && (
+            <button
+              className="btn btn-primary"
+              type="button"
+              disabled={pending}
+              onClick={() => setDialog("redraft")}
+            >
+              Neuen Entwurf erstellen
+            </button>
+          )}
           {canReject && (
             <button
               className="btn btn-secondary"
@@ -862,6 +927,7 @@ export function ReviewContent({
               <h2 id="review-dialog-title">
                 {dialog === "approve" && "Bericht genehmigen?"}
                 {dialog === "reject" && "Bericht zurückweisen?"}
+                {dialog === "redraft" && "Neuen Entwurf erstellen?"}
                 {dialog === "release" &&
                   (releasedUrl
                     ? "Freigegeben — Zugriffslink"
@@ -872,6 +938,12 @@ export function ReviewContent({
                   "Sie bestätigen, dass Sie die sichtbaren Beobachtungen, Referenzintervalle und Quellen geprüft haben. Die Genehmigung wird serverseitig geschrieben, ist Ihnen zugeordnet und wird auditiert."}
                 {dialog === "reject" &&
                   "Die aktuelle Version wird als zurückgewiesen festgehalten (zugeordnet und auditiert). Eine Überarbeitung erstellt eine neue Version."}
+                {dialog === "redraft" &&
+                  `Aus den aktuell gültigen Werten wird eine neue Entwurfsversion erstellt. Die bisherige Version bleibt gespeichert, wird hier aber nicht mehr angezeigt; manuell überarbeitete Formulierungen werden nicht übernommen. ${
+                    view.status === "released"
+                      ? "Der Zugriff der Patientin auf den freigegebenen Bericht wird damit zurückgezogen, bis die neue Version genehmigt und erneut freigegeben ist."
+                      : "Die neue Version muss genehmigt und freigegeben werden."
+                  }`}
                 {dialog === "release" &&
                   (releasedUrl
                     ? "Der Bericht ist freigegeben. Synthetische Demo: Den Link manuell und sicher übermitteln — kein automatischer Versand."
@@ -958,6 +1030,7 @@ export function ReviewContent({
                 >
                   {dialog === "approve" && "Genehmigen"}
                   {dialog === "reject" && "Zurückweisen"}
+                  {dialog === "redraft" && "Neuen Entwurf erstellen"}
                   {dialog === "release" && "Freigeben"}
                 </button>
               </>

@@ -1743,6 +1743,52 @@
         }
       }
     },
+    "/api/v1/reports/{report_id}/redraft": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Redraft Report",
+        "description": "Open a new draft version from the values that stand, for a report that cites a value\na laboratory correction has replaced. A released report is thereby withdrawn from the\npatient until it is approved and released again.",
+        "operationId": "redraft_report_api_v1_reports__report_id__redraft_post",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Redraft Report Api V1 Reports  Report Id  Redraft Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/reports/{report_id}/approve": {
       "post": {
         "tags": [
@@ -2306,6 +2352,10 @@
             "type": "integer",
             "title": "Review Count"
           },
+          "duplicate_count": {
+            "type": "integer",
+            "title": "Duplicate Count"
+          },
           "not_imported_count": {
             "type": "integer",
             "title": "Not Imported Count"
@@ -2322,6 +2372,7 @@
           "parser_version",
           "published_count",
           "review_count",
+          "duplicate_count",
           "not_imported_count",
           "created"
         ],
@@ -2703,6 +2754,11 @@
               }
             ],
             "title": "Metric Code"
+          },
+          "superseded": {
+            "type": "boolean",
+            "title": "Superseded",
+            "default": false
           }
         },
         "type": "object",
@@ -2774,6 +2830,64 @@
         ],
         "title": "HealthOut"
       },
+      "HeldValueOut": {
+        "properties": {
+          "observation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Observation Id"
+          },
+          "original_name": {
+            "type": "string",
+            "title": "Original Name"
+          },
+          "original_value": {
+            "type": "string",
+            "title": "Original Value"
+          },
+          "original_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Unit"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "observed_at_is_date_only": {
+            "type": "boolean",
+            "title": "Observed At Is Date Only"
+          },
+          "review_status": {
+            "type": "string",
+            "title": "Review Status"
+          },
+          "superseded": {
+            "type": "boolean",
+            "title": "Superseded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "observation_id",
+          "original_name",
+          "original_value",
+          "original_unit",
+          "observed_at",
+          "observed_at_is_date_only",
+          "review_status",
+          "superseded"
+        ],
+        "title": "HeldValueOut",
+        "description": "A value the patient already holds, as source representation."
+      },
       "ImportRequest": {
         "properties": {
           "source_document_id": {
@@ -2828,6 +2942,10 @@
             "type": "integer",
             "title": "Review Count"
           },
+          "duplicate_count": {
+            "type": "integer",
+            "title": "Duplicate Count"
+          },
           "observation_ids": {
             "items": {
               "type": "string",
@@ -2850,6 +2968,7 @@
           "import_job_id",
           "published_count",
           "review_count",
+          "duplicate_count",
           "observation_ids",
           "review_item_ids"
         ],
@@ -3341,6 +3460,27 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "replaces": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HeldValueOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "replaces_cited_in_report_count": {
+            "type": "integer",
+            "title": "Replaces Cited In Report Count"
+          },
+          "related": {
+            "items": {
+              "$ref": "#/components/schemas/HeldValueOut"
+            },
+            "type": "array",
+            "title": "Related"
           }
         },
         "type": "object",
@@ -3356,7 +3496,10 @@
           "original_unit",
           "observed_at",
           "observed_at_is_date_only",
-          "created_at"
+          "created_at",
+          "replaces",
+          "replaces_cited_in_report_count",
+          "related"
         ],
         "title": "ReviewItemOut"
       },
@@ -3847,6 +3990,34 @@
               }
             ],
             "title": "Comparability Reason"
+          },
+          "supersedes_observation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Observation Id"
+          },
+          "superseded_by_observation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By Observation Id"
+          },
+          "input_replaced": {
+            "type": "boolean",
+            "title": "Input Replaced"
           }
         },
         "type": "object",
@@ -3867,7 +4038,10 @@
           "kpi_primary_domain",
           "kpi_secondary_domains",
           "comparability",
-          "comparability_reason"
+          "comparability_reason",
+          "supersedes_observation_id",
+          "superseded_by_observation_id",
+          "input_replaced"
         ],
         "title": "TimelinePointOut"
       },

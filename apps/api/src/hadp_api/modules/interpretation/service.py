@@ -22,6 +22,7 @@ from hadp_api.modules.interpretation.models import (
     TriStateCell,
 )
 from hadp_api.modules.interpretation.run_shape import RunInput, validate_run_input
+from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.observations.models import Observation
 
 # Canonical axis order for stable rendering (matches DOMAIN_AXES / the closed enum).
@@ -109,9 +110,10 @@ def _validate_evidence_refs(
     """Fail-closed evidence resolution (closes run_shape.py's documented deferral).
 
     Every cell evidence ref must cite a PUBLISHED observation of THIS patient in THIS
-    tenant. Unknown kinds, unparseable ids, foreign-patient, cross-tenant, or
-    unreviewed observations are refused — a verdict must not rest on evidence the
-    case does not own or a human has not resolved.
+    tenant that no published laboratory correction has replaced. Unknown kinds, unparseable
+    ids, foreign-patient, cross-tenant, unreviewed, or replaced observations are refused — a
+    verdict must not rest on evidence the case does not own, a human has not resolved, or
+    the laboratory has since corrected.
     """
     obs_ids: set[uuid.UUID] = set()
     for d in run.domains:
@@ -144,6 +146,11 @@ def _validate_evidence_refs(
     if missing:
         raise IntendedUseViolation(
             f"{missing} evidence ref(s) do not resolve to published observations of this patient"
+        )
+    replaced = len(obs_ids & obs_service.not_standing(db, patient_id))
+    if replaced:
+        raise IntendedUseViolation(
+            f"{replaced} evidence ref(s) cite a value a laboratory correction has replaced"
         )
 
 
@@ -192,6 +199,7 @@ def latest_matrix(
     obs_map = _resolve_evidence_observations(
         db, all_cells, tenant_id=tenant_id, patient_id=patient_id
     )
+    replaced = obs_service.not_standing(db, patient_id)
 
     return {
         "run_id": str(run.id),
@@ -210,7 +218,7 @@ def latest_matrix(
                         "state": c.state,
                         "endpoint_adequacy": c.endpoint_adequacy.value,
                         "evidence_count": len(c.evidence_refs or []),
-                        "evidence": _cell_evidence(c, obs_map),
+                        "evidence": _cell_evidence(c, obs_map, replaced),
                         "rationale": c.rationale,
                     }
                     for c in sorted(
@@ -262,7 +270,7 @@ def _resolve_evidence_observations(
 
 
 def _cell_evidence(
-    cell: TriStateCell, obs_map: dict[uuid.UUID, Observation]
+    cell: TriStateCell, obs_map: dict[uuid.UUID, Observation], replaced: set[uuid.UUID]
 ) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     seen: set[uuid.UUID] = set()
@@ -299,6 +307,9 @@ def _cell_evidence(
                 "observed_at": observed,
                 "review_status": obs.review_status.value,
                 "metric_code": obs.metric_code,
+                # A published laboratory correction has replaced this value since the run
+                # cited it. The run is a preserved record; the marker tells the reader.
+                "superseded": obs.id in replaced,
             }
         )
     return out

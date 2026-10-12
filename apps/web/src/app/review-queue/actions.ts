@@ -31,6 +31,12 @@ export async function resolveReviewItemAction(
           ok: false,
           error: "Diese Aktion ist Ihrer Rolle nicht erlaubt.",
         };
+      if (e.status === 409 && e.message.startsWith("supersession_conflict"))
+        return {
+          ok: false,
+          error:
+            "Der Wert, den diese Korrektur ersetzen soll, wurde bereits durch eine andere Korrektur ersetzt. Dieser Wert kann nur abgelehnt werden.",
+        };
       if (e.status === 409)
         return {
           ok: false,

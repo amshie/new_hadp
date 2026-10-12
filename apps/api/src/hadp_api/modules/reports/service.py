@@ -3,7 +3,8 @@
 DRAFT_GENERATED -> DRAFT_EDITED -> APPROVED -> RELEASED (or REJECTED). Invariants:
 - A draft is built only from published observations; every statement is evidence-linked.
 - Approval requires every statement's evidence to be viewable (else it cannot be approved).
-- A report cannot be released before it is approved.
+- A report cannot be released before it is approved, nor while a statement rests on a value a
+  published laboratory correction has replaced.
 - Editing after approval creates a NEW version and invalidates the prior approval.
 - Patients can only ever see RELEASED content, via a scoped, revocable access link.
 """
@@ -23,6 +24,7 @@ from hadp_api.auth.sessions import hash_token
 from hadp_api.errors import Conflict, IntendedUseViolation, NotFound, ValidationFailed
 from hadp_api.modules.consents import service as consents_service
 from hadp_api.modules.enums import ConsentPurpose, ReportStatus
+from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.observations.models import Observation
 from hadp_api.modules.reports.evidence import build_evidence_payload, validate_statements
 from hadp_api.modules.reports.language import restricted_terms
@@ -308,6 +310,68 @@ def edit_report(
     return current
 
 
+def cites_replaced_evidence(db: Session, report: Report, version: ReportVersion) -> bool:
+    """The version cites a value that no longer stands (a laboratory correction replaced it)."""
+    cited = {
+        uuid.UUID(str(i))
+        for stmt in version.body.get("statements", [])
+        for i in stmt.get("evidence_observation_ids") or []
+    }
+    return bool(cited & obs_service.not_standing(db, report.patient_id))
+
+
+def redraft_report(
+    db: Session,
+    *,
+    report_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+    generated_by_user_id: uuid.UUID,
+    provider: NarrativeProvider | None = None,
+) -> tuple[ReportVersion, bool]:
+    """Open a NEW version built from the values that stand. Returns (version, retracted).
+
+    The way on once a laboratory correction has replaced a cited value: an edit can only
+    remove the affected statement, it cannot bring the corrected value in. Offered for that
+    case only — a report whose evidence still stands is revised by editing. The prior version
+    stays a preserved record. If it was released, patient access is withdrawn until the new
+    version is approved and released again, exactly as with an edit after release.
+    """
+    report = _get_report(db, report_id, tenant_id)
+    current = _current_version(db, report)
+    if not cites_replaced_evidence(db, report, current):
+        raise Conflict("redraft_not_needed: every cited value still stands")
+    provider = provider or DeterministicNarrativeProvider()
+    payload = build_evidence_payload(db, report.patient_id)
+    if not payload:
+        raise ValidationFailed("no published observations to report")
+    statements = [_stmt_dict(s) for s in provider.generate(payload)]
+    try:
+        validate_statements(db, report.patient_id, statements)
+    except ValueError as exc:
+        raise IntendedUseViolation(str(exc)) from exc
+
+    retracted = current.status == ReportStatus.RELEASED
+    if retracted:
+        _revoke_patient_links(db, report.id)
+    version = ReportVersion(
+        tenant_id=tenant_id,
+        report_id=report.id,
+        version_no=current.version_no + 1,
+        status=ReportStatus.DRAFT_GENERATED,
+        body={"statements": statements},
+        narrative_provider=provider.name,
+        narrative_version=provider.version,
+        generated_by_user_id=generated_by_user_id,
+    )
+    db.add(version)
+    db.flush()
+    report.current_version_id = version.id
+    report.status = ReportStatus.DRAFT_GENERATED
+    _create_evidence_rows(db, tenant_id, version.id, statements)
+    db.flush()
+    return version, retracted
+
+
 def approve_report(
     db: Session, *, report_id: uuid.UUID, tenant_id: uuid.UUID, approved_by_user_id: uuid.UUID
 ) -> ReportVersion:
@@ -337,6 +401,12 @@ def release_report(
     version = _current_version(db, report)
     if version.status != ReportStatus.APPROVED:
         raise Conflict("report must be approved before release")
+    # The laboratory may have corrected a cited value since approval: a statement that rests
+    # on a replaced value is not released. The way on is a rejection and a rework.
+    try:
+        validate_statements(db, report.patient_id, version.body.get("statements", []))
+    except ValueError as exc:
+        raise IntendedUseViolation(f"cannot release: {exc}") from exc
     # Consent gate (fail-closed): a patient-facing release requires an ACTIVE consent for the
     # report_release purpose. Checked AFTER the approval invariant so an unapproved report still
     # reports the approval error first.
@@ -390,7 +460,18 @@ def reject_report(
     return version
 
 
-def _evidence_for_statement(db: Session, statement: dict[str, Any]) -> list[dict[str, Any]]:
+def count_reports_citing(db: Session, tenant_id: uuid.UUID, observation_id: uuid.UUID) -> int:
+    """How many reports cite this observation in their CURRENT version (any status)."""
+    return db.execute(
+        select(func.count(func.distinct(Report.id)))
+        .join(ReportEvidence, ReportEvidence.report_version_id == Report.current_version_id)
+        .where(Report.tenant_id == tenant_id, ReportEvidence.observation_id == observation_id)
+    ).scalar_one()
+
+
+def _evidence_for_statement(
+    db: Session, statement: dict[str, Any], replaced: set[uuid.UUID]
+) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for obs_id in statement.get("evidence_observation_ids") or []:
         obs = db.get(Observation, uuid.UUID(str(obs_id)))
@@ -409,6 +490,8 @@ def _evidence_for_statement(db: Session, statement: dict[str, Any]) -> list[dict
                 if obs.observed_at_is_date_only
                 else obs.observed_at.isoformat(),
                 "review_status": obs.review_status.value,
+                # A published laboratory correction has replaced this value since it was cited.
+                "superseded": obs.id in replaced,
             }
         )
     return out
@@ -418,6 +501,7 @@ def assemble_report_view(db: Session, report: Report) -> dict[str, Any]:
     """Full view for the clinician approval UI: statements with inline evidence."""
     version = _current_version(db, report)
     statements = version.body.get("statements", [])
+    replaced = obs_service.not_standing(db, report.patient_id)
     return {
         "report_id": str(report.id),
         "patient_id": str(report.patient_id),
@@ -427,11 +511,14 @@ def assemble_report_view(db: Session, report: Report) -> dict[str, Any]:
         "narrative_version": version.narrative_version,
         # Provenance of the text: a human edit means it is no longer the provider's output.
         "edited": version.edited_by_user_id is not None,
+        # A cited value no longer stands: this version cannot be approved or released, and a
+        # new draft from the standing values is the way on (redraft).
+        "cites_replaced_evidence": cites_replaced_evidence(db, report, version),
         "statements": [
             {
                 "id": s["id"],
                 "text": s["text"],
-                "evidence": _evidence_for_statement(db, s),
+                "evidence": _evidence_for_statement(db, s, replaced),
             }
             for s in statements
         ],

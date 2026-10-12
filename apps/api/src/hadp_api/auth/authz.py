@@ -37,6 +37,7 @@ class Action(str, Enum):
     INTERPRETATION_AUTHOR = "interpretation.author"
     REPORT_DRAFT = "report.draft"
     REPORT_EDIT = "report.edit"
+    REPORT_REDRAFT = "report.redraft"
     REPORT_APPROVE = "report.approve"
     REPORT_REJECT = "report.reject"
     REPORT_RELEASE = "report.release"
@@ -89,6 +90,9 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.INTERPRETATION_AUTHOR: frozenset({Role.CLINICIAN}),
     Action.REPORT_DRAFT: _CARE_STAFF,
     Action.REPORT_EDIT: _CARE_STAFF,
+    # A new draft version after a laboratory correction discards the current wording and
+    # withdraws a released version from the patient: the clinician's step.
+    Action.REPORT_REDRAFT: frozenset({Role.CLINICIAN}),
     Action.REPORT_APPROVE: frozenset({Role.CLINICIAN}),
     # Either gate tier may refuse: the clinician withdraws a draft/their approval;
     # the medical director refuses at the release gate.

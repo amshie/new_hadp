@@ -32,8 +32,11 @@ Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
   enum column shipped without a CHECK fails the test) and that a bogus value is rejected at the
   DB. The `pg_enum` docstring was corrected to match.
 - **Supersession / corrected-report matching** (CLAUDE.md Ingestion → Corrected reports):
-  the `supersedes_observation_id` column exists, but conservative matching + its tests
-  are **Milestone 1** ingestion work, not the spike. Implement with M1.
+  ✅ DONE 2026-10-12 — `modules/imports/matching.py`, `tests/test_supersession.py`; rule and
+  remaining limits in `docs/product/LAB_IMPORT_FORMATS.md` ("Repeated and corrected values").
+  Still open: a released report is not withdrawn automatically when a cited value is replaced
+  (a clinician withdraws it with a new draft; automatic retraction is a governance decision),
+  and a reviewer cannot declare an unmarked value the replacement of another.
 - **`generate_draft` idempotency**: each call creates a new draft Report. Acceptable
   multi-draft behavior for the spike; add a patient-scoped report list + "open draft"
   reuse when the report UI is built out. **UI guard (2026-10-11):** the patient detail offers

@@ -42,6 +42,8 @@ class EvidenceObsOut(BaseModel):
     observed_at: str
     review_status: str
     metric_code: str | None
+    # A published laboratory correction has replaced this value since the run cited it.
+    superseded: bool = False
 
 
 class TriStateCellOut(BaseModel):

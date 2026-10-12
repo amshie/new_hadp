@@ -3,6 +3,11 @@
 Implements the pipeline RECEIVED -> ... -> REVIEW_REQUIRED | READY -> PUBLISHED. Rows
 that need review are NOT published until a human resolves them (CLAUDE.md). Provenance
 (parser name/version, source locator) is preserved on every observation.
+
+Every incoming value is matched against what the patient already holds (`matching.py`): a
+value nothing distinguishes from a held one is not imported twice, a source-marked correction
+proposes to replace the one value it can correct, and any other value for an occupied analyte
+and sampling time is held for review.
 """
 
 from __future__ import annotations
@@ -10,17 +15,29 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from hadp_api.config import get_settings
 from hadp_api.errors import Conflict, NotFound
-from hadp_api.modules.enums import ImportStatus, ReviewDecision, ReviewStatus, ValueType
+from hadp_api.modules.enums import (
+    ImportStatus,
+    KpiMeasurementClass,
+    ReviewDecision,
+    ReviewStatus,
+    ValueType,
+)
+from hadp_api.modules.imports import matching
 from hadp_api.modules.imports import normalize as normalize_mod
 from hadp_api.modules.imports.models import ImportJob, ImportRow, ReviewItem
 from hadp_api.modules.kpi.service import resolve_kpi_code
+from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.observations.models import Observation
 from hadp_api.modules.patients.models import Patient
+from hadp_api.modules.reports import service as reports_service
 
 
 @dataclass
@@ -47,6 +64,8 @@ class ImportResult:
     review_item_ids: list[uuid.UUID] = field(default_factory=list)
     published_count: int = 0
     review_count: int = 0
+    # Input values the patient already holds: recorded, not imported a second time.
+    duplicate_count: int = 0
 
 
 def ingest_values(
@@ -76,6 +95,13 @@ def ingest_values(
 
     result = ImportResult(import_job_id=job.id)
     now = datetime.now(UTC)
+    matching.lock_patient_record(db, patient_id)
+    record = matching.PatientRecord(
+        db,
+        tenant_id=tenant_id,
+        patient_id=patient_id,
+        zone=ZoneInfo(get_settings().lab_local_timezone),
+    )
 
     for index, row in enumerate(rows):
         norm = normalize_mod.normalize(
@@ -85,9 +111,6 @@ def ingest_values(
             reference_low=row.reference_low,
             reference_high=row.reference_high,
         )
-        review_reasons = [*norm.review_reasons, *row.review_reasons]
-        needs_review = bool(review_reasons)
-        review_status = ReviewStatus.PENDING if needs_review else ReviewStatus.PUBLISHED
 
         observation = Observation(
             tenant_id=tenant_id,
@@ -117,22 +140,52 @@ def ingest_values(
             observed_at=row.observed_at,
             observed_at_is_date_only=row.observed_at_is_date_only,
             received_at=now,
-            review_status=review_status,
+            review_status=ReviewStatus.PENDING,
         )
+        raw: dict[str, Any] = {
+            "original_name": row.original_name,
+            "original_value": row.original_value,
+            "original_unit": row.original_unit,
+            "observed_at": row.observed_at.isoformat(),
+        }
+        match = record.match(observation, row.review_reasons)
+        if match.duplicate_of is not None:
+            # The patient already holds exactly this value: record where it was seen again
+            # and which observation it repeats, and create nothing.
+            db.add(
+                ImportRow(
+                    tenant_id=tenant_id,
+                    import_job_id=job.id,
+                    row_index=index,
+                    raw={
+                        **raw,
+                        "source_record_locator": row.source_record_locator,
+                        "not_imported_reason": matching.DUPLICATE_VALUE,
+                        "duplicate_of_observation_id": str(match.duplicate_of.id),
+                    },
+                    status=ImportStatus.REJECTED,
+                )
+            )
+            result.duplicate_count += 1
+            continue
+
+        review_reasons = [*norm.review_reasons, *row.review_reasons, *match.review_reasons]
+        needs_review = bool(review_reasons)
+        observation.review_status = ReviewStatus.PENDING if needs_review else ReviewStatus.PUBLISHED
+        if match.supersedes is not None:
+            # A proposal only: the source's correction mark is itself a review reason, so the
+            # replacement takes effect when a human publishes this value — never before.
+            observation.supersedes_observation_id = match.supersedes.id
         db.add(observation)
         db.flush()
+        record.add(observation, review_reasons)
         result.observation_ids.append(observation.id)
 
         import_row = ImportRow(
             tenant_id=tenant_id,
             import_job_id=job.id,
             row_index=index,
-            raw={
-                "original_name": row.original_name,
-                "original_value": row.original_value,
-                "original_unit": row.original_unit,
-                "observed_at": row.observed_at.isoformat(),
-            },
+            raw=raw,
             status=ImportStatus.REVIEW_REQUIRED if needs_review else ImportStatus.PUBLISHED,
         )
         db.add(import_row)
@@ -155,9 +208,30 @@ def ingest_values(
         else:
             result.published_count += 1
 
-    job.status = ImportStatus.REVIEW_REQUIRED if result.review_count else ImportStatus.PUBLISHED
+    if result.review_count:
+        job.status = ImportStatus.REVIEW_REQUIRED
+    elif result.published_count:
+        job.status = ImportStatus.PUBLISHED
+    else:
+        # Nothing was carried (every value is already held, or there were none): the job must
+        # not read as published.
+        job.status = ImportStatus.REJECTED
     db.flush()
     return result
+
+
+def _held_value(observation: Observation, replaced: set[uuid.UUID]) -> dict[str, object]:
+    """A value the patient already holds, as source representation (context for a reviewer)."""
+    return {
+        "observation_id": observation.id,
+        "original_name": observation.original_name,
+        "original_value": observation.original_value,
+        "original_unit": observation.original_unit,
+        "observed_at": observation.observed_at,
+        "observed_at_is_date_only": observation.observed_at_is_date_only,
+        "review_status": observation.review_status.value,
+        "superseded": observation.id in replaced,
+    }
 
 
 def list_open_review_items(db: Session, tenant_id: uuid.UUID) -> list[dict[str, object]]:
@@ -165,7 +239,9 @@ def list_open_review_items(db: Session, tenant_id: uuid.UUID) -> list[dict[str, 
 
     Returns source representation only (original name/value/unit + the closed reason) —
     review happens BEFORE normalization is trusted, so nothing normalized is presented
-    as settled.
+    as settled. Every item also names the other values the patient holds for the same analyte
+    and sampling time — read at listing time, not as they were at import — so a decision about
+    a repeat or a correction is never made blind.
     """
     rows = db.execute(
         select(ReviewItem, Observation, Patient)
@@ -177,23 +253,53 @@ def list_open_review_items(db: Session, tenant_id: uuid.UUID) -> list[dict[str, 
         )
         .order_by(ReviewItem.created_at.asc())
     ).all()
-    return [
-        {
-            "review_item_id": item.id,
-            "observation_id": obs.id,
-            "patient_id": obs.patient_id,
-            "patient_display_name": patient.display_name,
-            "patient_external_ref": patient.external_ref,
-            "reason": item.reason,
-            "original_name": obs.original_name,
-            "original_value": obs.original_value,
-            "original_unit": obs.original_unit,
-            "observed_at": obs.observed_at,
-            "observed_at_is_date_only": obs.observed_at_is_date_only,
-            "created_at": item.created_at,
-        }
-        for item, obs, patient in rows
-    ]
+
+    patient_ids = {obs.patient_id for _item, obs, _patient in rows}
+    held: dict[uuid.UUID, list[Observation]] = {}
+    replaced: set[uuid.UUID] = set()
+    if patient_ids:
+        for other in db.execute(
+            select(Observation)
+            .where(Observation.tenant_id == tenant_id, Observation.patient_id.in_(patient_ids))
+            .order_by(Observation.received_at, Observation.id)
+        ).scalars():
+            if other.source_category != KpiMeasurementClass.DERIVED:
+                held.setdefault(other.patient_id, []).append(other)
+        for patient_id in patient_ids:
+            replaced.update(obs_service.superseded_by(db, patient_id))
+    zone = ZoneInfo(get_settings().lab_local_timezone)
+
+    out: list[dict[str, object]] = []
+    for item, obs, patient in rows:
+        # Context is read per patient: it cannot cross patients. The value a correction would
+        # replace is the one the decision will act on (the stored link), whatever it matches.
+        others = [other for other in held.get(obs.patient_id, []) if other.id != obs.id]
+        target = next((o for o in others if o.id == obs.supersedes_observation_id), None)
+        same = [o for o in others if matching.same_measurement(o, obs, zone)]
+        out.append(
+            {
+                "review_item_id": item.id,
+                "observation_id": obs.id,
+                "patient_id": obs.patient_id,
+                "patient_display_name": patient.display_name,
+                "patient_external_ref": patient.external_ref,
+                "reason": item.reason,
+                "original_name": obs.original_name,
+                "original_value": obs.original_value,
+                "original_unit": obs.original_unit,
+                "observed_at": obs.observed_at,
+                "observed_at_is_date_only": obs.observed_at_is_date_only,
+                "created_at": item.created_at,
+                "replaces": _held_value(target, replaced) if target is not None else None,
+                "replaces_cited_in_report_count": (
+                    reports_service.count_reports_citing(db, tenant_id, target.id)
+                    if target is not None
+                    else 0
+                ),
+                "related": [_held_value(o, replaced) for o in same if o is not target],
+            }
+        )
+    return out
 
 
 def resolve_review_item(
@@ -211,6 +317,10 @@ def resolve_review_item(
     an observation with any other open item stays PENDING (nothing publishes while a
     conflict is unresolved). Resolution never mutates the observation's source
     representation; only `review_status` transitions.
+
+    Publishing a value the source sent as a correction is what makes the replacement take
+    effect: the earlier value stays as it is and is from then on read as replaced. A rejected
+    correction replaces nothing.
     """
     item = db.execute(
         select(ReviewItem).where(
@@ -220,13 +330,26 @@ def resolve_review_item(
     ).scalar_one_or_none()
     if item is None:
         raise NotFound("review item not found")
-    if item.resolved:
-        raise Conflict("review item is already resolved")
     if item.observation_id is None:
         raise Conflict("review item has no observation to resolve")
-    observation = db.get(Observation, item.observation_id)
-    if observation is None or observation.tenant_id != tenant_id:
+    patient_id = db.execute(
+        select(Observation.patient_id).where(
+            Observation.id == item.observation_id, Observation.tenant_id == tenant_id
+        )
+    ).scalar_one_or_none()
+    if patient_id is None:
         raise NotFound("review item not found")
+    # Decisions and imports for one patient take turns, under the one lock an import takes
+    # too (no second lock, so no lock order to get wrong): two reviewers resolving two items
+    # of one value must not each see the other's item as still open, and a correction must
+    # not be published while an import is matching against the value it replaces.
+    matching.lock_patient_record(db, patient_id)
+    db.refresh(item)
+    observation = db.get(Observation, item.observation_id)
+    if observation is None:
+        raise NotFound("review item not found")
+    if item.resolved:
+        raise Conflict("review item is already resolved")
     if observation.review_status != ReviewStatus.PENDING:
         raise Conflict("observation is no longer pending review")
 
@@ -245,6 +368,15 @@ def resolve_review_item(
             )
         ).first()
         if open_items is None:
+            target_id = observation.supersedes_observation_id
+            if target_id is not None and target_id in obs_service.superseded_by(
+                db, observation.patient_id
+            ):
+                # Another published correction already replaced that value: two values must
+                # not both stand as "the" correction of one.
+                raise Conflict(
+                    "supersession_conflict: the value this one corrects has already been replaced"
+                )
             observation.review_status = ReviewStatus.PUBLISHED
     db.flush()
     return item, observation

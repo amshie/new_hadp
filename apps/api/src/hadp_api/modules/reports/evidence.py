@@ -1,9 +1,10 @@
 """Evidence payload builder + statement evidence validation.
 
-The evidence payload is built ONLY from published observations. Statement validation
-enforces the meaningful-approval rule: every statement must reference at least one
-observation that is viewable (exists, published, belongs to this patient/tenant). A
-statement whose evidence is not viewable cannot be approved.
+The evidence payload is built ONLY from published observations that still stand. Statement
+validation enforces the meaningful-approval rule: every statement must reference at least one
+observation that is viewable (exists, published, belongs to this patient/tenant) and that no
+published laboratory correction has replaced. A statement whose evidence is not viewable, or
+rests on a replaced value, cannot be approved.
 """
 
 from __future__ import annotations
@@ -31,6 +32,9 @@ def build_evidence_payload(db: Session, patient_id: uuid.UUID) -> list[EvidenceI
     for point in timeline:
         obs = by_id[point.observation_id]
         if point.review_status.value != "published":
+            continue
+        # A value a published correction has replaced is history, not evidence for a new draft.
+        if point.superseded_by_observation_id is not None:
             continue
         # Derived values are NOT auto-cited in the report draft (ADR-0004 Slice 4 / §0): they would
         # otherwise read as measured. Labelled inclusion is deferred to the derived-UI slice.
@@ -65,11 +69,18 @@ def validate_statements(db: Session, patient_id: uuid.UUID, statements: list[dic
     editing, and (strictly) on approval.
     """
     viewable = viewable_observation_ids(db, patient_id)
+    replaced = obs_service.not_standing(db, patient_id)
     for stmt in statements:
         ids = stmt.get("evidence_observation_ids") or []
         if not ids:
             raise ValueError(f"statement {stmt.get('id')!r} has no evidence")
         resolved = {uuid.UUID(str(i)) for i in ids}
+        corrected = sorted(str(i) for i in resolved & replaced)
+        if corrected:
+            raise ValueError(
+                f"statement {stmt.get('id')!r} references evidence a laboratory correction "
+                f"has replaced: {corrected}"
+            )
         missing = resolved - viewable
         if missing:
             missing_ids = sorted(str(m) for m in missing)

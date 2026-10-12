@@ -13,7 +13,7 @@ from hadp_api.auth.dependencies import TenantContext, require
 from hadp_api.errors import Conflict, ValidationFailed
 from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.documents.service import store_source_document
-from hadp_api.modules.enums import ReviewDecision
+from hadp_api.modules.enums import ReviewDecision, ReviewStatus
 from hadp_api.modules.imports import service as imports_service
 from hadp_api.modules.imports.document_import import import_source_document
 from hadp_api.modules.imports.service import ValueInput, ingest_values
@@ -52,6 +52,9 @@ class ImportResultOut(BaseModel):
     import_job_id: uuid.UUID
     published_count: int
     review_count: int
+    # Values the patient already holds — recorded, not imported a second time. They have no
+    # entry in `observation_ids`.
+    duplicate_count: int
     observation_ids: list[uuid.UUID]
     review_item_ids: list[uuid.UUID]
 
@@ -98,6 +101,17 @@ async def upload_document(
     )
 
 
+def _observed_at(value: ImportValueIn) -> datetime:
+    """A day-only value is stored as that calendar day (midnight UTC), whatever offset the
+    client wrote it with — the day as written is the source's statement, not an instant."""
+    if value.observed_at_is_date_only:
+        day = value.observed_at.date()
+        return datetime(day.year, day.month, day.day, tzinfo=UTC)
+    if value.observed_at.tzinfo is None:
+        return value.observed_at.replace(tzinfo=UTC)
+    return value.observed_at
+
+
 @router.post("/patients/{patient_id}/imports", response_model=ImportResultOut, status_code=201)
 def run_import(
     patient_id: uuid.UUID,
@@ -110,9 +124,7 @@ def run_import(
             original_name=v.original_name,
             original_value=v.original_value,
             original_unit=v.original_unit,
-            observed_at=v.observed_at
-            if v.observed_at.tzinfo
-            else v.observed_at.replace(tzinfo=UTC),
+            observed_at=_observed_at(v),
             observed_at_is_date_only=v.observed_at_is_date_only,
             reference_low=v.reference_low,
             reference_high=v.reference_high,
@@ -138,12 +150,17 @@ def run_import(
         target_type="import_job",
         target_id=result.import_job_id,
         correlation_id=ctx.correlation_id,
-        detail={"published": result.published_count, "review": result.review_count},
+        detail={
+            "published": result.published_count,
+            "review": result.review_count,
+            "duplicates": result.duplicate_count,
+        },
     )
     return ImportResultOut(
         import_job_id=result.import_job_id,
         published_count=result.published_count,
         review_count=result.review_count,
+        duplicate_count=result.duplicate_count,
         observation_ids=result.observation_ids,
         review_item_ids=result.review_item_ids,
     )
@@ -155,6 +172,8 @@ class DocumentImportOut(BaseModel):
     parser_version: str
     published_count: int
     review_count: int
+    # Values the patient already holds — recorded, not imported a second time.
+    duplicate_count: int
     not_imported_count: int
     created: bool
 
@@ -216,6 +235,7 @@ def import_document(
             detail={
                 "published": result.published_count,
                 "review": result.review_count,
+                "duplicates": result.duplicate_count,
                 "not_imported": result.not_imported_count,
                 "parser": result.parser_name,
                 "parser_version": result.parser_version,
@@ -229,9 +249,24 @@ def import_document(
         parser_version=result.parser_version,
         published_count=result.published_count,
         review_count=result.review_count,
+        duplicate_count=result.duplicate_count,
         not_imported_count=result.not_imported_count,
         created=result.created,
     )
+
+
+class HeldValueOut(BaseModel):
+    """A value the patient already holds, as source representation."""
+
+    observation_id: uuid.UUID
+    original_name: str
+    original_value: str
+    original_unit: str | None
+    observed_at: datetime
+    observed_at_is_date_only: bool
+    review_status: str
+    # A published correction has replaced this value.
+    superseded: bool
 
 
 class ReviewItemOut(BaseModel):
@@ -247,6 +282,12 @@ class ReviewItemOut(BaseModel):
     observed_at: datetime
     observed_at_is_date_only: bool
     created_at: datetime
+    # The held value this one replaces once it is published (a source-marked correction).
+    replaces: HeldValueOut | None
+    # Reports whose current version cites the value that would be replaced.
+    replaces_cited_in_report_count: int
+    # Other values held for the same analyte and sampling time.
+    related: list[HeldValueOut]
 
 
 class ResolveReviewIn(BaseModel):
@@ -289,6 +330,13 @@ def resolve_review_item(
         decision=body.decision,
         resolved_by_user_id=ctx.user.id,
     )
+    detail: dict[str, str] = {"decision": body.decision.value, "reason": item.reason}
+    if (
+        observation.supersedes_observation_id is not None
+        and observation.review_status == ReviewStatus.PUBLISHED
+    ):
+        # This decision made a laboratory correction take effect.
+        detail["superseded_observation_id"] = str(observation.supersedes_observation_id)
     record_audit(
         ctx.db,
         action="review_item.resolved",
@@ -297,7 +345,7 @@ def resolve_review_item(
         target_type="review_item",
         target_id=item.id,
         correlation_id=ctx.correlation_id,
-        detail={"decision": body.decision.value, "reason": item.reason},
+        detail=detail,
     )
     return ResolveReviewOut(
         review_item_id=item.id,

@@ -275,6 +275,7 @@ export function PatientDetailContent({
       actionabilityLabel: "",
       adequacyLabel: "",
       reviewed: false,
+      citesReplaced: false,
       markerCodes: [],
       cells: [],
       assessed: false,
@@ -929,6 +930,18 @@ export function PatientDetailContent({
                   <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
                     Follow-up-Adäquanz: {d.adequacyLabel}
                   </div>
+                  {d.citesReplaced && (
+                    <div
+                      style={{
+                        marginTop: "6px",
+                        fontSize: "12px",
+                        color: "var(--danger)",
+                      }}
+                    >
+                      Stützt sich auf einen vom Labor korrigierten Wert —
+                      Interpretation prüfen.
+                    </div>
+                  )}
                   {sel ? (
                     <div
                       style={{
@@ -1053,6 +1066,30 @@ export function PatientDetailContent({
                   }}
                 >
                   {m.name}
+                  {m.superseded && (
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: "11px",
+                        fontWeight: 500,
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      durch Laborkorrektur ersetzt
+                    </span>
+                  )}
+                  {m.inputReplaced && (
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: "11px",
+                        fontWeight: 500,
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      Eingangswert durch Laborkorrektur ersetzt
+                    </span>
+                  )}
                 </span>
                 <span>
                   <span

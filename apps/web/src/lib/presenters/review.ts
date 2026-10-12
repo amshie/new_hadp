@@ -68,6 +68,9 @@ export interface EvidenceChip {
   label: string;
   status?: string;
   missing: boolean;
+  // A published laboratory correction has replaced the cited value: the statement can no
+  // longer be approved or released as it stands.
+  superseded?: boolean;
 }
 export interface StatementView {
   id: string;
@@ -84,6 +87,10 @@ export interface MarkerView {
   code: string;
   status: string;
   reviewRequired: boolean;
+  // A published laboratory correction has replaced this value; it stays as a preserved record.
+  superseded: boolean;
+  // A derived value computed from an input that a laboratory correction has replaced.
+  inputReplaced: boolean;
   // Lage zum Referenzintervall (docs/notes/0009 out_of_source_interval): the value's deterministic
   // position relative to the lab interval + a cosmetic position bar. Provenance, never a verdict.
   lagePosition: ReferencePosition;
@@ -117,6 +124,9 @@ export interface DomainView {
   actionabilityLabel: string;
   adequacyLabel: string;
   reviewed: boolean;
+  // The run cites a value a laboratory correction has since replaced. The run is a preserved
+  // record; the note asks for a new look, it is not a verdict.
+  citesReplaced: boolean;
   markerCodes: string[];
   cells: DomainCellView[];
 }
@@ -131,6 +141,8 @@ export interface ReviewView {
   versionNo: number;
   // True once the current version carries a human edit (no longer the provider's output).
   edited: boolean;
+  // A cited value no longer stands: not approvable or releasable; a new draft is the way on.
+  citesReplaced: boolean;
   statements: StatementView[];
   markers: MarkerView[];
   auditSteps: AuditStepView[];
@@ -255,6 +267,9 @@ export function presentReview(
       adequacyLabel:
         ADEQUACY_LABELS[d.followup_adequacy] ?? d.followup_adequacy,
       reviewed: d.review_status === "clinician_reviewed",
+      citesReplaced: d.cells.some((c) =>
+        c.evidence.some((e) => e.superseded === true),
+      ),
       markerCodes,
       cells: d.cells.map((c) => ({
         axisLabel: TRI_AXIS_LABELS[c.tri_state_axis] ?? c.tri_state_axis,
@@ -277,6 +292,7 @@ export function presentReview(
     statusLabel: statusInfo.label,
     versionNo: report.version_no,
     edited: report.edited === true,
+    citesReplaced: report.cites_replaced_evidence === true,
     statements: report.statements.map((s) => ({
       id: s.id,
       text: s.text,
@@ -288,6 +304,7 @@ export function presentReview(
               label: `${e.original_name ?? "Beobachtung"}: ${unitJoin(e.value, e.unit)}`,
               status: e.review_status,
               missing: false,
+              superseded: e.superseded === true,
             },
       ),
     })),
@@ -302,6 +319,8 @@ export function presentReview(
       code: p.metric_code ?? "—",
       status: p.review_status,
       reviewRequired: p.review_status !== "published",
+      superseded: p.superseded_by_observation_id != null,
+      inputReplaced: p.input_replaced === true,
       lagePosition: referencePosition(
         p.value,
         p.reference_low,

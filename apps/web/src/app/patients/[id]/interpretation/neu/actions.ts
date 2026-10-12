@@ -35,6 +35,12 @@ export async function authorRunAction(
             "Eingaben unvollständig oder außerhalb der geschlossenen Vokabulare.",
         };
       if (e.status === 409) {
+        if (e.message.includes("correction has replaced"))
+          return {
+            ok: false,
+            error:
+              "Ein gewählter Beleg wurde inzwischen vom Labor korrigiert. Bitte die Seite neu laden und die Belege erneut wählen.",
+          };
         if (e.message.includes("evidence"))
           return {
             ok: false,

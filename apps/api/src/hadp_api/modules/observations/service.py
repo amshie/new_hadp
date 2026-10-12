@@ -3,7 +3,9 @@
 Changes are computed only between comparable observations (same metric code AND same
 normalized unit) — never across incompatible units/methods (CLAUDE.md). Deltas are exact
 decimal subtraction. Review-required observations are surfaced with their status but are
-not treated as published evidence.
+not treated as published evidence. An observation a published correction has replaced — and a
+value derived from one — stays on the timeline as a preserved record, marked, and takes no
+part in a change calculation.
 """
 
 from __future__ import annotations
@@ -12,14 +14,23 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from hadp_api.modules.enums import ComparabilityState, KpiComparisonPolicy, ReviewStatus
+from hadp_api.config import get_settings
+from hadp_api.modules.derivations.models import ObservationDerivation
+from hadp_api.modules.enums import (
+    ComparabilityState,
+    KpiComparisonPolicy,
+    KpiMeasurementClass,
+    ReviewStatus,
+)
 from hadp_api.modules.kpi.service import domain_membership, resolve_comparison_policies
 from hadp_api.modules.observations.comparability import is_comparable
 from hadp_api.modules.observations.models import Observation
+from hadp_api.modules.observations.sampling import same_sampling_time
 
 
 @dataclass
@@ -47,6 +58,14 @@ class TimelinePoint:
     # set). None for the first point of a series (nothing to compare). Verdict-free.
     comparability: str | None
     comparability_reason: str | None
+    # Correction lineage. `supersedes` is set on a value a source sent as a correction of an
+    # earlier one (a proposal until this value is published); `superseded_by` is set on a value
+    # a PUBLISHED correction has replaced.
+    supersedes_observation_id: uuid.UUID | None
+    superseded_by_observation_id: uuid.UUID | None
+    # A derived value one of whose inputs a published correction has replaced: it was computed
+    # from a value that no longer stands.
+    input_replaced: bool
 
 
 @dataclass
@@ -95,7 +114,7 @@ def list_observations(db: Session, patient_id: uuid.UUID) -> list[Observation]:
         db.execute(
             select(Observation)
             .where(Observation.patient_id == patient_id)
-            .order_by(Observation.observed_at)
+            .order_by(Observation.observed_at, Observation.received_at, Observation.id)
         )
         .scalars()
         .all()
@@ -108,12 +127,56 @@ def list_published(db: Session, patient_id: uuid.UUID) -> list[Observation]:
     ]
 
 
+def superseded_by(db: Session, patient_id: uuid.UUID) -> dict[uuid.UUID, uuid.UUID]:
+    """Replaced observation id -> the PUBLISHED source value that replaced it.
+
+    The single definition of "superseded". A supersession takes effect only once the replacing
+    observation is published: a correction still in review, or one a human rejected, replaces
+    nothing. The replaced observation itself is never changed. A recomputed derived value is
+    lineage, not a correction, and is not counted here.
+    """
+    rows = db.execute(
+        select(Observation.supersedes_observation_id, Observation.id)
+        .where(
+            Observation.patient_id == patient_id,
+            Observation.supersedes_observation_id.is_not(None),
+            Observation.review_status == ReviewStatus.PUBLISHED,
+            Observation.source_category.is_distinct_from(KpiMeasurementClass.DERIVED),
+        )
+        .order_by(Observation.received_at, Observation.id)
+    ).tuples()
+    return {replaced: replacement for replaced, replacement in rows if replaced is not None}
+
+
+def derived_from(db: Session, input_ids: set[uuid.UUID]) -> set[uuid.UUID]:
+    """Derived observations computed from any of the given inputs (append-only lineage)."""
+    if not input_ids:
+        return set()
+    return set(
+        db.execute(
+            select(ObservationDerivation.derived_observation_id).where(
+                ObservationDerivation.input_observation_id.in_(input_ids)
+            )
+        ).scalars()
+    )
+
+
+def not_standing(db: Session, patient_id: uuid.UUID) -> set[uuid.UUID]:
+    """Observations that must not back anything new: replaced by a published correction, or
+    derived from a value that was."""
+    replaced = set(superseded_by(db, patient_id))
+    return replaced | derived_from(db, replaced)
+
+
 def build_timeline(db: Session, patient_id: uuid.UUID) -> list[TimelinePoint]:
     observations = list_observations(db, patient_id)
     kpi_codes = {o.kpi_code for o in observations if o.kpi_code is not None}
     # Resolve each observation's catalog domains (Slice 2b) and comparison policies (Slice 3) once.
     membership = domain_membership(db, kpi_codes)
     policies = resolve_comparison_policies(db, kpi_codes)
+    replaced = superseded_by(db, patient_id)
+    stale_derived = derived_from(db, set(replaced))
+    zone = ZoneInfo(get_settings().lab_local_timezone)
     # Track the previous PUBLISHED observation per (canonical KPI identity, normalized_unit). The
     # identity is kpi_code when resolved (the canonical comparison unit), else the source code.
     last_published: dict[tuple[str | None, str | None], Observation] = {}
@@ -125,9 +188,19 @@ def build_timeline(db: Session, patient_id: uuid.UUID) -> list[TimelinePoint]:
         prev_id: uuid.UUID | None = None
         comparability: str | None = None
         comparability_reason: str | None = None
-        if obs.review_status == ReviewStatus.PUBLISHED and obs.normalized_value is not None:
+        # A value that no longer stands is neither compared nor compared against: a change is
+        # only ever computed between values that currently stand.
+        if (
+            obs.review_status == ReviewStatus.PUBLISHED
+            and obs.normalized_value is not None
+            and obs.id not in replaced
+            and obs.id not in stale_derived
+        ):
             prev = last_published.get(key)
-            if prev is not None and prev.normalized_value is not None:
+            same_sample = prev is not None and same_sampling_time(prev, obs, zone)
+            # Two values standing for one sampling time — or for one day, when only one of
+            # them names a time — are not a change over time.
+            if prev is not None and prev.normalized_value is not None and not same_sample:
                 policy = policies.get(obs.kpi_code or "", KpiComparisonPolicy.METHOD_AWARE)
                 ok, reason = is_comparable(prev, obs, policy)
                 if ok:
@@ -161,6 +234,9 @@ def build_timeline(db: Session, patient_id: uuid.UUID) -> list[TimelinePoint]:
                 kpi_secondary_domains=[axis.value for axis in secondary],
                 comparability=comparability,
                 comparability_reason=comparability_reason,
+                supersedes_observation_id=obs.supersedes_observation_id,
+                superseded_by_observation_id=replaced.get(obs.id),
+                input_replaced=obs.id in stale_derived,
             )
         )
     return points

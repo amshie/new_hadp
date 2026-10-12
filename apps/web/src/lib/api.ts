@@ -33,6 +33,7 @@ export interface ReportEvidenceItem {
   observed_at?: string;
   review_status?: string;
   missing?: boolean; // backend surfaces unresolved evidence as { observation_id, missing: true }
+  superseded?: boolean; // a published laboratory correction has replaced the cited value
 }
 export interface ReportStatement {
   id: string;
@@ -47,6 +48,8 @@ export interface ReportView {
   narrative_provider: string;
   narrative_version: string;
   edited?: boolean; // true once the current version carries a human edit
+  // A cited value no longer stands: not approvable or releasable; a new draft is the way on.
+  cites_replaced_evidence?: boolean;
   statements: ReportStatement[];
 }
 export interface PatientView {
@@ -68,6 +71,7 @@ export interface EvidenceObs {
   observed_at: string;
   review_status: string;
   metric_code: string | null;
+  superseded?: boolean; // a published laboratory correction has replaced the cited value
 }
 export interface TriStateCellView {
   tri_state_axis: string;
@@ -283,6 +287,10 @@ export const editReport = (
   request<ReportView>(`/api/v1/reports/${reportId}/edit`, {
     method: "POST",
     body: JSON.stringify({ statements }),
+  });
+export const redraftReport = (reportId: string) =>
+  request<ReportView>(`/api/v1/reports/${reportId}/redraft`, {
+    method: "POST",
   });
 export const approveReport = (reportId: string) =>
   request<ReportView>(`/api/v1/reports/${reportId}/approve`, {
