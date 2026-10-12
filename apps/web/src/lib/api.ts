@@ -239,7 +239,10 @@ export async function logout(): Promise<void> {
   try {
     await request("/api/v1/auth/logout", { method: "POST" });
   } finally {
-    (await cookies()).delete(COOKIE);
+    // Both, also when the revoke failed: neither value stays on the device after sign-out.
+    const jar = await cookies();
+    jar.delete(COOKIE);
+    jar.delete(CSRF_COOKIE);
   }
 }
 
