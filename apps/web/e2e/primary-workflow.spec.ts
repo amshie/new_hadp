@@ -4,7 +4,12 @@ import { join } from "node:path";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { asStaff, hydrated, watchPageErrors } from "./support/staff";
+import {
+  asStaff,
+  hydrated,
+  watchPageErrors,
+  withoutPageScripts,
+} from "./support/staff";
 
 // The primary clinic workflow, walked through the UI alone on synthetic data: a new patient
 // with consent, a laboratory file of which one value is published by the import and two
@@ -176,6 +181,49 @@ test("the assistant creates the patient and records the consent to release", asy
     await expect(figure(page, "Beobachtungen")).toHaveText("0");
     await expect(page.getByText("Kein Bericht", { exact: true })).toBeVisible();
   });
+});
+
+test("a form handled in script takes no submission before the page is hydrated", async ({
+  browser,
+}) => {
+  // Submitted before React has taken the page over, such a form would go to the server
+  // natively: a GET to the same address — a reload that drops what was entered and writes it
+  // into the URL. The submit button is disabled in the server's markup; that also stops the
+  // Enter key. Both forms are tried on pages whose scripts are kept from loading.
+  const context = await browser.newContext();
+  try {
+    await withoutPageScripts(context);
+    const page = await context.newPage();
+    await page.goto("/login");
+    const address = page.getByRole("textbox", { name: "E-Mail-Adresse" });
+    await address.fill("assistant@demo.synthetic");
+    await expect(page.getByRole("button", { name: "Anmelden" })).toBeDisabled();
+    await address.press("Enter");
+    // Nothing was sent: the address is still in the field and not in the URL.
+    await expect(address).toHaveValue("assistant@demo.synthetic");
+    expect(new URL(page.url()).search).toBe("");
+    expect(new URL(page.url()).pathname).toBe("/login");
+  } finally {
+    await context.close();
+  }
+
+  await asStaff(
+    browser,
+    "assistant",
+    async (page) => {
+      await page.goto(patientPath);
+      const lab = page.getByRole("region", { name: "Labordaten" });
+      await lab.getByLabel("Labordatei wählen").setInputFiles(labFile);
+      await expect(
+        lab.getByRole("button", { name: "Hochladen und einlesen" }),
+      ).toBeDisabled();
+      expect(new URL(page.url()).search).toBe("");
+      await expect(
+        lab.getByText("Für diese Akte ist noch keine Labordatei gespeichert."),
+      ).toBeVisible();
+    },
+    { unhydrated: true },
+  );
 });
 
 test("the assistant imports a laboratory file: one value is published, two wait for review", async ({

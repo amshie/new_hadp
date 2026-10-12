@@ -3,6 +3,7 @@
 import { useState, useTransition, type FormEvent } from "react";
 
 import { Icon } from "@/components/Icon";
+import { useHydrated } from "@/lib/useHydrated";
 
 import { login } from "./actions";
 
@@ -12,6 +13,8 @@ import { login } from "./actions";
 export function SignInForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Until the page is hydrated the form would submit natively and put the address into the URL.
+  const hydrated = useHydrated();
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -56,7 +59,7 @@ export function SignInForm() {
       <button
         className="btn btn-primary btn-block"
         type="submit"
-        disabled={pending}
+        disabled={pending || !hydrated}
       >
         {pending ? "Anmeldung läuft …" : "Anmelden"}
       </button>

@@ -75,6 +75,8 @@ async function signIn(browser: Browser, role: StaffRole): Promise<Session> {
     const address = page.getByRole("textbox", { name: "E-Mail-Adresse" });
     await hydrated(address);
     await address.fill(email);
+    // The form takes no submission — not by the Enter key either — until it is hydrated.
+    await expect(page.getByRole("button", { name: "Anmelden" })).toBeEnabled();
     await address.press("Enter");
     await expect(
       page,
@@ -88,11 +90,23 @@ async function signIn(browser: Browser, role: StaffRole): Promise<Session> {
   }
 }
 
+// A page as it is BEFORE React has taken it over: the server's markup, with the framework's
+// scripts kept from loading. (The inline scripts that reveal streamed content still run.)
+export async function withoutPageScripts(
+  context: BrowserContext,
+): Promise<void> {
+  await context.route(/\/_next\/static\/.*\.js(\?.*)?$/, (route) =>
+    route.abort(),
+  );
+}
+
 // Runs one piece of work as a member of the clinic's staff, in a browser context of its own.
+// `unhydrated`: the pages of this context never hydrate (see withoutPageScripts).
 export async function asStaff(
   browser: Browser,
   role: StaffRole,
   work: (page: Page) => Promise<void>,
+  options: { unhydrated?: boolean } = {},
 ): Promise<void> {
   let session = sessions.get(role);
   if (!session) {
@@ -101,6 +115,7 @@ export async function asStaff(
   }
   const context = await browser.newContext({ storageState: session });
   const noPageErrors = watchPageErrors(context);
+  if (options.unhydrated) await withoutPageScripts(context);
   try {
     await work(await context.newPage());
     noPageErrors();

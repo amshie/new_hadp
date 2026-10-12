@@ -71,8 +71,11 @@ Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
   what was entered is gone without a message — **and it is in the address bar, the history
   and the web server's access log**: the e-mail address as `/login?email=…`, the laboratory
   file's name as `?file=…`. The laboratory upload form and the sign-in form are such forms
-  (`LabDocumentsCard.tsx`, `SignInForm.tsx`). The test now waits for hydration; a person with
-  a fast hand on a slow device gets the reload. Not changed here, and no test pins it yet.
+  (`LabDocumentsCard.tsx`, `SignInForm.tsx`). ✅ Fixed 2026-10-13: both keep their submit
+  button disabled until the page is hydrated (`lib/useHydrated.ts`) — a disabled default
+  button also stops the Enter key — and the suite tries both on pages whose scripts are kept
+  from loading. The third script-handled form (the patient wizard) only exists once the page
+  is hydrated.
   From the independent review of the suite, taken: the step that claimed to show "before the
   release" is named for what it shows (a browser without a link), and a link that is not the
   issued one is tried after the release; every context fails its step on an uncaught page
