@@ -128,9 +128,12 @@ test("the assistant creates the patient and records the consent to release", asy
     await add.click();
 
     const wizard = page.getByRole("dialog", { name: "Patient hinzufügen" });
-    await wizard
-      .getByRole("textbox", { name: "Name", exact: true })
-      .fill(patient.name);
+    const name = wizard.getByRole("textbox", { name: "Name", exact: true });
+    // The dialog moves focus to its first field a moment after it opens. Typing into another
+    // field before that has happened lands in this one (seen once in CI: the patient was
+    // created under its name with the reference appended) — so wait for the focus first.
+    await expect(name).toBeFocused();
+    await name.fill(patient.name);
     await wizard.getByRole("textbox", { name: "Externe ID" }).fill(patient.ref);
     await wizard.getByRole("button", { name: "Weiter" }).click();
 

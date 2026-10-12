@@ -85,7 +85,10 @@ Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
   swapped or dropped verdicts would pass (CIS is rendered on no reading page — its storage is
   proven by API tests only); the statements are checked by their beginning, not in full; the
   roles are shown by a control being absent, the refusals themselves are API tests; nothing
-  crosses a clinic boundary in the browser; one green run in three is not yet stability.
+  crosses a clinic boundary in the browser; one green run in three is not yet stability — and it was not: a later run created the
+  patient under its name with the reference appended, because the dialog moves focus to its
+  first field 30 ms after opening (`components/vitabahn/Dialog.tsx`) and the test was already
+  typing into the second. The step waits for that focus now.
   Also found: **the MinIO images `docker-compose.yml` names can no longer be pulled** — Docker
   Hub answers 404 for `minio/minio` and `minio/mc` (checked 2026-10-12). A machine that
   already holds them keeps working; a new machine, or one that lost its image cache, cannot
