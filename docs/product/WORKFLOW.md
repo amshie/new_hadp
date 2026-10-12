@@ -171,6 +171,12 @@ DRAFT_GENERATED -> DRAFT_EDITED -> APPROVED -> RELEASED
   model exists, the transition workflow is **planned (Milestone 3)**.
 - A report carries one or more `ReportVersion` records; `ReportEvidence` links each statement to its
   source observation(s)/rule evaluation(s).
+- A `REJECTED` version is a preserved record, never mutated back into a draft. Rework is an edit:
+  it opens a **new** version at `DRAFT_EDITED` (review page, "Überarbeiten", clinician), which must
+  pass approval and release again.
+- Edited statement text is free text bound for patient-facing content: the edit path refuses the
+  restricted intended-use terms at write time (`modules/reports/language.py`), and the review page
+  labels an edited version as clinician-revised rather than as the deterministic draft.
 - Only a **clinician** may move a version to `APPROVED`, `RELEASED`, or `REJECTED`. Each transition
   is audited (actor, tenant, action, target, correlation ID; identifiers/timings only).
 
