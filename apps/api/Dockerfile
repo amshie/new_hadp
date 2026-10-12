@@ -24,9 +24,14 @@ COPY apps/api/pyproject.toml apps/api/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 FROM python:3.12.15-slim-trixie
+# The base image's own pip is not used here (the dependencies come from the stage above) and
+# is what an image scan reports first: it is taken out of the container's file system.
 RUN groupadd --system --gid 10001 hadp \
     && useradd --system --uid 10001 --gid hadp --no-create-home --home-dir /nonexistent \
-        --shell /usr/sbin/nologin hadp
+        --shell /usr/sbin/nologin hadp \
+    && rm -rf /usr/local/lib/python3.12/site-packages/pip \
+        /usr/local/lib/python3.12/site-packages/pip-*.dist-info \
+        /usr/local/lib/python3.12/ensurepip /usr/local/bin/pip*
 WORKDIR /srv/hadp/apps/api
 COPY --from=deps /srv/hadp/apps/api/.venv ./.venv
 COPY apps/api/alembic.ini ./

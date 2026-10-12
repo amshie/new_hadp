@@ -37,6 +37,12 @@ RUN pnpm install --frozen-lockfile --prod --no-optional
 FROM node:22.23.3-trixie-slim
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1
+# `next start` needs node and nothing else of the base image. npm, corepack and yarn — with
+# their own dependency trees, which is where an image scan finds its HIGH findings — are taken
+# out of the container's file system. (They remain in the base image's layer underneath.)
+RUN rm -rf /usr/local/lib/node_modules /opt/yarn-* \
+        /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+        /usr/local/bin/yarn /usr/local/bin/yarnpkg
 WORKDIR /srv/hadp/apps/web
 # pnpm links apps/web/node_modules into the store at /srv/hadp/node_modules/.pnpm with relative
 # symlinks, so both trees keep their workspace paths.

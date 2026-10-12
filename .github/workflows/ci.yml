@@ -220,6 +220,13 @@ jobs:
           for image in hadp-api:local hadp-worker:local hadp-web:local; do
             echo "===== $image"
             ./grype "$image" --only-fixed --fail-on high || status=1
+            # Where each HIGH or CRITICAL finding sits: it is only as fixable as its place
+            # (the application's dependencies, or something the base image brought along).
+            ./grype "$image" --only-fixed -o json 2> /dev/null \
+              | jq -r '.matches[]
+                  | select(.vulnerability.severity == "High" or .vulnerability.severity == "Critical")
+                  | "  \(.artifact.name)@\(.artifact.version)  \(.vulnerability.id)  \(.artifact.locations[0].path)"' \
+              | sort -u
           done
           exit "$status"
 
