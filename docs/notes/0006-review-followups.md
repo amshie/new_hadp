@@ -65,6 +65,12 @@ Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
   — `<label>` beside `<select>` without `htmlFor`), so the selects and text fields of the
   form have no accessible name; the test has to find them by position. That is a WCAG 2.2 AA
   gap in the primary clinical workflow.
+  Also found: **the MinIO images `docker-compose.yml` names can no longer be pulled** — Docker
+  Hub answers 404 for `minio/minio` and `minio/mc` (checked 2026-10-12). A machine that
+  already holds them keeps working; a new machine, or one that lost its image cache, cannot
+  start local object storage. CI therefore gives the browser test an S3 test double (moto, in
+  a process). Local development needs another S3-compatible image — a choice to make, not
+  made here.
 - **Broad static forbidden-language scan over all UI copy**: ✅ DONE — `apps/api/tests/
 test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restricted
   intended-use terms (stem-matched to catch plurals + German inflections), strips comments
