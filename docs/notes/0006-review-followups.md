@@ -48,9 +48,23 @@ Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
   value-shaped/long numbers, but cannot redact every bare integer without nuking ids.
   The real control is "application code never logs observation values" — enforce by
   review and add structured-logging field allow-listing if/when structured logs land.
-- **Web test coverage / Playwright e2e**: the api-client now has real tests; a Playwright
-  happy-path e2e for the upload→approve→patient-view workflow is the documented
-  follow-up (the live `make smoke` covers the API path today).
+- **Web test coverage / Playwright e2e**: ✅ DONE 2026-10-12 for the primary workflow —
+  `apps/web/e2e/primary-workflow.spec.ts` walks it through the UI alone, on synthetic data:
+  a new patient with consent → a laboratory CSV of which the import publishes one value and
+  holds two → the review queue → the interpretation run → the report draft → the clinical
+  approval → the medical director's release → the patient's page through the access link.
+  `make test-e2e` runs it against the running stack (it starts no server and resets nothing;
+  each run adds one synthetic patient); the `web-build-smoke` CI job runs it against the
+  production build. Still open: the paths beside the primary one (rejection and rework, a
+  laboratory correction, LDT files, the invitation link, the owner's pages) have no browser
+  test — the route smoke and the API tests cover them. A patient's attempt before the release
+  cannot be made through the UI at all: the access link exists only once the release has
+  issued it.
+  Found while writing it, not changed: the interpretation form's labels are not associated
+  with their controls (`apps/web/src/app/patients/[id]/interpretation/neu/AuthorRunContent.tsx`
+  — `<label>` beside `<select>` without `htmlFor`), so the selects and text fields of the
+  form have no accessible name; the test has to find them by position. That is a WCAG 2.2 AA
+  gap in the primary clinical workflow.
 - **Broad static forbidden-language scan over all UI copy**: ✅ DONE — `apps/api/tests/
 test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restricted
   intended-use terms (stem-matched to catch plurals + German inflections), strips comments

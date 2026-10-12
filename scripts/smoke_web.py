@@ -5,7 +5,8 @@ unauthenticated requests are pushed to /login, the retired /worklist redirects t
 /overview, unknown routes render the neutral 404, and an authenticated session
 renders the real dashboard with the synthetic-data banner. Requires the API on
 :8000 (dev mode) and the web app on :3000 against a seeded dev DB. Synthetic data
-only. Exits non-zero on any failure. (Full Playwright e2e is a later slice.)
+only. Exits non-zero on any failure. (The clinic workflow itself is walked in a browser
+by the Playwright suite in apps/web/e2e — `make test-e2e`.)
 
 No page may carry mock UI (a password or second-factor field that checks nothing,
 "Prototyp" wording, a notification control with nothing behind it), and the report

@@ -86,10 +86,11 @@ jobs:
           cd ../.. && pnpm -r --if-present test
 
   web-build-smoke:
-    # Production `next build` + a browserless route smoke over the governed path:
-    # API (dev mode, non-superuser hadp_app role, RLS enforced) + `next start` on the
-    # seeded synthetic data set. Catches broken builds, broken route guards, and a
-    # missing synthetic-data banner before merge. Synthetic data only.
+    # Production `next build`, a browserless route smoke and the browser test of the clinic
+    # workflow (Playwright) over the governed path: API (dev mode, non-superuser hadp_app
+    # role, RLS enforced) + `next start` on the seeded synthetic data set. Catches broken
+    # builds, broken route guards, a missing synthetic-data banner, and a workflow step that
+    # no longer works through the UI before merge. Synthetic data only.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -156,6 +157,15 @@ jobs:
           uv run alembic upgrade head
           uv run python -m hadp_api.scripts.seed
 
+      - name: Start object storage and create the bucket (MinIO)
+        # A laboratory file is stored before it is read, and the browser test uploads one. The
+        # same containers as local development (docker-compose.yml): the S3 API on
+        # 127.0.0.1:59000, which is the API's default endpoint. `--wait` returns once MinIO is
+        # healthy; the one-shot `minio-init` then creates the bucket and exits.
+        run: |
+          docker compose up -d --wait minio
+          docker compose run --rm --no-deps minio-init
+
       - name: Build web app (next build)
         run: pnpm --filter @hadp/web build
 
@@ -179,11 +189,33 @@ jobs:
           WEB_SMOKE_RELEASE: "1"
         run: cd apps/api && uv run python ../../scripts/smoke_web.py
 
+      - name: Install Chromium for the browser test
+        run: pnpm --filter @hadp/web exec playwright install --with-deps chromium
+
+      - name: Browser test of the clinic workflow (Playwright)
+        # Against the production build that is already serving. Sign-in is limited to 10 per
+        # minute per client address: the route smoke above signs in three times, this suite
+        # three times (once per role) — six, even if both fell into one minute.
+        run: make test-e2e
+
+      - name: Upload the Playwright report and traces
+        # Synthetic data only: the accounts, the patient and the laboratory file are made up.
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Dump server logs on failure
         if: failure()
         run: |
           echo "===== api.log ====="; cat /tmp/api.log || true
           echo "===== web.log ====="; cat /tmp/web.log || true
+          echo "===== minio ====="; docker compose logs --no-color --tail 50 minio || true
 
   secret-scan:
     runs-on: ubuntu-latest
