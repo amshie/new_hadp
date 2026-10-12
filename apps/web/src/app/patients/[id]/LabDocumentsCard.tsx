@@ -5,6 +5,7 @@ import { useRef, useState, useTransition, type CSSProperties } from "react";
 
 import type { SourceDocument } from "@/lib/api";
 import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
+import { useHydrated } from "@/lib/useHydrated";
 
 import {
   importStoredDocumentAction,
@@ -117,6 +118,9 @@ export function LabDocumentsCard({
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [outcome, setOutcome] = useState<LabImportResult | null>(null);
+  // Until the page is hydrated the form would submit natively: a reload that drops the chosen
+  // file and puts its name into the URL.
+  const hydrated = useHydrated();
   const [pending, startTransition] = useTransition();
 
   const upload = (form: HTMLFormElement) => {
@@ -193,7 +197,11 @@ export function LabDocumentsCard({
               disabled={pending}
               style={{ fontSize: "12.5px", color: "var(--text-body)" }}
             />
-            <button type="submit" style={btnPri} disabled={pending}>
+            <button
+              type="submit"
+              style={btnPri}
+              disabled={pending || !hydrated}
+            >
               {pending ? "Wird eingelesen …" : "Hochladen und einlesen"}
             </button>
           </form>

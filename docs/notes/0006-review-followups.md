@@ -60,19 +60,22 @@ Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
   test — the route smoke and the API tests cover them. A patient's attempt before the release
   cannot be made through the UI at all: the access link exists only once the release has
   issued it.
-  Found while writing it, not changed: the interpretation form's labels are not associated
-  with their controls (`apps/web/src/app/patients/[id]/interpretation/neu/AuthorRunContent.tsx`
-  — `<label>` beside `<select>` without `htmlFor`), so the selects and text fields of the
-  form have no accessible name; the test has to find them by position. That is a WCAG 2.2 AA
-  gap in the primary clinical workflow.
+  Found while writing it: the interpretation form's labels were not associated with their
+  controls (`AuthorRunContent.tsx` — `<label>` beside `<select>` without `htmlFor`), so the
+  selects and text fields of the form had no accessible name — a WCAG 2.2 AA gap in the
+  primary clinical workflow. ✅ Fixed 2026-10-13: every label is bound to its control, each
+  tri-state cell is a named group, and the suite finds the fields by name.
   Found by its first run against the production build: **a form whose submit is handled in
   script submits natively when it is used before React has hydrated it.** The forms have no
   `method` and no `action`, so the browser sends a GET to the same address: the page reloads,
   what was entered is gone without a message — **and it is in the address bar, the history
   and the web server's access log**: the e-mail address as `/login?email=…`, the laboratory
   file's name as `?file=…`. The laboratory upload form and the sign-in form are such forms
-  (`LabDocumentsCard.tsx`, `SignInForm.tsx`). The test now waits for hydration; a person with
-  a fast hand on a slow device gets the reload. Not changed here, and no test pins it yet.
+  (`LabDocumentsCard.tsx`, `SignInForm.tsx`). ✅ Fixed 2026-10-13: both keep their submit
+  button disabled until the page is hydrated (`lib/useHydrated.ts`) — a disabled default
+  button also stops the Enter key — and the suite tries both on pages whose scripts are kept
+  from loading. The third script-handled form (the patient wizard) only exists once the page
+  is hydrated.
   From the independent review of the suite, taken: the step that claimed to show "before the
   release" is named for what it shows (a browser without a link), and a link that is not the
   issued one is tried after the release; every context fails its step on an uncaught page
@@ -82,7 +85,10 @@ Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
   swapped or dropped verdicts would pass (CIS is rendered on no reading page — its storage is
   proven by API tests only); the statements are checked by their beginning, not in full; the
   roles are shown by a control being absent, the refusals themselves are API tests; nothing
-  crosses a clinic boundary in the browser; one green run in three is not yet stability.
+  crosses a clinic boundary in the browser; one green run in three is not yet stability — and it was not: a later run created the
+  patient under its name with the reference appended, because the dialog moves focus to its
+  first field 30 ms after opening (`components/vitabahn/Dialog.tsx`) and the test was already
+  typing into the second. The step waits for that focus now.
   Also found: **the MinIO images `docker-compose.yml` names can no longer be pulled** — Docker
   Hub answers 404 for `minio/minio` and `minio/mc` (checked 2026-10-12). A machine that
   already holds them keeps working; a new machine, or one that lost its image cache, cannot
