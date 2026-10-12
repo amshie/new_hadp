@@ -110,5 +110,14 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   number written with a thousands separator ("1,234") is read as 1.234; the day-only fix in
   the interpretation evidence has no test under a database session west of UTC;
   `LAB_LOCAL_TIMEZONE` is not validated at startup.
+- **The clinic reads its own audit trail (go-live plan A9, 2026-10-12):** ✅ Einstellungen →
+  Audit-Protokoll (owner): newest first, paged by a cursor, filtered by area, day and record.
+  The read filters by tenant explicitly — row-level security also passes tenant-less events
+  (sign-ins of every user), which are no clinic's. Still open: no index for the query yet
+  (`tenant_id` alone; fine at pilot volume — add `(tenant_id, created_at DESC, id DESC)` when
+  the trail grows); no export of the trail and no retention rule; sign-ins are tenant-less and
+  so not part of any clinic's trail (the entry into the clinic is); reading a report still
+  writes no event (separate task); the "Letzte Aktivität" panel on the Übersicht stays gated —
+  a feed for every role is a different decision than an owner's audit view.
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

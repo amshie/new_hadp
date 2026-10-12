@@ -15,6 +15,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 
 from hadp_api.api import (
+    audit_routes,
     auth_routes,
     consents_routes,
     health,
@@ -150,6 +151,7 @@ def create_app() -> FastAPI:
         staff_invitations_routes.router,
         members_routes.router,
         privacy_routes.router,
+        audit_routes.router,
         worklist_routes.router,
         # Milestone 0.5 vertical spike:
         imports_routes.router,

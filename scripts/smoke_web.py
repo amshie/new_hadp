@@ -282,6 +282,35 @@ def main() -> int:
         assert "Korrektur-Run erfassen" in r.text or "Interpretation erfassen" in r.text
         assert_no_mock_ui("/interpretation/neu", r.text)
 
+        # The audit trail is tenant administration: this clinician session is told so and
+        # is shown no entry.
+        r = web.get("/einstellungen/audit")
+        assert r.status_code == 200, ("/einstellungen/audit as clinician", r.status_code)
+        assert "nur für Inhaber" in r.text, "audit trail not refused to a non-owner"
+        assert "<table" not in r.text, "audit entries rendered for a non-owner"
+
+    # The owner reads the clinic's trail: entries with a named actor, newest first.
+    owner = staff_session("owner@demo.synthetic")
+    try:
+        owner_cookie = {"hadp_session": owner.cookies.get("hadp_session") or ""}
+        with httpx.Client(
+            base_url=WEB, timeout=60.0, follow_redirects=False, cookies=owner_cookie
+        ) as web:
+            r = web.get("/einstellungen")
+            assert 'href="/einstellungen/audit"' in r.text, "settings do not list the audit trail"
+            r = web.get("/einstellungen/audit?reads=1")
+            assert r.status_code == 200, ("/einstellungen/audit as owner", r.status_code)
+            assert_no_mock_ui("/einstellungen/audit", r.text)
+            assert "Praxis ausgewählt" in r.text, "the owner's entry into the clinic is missing"
+            assert "Synthetic Owner" in r.text, "audit entries do not name who acted"
+            # A parameter that is not what it claims to be is dropped, not passed on.
+            r = web.get("/einstellungen/audit?category=nope&target=not-a-uuid&since=yesterday")
+            assert r.status_code == 200, ("audit trail with malformed filters", r.status_code)
+            r = web.get("/einstellungen/audit?cursor=not-a-cursor")
+            assert r.status_code == 200 and "nicht gültig" in r.text, "a damaged position link"
+    finally:
+        owner.close()
+
     api.close()
     print("WEB SMOKE OK: guards, redirects, 404 boundary, and authed dashboard render")
     print(f"  report status wording checked for: {', '.join(checked)}")

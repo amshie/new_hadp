@@ -53,7 +53,11 @@ surface rather than a clinic-staff role.
   trail. _(As built 2026-10-12: the owner generates a patient's data export from the patient page
   — one file with the person's own data and released content only, never stored, audited;
   `docs/product/DATA_EXPORT.md`. Erasure is a two-person gate with the medical director,
-  `docs/notes/0012`. The audit-trail view is not built.)_
+  `docs/notes/0012`. The owner reads the clinic's audit trail under Einstellungen →
+  Audit-Protokoll: newest first, filtered by area, day and record, each entry with who acted;
+  it shows the events recorded for this clinic — identifiers, codes and timings — and reading
+  it is itself recorded. Sign-ins are recorded before a clinic is selected and are not part of
+  a clinic's trail; entering the clinic is.)_
 - Captures the per-clinic preparation-time **baseline** at onboarding (see §6).
 - May not approve or release patient-facing reports unless that user is also a clinician — approval
   is a clinical act (§4.3).

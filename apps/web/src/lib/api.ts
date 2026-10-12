@@ -433,6 +433,28 @@ export const revokeStaffInvitation = (invitationId: string) =>
     `/api/v1/staff-invitations/${invitationId}/revoke`,
     { method: "POST" },
   );
+// The clinic's own audit trail (owner-only server-side): newest first, paged by a cursor.
+export type AuditEvent = Schemas["AuditEventOut"];
+export type AuditPage = Schemas["AuditPageOut"];
+export interface AuditFilters {
+  category?: string;
+  target_id?: string;
+  since?: string;
+  until?: string;
+  exclude_reads?: boolean;
+  cursor?: string;
+}
+export const listAuditEvents = (filters: AuditFilters) => {
+  const qs = new URLSearchParams();
+  if (filters.category) qs.set("category", filters.category);
+  if (filters.target_id) qs.set("target_id", filters.target_id);
+  if (filters.since) qs.set("since", filters.since);
+  if (filters.until) qs.set("until", filters.until);
+  if (filters.exclude_reads) qs.set("exclude_reads", "true");
+  if (filters.cursor) qs.set("cursor", filters.cursor);
+  return request<AuditPage>(`/api/v1/audit-events?${qs.toString()}`);
+};
+
 // Member administration (owner-only server-side): list the team, change a role, remove.
 export const listMembers = () => request<MemberOut[]>("/api/v1/members");
 export const changeMemberRole = (membershipId: string, role: StaffRole) =>
