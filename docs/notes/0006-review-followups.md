@@ -240,5 +240,21 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   by the web app (the session then stays valid server-side until it expires); a 503 from the
   limiter is shown as the generic failure; uvicorn's own startup log does not pass the
   redaction filter; the erasure function is SECURITY DEFINER without a pinned `search_path`.
+- **Preparation-time metric (go-live plan A6, 2026-10-12): PART 1 — A6 stays open.**
+  Einstellungen → Vorbereitungszeit holds the clinic's own statements (baseline, follow-ups;
+  append-only) and one measured interval, draft to first standing approval
+  (`draft-to-approval-1`); `docs/product/WORKFLOW.md` §6.4. **Not built: a measure that can be
+  set against the baseline.** The interval starts at the draft, so it leaves out the work
+  before it; a comparable measure needs a recorded "preparation started" moment, and which
+  moment that is has to be decided first (founder).
+  From the independent review, taken: the standing baseline is looked up on its own (a long
+  history hid it); an approval that was refused no longer ends the interval; both routes are
+  rate limited; integers are strict; the report-timing query lives in the reports module; a
+  negative interval (two clocks) counts as zero; the page no longer calls the minimum of five a
+  protection of persons.
+  Still open: a double submit records twice (no idempotency key) and a lost answer is reported
+  as "not confirmed"; no chart or history of the measured value; no export; fixed windows; the
+  figure cannot be reproduced after an erasure; `elapsed()` and the page have no tests of their
+  own (the web has no test runner); the form loses its input on a refused submission.
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

@@ -524,3 +524,20 @@ export const redeemStaffInvitation = (input: {
       auth: false,
     },
   );
+
+// The preparation-time metric (owner only): what the clinic states about its own preparation
+// time, and what the platform measures from the report lifecycle. No patient data.
+export type PreparationTime = Schemas["PreparationTimeOut"];
+export type PreparationStatement = Schemas["PreparationStatementOut"];
+export type PreparationMeasured = Schemas["PreparationMeasuredOut"];
+export type PreparationStatementInput =
+  Schemas["RecordPreparationStatementRequest"];
+
+export const getPreparationTime = () =>
+  request<PreparationTime>("/api/v1/metrics/preparation-time");
+
+export const recordPreparationStatement = (input: PreparationStatementInput) =>
+  request<PreparationStatement>("/api/v1/metrics/preparation-time/statements", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });

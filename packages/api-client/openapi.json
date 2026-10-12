@@ -1372,6 +1372,68 @@
         }
       }
     },
+    "/api/v1/metrics/preparation-time": {
+      "get": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Read Preparation Time",
+        "operationId": "read_preparation_time_api_v1_metrics_preparation_time_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparationTimeOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics/preparation-time/statements": {
+      "post": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Record Preparation Time Statement",
+        "operationId": "record_preparation_time_statement_api_v1_metrics_preparation_time_statements_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordPreparationStatementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparationStatementOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/worklist": {
       "get": {
         "tags": [
@@ -2379,7 +2441,8 @@
           "tenant",
           "authz",
           "worklist",
-          "audit"
+          "audit",
+          "metric"
         ],
         "title": "AuditCategory"
       },
@@ -3941,6 +4004,258 @@
           "token"
         ],
         "title": "PatientViewRequest"
+      },
+      "PreparationMeasuredOut": {
+        "properties": {
+          "since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "reports": {
+            "type": "integer",
+            "title": "Reports"
+          },
+          "median_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Seconds"
+          },
+          "q1_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q1 Seconds"
+          },
+          "q3_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q3 Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "since",
+          "reports",
+          "median_seconds",
+          "q1_seconds",
+          "q3_seconds"
+        ],
+        "title": "PreparationMeasuredOut"
+      },
+      "PreparationRecorderOut": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "display_name"
+        ],
+        "title": "PreparationRecorderOut"
+      },
+      "PreparationStatementBasis": {
+        "type": "string",
+        "enum": [
+          "estimate",
+          "timed_sample"
+        ],
+        "title": "PreparationStatementBasis",
+        "description": "How the clinic arrived at the number \u2014 a CLOSED vocabulary.\n\nAn estimate and a timed sample are not the same evidence; the statement keeps which one it\nis, and a timed sample says over how many appointments. PROPOSED, as above."
+      },
+      "PreparationStatementKind": {
+        "type": "string",
+        "enum": [
+          "baseline",
+          "follow_up"
+        ],
+        "title": "PreparationStatementKind",
+        "description": "What a clinic's own statement of its preparation time stands for \u2014 a CLOSED vocabulary.\n\nBASELINE: how long preparing one appointment took before the clinic worked with the\nplatform \u2014 the value a pilot is measured against. FOLLOW_UP: the clinic's later statement\nof the same quantity.\n\nPROPOSED values (engineering proposal, 2026-10-12) \u2014 docs/product/WORKFLOW.md \u00a76.\nChanging the set is a migration (the DB CHECK lists the values)."
+      },
+      "PreparationStatementOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PreparationStatementKind"
+          },
+          "basis": {
+            "$ref": "#/components/schemas/PreparationStatementBasis"
+          },
+          "median_minutes": {
+            "type": "integer",
+            "title": "Median Minutes"
+          },
+          "sample_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sample Size"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At"
+          },
+          "recorded_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PreparationRecorderOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "basis",
+          "median_minutes",
+          "sample_size",
+          "recorded_at",
+          "recorded_by"
+        ],
+        "title": "PreparationStatementOut"
+      },
+      "PreparationTimeOut": {
+        "properties": {
+          "definition": {
+            "type": "string",
+            "title": "Definition"
+          },
+          "minimum_reports": {
+            "type": "integer",
+            "title": "Minimum Reports"
+          },
+          "baseline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PreparationStatementOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_follow_up": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PreparationStatementOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "statements": {
+            "items": {
+              "$ref": "#/components/schemas/PreparationStatementOut"
+            },
+            "type": "array",
+            "title": "Statements"
+          },
+          "statements_total": {
+            "type": "integer",
+            "title": "Statements Total"
+          },
+          "measured_all_time": {
+            "$ref": "#/components/schemas/PreparationMeasuredOut"
+          },
+          "measured_last_30_days": {
+            "$ref": "#/components/schemas/PreparationMeasuredOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "definition",
+          "minimum_reports",
+          "baseline",
+          "latest_follow_up",
+          "statements",
+          "statements_total",
+          "measured_all_time",
+          "measured_last_30_days"
+        ],
+        "title": "PreparationTimeOut"
+      },
+      "RecordPreparationStatementRequest": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/PreparationStatementKind"
+          },
+          "basis": {
+            "$ref": "#/components/schemas/PreparationStatementBasis"
+          },
+          "median_minutes": {
+            "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Median Minutes"
+          },
+          "sample_size": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sample Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "basis",
+          "median_minutes"
+        ],
+        "title": "RecordPreparationStatementRequest"
       },
       "RedeemIn": {
         "properties": {
