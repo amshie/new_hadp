@@ -22,7 +22,7 @@ from hadp_api.auth.authz import Action
 from hadp_api.auth.dependencies import TenantContext, require
 from hadp_api.config import get_settings
 from hadp_api.db.engine import set_tenant_context
-from hadp_api.db.session import get_db
+from hadp_api.db.session import RequestSession
 from hadp_api.errors import NotFound
 from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.invitations import service as invitations_service
@@ -122,7 +122,7 @@ def revoke_invitation(
 def redeem_invitation(
     body: RedeemIn,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = RequestSession,
 ) -> RedeemOut:
     # Public token surface: throttle per client IP before touching the database.
     check_rate_limit(
