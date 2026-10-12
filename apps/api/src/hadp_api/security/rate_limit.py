@@ -1,8 +1,8 @@
 """Redis-backed fixed-window rate limiting (P-pre-1, docs/notes/0010).
 
 Applied to the abuse-prone surfaces: login, the public patient-view token surface,
-uploads, imports, invitations, data export, reading the audit trail, report drafting and
-report release. FAIL-CLOSED when Redis is unreachable — a missing backend must not silently
+uploads, imports, invitations, data export, reading the audit trail, the preparation-time
+metric, report drafting and report release. FAIL-CLOSED when Redis is unreachable — a missing backend must not silently
 disable throttling (503, in every environment: the local/CI stacks provide Redis, so an
 outage is a real misconfiguration, never an implicit bypass).
 
