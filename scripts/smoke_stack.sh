@@ -247,8 +247,10 @@ for service in api worker web; do
     "Uid: "[1-9]*) ok "$service process is not root (${uids% })" ;;
     *) fail "could not read the uid of $service ($uids)" ;;
   esac
-  expect "$service image carries no .env file" "" \
-    "$(compose exec -T "$service" sh -c 'find /srv -name ".env*" | head -n 3')"
+  # "searched" is printed after the search: an empty answer would also be what a failed
+  # `exec` gives, and must not read as "nothing found".
+  expect "$service image carries no .env file" "searched" \
+    "$(compose exec -T "$service" sh -c 'find /srv -name ".env*" | head -n 3; echo searched')"
 done
 expect "the API's optional env file does not exist in the image" "False" "$(
   compose exec -T api python -c '
