@@ -102,10 +102,12 @@ test: ## Unit and integration tests (requires infra up + test DB migrated)
 test-db: db-up db-init migrate-test ## Provision infra + test DB, then run DB-backed tests
 	cd $(API_DIR) && $(UV) run pytest
 
+# The suite starts no server and resets nothing: it signs in through the UI and walks the clinic
+# workflow on the running stack, creating one new synthetic patient per run. Chromium is installed
+# once with `pnpm --filter @hadp/web exec playwright install chromium`.
 .PHONY: test-e2e
-test-e2e: ## Browserless web route smoke (Playwright suite is a tracked later slice)
-	@echo "No Playwright suite yet (tracked follow-up, docs/notes/0006); running the browserless web route smoke."
-	@$(MAKE) smoke-web
+test-e2e: ## Browser test of the clinic workflow (Playwright; requires API on :8000 + web on :3000 + seeded dev DB)
+	pnpm --filter @hadp/web test:e2e
 
 .PHONY: secret-scan
 secret-scan: ## Scan working tree for secrets (no-op with a warning if gitleaks is absent)
