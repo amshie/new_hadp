@@ -9,11 +9,13 @@ Exits non-zero on any failure. Synthetic data only.
 
 from __future__ import annotations
 
+import os
 import sys
 
 import httpx
 
-BASE = "http://127.0.0.1:8000/api/v1"
+# The same override the web smoke has, so both can run against another local instance.
+BASE = os.environ.get("API_SMOKE_BASE", "http://127.0.0.1:8000/api/v1")
 
 
 def main() -> int:

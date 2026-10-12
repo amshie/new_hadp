@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from hadp_api.auth.sessions import hash_token
 from hadp_api.errors import Conflict, IntendedUseViolation, NotFound, ValidationFailed
 from hadp_api.modules.consents import service as consents_service
-from hadp_api.modules.enums import ConsentPurpose, ReportStatus
+from hadp_api.modules.enums import ConsentPurpose, ReportRejectionReason, ReportStatus
 from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.observations.models import Observation
 from hadp_api.modules.reports.evidence import build_evidence_payload, validate_statements
@@ -438,13 +438,19 @@ def release_report(
 
 
 def reject_report(
-    db: Session, *, report_id: uuid.UUID, tenant_id: uuid.UUID, rejected_by_user_id: uuid.UUID
+    db: Session,
+    *,
+    report_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+    rejected_by_user_id: uuid.UUID,
+    reason: ReportRejectionReason,
 ) -> ReportVersion:
     """Attributable refusal of the current version (draft or approved -> REJECTED).
 
     A RELEASED version cannot be rejected — released content is retracted by editing
     (which revokes patient links and opens a new draft version), never re-labeled.
-    Rejection is a preserved record: further work happens on a new version via edit.
+    Rejection is a preserved record: further work happens on a new version via edit. The
+    reason (closed vocabulary) tells whoever does that work what to change.
     """
     report = _get_report(db, report_id, tenant_id)
     version = _current_version(db, report)
@@ -455,6 +461,7 @@ def reject_report(
     version.status = ReportStatus.REJECTED
     version.rejected_by_user_id = rejected_by_user_id
     version.rejected_at = datetime.now(UTC)
+    version.rejection_reason = reason
     report.status = ReportStatus.REJECTED
     db.flush()
     return version
@@ -518,6 +525,19 @@ def _evidence_for_statement(
     return out
 
 
+def _reworked_rejection_reason(db: Session, report: Report, version: ReportVersion) -> str | None:
+    """The reason of the version directly before this one, if that version was rejected."""
+    previous = db.execute(
+        select(ReportVersion).where(
+            ReportVersion.report_id == report.id,
+            ReportVersion.version_no == version.version_no - 1,
+        )
+    ).scalar_one_or_none()
+    if previous is None or previous.status != ReportStatus.REJECTED:
+        return None
+    return previous.rejection_reason.value if previous.rejection_reason is not None else None
+
+
 def assemble_report_view(db: Session, report: Report) -> dict[str, Any]:
     """Full view for the clinician approval UI: statements with inline evidence."""
     version = _current_version(db, report)
@@ -532,6 +552,14 @@ def assemble_report_view(db: Session, report: Report) -> dict[str, Any]:
         "narrative_version": version.narrative_version,
         # Provenance of the text: a human edit means it is no longer the provider's output.
         "edited": version.edited_by_user_id is not None,
+        # Why this version was rejected (closed vocabulary; null on a version that is not
+        # rejected, and on one rejected before reasons were recorded).
+        "rejection_reason": version.rejection_reason.value
+        if version.rejection_reason is not None
+        else None,
+        # On a version that reworks a rejected one: why that earlier version was rejected, so
+        # whoever approves or releases can check that the rework answers it.
+        "reworks_rejection_reason": _reworked_rejection_reason(db, report, version),
         # A cited value no longer stands: this version cannot be approved or released, and a
         # new draft from the standing values is the way on (redraft).
         "cites_replaced_evidence": cites_replaced_evidence(db, report, version),

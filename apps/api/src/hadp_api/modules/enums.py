@@ -87,6 +87,29 @@ class ReportStatus(str, Enum):
     REJECTED = "rejected"
 
 
+class ReportRejectionReason(str, Enum):
+    """Why a report version was rejected — a CLOSED vocabulary.
+
+    Never free text: the reason is stored on the version and written to the audit trail, and
+    neither may carry patient data. Whoever reworks the report reads it to know what to change.
+
+    PROPOSED values (engineering proposal, 2026-10-12) awaiting the medical director's
+    confirmation — see docs/regulatory/CLASSIFICATION_REGISTER.md. Changing the set is a
+    migration (the DB CHECK lists the values).
+    """
+
+    # A statement is not, or not correctly, backed by its evidence.
+    EVIDENCE_INSUFFICIENT = "evidence_insufficient"
+    # The wording has to change.
+    WORDING = "wording"
+    # Data is missing, or values are still waiting in the review queue.
+    DATA_INCOMPLETE = "data_incomplete"
+    # The underlying data changed after the draft was written.
+    DATA_CHANGED = "data_changed"
+    # None of the above; the reason is communicated outside the system.
+    OTHER = "other"
+
+
 class ConsentStatus(str, Enum):
     ACTIVE = "active"
     WITHDRAWN = "withdrawn"

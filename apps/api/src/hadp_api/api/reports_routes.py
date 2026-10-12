@@ -12,6 +12,7 @@ from hadp_api.auth.authz import Action
 from hadp_api.auth.dependencies import TenantContext, require
 from hadp_api.config import get_settings
 from hadp_api.modules.audit.service import record_audit
+from hadp_api.modules.enums import ReportRejectionReason
 from hadp_api.modules.patients import service as patients_service
 from hadp_api.modules.reports import service as reports_service
 from hadp_api.modules.reports.service import _get_report  # internal lookup (tenant-scoped)
@@ -35,6 +36,11 @@ class StatementIn(BaseModel):
 
 class EditReportRequest(BaseModel):
     statements: list[StatementIn] = Field(min_length=1)
+
+
+class RejectReportRequest(BaseModel):
+    # Closed vocabulary (never free text): an invented value is refused at the boundary (422).
+    reason: ReportRejectionReason
 
 
 @router.post("/patients/{patient_id}/reports", status_code=201)
@@ -158,10 +164,15 @@ def approve_report(
 @router.post("/reports/{report_id}/reject")
 def reject_report(
     report_id: uuid.UUID,
+    body: RejectReportRequest,
     ctx: TenantContext = Depends(require(Action.REPORT_REJECT)),
 ) -> dict[str, Any]:
     version = reports_service.reject_report(
-        ctx.db, report_id=report_id, tenant_id=ctx.tenant_id, rejected_by_user_id=ctx.user.id
+        ctx.db,
+        report_id=report_id,
+        tenant_id=ctx.tenant_id,
+        rejected_by_user_id=ctx.user.id,
+        reason=body.reason,
     )
     record_audit(
         ctx.db,
@@ -171,7 +182,7 @@ def reject_report(
         target_type="report_version",
         target_id=version.id,
         correlation_id=ctx.correlation_id,
-        detail={"version_no": version.version_no},
+        detail={"version_no": version.version_no, "reason": body.reason.value},
     )
     report = _get_report(ctx.db, report_id, ctx.tenant_id)
     return reports_service.assemble_report_view(ctx.db, report)

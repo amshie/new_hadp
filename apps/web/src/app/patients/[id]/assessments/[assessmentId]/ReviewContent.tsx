@@ -12,6 +12,11 @@ import {
   rejectReportAction,
   releaseReportAction,
 } from "@/app/reports/actions";
+import {
+  REJECTION_REASONS,
+  rejectionCopy,
+  type RejectionReason,
+} from "@/lib/rejectionCopy";
 import { lageLabel } from "@/lib/lageCopy";
 import {
   statusHint,
@@ -153,6 +158,10 @@ export function ReviewContent({
     "approve" | "reject" | "release" | "redraft" | null
   >(null);
   const [confirmChecked, setConfirmChecked] = useState(false);
+  // A rejection names its reason (closed vocabulary); nothing is preselected.
+  const [rejectReason, setRejectReason] = useState<RejectionReason | null>(
+    null,
+  );
   const [releasedUrl, setReleasedUrl] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const confirmRef = useRef<HTMLInputElement>(null);
@@ -178,6 +187,8 @@ export function ReviewContent({
   // A cited value was corrected by the laboratory: this version can be neither approved nor
   // released. The clinician opens a new draft from the values that stand.
   const canRedraft = sessionRole === "clinician" && view.citesReplaced;
+  const rejection = rejectionCopy(view.rejectionReason);
+  const reworked = rejectionCopy(view.reworksRejectionReason);
   const [editRows, setEditRows] = useState<
     | { id: string; text: string; evidenceIds: string[]; removed: boolean }[]
     | null
@@ -242,6 +253,7 @@ export function ReviewContent({
   const closeDialog = () => {
     setDialog(null);
     setConfirmChecked(false);
+    setRejectReason(null);
     setReleasedUrl(null);
   };
 
@@ -251,7 +263,9 @@ export function ReviewContent({
         kind === "approve"
           ? await approveReportAction(view.reportId, path)
           : kind === "reject"
-            ? await rejectReportAction(view.reportId, path)
+            ? rejectReason
+              ? await rejectReportAction(view.reportId, path, rejectReason)
+              : { ok: false as const, error: "Bitte einen Grund wählen." }
             : kind === "redraft"
               ? await redraftReportAction(view.reportId, path)
               : await releaseReportAction(view.reportId, path);
@@ -400,6 +414,40 @@ export function ReviewContent({
         {view.statements.length === 0 && (
           <p style={{ marginTop: "12px" }}>
             Für diesen Bericht liegen keine Aussagen vor.
+          </p>
+        )}
+        {view.status === "rejected" && (
+          <p
+            role="status"
+            style={{
+              marginTop: "12px",
+              padding: "10px 12px",
+              border: "1px solid var(--border-default)",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "12.5px",
+              lineHeight: 1.5,
+            }}
+          >
+            <strong>Zurückgewiesen.</strong>{" "}
+            {rejection
+              ? `Grund: ${rejection.label}. ${rejection.desc}`
+              : "Für diese Zurückweisung wurde kein Grund erfasst."}
+          </p>
+        )}
+        {reworked && (
+          <p
+            role="status"
+            style={{
+              marginTop: "12px",
+              padding: "10px 12px",
+              border: "1px solid var(--border-default)",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "12.5px",
+              lineHeight: 1.5,
+            }}
+          >
+            Überarbeitung nach einer Zurückweisung. Damaliger Grund:{" "}
+            <strong>{reworked.label}</strong>. {reworked.desc}
           </p>
         )}
         {view.citesReplaced && (
@@ -937,7 +985,7 @@ export function ReviewContent({
                 {dialog === "approve" &&
                   "Sie bestätigen, dass Sie die sichtbaren Beobachtungen, Referenzintervalle und Quellen geprüft haben. Die Genehmigung wird serverseitig geschrieben, ist Ihnen zugeordnet und wird auditiert."}
                 {dialog === "reject" &&
-                  "Die aktuelle Version wird als zurückgewiesen festgehalten (zugeordnet und auditiert). Eine Überarbeitung erstellt eine neue Version."}
+                  "Die aktuelle Version wird als zurückgewiesen festgehalten (zugeordnet und auditiert), zusammen mit dem gewählten Grund. Wer den Bericht überarbeitet, sieht diesen Grund; eine Überarbeitung erstellt eine neue Version."}
                 {dialog === "redraft" &&
                   `Aus den aktuell gültigen Werten wird eine neue Entwurfsversion erstellt. Die bisherige Version bleibt gespeichert, wird hier aber nicht mehr angezeigt; manuell überarbeitete Formulierungen werden nicht übernommen. ${
                     view.status === "released"
@@ -959,6 +1007,49 @@ export function ReviewContent({
               <Icon name="close" />
             </button>
           </div>
+          {dialog === "reject" && (
+            <fieldset
+              style={{ margin: "17px 0 0", padding: 0, border: "none" }}
+            >
+              <legend
+                style={{
+                  padding: 0,
+                  marginBottom: "8px",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                }}
+              >
+                Grund der Zurückweisung
+              </legend>
+              {REJECTION_REASONS.map((option) => (
+                <label
+                  key={option.reason}
+                  style={{
+                    display: "flex",
+                    gap: "9px",
+                    alignItems: "flex-start",
+                    padding: "5px 0",
+                    fontSize: "12.5px",
+                    lineHeight: 1.45,
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="rejection-reason"
+                    value={option.reason}
+                    checked={rejectReason === option.reason}
+                    onChange={() => setRejectReason(option.reason)}
+                    disabled={pending}
+                    style={{ marginTop: "3px" }}
+                  />
+                  <span>
+                    <strong>{option.label}</strong> — {option.desc}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          )}
           {dialog === "approve" && (
             <label className="checkbox" style={{ marginTop: "17px" }}>
               <input
@@ -1024,7 +1115,9 @@ export function ReviewContent({
                   className="btn btn-primary"
                   type="button"
                   disabled={
-                    pending || (dialog === "approve" && !confirmChecked)
+                    pending ||
+                    (dialog === "approve" && !confirmChecked) ||
+                    (dialog === "reject" && rejectReason === null)
                   }
                   onClick={() => runAction(dialog)}
                 >

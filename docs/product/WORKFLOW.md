@@ -186,6 +186,13 @@ DRAFT_GENERATED -> DRAFT_EDITED -> APPROVED -> RELEASED
 
 - The lifecycle is owned by the `reports` module (`apps/api/src/hadp_api/modules/reports/`); the data
   model exists, the transition workflow is **planned (Milestone 3)**.
+- **A rejection names its reason** (shipped 2026-10-12): the clinician or medical director who
+  rejects picks one value of a closed vocabulary (`ReportRejectionReason`: evidence insufficient,
+  wording, data incomplete, data changed, other) — never free text, so neither the record nor
+  the audit trail can carry patient data through it. The review page shows the reason on the
+  rejected version, and on the version that reworks it ("Überarbeitung nach einer
+  Zurückweisung"), so whoever approves or releases can check the rework answers it. The values
+  are an engineering proposal awaiting the medical director's confirmation.
 - A report carries one or more `ReportVersion` records; `ReportEvidence` links each statement to its
   source observation(s)/rule evaluation(s).
 - A `REJECTED` version is a preserved record, never mutated back into a draft. Rework is an edit:

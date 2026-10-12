@@ -12,12 +12,19 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from hadp_api.db.base import Base, TimestampCreated, UUIDPrimaryKey
-from hadp_api.modules.enums import ReportStatus, pg_enum
+from hadp_api.modules.enums import ReportRejectionReason, ReportStatus, pg_enum
 
 
 class Report(UUIDPrimaryKey, TimestampCreated, Base):
@@ -43,6 +50,11 @@ class ReportVersion(UUIDPrimaryKey, TimestampCreated, Base):
     __tablename__ = "report_versions"
     __table_args__ = (
         UniqueConstraint("report_id", "version_no", name="uq_report_version_report_no"),
+        # Only a rejected version carries a rejection reason (migration 0017).
+        CheckConstraint(
+            "rejection_reason IS NULL OR status = 'rejected'",
+            name="rejection_reason_only_when_rejected",
+        ),
     )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(
@@ -78,6 +90,10 @@ class ReportVersion(UUIDPrimaryKey, TimestampCreated, Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Closed vocabulary, never free text. NULL on versions rejected before this was recorded.
+    rejection_reason: Mapped[ReportRejectionReason | None] = mapped_column(
+        pg_enum(ReportRejectionReason), nullable=True
+    )
 
 
 class ReportEvidence(UUIDPrimaryKey, TimestampCreated, Base):
