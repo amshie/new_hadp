@@ -63,3 +63,19 @@ def test_development_allows_defaults() -> None:
     # Dev/test must NOT enforce production constraints.
     settings = Settings(app_env="development", app_database_url=None)
     assert not settings.is_production
+
+
+def test_a_refused_configuration_does_not_quote_the_values_it_was_given() -> None:
+    """The refusal is raised at import and printed by whatever starts the process."""
+    secret = "session-secret-" + "s" * 30
+    with pytest.raises(ValueError, match="SESSION_COOKIE_NAME") as refused:
+        _prod(
+            session_secret=secret,
+            database_url="postgresql+psycopg://postgres:admin-password@db:5432/hadp",
+            app_database_url="postgresql+psycopg://hadp_app:app-password@db:5432/hadp",
+            s3_secret_access_key="object-store-secret",
+            session_cookie_name="hadp_session",
+        )
+    text = str(refused.value)
+    for value in (secret, secret[-12:], "admin-password", "app-password", "object-store-secret"):
+        assert value not in text

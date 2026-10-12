@@ -43,11 +43,25 @@ class RejectReportRequest(BaseModel):
     reason: ReportRejectionReason
 
 
+def _throttle_drafting(ctx: TenantContext) -> None:
+    """Every draft is a new report or a new version, with its statements and evidence rows —
+    kept, never overwritten. One counter per user for both ways of producing one: far above
+    what preparing appointments needs, and a bound on what a runaway client can write."""
+    check_rate_limit(
+        action="report.draft",
+        key=str(ctx.user.id),
+        limit=30,
+        window_seconds=60,
+        correlation_id=ctx.correlation_id,
+    )
+
+
 @router.post("/patients/{patient_id}/reports", status_code=201)
 def generate_report(
     patient_id: uuid.UUID,
     ctx: TenantContext = Depends(require(Action.REPORT_DRAFT)),
 ) -> dict[str, Any]:
+    _throttle_drafting(ctx)
     patients_service.get_patient(ctx.db, ctx.tenant_id, patient_id)
     report = reports_service.generate_draft(
         ctx.db,
@@ -119,6 +133,7 @@ def redraft_report(
     """Open a new draft version from the values that stand, for a report that cites a value
     a laboratory correction has replaced. A released report is thereby withdrawn from the
     patient until it is approved and released again."""
+    _throttle_drafting(ctx)
     version, retracted = reports_service.redraft_report(
         ctx.db,
         report_id=report_id,

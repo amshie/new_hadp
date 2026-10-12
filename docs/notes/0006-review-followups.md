@@ -213,5 +213,32 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
     the default is a product decision.
   - **Before real data:** "no names in the trail" is held by review, a key-name guard and a
     suite-wide check after every test (`tests/conftest.py`) — not by a schema per action.
+- **Security items that need no vendor (go-live plan B, 2026-10-12):** the RLS role guard
+  holds now — every environment, at startup, and a refused engine is never kept
+  ([[0005-rls-fail-open-production-guard]], which records what was wrong); sign-out removes
+  both cookies with the attributes they were set with; report drafting is rate limited
+  (30/min/user, generating and re-drafting together).
+  Found on the way, not changed: (1) the web app stores the two cookies under fixed names
+  (`hadp_session`, `hadp_csrf`) and without `Secure` (`apps/web/src/lib/api.ts`) — harmless
+  while the only sign-in is the development one, which production does not have, but the
+  production sign-in (OIDC) must not inherit it: the API's production names carry
+  `__Host-`; (2) a failed security-event write is still an ERROR log line and nothing
+  else (a 403 must not become a 500) — it needs an alert on that line once monitoring
+  exists (workstream C); (3) no malware-scan step on upload, no nonce-based CSP.
+  From the independent review of that slice, taken: the draft button shows the throttling
+  message (it had its own error mapping); a limit records its first refusal per window, not
+  every one (a hammering client wrote one append-only row per refused request, on a second
+  pooled connection); a counter that lost its expiry is re-armed (it would have refused that
+  user for good); a refused configuration no longer quotes the values it was given (the error
+  text ended in the tail of a secret); one engine initialisation at a time; a test that every
+  tenant table enables and forces RLS.
+  From that review, open: the role guard does not refuse a table **owner**, and an unset
+  `APP_DATABASE_URL` still falls back to the admin DSN ([[0005-rls-fail-open-production-guard]]);
+  `rate_limited` events carry neither user nor clinic, so a breach cannot be tied to anyone and
+  reaches no clinic's trail; editing a report has no size limit and no rate limit, and each
+  edit of an approved or rejected version adds a version; a failed sign-out call is swallowed
+  by the web app (the session then stays valid server-side until it expires); a 503 from the
+  limiter is shown as the generic failure; uvicorn's own startup log does not pass the
+  redaction filter; the erasure function is SECURITY DEFINER without a pinned `search_path`.
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.
