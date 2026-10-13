@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import type { DeletionRequestView } from "@/lib/api";
+import { fill } from "@/lib/i18n/fill";
+import { useI18n } from "@/lib/i18n/I18nProvider";
 
 import {
   approveDeletionAction,
@@ -16,23 +18,16 @@ import {
 // director approves/rejects a pending request; the owner may withdraw their own pending one.
 // Execution of an approved request (the irreversible erasure) is not yet wired — an approved
 // row shows an explanatory "ausstehend" state. Server-side authorization is the control.
+// The page follows the interface language (lib/i18n); a patient's name is shown as it is
+// recorded, and a date keeps its form (TT.MM.JJJJ).
 
-const REASON_LABELS: Record<string, string> = {
-  patient_request: "Betroffenenanfrage (Art. 17)",
-  withdrawn_consent: "Einwilligung widerrufen",
-  data_minimization: "Datenminimierung",
-};
-
-const STATUS_META: Record<string, { label: string; fg: string; bg: string }> = {
-  pending: { label: "Offen", fg: "#8b641d", bg: "rgba(139,100,29,0.12)" },
-  approved: { label: "Freigegeben", fg: "#1f6f5c", bg: "rgba(31,111,92,0.12)" },
-  rejected: { label: "Abgelehnt", fg: "#a54840", bg: "rgba(165,72,64,0.12)" },
-  cancelled: {
-    label: "Zurückgezogen",
-    fg: "#5b6b70",
-    bg: "rgba(91,107,112,0.10)",
-  },
-  executed: { label: "Ausgeführt", fg: "#17292f", bg: "rgba(23,41,47,0.10)" },
+// The colours of a request's status; its words are the dictionary's.
+const STATUS_COLOURS: Record<string, { fg: string; bg: string }> = {
+  pending: { fg: "#8b641d", bg: "rgba(139,100,29,0.12)" },
+  approved: { fg: "#1f6f5c", bg: "rgba(31,111,92,0.12)" },
+  rejected: { fg: "#a54840", bg: "rgba(165,72,64,0.12)" },
+  cancelled: { fg: "#5b6b70", bg: "rgba(91,107,112,0.10)" },
+  executed: { fg: "#17292f", bg: "rgba(23,41,47,0.10)" },
 };
 
 function fmt(iso: string | null): string {
@@ -51,6 +46,10 @@ export function LoeschantraegeContent({
   selfUserId: string;
 }) {
   const router = useRouter();
+  const messages = useI18n().t;
+  const t = messages.deletionRequestsPage;
+  const reasons: Record<string, string> = messages.patientPage.deletion.reasons;
+  const statuses: Record<string, string> = t.status;
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -67,12 +66,14 @@ export function LoeschantraegeContent({
       if (confirmMsg && !window.confirm(confirmMsg)) return;
       const res = await fn(id);
       if (res.ok) router.refresh();
-      else setError(res.error ?? "Aktion fehlgeschlagen.");
+      else setError(res.error ?? t.errors.failedShort);
     });
 
   return (
     <div style={{ maxWidth: "820px" }}>
-      <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>Löschanträge</h1>
+      <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>
+        {messages.settings.deletionRequests.title}
+      </h1>
       <p
         style={{
           color: "var(--text-muted, #5b6b70)",
@@ -81,10 +82,7 @@ export function LoeschantraegeContent({
           lineHeight: 1.55,
         }}
       >
-        Anträge auf Löschung von Patientendaten. Ein Antrag wird von der
-        Inhaberin oder dem Inhaber gestellt und von der Ärztlichen Leitung
-        geprüft (Vier-Augen-Prinzip). Die eigentliche, unwiderrufliche Löschung
-        anonymisiert den Datensatz und wird gesondert ausgeführt.
+        {t.lead}
       </p>
 
       {error && (
@@ -95,12 +93,12 @@ export function LoeschantraegeContent({
 
       {requests.length === 0 ? (
         <p style={{ color: "var(--text-muted, #5b6b70)", fontSize: "13px" }}>
-          Keine Löschanträge vorhanden.
+          {t.none}
         </p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {requests.map((r) => {
-            const sm = STATUS_META[r.status] ?? STATUS_META.pending!;
+            const sm = STATUS_COLOURS[r.status] ?? STATUS_COLOURS.pending!;
             const isRequester = r.requested_by_user_id === selfUserId;
             const canDecide = isMedicalDirector && r.status === "pending";
             const canCancel = isOwner && r.status === "pending" && isRequester;
@@ -121,9 +119,7 @@ export function LoeschantraegeContent({
               >
                 <span style={{ fontSize: "14px", minWidth: 0 }}>
                   <strong>
-                    {r.patient_erased
-                      ? "Gelöschter Datensatz"
-                      : r.patient_display_name}
+                    {r.patient_erased ? t.erased : r.patient_display_name}
                   </strong>
                   <span
                     style={{
@@ -132,8 +128,8 @@ export function LoeschantraegeContent({
                       fontSize: "12px",
                     }}
                   >
-                    {REASON_LABELS[r.reason_category] ?? r.reason_category} ·
-                    beantragt {fmt(r.requested_at)}
+                    {reasons[r.reason_category] ?? r.reason_category} ·{" "}
+                    {fill(t.requested, { day: fmt(r.requested_at) })}
                   </span>
                 </span>
                 <span
@@ -154,7 +150,7 @@ export function LoeschantraegeContent({
                       background: sm.bg,
                     }}
                   >
-                    {sm.label}
+                    {statuses[r.status] ?? r.status}
                   </span>
                   {r.status === "approved" &&
                     (isMedicalDirector || isOwner ? (
@@ -165,7 +161,9 @@ export function LoeschantraegeContent({
                           act(
                             executeDeletionAction,
                             r.id,
-                            `Daten von „${r.patient_display_name}" jetzt endgültig und unwiderruflich löschen? Der Datensatz wird anonymisiert; abgeleitete Daten, Dokumente und Berichte werden gelöscht. Dies kann nicht rückgängig gemacht werden.`,
+                            fill(t.executeConfirm, {
+                              name: r.patient_display_name,
+                            }),
                           )
                         }
                         style={{
@@ -179,7 +177,7 @@ export function LoeschantraegeContent({
                           cursor: pending ? "wait" : "pointer",
                         }}
                       >
-                        Endgültig löschen
+                        {t.execute}
                       </button>
                     ) : (
                       <span
@@ -188,7 +186,7 @@ export function LoeschantraegeContent({
                           color: "var(--text-muted, #5b6b70)",
                         }}
                       >
-                        Ausführung ausstehend
+                        {t.executionPending}
                       </span>
                     ))}
                   {canDecide && (
@@ -200,7 +198,9 @@ export function LoeschantraegeContent({
                           act(
                             approveDeletionAction,
                             r.id,
-                            `Löschung für „${r.patient_display_name}" freigeben? Die Ausführung erfolgt gesondert und ist unwiderruflich.`,
+                            fill(t.approveConfirm, {
+                              name: r.patient_display_name,
+                            }),
                           )
                         }
                         style={{
@@ -214,7 +214,7 @@ export function LoeschantraegeContent({
                           cursor: pending ? "wait" : "pointer",
                         }}
                       >
-                        Freigeben
+                        {t.approve}
                       </button>
                       <button
                         type="button"
@@ -231,7 +231,7 @@ export function LoeschantraegeContent({
                           cursor: pending ? "wait" : "pointer",
                         }}
                       >
-                        Ablehnen
+                        {t.reject}
                       </button>
                     </>
                   )}
@@ -251,7 +251,7 @@ export function LoeschantraegeContent({
                         cursor: pending ? "wait" : "pointer",
                       }}
                     >
-                      Zurückziehen
+                      {t.cancel}
                     </button>
                   )}
                 </span>

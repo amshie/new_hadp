@@ -8,8 +8,8 @@ import { asStaff, hydrated, watchPageErrors } from "./support/staff";
 // The pages are being translated one after another; these tests hold what is done: the two
 // navigation shells, the settings overview, the overview, the patients list, the dialog to
 // add a patient (opened from the overview), the patient page, the review queue, the
-// interpretation form, the report page, the sign-in page and the not-found page — and that a
-// page which is still German says so. They leave every
+// interpretation form, the report page, the members and deletion requests under settings,
+// the sign-in page and the not-found page — and that a page which is still German says so. They leave every
 // other test in German: each runs in a browser context of its own, and none of them signs out
 // (the session is shared).
 
@@ -483,9 +483,9 @@ test("the patient page follows the choice; what is not interface stays German an
     await detail.getByRole("button", { name: "Close" }).click();
     await expect(detail).toHaveCount(0);
 
-    // A page that is not translated yet — the deletion requests under settings: the shell is
+    // A page that is not translated yet — the audit trail under settings: the shell is
     // English, and the page says it is German.
-    await page.goto("/einstellungen/loeschantraege");
+    await page.goto("/einstellungen/audit");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(
       page.getByRole("complementary", { name: "Main navigation" }),
@@ -737,6 +737,96 @@ test("the report page follows the choice; its closed vocabularies stay German an
     await expect(approve).toHaveCount(0);
     await expect(main).toContainText(
       /Report v\d+ · Status: Clinical review open/,
+    );
+  });
+});
+
+test("members and deletion requests follow the choice; names are shown as recorded", async ({
+  browser,
+  baseURL,
+}) => {
+  // The owner manages the team: the roles carry their English names, as in the shell.
+  await asStaff(browser, "owner", async (page) => {
+    await page
+      .context()
+      .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
+    await page.goto("/einstellungen");
+    await page.getByRole("link", { name: /Members/ }).click();
+    await expect(page).toHaveURL(/\/einstellungen\/mitglieder$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    const main = page.getByRole("main");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Members" }),
+    ).toBeVisible();
+    await expect(main).toContainText("Invite a colleague to your clinic team.");
+    const team = page.getByRole("region", { name: "Team" });
+    await expect(team).toContainText("owner@demo.synthetic · you");
+    const role = team.getByRole("combobox", {
+      name: "Role of Synthetic Clinician",
+    });
+    await expect(role).toHaveValue("clinician");
+    await expect(role.locator("option")).toHaveText([
+      "Clinician",
+      "Assistant",
+      "Medical director",
+      "Owner",
+    ]);
+    await expect(
+      team.getByRole("button", { name: "Remove" }).first(),
+    ).toBeVisible();
+    const invite = page.getByRole("region", { name: "Invite a colleague" });
+    await expect(
+      invite.getByRole("button", { name: "Create invitation" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Pending invitations" }),
+    ).toBeVisible();
+    for (const german of [
+      "Mitglieder",
+      "Entfernen",
+      "Kolleg:in einladen",
+      "Ausstehende Einladungen",
+      "Ärztliche Leitung",
+      "Inhaber",
+    ]) {
+      await expect(main).not.toContainText(german);
+    }
+  });
+
+  // The medical director decides on deletion requests. The seed holds none; whether this run
+  // shows any, the page around them is English.
+  await asStaff(browser, "medicalDirector", async (page) => {
+    await page
+      .context()
+      .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
+    await page.goto("/einstellungen");
+    await page.getByRole("link", { name: /Deletion requests/ }).click();
+    await expect(page).toHaveURL(/\/einstellungen\/loeschantraege$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    const main = page.getByRole("main");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Deletion requests" }),
+    ).toBeVisible();
+    await expect(main).toContainText(
+      "reviewed by the medical director (two-person approval)",
+    );
+    for (const german of ["Löschanträge", "Vier-Augen-Prinzip", "beantragt"]) {
+      await expect(main).not.toContainText(german);
+    }
+  });
+
+  // A role these pages are not for is told so, in its language.
+  await asStaff(browser, "clinician", async (page) => {
+    await page
+      .context()
+      .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
+    await page.goto("/einstellungen/mitglieder");
+    await expect(page.getByRole("main")).toContainText(
+      "Member management is available to owners only.",
+    );
+    await page.goto("/einstellungen/loeschantraege");
+    await expect(page.getByRole("main")).toContainText(
+      "Managing deletion requests is reserved for owners and the medical director.",
     );
   });
 });
