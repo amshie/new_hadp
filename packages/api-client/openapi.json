@@ -1900,6 +1900,31 @@
         }
       }
     },
+    "/api/v1/kpi-catalog/core": {
+      "get": {
+        "tags": [
+          "kpi-catalog"
+        ],
+        "summary": "Core Catalog",
+        "operationId": "core_catalog_api_v1_kpi_catalog_core_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CoreKpiOut"
+                  },
+                  "type": "array",
+                  "title": "Response Core Catalog Api V1 Kpi Catalog Core Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/patients/{patient_id}/interpretation": {
       "get": {
         "tags": [
@@ -2691,6 +2716,34 @@
         ],
         "title": "ConsentStateOut"
       },
+      "CoreKpiOut": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "primary_domain_axis": {
+            "type": "string",
+            "title": "Primary Domain Axis"
+          },
+          "measurement_class": {
+            "type": "string",
+            "title": "Measurement Class"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "display_name",
+          "primary_domain_axis",
+          "measurement_class"
+        ],
+        "title": "CoreKpiOut"
+      },
       "CoverageOut": {
         "properties": {
           "total": {
@@ -3162,6 +3215,18 @@
               }
             ],
             "title": "Run Number"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
           },
           "domains": {
             "items": {
@@ -5031,6 +5096,11 @@
             "type": "boolean",
             "title": "Observed At Is Date Only"
           },
+          "received_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Received At"
+          },
           "review_status": {
             "type": "string",
             "title": "Review Status"
@@ -5153,6 +5223,7 @@
           "reference_high",
           "observed_at",
           "observed_at_is_date_only",
+          "received_at",
           "review_status",
           "delta_vs_previous",
           "previous_observation_id",

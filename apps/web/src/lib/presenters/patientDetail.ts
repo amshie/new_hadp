@@ -6,12 +6,14 @@
 // in presentReview via referencePosition), never a Normal/Grenzwertig/Auffällig verdict.
 
 import type {
+  CoreKpi,
   DomainMatrixView,
   Patient,
   ReportView,
   TimelinePoint,
 } from "@/lib/api";
 
+import { presentDomainOverview, type DomainOverview } from "./domainOverview";
 import { presentReview, type ReviewView } from "./review";
 
 export interface Completeness {
@@ -24,6 +26,8 @@ export interface Completeness {
 export interface DetailView {
   patientId: string;
   review: ReviewView;
+  // The values per domain, placed by the catalog, with the counts before a visit.
+  overview: DomainOverview;
   completeness: Completeness;
   // Link to the authoritative review surface (where approve/release live); null if no report.
   reportLink: string | null;
@@ -55,10 +59,12 @@ export function presentDetail(
   report: ReportView,
   points: TimelinePoint[],
   matrix: DomainMatrixView | null,
+  catalog: CoreKpi[],
 ): DetailView {
   return {
     patientId: patient.id,
     review: presentReview(patient, report, points, matrix),
+    overview: presentDomainOverview(points, catalog, matrix),
     completeness: dataCompleteness(points),
     reportLink: report.report_id
       ? `/patients/${patient.id}/assessments/${report.report_id}`

@@ -8,6 +8,7 @@ export type CreatePatientInput = Schemas["CreatePatientRequest"];
 export type DuplicateCheck = Schemas["DuplicateCheckOut"];
 export type DuplicateCandidate = Schemas["DuplicateCandidateOut"];
 export type TimelinePoint = Schemas["TimelinePointOut"];
+export type CoreKpi = Schemas["CoreKpiOut"];
 export type Me = Schemas["MeResponse"];
 export type TenantMembership = Schemas["TenantMembershipOut"];
 export type LoginResponse = Schemas["LoginResponse"];
@@ -101,6 +102,9 @@ export interface DomainVerdictView {
 export interface DomainMatrixView {
   run_id: string | null;
   run_number: number | null;
+  // When the run was recorded (null without a run): values received later were not before
+  // its author.
+  recorded_at?: string | null;
   domains: DomainVerdictView[];
 }
 
@@ -304,6 +308,9 @@ export const throughput = (days = 30) =>
 
 export const timeline = (patientId: string) =>
   request<TimelinePoint[]>(`/api/v1/patients/${patientId}/observations`);
+
+// The catalog's core markers (global reference data: names, domains, classes).
+export const coreCatalog = () => request<CoreKpi[]>("/api/v1/kpi-catalog/core");
 
 export const interpretation = (patientId: string) =>
   request<DomainMatrixView>(`/api/v1/patients/${patientId}/interpretation`);

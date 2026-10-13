@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-  type CSSProperties,
-} from "react";
+import { useRef, useState, useTransition, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -22,22 +16,19 @@ import type {
   SourceDocument,
 } from "@/lib/api";
 import { Dialog } from "@/components/vitabahn/Dialog";
-import { clickable } from "@/components/vitabahn/interactive";
 import { byCount, fill } from "@/lib/i18n/fill";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import type { Messages } from "@/lib/i18n/messages";
 import { lageLabel } from "@/lib/lageCopy";
-import type { ReferencePosition } from "@/lib/referencePosition";
+import type { MarkerSeries } from "@/lib/presenters/domainOverview";
 import type { DetailView } from "@/lib/presenters/patientDetail";
-import {
-  DOMAIN_AXIS_LABELS,
-  sourceNoteText,
-  type MarkerView,
-} from "@/lib/presenters/review";
+import { sourceNoteText, type MarkerView } from "@/lib/presenters/review";
 
 import { ConsentCard } from "./ConsentCard";
 import { DataExportCard } from "./DataExportCard";
+import { DomainOverviewPanel, SeriesValues } from "./DomainOverviewPanel";
 import { LabDocumentsCard } from "./LabDocumentsCard";
+import { GERMAN, LagePill, ReferenceBar } from "./MarkerParts";
 
 // VitaBahn patient Detail (ADR-0006, real-data path). Consumes the governed DetailView
 // (presentReview + a real data-completeness stat). NO A–E grade (doctrine). Observation Status
@@ -51,21 +42,12 @@ import { LabDocumentsCard } from "./LabDocumentsCard";
 // comparability notes (ADR-0007: their English needs the medical director). What NAMES a kind
 // of fact (a column heading, "Follow-up adequacy:") is interface. Numbers and dates keep
 // their form.
-const GERMAN = "de";
 
 const cardStyle: CSSProperties = {
   background: "var(--surface-card)",
   border: "1px solid var(--border-subtle)",
   borderRadius: "var(--radius-lg)",
   boxShadow: "var(--shadow-sm)",
-};
-const colLabel: CSSProperties = {
-  fontFamily: "var(--font-mono)",
-  fontSize: "9.5px",
-  letterSpacing: "0.1em",
-  textTransform: "uppercase",
-  color: "var(--text-faint)",
-  fontWeight: 500,
 };
 const secBtn: CSSProperties = {
   height: "38px",
@@ -80,8 +62,6 @@ const secBtn: CSSProperties = {
   fontWeight: 600,
   cursor: "pointer",
 };
-const EGRID =
-  "minmax(150px,1.6fr) 110px minmax(96px,0.9fr) 96px minmax(150px,1.2fr) 132px";
 
 function statusVita(
   status: string,
@@ -128,145 +108,10 @@ function statusVita(
   };
 }
 
-// Calm, non-alarm colours for the positional Lage pill (never a verdict).
-function lageVita(pos: ReferencePosition): {
-  fg: string;
-  bg: string;
-  bd: string;
-} {
-  if (pos === "within")
-    return {
-      fg: "var(--vital-500)",
-      bg: "rgba(20,169,130,0.12)",
-      bd: "rgba(20,169,130,0.30)",
-    };
-  if (pos === "above" || pos === "below")
-    return {
-      fg: "var(--sky-400)",
-      bg: "rgba(63,164,201,0.12)",
-      bd: "rgba(63,164,201,0.30)",
-    };
-  return {
-    fg: "var(--text-muted)",
-    bg: "var(--surface-sunken)",
-    bd: "var(--border-default)",
-  };
-}
-
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   const letters = parts.slice(0, 2).map((p) => p[0] ?? "");
   return letters.join("").toUpperCase() || "–";
-}
-
-function ReferenceBar({ marker }: { marker: MarkerView }) {
-  const t = useI18n().t.patientPage.evidence;
-  const bar = marker.lageBar;
-  if (!bar.hasScale)
-    return (
-      <span
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "10.5px",
-          color: "var(--text-faint)",
-        }}
-      >
-        {t.noScale}
-      </span>
-    );
-  return (
-    <div aria-hidden="true" style={{ width: "100%" }}>
-      <div
-        style={{
-          position: "relative",
-          height: "8px",
-          borderRadius: "999px",
-          background: "var(--w-sand)",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            left: bar.bandStartPct + "%",
-            width: bar.bandEndPct - bar.bandStartPct + "%",
-            background:
-              "linear-gradient(90deg, var(--teal-300), var(--teal-500))",
-            opacity: 0.55,
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            top: "-2px",
-            bottom: "-2px",
-            left: bar.midPct + "%",
-            width: "1.5px",
-            background: "var(--teal-700)",
-            transform: "translateX(-50%)",
-          }}
-        />
-        {bar.dotPct != null && (
-          <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: bar.dotPct + "%",
-              width: "9px",
-              height: "9px",
-              borderRadius: "999px",
-              background:
-                "radial-gradient(circle at 35% 35%, var(--amber-400), var(--amber-500))",
-              transform: "translate(-50%,-50%)",
-              boxShadow: "0 0 0 2px var(--surface-card)",
-            }}
-          />
-        )}
-      </div>
-      {marker.referenceRange && (
-        <div
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "9px",
-            color: "var(--text-faint)",
-            marginTop: "3px",
-          }}
-        >
-          {fill(t.reference, { range: marker.referenceRange })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function LagePill({ pos }: { pos: ReferencePosition }) {
-  const l = lageLabel(pos);
-  const c = lageVita(pos);
-  return (
-    // The German name, until the English one is confirmed (see the top of this file).
-    <span
-      lang={GERMAN}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "5px",
-        padding: "3px 10px",
-        borderRadius: "999px",
-        fontFamily: "var(--font-text)",
-        fontSize: "11.5px",
-        fontWeight: 600,
-        color: c.fg,
-        background: c.bg,
-        border: "1px solid " + c.bd,
-      }}
-    >
-      <span aria-hidden="true">{l.glyph}</span>
-      {l.label}
-      <span className="sr-only">{l.sentence}</span>
-    </span>
-  );
 }
 
 export function PatientDetailContent({
@@ -286,44 +131,14 @@ export function PatientDetailContent({
   const router = useRouter();
   const { review, completeness } = view;
 
-  // The six domain axes are the fixed canonical structure (ADR-0003) — the page ALWAYS shows
-  // all six. Axes that an interpretation run has scored render with their adequacy + evidence;
-  // axes without a run-verdict render as honest "noch nicht bewertet" placeholders (never an
-  // invented verdict). Order is the founder-approved ADR-0003 order.
-  const DOMAIN_ORDER = [
-    "metabolic",
-    "immune_inflammation",
-    "cardiovascular",
-    "neurocognitive",
-    "musculoskeletal",
-    "regenerative_capacity",
-  ];
-  type DomainCard = (typeof review.domains)[number] & { assessed: boolean };
-  const domains: DomainCard[] = DOMAIN_ORDER.map((axis) => {
-    const real = review.domains.find((d) => d.domainAxis === axis);
-    if (real) return { ...real, assessed: true };
-    return {
-      axisLabel: DOMAIN_AXIS_LABELS[axis] ?? axis,
-      domainAxis: axis,
-      cisLabel: "",
-      actionabilityLabel: "",
-      adequacyLabel: "",
-      reviewed: false,
-      citesReplaced: false,
-      markerCodes: [],
-      cells: [],
-      assessed: false,
-    };
-  });
-
   const t = useI18n().t.patientPage;
   const valueStatus: Record<string, string> = t.valueStatus;
-  const firstWithMarkers =
-    domains.find((d) => d.markerCodes.length > 0)?.domainAxis ??
-    domains[0]?.domainAxis ??
-    "";
-  const [domainAxis, setDomainAxis] = useState(firstWithMarkers);
-  const [openMarker, setOpenMarker] = useState<MarkerView | null>(null);
+  // The marker dialog: the value it opens on (the latest standing one), and the marker's
+  // every value beneath it.
+  const [openMarker, setOpenMarker] = useState<{
+    marker: MarkerView;
+    series: MarkerSeries | null;
+  } | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   // A tombstoned (erased) record shows a banner and hides all staff actions — its artifacts
@@ -402,22 +217,12 @@ export function PatientDetailContent({
   };
 
   // The shared Dialog handles Escape, the focus trap, and focus capture/restore to the trigger.
-  const openObs = (m: MarkerView) => setOpenMarker(m);
+  const openSeries = (series: MarkerSeries) => {
+    const shown = series.latest ?? series.values[series.values.length - 1];
+    const marker = review.markers.find((m) => m.id === shown?.id);
+    if (marker) setOpenMarker({ marker, series });
+  };
   const closeObs = () => setOpenMarker(null);
-
-  const curDomain = domains.find((d) => d.domainAxis === domainAxis) ?? null;
-  const evidence = useMemo(() => {
-    if (!curDomain) return [];
-    // Mirror the authoritative review surface: primary membership by the domain's marker
-    // codes, secondary membership by the KPI's secondary-domain links — never a fuzzy
-    // label match (which could pull markers not actually in this domain's evidence).
-    const codes = new Set(curDomain.markerCodes);
-    return review.markers.filter(
-      (m) =>
-        (m.identity != null && codes.has(m.identity)) ||
-        m.secondaryDomains.includes(curDomain.domainAxis),
-    );
-  }, [curDomain, review.markers]);
 
   const sb = statusVita(review.status, t.reportStatus);
   const idBadge = sb;
@@ -851,6 +656,12 @@ export function PatientDetailContent({
         </div>
       </div>
 
+      {/* Before the visit, the six domains, and each domain's markers (values placed by the
+          catalog). A tombstoned record has no values left to place. */}
+      {!erased && (
+        <DomainOverviewPanel overview={view.overview} onOpen={openSeries} />
+      )}
+
       {/* Consent state per purpose (all staff) + documenting a consent or a withdrawal (care
           staff). A tombstoned record takes no new entries. */}
       {!erased && (
@@ -875,360 +686,6 @@ export function PatientDetailContent({
       {canRequestDeletion && dataExports !== null && (
         <DataExportCard patientId={view.patientId} exports={dataExports} />
       )}
-
-      {/* domain cards — the six canonical axes always (no A–E grade — doctrine) */}
-      {review.runNumber == null && (
-        <p
-          style={{
-            fontSize: "12.5px",
-            color: "var(--text-muted)",
-            margin: "0 0 12px",
-            lineHeight: 1.5,
-          }}
-        >
-          {t.domains.noRun}
-        </p>
-      )}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(258px, 1fr))",
-          gap: "14px",
-          marginBottom: "20px",
-        }}
-      >
-        {domains.map((d) => {
-          const sel = d.domainAxis === domainAxis;
-          return (
-            <div
-              key={d.domainAxis}
-              className="vb-domaincard"
-              {...clickable(
-                () => setDomainAxis(d.domainAxis),
-                fill(t.domains.select, { axis: d.axisLabel }),
-              )}
-              aria-pressed={sel}
-              style={{
-                background: "var(--surface-card)",
-                borderRadius: "var(--radius-lg)",
-                padding: "16px 18px",
-                border:
-                  "1.5px solid " +
-                  (sel ? "var(--brand)" : "var(--border-subtle)"),
-                boxShadow: sel
-                  ? "0 0 0 3px var(--brand-soft)"
-                  : "var(--shadow-xs)",
-                cursor: "pointer",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  gap: "10px",
-                  marginBottom: "11px",
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 700,
-                    fontSize: "var(--text-md)",
-                    color: "var(--text-strong)",
-                    letterSpacing: "-0.01em",
-                  }}
-                >
-                  <span lang={GERMAN}>{d.axisLabel}</span>
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "10px",
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    color: "var(--text-faint)",
-                    flexShrink: 0,
-                    marginTop: "4px",
-                  }}
-                >
-                  {d.assessed
-                    ? d.reviewed
-                      ? t.domains.reviewed
-                      : t.domains.draft
-                    : t.domains.none}
-                </span>
-              </div>
-              {d.assessed ? (
-                <>
-                  <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                    {t.domains.adequacy}{" "}
-                    <span lang={GERMAN}>{d.adequacyLabel}</span>
-                  </div>
-                  {d.citesReplaced && (
-                    <div
-                      style={{
-                        marginTop: "6px",
-                        fontSize: "12px",
-                        color: "var(--danger)",
-                      }}
-                    >
-                      {t.domains.citesReplaced}
-                    </div>
-                  )}
-                  {sel ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        marginTop: "10px",
-                        fontSize: "12px",
-                        fontWeight: 600,
-                        color: "var(--vital-500)",
-                      }}
-                    >
-                      <svg
-                        aria-hidden="true"
-                        focusable="false"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M20 6L9 17l-5-5" />
-                      </svg>
-                      {t.domains.shown}
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        marginTop: "10px",
-                        fontSize: "12px",
-                        fontWeight: 600,
-                        color: "var(--brand)",
-                      }}
-                    >
-                      {fill(t.domains.show, { n: d.markerCodes.length })}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div style={{ fontSize: "12px", color: "var(--text-faint)" }}>
-                  {t.domains.notInterpreted}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Beobachtungsnachweis (real observations, positional Lage status) */}
-      <div style={{ ...cardStyle, marginBottom: "16px", overflow: "hidden" }}>
-        <div style={{ padding: "18px 22px 6px" }}>
-          <h3
-            style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 800,
-              fontSize: "var(--text-xl)",
-              color: "var(--text-strong)",
-              margin: "0 0 3px",
-              letterSpacing: "-0.02em",
-            }}
-          >
-            {t.evidence.title}
-            {curDomain && (
-              <>
-                {" · "}
-                <span lang={GERMAN}>{curDomain.axisLabel}</span>
-              </>
-            )}
-          </h3>
-          <p
-            style={{
-              fontSize: "12.5px",
-              color: "var(--text-muted)",
-              margin: 0,
-              maxWidth: "94ch",
-            }}
-          >
-            {t.evidence.note}
-          </p>
-        </div>
-        {/* Relative: the rows' screen-reader sentences (.sr-only, absolute) are held in this
-            scroller — otherwise they reach past a narrow screen and widen the whole page. */}
-        <div
-          style={{ position: "relative", overflowX: "auto", marginTop: "10px" }}
-        >
-          <div style={{ minWidth: "760px" }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: EGRID,
-                alignItems: "center",
-                gap: "14px",
-                padding: "9px 22px",
-                borderTop: "1px solid var(--border-subtle)",
-                borderBottom: "1px solid var(--border-subtle)",
-                background: "var(--surface-sunken)",
-              }}
-            >
-              <span style={colLabel}>{t.evidence.columns.marker}</span>
-              <span style={colLabel}>{t.evidence.columns.category}</span>
-              <span style={colLabel}>{t.evidence.columns.value}</span>
-              <span style={colLabel}>{t.evidence.columns.change}</span>
-              <span style={colLabel}>{t.evidence.columns.position}</span>
-              <span style={colLabel}>{t.evidence.columns.bar}</span>
-            </div>
-            {evidence.map((m, i) => (
-              <div
-                key={m.code + m.name + i}
-                className="vb-erow"
-                {...clickable(
-                  () => openObs(m),
-                  fill(t.evidence.open, { name: m.name }),
-                )}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: EGRID,
-                  alignItems: "center",
-                  gap: "14px",
-                  padding: "13px 22px",
-                  borderBottom: "1px solid var(--border-subtle)",
-                  cursor: "pointer",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "13.5px",
-                    fontWeight: 600,
-                    color: "var(--text-strong)",
-                    lineHeight: 1.3,
-                  }}
-                >
-                  {m.name}
-                  {m.reviewRequired && (
-                    <span
-                      style={{
-                        display: "block",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        color: "var(--text-body)",
-                      }}
-                    >
-                      {valueStatus[m.status] ?? m.status}
-                    </span>
-                  )}
-                  {m.superseded && (
-                    <span
-                      style={{
-                        display: "block",
-                        fontSize: "11px",
-                        fontWeight: 500,
-                        color: "var(--text-muted)",
-                      }}
-                    >
-                      {t.evidence.superseded}
-                    </span>
-                  )}
-                  {m.inputReplaced && (
-                    <span
-                      style={{
-                        display: "block",
-                        fontSize: "11px",
-                        fontWeight: 500,
-                        color: "var(--text-muted)",
-                      }}
-                    >
-                      {t.evidence.inputReplaced}
-                    </span>
-                  )}
-                </span>
-                <span>
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      padding: "2px 9px",
-                      borderRadius: "999px",
-                      fontFamily: "var(--font-text)",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      color: "var(--text-muted)",
-                      background: "var(--surface-sunken)",
-                      border: "1px solid var(--border-subtle)",
-                    }}
-                  >
-                    {m.primaryDomainLabel ? (
-                      <span lang={GERMAN}>{m.primaryDomainLabel}</span>
-                    ) : (
-                      "—"
-                    )}
-                  </span>
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    color: "var(--text-strong)",
-                    // A result that is no number shows the source's wording, which can be long.
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {m.current}
-                  {m.sourceNote && (
-                    <span
-                      title={sourceNoteText(m.sourceNote, t.sourceNote).full}
-                      style={{
-                        display: "block",
-                        fontFamily: "var(--font-text)",
-                        fontSize: "11px",
-                        fontWeight: 500,
-                        color: "var(--text-muted)",
-                      }}
-                    >
-                      {sourceNoteText(m.sourceNote, t.sourceNote).short}
-                    </span>
-                  )}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "12px",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  {m.change}
-                </span>
-                <span>
-                  {/* No position is stated for a value nobody has reviewed. */}
-                  {m.reviewRequired ? "—" : <LagePill pos={m.lagePosition} />}
-                </span>
-                <span>
-                  <ReferenceBar marker={m} />
-                </span>
-              </div>
-            ))}
-            {evidence.length === 0 && (
-              <div
-                style={{
-                  padding: "28px 22px",
-                  textAlign: "center",
-                  fontSize: "13px",
-                  color: "var(--text-muted)",
-                }}
-              >
-                {t.evidence.empty}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* Audit stepper (real, from report status) */}
       <div
@@ -1592,7 +1049,7 @@ export function PatientDetailContent({
             padding: "24px",
           }}
           dialogStyle={{
-            width: "560px",
+            width: openMarker.series ? "760px" : "560px",
             maxWidth: "100%",
             maxHeight: "90vh",
             overflowY: "auto",
@@ -1624,10 +1081,12 @@ export function PatientDetailContent({
                 }}
               >
                 {t.marker.kicker}{" "}
-                {openMarker.primaryDomainLabel ? (
-                  <span lang={GERMAN}>{openMarker.primaryDomainLabel}</span>
+                {openMarker.marker.primaryDomainLabel ? (
+                  <span lang={GERMAN}>
+                    {openMarker.marker.primaryDomainLabel}
+                  </span>
                 ) : (
-                  openMarker.code
+                  openMarker.marker.code
                 )}
               </div>
               <h3
@@ -1641,7 +1100,7 @@ export function PatientDetailContent({
                   letterSpacing: "-0.02em",
                 }}
               >
-                {openMarker.name}
+                {openMarker.marker.name}
               </h3>
             </div>
             <button
@@ -1698,14 +1157,17 @@ export function PatientDetailContent({
                   color: "var(--text-strong)",
                 }}
               >
-                {openMarker.current}
+                {openMarker.marker.current}
               </span>
-              {!openMarker.reviewRequired && (
-                <LagePill pos={openMarker.lagePosition} />
+              {!openMarker.marker.reviewRequired && (
+                <LagePill pos={openMarker.marker.lagePosition} />
               )}
             </div>
             <div style={{ marginBottom: "16px" }}>
-              <ReferenceBar marker={openMarker} />
+              <ReferenceBar
+                bar={openMarker.marker.lageBar}
+                range={openMarker.marker.referenceRange}
+              />
             </div>
             <div
               style={{ display: "flex", flexDirection: "column", gap: "7px" }}
@@ -1727,7 +1189,7 @@ export function PatientDetailContent({
                     color: "var(--text-body)",
                   }}
                 >
-                  {openMarker.reference}
+                  {openMarker.marker.reference}
                 </span>
               </div>
               <div
@@ -1747,7 +1209,7 @@ export function PatientDetailContent({
                     color: "var(--text-body)",
                   }}
                 >
-                  {openMarker.change}
+                  {openMarker.marker.change}
                 </span>
               </div>
               <div
@@ -1767,7 +1229,7 @@ export function PatientDetailContent({
                     color: "var(--text-body)",
                   }}
                 >
-                  {openMarker.code}
+                  {openMarker.marker.code}
                 </span>
               </div>
               <div
@@ -1787,13 +1249,14 @@ export function PatientDetailContent({
                     color: "var(--text-body)",
                   }}
                 >
-                  {openMarker.reviewRequired
-                    ? (valueStatus[openMarker.status] ?? openMarker.status)
+                  {openMarker.marker.reviewRequired
+                    ? (valueStatus[openMarker.marker.status] ??
+                      openMarker.marker.status)
                     : t.valueStatus.published}
                 </span>
               </div>
             </div>
-            {openMarker.sourceNote && (
+            {openMarker.marker.sourceNote && (
               <p
                 style={{
                   margin: "14px 0 0",
@@ -1802,10 +1265,13 @@ export function PatientDetailContent({
                   color: "var(--text-muted)",
                 }}
               >
-                {sourceNoteText(openMarker.sourceNote, t.sourceNote).full}
+                {
+                  sourceNoteText(openMarker.marker.sourceNote, t.sourceNote)
+                    .full
+                }
               </p>
             )}
-            {openMarker.comparabilityFull && (
+            {openMarker.marker.comparabilityFull && (
               <p
                 lang={GERMAN}
                 style={{
@@ -1815,7 +1281,7 @@ export function PatientDetailContent({
                   color: "var(--text-muted)",
                 }}
               >
-                {openMarker.comparabilityFull}
+                {openMarker.marker.comparabilityFull}
               </p>
             )}
             <p
@@ -1826,18 +1292,21 @@ export function PatientDetailContent({
                 color: "var(--text-faint)",
               }}
             >
-              {openMarker.reviewRequired ? (
+              {openMarker.marker.reviewRequired ? (
                 t.marker.noPosition
               ) : (
                 <>
                   {t.marker.positionNote}{" "}
                   <span lang={GERMAN}>
-                    {lageLabel(openMarker.lagePosition).sentence}
+                    {lageLabel(openMarker.marker.lagePosition).sentence}
                   </span>
                   .
                 </>
               )}
             </p>
+            {openMarker.series && openMarker.series.values.length > 0 && (
+              <SeriesValues series={openMarker.series} t={t} />
+            )}
           </div>
         </Dialog>
       )}

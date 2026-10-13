@@ -660,11 +660,12 @@ def test_audit_events_are_written_in_one_way_only() -> None:
 
 # A GET handler that records nothing -> the words by which the page names that read as not
 # recorded, in German and in English. None: no clinic's data (liveness; the session's own
-# identity and clinics).
+# identity and clinics; the KPI catalog, global reference data the same for every clinic).
 SILENT_READS: dict[tuple[str, str], tuple[str, str] | None] = {
     ("health.py", "health"): None,
     ("auth_routes.py", "me"): None,
     ("tenancy_routes.py", "my_tenants"): None,
+    ("kpi_routes.py", "core_catalog"): None,
     ("reports_routes.py", "get_report"): ("das Lesen eines Berichts", "a report read by staff"),
     ("members_routes.py", "list_members"): ("Mitglieder", "members"),
     ("staff_invitations_routes.py", "list_staff_invitations"): (

@@ -36,6 +36,8 @@ class TimelinePointOut(BaseModel):
     reference_high: str | None
     observed_at: datetime
     observed_at_is_date_only: bool
+    # When the platform received the value (provenance): what could have been seen by a date.
+    received_at: datetime
     review_status: str
     delta_vs_previous: str | None
     previous_observation_id: uuid.UUID | None
@@ -87,6 +89,7 @@ def timeline(
             reference_high=obs_service.plain(p.reference_high),
             observed_at=p.observed_at,
             observed_at_is_date_only=p.observed_at_is_date_only,
+            received_at=p.received_at,
             review_status=p.review_status.value,
             delta_vs_previous=obs_service.plain(p.delta_vs_previous),
             previous_observation_id=p.previous_observation_id,

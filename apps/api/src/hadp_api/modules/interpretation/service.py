@@ -205,6 +205,7 @@ def latest_matrix(
     return {
         "run_id": str(run.id),
         "run_number": run.run_number,
+        "recorded_at": run.created_at,
         "domains": [
             {
                 "domain_axis": v.domain_axis.value,
