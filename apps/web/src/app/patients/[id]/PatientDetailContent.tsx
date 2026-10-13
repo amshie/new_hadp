@@ -44,11 +44,10 @@ import { LabDocumentsCard } from "./LabDocumentsCard";
 // The page follows the interface language (lib/i18n). The VALUES of closed vocabularies on it
 // do not, and are marked lang="de" wherever they show: the names of the domain axes, the
 // value of follow-up adequacy, the position against the reference interval, the
-// comparability notes (ADR-0007: their English needs the medical director) — and two sets
-// whose English nobody has decided: the state of a run on a domain card and the reasons of a
-// deletion request. What NAMES a kind of fact (a column heading, "Follow-up adequacy:") is
-// interface. German as well: a message of the report draft action, which belongs to the
-// report pages. Numbers and dates keep their form.
+// comparability notes (ADR-0007: their English needs the medical director). What NAMES a kind
+// of fact (a column heading, "Follow-up adequacy:") is interface. German as well: a message
+// of the report draft action, which belongs to the report pages. Numbers and dates keep
+// their form.
 const GERMAN = "de";
 
 // How a shown value relates to what the source wrote, in the page's language.
@@ -963,13 +962,12 @@ export function PatientDetailContent({
                     flexShrink: 0,
                     marginTop: "4px",
                   }}
-                  lang={GERMAN}
                 >
                   {d.assessed
                     ? d.reviewed
-                      ? "Geprüft"
-                      : "Entwurf"
-                    : "Kein Lauf"}
+                      ? t.domains.reviewed
+                      : t.domains.draft
+                    : t.domains.none}
                 </span>
               </div>
               {d.assessed ? (
@@ -1978,15 +1976,14 @@ export function PatientDetailContent({
                   marginBottom: "16px",
                 }}
               >
-                {/* No decision on their English yet: German, and marked. */}
-                <option value="patient_request" lang={GERMAN}>
-                  Betroffenenanfrage (Art. 17)
+                <option value="patient_request">
+                  {t.deletion.reasons.patient_request}
                 </option>
-                <option value="withdrawn_consent" lang={GERMAN}>
-                  Einwilligung widerrufen
+                <option value="withdrawn_consent">
+                  {t.deletion.reasons.withdrawn_consent}
                 </option>
-                <option value="data_minimization" lang={GERMAN}>
-                  Datenminimierung
+                <option value="data_minimization">
+                  {t.deletion.reasons.data_minimization}
                 </option>
               </select>
 

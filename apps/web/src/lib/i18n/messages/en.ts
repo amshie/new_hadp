@@ -371,6 +371,9 @@ export const en: Messages = {
       noRun:
         "No interpretation run yet — the six domain axes are shown as a draft.",
       select: "Select domain {axis}",
+      reviewed: "Reviewed",
+      draft: "Draft",
+      none: "No run",
       adequacy: "Follow-up adequacy:",
       citesReplaced:
         "Relies on a value the laboratory has corrected — check the interpretation.",
@@ -473,6 +476,11 @@ export const en: Messages = {
       noteAfter:
         ". Nothing is deleted at once — the medical director has to approve the request (two-person approval); it is carried out separately and cannot be undone.",
       reason: "Reason",
+      reasons: {
+        patient_request: "Data subject request (Art. 17)",
+        withdrawn_consent: "Consent withdrawn",
+        data_minimization: "Data minimisation",
+      },
       submit: "Request deletion",
       submitting: "Filing the request …",
       doneTitle: "Deletion request filed",

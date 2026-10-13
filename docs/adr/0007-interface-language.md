@@ -60,8 +60,8 @@ product do not all read it.
   Until then their VALUES stay German on a translated page. What NAMES the kind of fact — a
   column heading, a field label, a sentence that says what a column holds — is interface, in
   the doctrine's and the register's own English ("Follow-up adequacy", "Reference position",
-  "position relative to the source reference interval"). The medical director may overrule
-  that line, too.
+  "position relative to the source reference interval"). Approved by the founder on
+  2026-10-13; the medical director may overrule that line, too.
 - **Numbers and dates.** A decimal comma against a decimal point is on the project's list of
   high-risk cases. Whether a value's FORMAT follows the reader's interface is a decision of its
   own, with a register line — until then every number and date stays as it is shown today.

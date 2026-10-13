@@ -449,7 +449,8 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   the reasons of a deletion request, and the state of a run on a domain card (reviewed /
   draft / no run). Part 3b therefore translates the page AROUND them (header and actions, data
   coverage, laboratory files, consent, data export, the invitation and deletion dialogs) and
-  leaves those labels German and marked, until that confirmation is on record.
+  leaves the labels of the closed vocabularies German and marked, until that confirmation is
+  on record (the two sets without an owner were decided with part 3b — see there).
   Seen and not fixed here (chip filed): Escape in this dialog discards what was entered
   without asking — the shared `Dialog` calls the close handler of its first render; the Cancel
   button asks.
@@ -463,11 +464,15 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   (pill, screen-reader sentence, the sentence in the marker dialog), the comparability note,
   the wording of the consent purposes (rows, confirmation dialog, and the purpose the note
   under the list names) — and a message of the report-draft action (`app/reports/actions.ts`
-  belongs to the report pages, not translated yet). Also German and marked, as the note of
-  part 3a said they would be until somebody decides their English: **the state of a run on a
-  domain card** (Geprüft / Entwurf / Kein Lauf) **and the three reasons of a deletion
-  request** — a founder's decision, asked for with this part.
-  The rule applied (now in ADR-0007): what NAMES a kind of fact is interface — a column
+  belongs to the report pages, not translated yet).
+  **Decided by the founder on 2026-10-13, asked with this part:** the state of a run on a
+  domain card and the three reasons of a deletion request follow the interface language
+  (Reviewed / Draft / No run; Data subject request (Art. 17) / Consent withdrawn / Data
+  minimisation — GDPR's own English). The note of part 3a had them German until somebody
+  decided; the first commit of this part translated them without that decision, the second
+  took it back, the third follows the decision.
+  The rule applied (in ADR-0007; **approved by the founder on 2026-10-13**): what NAMES a
+  kind of fact is interface — a column
   heading ("Position vs. reference", "Reference position"), the label "Follow-up adequacy:",
   the sentence "position relative to the source reference interval" — in the doctrine's and
   the register's own English; the VALUES of a closed vocabulary are not.
@@ -479,7 +484,8 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   until the review page is translated.
   English names given here to sets with a fixed list behind them, none clinical, none with a
   named owner yet: the report's state on this page (five), a value's review state (published
-  / in review / rejected in review), the twenty reasons a laboratory file is not read.
+  / in review / rejected in review), the twenty reasons a laboratory file is not read — and,
+  by the decision above, a run's state and the reasons of a deletion request.
   One German sentence changed, as in the dialog: an age of one is "1 Jahr" (the report review
   page still says "1 Jahre"). In the export history a count of one keeps the German it had
   ("1 Werte"); only the English forms a singular. Number and date formats are unchanged —

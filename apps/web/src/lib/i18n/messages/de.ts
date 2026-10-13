@@ -383,6 +383,10 @@ export const de = {
       noRun:
         "Noch kein Interpretationslauf — die sechs Domänen-Achsen werden als Entwurf angezeigt.",
       select: "Domäne {axis} auswählen",
+      // The state of a run on a domain's card — workflow, not a verdict.
+      reviewed: "Geprüft",
+      draft: "Entwurf",
+      none: "Kein Lauf",
       // The name of the fact; its value is a closed vocabulary and stays German.
       adequacy: "Follow-up-Adäquanz:",
       citesReplaced:
@@ -489,6 +493,12 @@ export const de = {
       noteAfter:
         ". Es wird nichts sofort gelöscht — die Ärztliche Leitung muss den Antrag freigeben (Vier-Augen-Prinzip), die Ausführung erfolgt gesondert und ist unwiderruflich.",
       reason: "Grund",
+      // Keyed by the API's DeletionReason.
+      reasons: {
+        patient_request: "Betroffenenanfrage (Art. 17)",
+        withdrawn_consent: "Einwilligung widerrufen",
+        data_minimization: "Datenminimierung",
+      },
       submit: "Löschung beantragen",
       submitting: "Wird beantragt …",
       doneTitle: "Löschantrag gestellt",

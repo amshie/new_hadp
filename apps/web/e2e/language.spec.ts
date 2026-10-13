@@ -366,8 +366,8 @@ test("the patient page follows the choice; what is not interface stays German an
     );
 
     // The names of the six domain axes (a closed vocabulary — ADR-0007), and on each card
-    // the state of its run and the VALUE of follow-up adequacy; the name of that fact is
-    // interface.
+    // the VALUE of follow-up adequacy; the name of that fact is interface, and so is the
+    // state of the card's run.
     const cards = page.locator(".vb-domaincard");
     await expect(cards).toHaveCount(6);
     for (const axis of [
@@ -382,11 +382,14 @@ test("the patient page follows the choice; what is not interface stays German an
       await expect(name).toBeVisible();
       expect(await languageOf(name)).toBe("de");
     }
-    const run = cards.getByText(/^(Geprüft|Entwurf|Kein Lauf)$/);
+    const run = cards.getByText(/^(Reviewed|Draft|No run)$/);
     await expect(run).toHaveCount(6);
     for (const state of await run.all()) {
-      expect(await languageOf(state)).toBe("de");
+      expect(await languageOf(state)).toBe("en");
     }
+    await expect(cards.getByText(/^(Geprüft|Entwurf|Kein Lauf)$/)).toHaveCount(
+      0,
+    );
     // The seeded patient has an interpretation run: adequacy is stated.
     const adequacy = cards.getByText(/^(adäquat|inadäquat|nicht bewertet)$/);
     expect(await adequacy.count()).toBeGreaterThan(0);
@@ -394,7 +397,7 @@ test("the patient page follows the choice; what is not interface stays German an
       expect(await languageOf(value)).toBe("de");
     }
     await expect(cards.first()).toContainText("Follow-up adequacy:");
-    for (const english of ["adequate", "not assessed", "Reviewed", "No run"]) {
+    for (const english of ["adequate", "not assessed"]) {
       await expect(cards.filter({ hasText: english })).toHaveCount(0);
     }
 
