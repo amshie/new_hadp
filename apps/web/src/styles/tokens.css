@@ -43,15 +43,18 @@
   --gold: #b59655;
 
   /* Shadow / radius */
-  --shadow-sm: 0 1px 2px rgba(19, 38, 44, 0.05), 0 4px 12px rgba(19, 38, 44, 0.04);
-  --shadow-md: 0 2px 4px rgba(19, 38, 44, 0.05), 0 18px 45px -28px rgba(19, 38, 44, 0.32);
+  --shadow-sm: 0 1px 2px rgba(19, 38, 44, 0.05),
+    0 4px 12px rgba(19, 38, 44, 0.04);
+  --shadow-md: 0 2px 4px rgba(19, 38, 44, 0.05),
+    0 18px 45px -28px rgba(19, 38, 44, 0.32);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 18px;
   --radius-xl: 24px;
 
   /* Type — Inter ships with the build (layout.tsx); the names after it are fallbacks */
-  --font-sans: "Inter Variable", Inter, Aptos, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: "Inter Variable", Inter, Aptos, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 
   /* Layout scales */
@@ -212,10 +215,14 @@
   --radius-pill: 999px;
 
   --shadow-xs: 0 1px 2px rgba(12, 18, 20, 0.06);
-  --shadow-sm: 0 1px 3px rgba(12, 18, 20, 0.08), 0 1px 2px rgba(12, 18, 20, 0.04);
-  --shadow-md: 0 4px 12px rgba(12, 18, 20, 0.08), 0 2px 4px rgba(12, 18, 20, 0.04);
-  --shadow-lg: 0 12px 28px rgba(12, 18, 20, 0.12), 0 4px 8px rgba(12, 18, 20, 0.05);
-  --shadow-xl: 0 24px 56px rgba(12, 18, 20, 0.16), 0 8px 16px rgba(12, 18, 20, 0.06);
+  --shadow-sm: 0 1px 3px rgba(12, 18, 20, 0.08),
+    0 1px 2px rgba(12, 18, 20, 0.04);
+  --shadow-md: 0 4px 12px rgba(12, 18, 20, 0.08),
+    0 2px 4px rgba(12, 18, 20, 0.04);
+  --shadow-lg: 0 12px 28px rgba(12, 18, 20, 0.12),
+    0 4px 8px rgba(12, 18, 20, 0.05);
+  --shadow-xl: 0 24px 56px rgba(12, 18, 20, 0.16),
+    0 8px 16px rgba(12, 18, 20, 0.06);
 
   --ease-standard: cubic-bezier(0.2, 0, 0.1, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -272,4 +279,79 @@
   --w-border: #382f22;
   --w-border-strong: #473b29;
   --w-ink: #cbb082;
+}
+
+/* The workspace tokens (:root, above) in the dashboard's dark theme. The report review page
+   is the one page in the dashboard shell whose content still uses hadp.css: without these its
+   cards stay light on a dark page. Each colour is mapped onto the dark palette above, so it
+   follows it. Two tokens serve as text and as background: --brand-700 is the primary
+   button's background and the brand's text colour, --white that button's text and a light
+   background — bright brand on dark surfaces keeps both legible (dark text on a bright
+   button, bright text on dark cards). */
+.vb-scope[data-theme="dark"] {
+  --white: var(--surface-card);
+  --ink: var(--text-strong);
+  --ink-2: var(--text-body);
+  --muted: var(--text-muted);
+  --muted-2: var(--text-faint);
+
+  --canvas: var(--bg-page);
+  --surface: var(--surface-card);
+  --surface-2: var(--surface-raised);
+  --surface-3: var(--surface-sunken);
+  --border: var(--border-subtle);
+  --cell-border: var(--border-subtle);
+  --row-hover: var(--surface-raised);
+  --row-hover-soft: var(--surface-raised);
+
+  --brand-50: var(--brand-soft);
+  --brand-100: var(--brand-soft);
+  --brand-600: var(--brand);
+  --brand-700: var(--brand);
+  --brand-800: var(--brand-hover);
+  --brand-900: var(--brand-hover);
+  --brand-950: var(--brand-hover);
+
+  --success: var(--vital-400);
+  --success-bg: rgba(37, 199, 156, 0.12);
+  --warning: var(--amber-400);
+  --warning-bg: rgba(232, 169, 59, 0.12);
+  --danger: var(--rose-400);
+  --danger-bg: rgba(224, 107, 107, 0.12);
+  --info: var(--sky-400);
+  --info-bg: rgba(63, 164, 201, 0.12);
+
+  --progress-track: var(--border-default);
+  --coverage-track: var(--border-default);
+  --rule-bar-idle: var(--border-default);
+  --rule-medium: var(--amber-400);
+  --rule-high: var(--rose-400);
+  --tab-count-bg: var(--border-default);
+  --tab-active-count-bg: var(--brand-soft);
+
+  --badge-brand-border: var(--brand-border);
+  --badge-success-border: var(--brand-border);
+  --badge-warning-border: rgba(232, 169, 59, 0.32);
+  --badge-danger-border: rgba(224, 107, 107, 0.32);
+  --badge-info-border: rgba(63, 164, 201, 0.32);
+  --notice-brand-border: var(--brand-border);
+  --notice-warning-border: rgba(232, 169, 59, 0.32);
+  --notice-warning-ink: var(--amber-400);
+  --notice-danger-border: rgba(224, 107, 107, 0.32);
+  --notice-danger-ink: var(--rose-400);
+  --btn-danger-border: rgba(224, 107, 107, 0.4);
+  --stat-brand-border: var(--brand-border);
+  --stat-warning-border: rgba(232, 169, 59, 0.32);
+  --stat-info-border: rgba(63, 164, 201, 0.32);
+  --activity-icon-border: var(--brand-border);
+  --avatar-bg: var(--brand-soft);
+  --patient-avatar-bg: var(--brand-soft);
+  --patient-avatar-border: var(--brand-border);
+  --check-success-border: var(--brand-border);
+  --check-pending-border: rgba(232, 169, 59, 0.32);
+  --draft-border: rgba(232, 169, 59, 0.32);
+  --domain-sel-icon-bg: var(--brand-soft);
+  --domain-sel-icon-border: var(--brand-border);
+  --source-link-border: var(--brand-border);
+  --focus-ring-soft: rgba(37, 199, 156, 0.15);
 }

@@ -149,7 +149,9 @@ svg.icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-w
 .tab[aria-selected="true"] .count { color: var(--brand-700); background: var(--tab-active-count-bg); }
 .toolbar-actions { display: flex; align-items: center; gap: 8px; }
 .toolbar-search { width: 230px; }
-.table-wrap { width: 100%; overflow-x: auto; }
+/* Relative: the screen-reader sentences in a table (.sr-only, absolute) stay in its scroller —
+   held by an ancestor outside it, they widen the whole page on a narrow screen. */
+.table-wrap { position: relative; width: 100%; overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .data-table caption { padding: 0; }
 .data-table th { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--muted); background: var(--surface-2); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-align: left; text-transform: uppercase; white-space: nowrap; }
@@ -487,3 +489,11 @@ body.modal-open { overflow: hidden; }
   .domain-name { min-width: 0; }
   .trend, .rule-match, .quality-cell { min-width: 0; }
 }
+
+/* The report review page in the dashboard's dark theme. tokens.css maps the colour tokens;
+   these are the colours its rules write out themselves — the approval bar's light glass and
+   the position bar's light track would stay light on a dark page. */
+.vb-scope[data-theme="dark"] .action-bar { background: color-mix(in srgb, var(--surface-raised) 94%, transparent); box-shadow: 0 18px 45px -24px rgba(0,0,0,.6); }
+.vb-scope[data-theme="dark"] .pos-bar-track { background: var(--w-sand); box-shadow: none; }
+.vb-scope[data-theme="dark"] .pos-bar-band { background: linear-gradient(180deg, rgba(86,176,161,.55), rgba(17,124,109,.55)); }
+.vb-scope[data-theme="dark"] .pos-bar-dot { border-color: var(--surface-card); }

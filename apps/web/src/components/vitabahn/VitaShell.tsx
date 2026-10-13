@@ -195,6 +195,11 @@ export function VitaShell({
         WebkitFontSmoothing: "antialiased",
       }}
     >
+      {/* The first stop of the keyboard: past the navigation to the page (WCAG 2.4.1). */}
+      <a className="skip-link" href="#main-content">
+        {t.shell.skipLink}
+      </a>
+
       {/* ============ SIDEBAR ============ */}
       <aside
         id="vb-sidebar"
@@ -696,7 +701,8 @@ export function VitaShell({
         </header>
 
         <div style={{ flex: 1, overflowY: "auto" }}>
-          <div
+          <main
+            id="main-content"
             lang={contentLang}
             className="vb-content"
             style={{
@@ -705,7 +711,7 @@ export function VitaShell({
             }}
           >
             {children}
-          </div>
+          </main>
         </div>
       </div>
     </div>

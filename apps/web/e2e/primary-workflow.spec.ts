@@ -536,6 +536,18 @@ test("the medical director releases the report", async ({ browser }) => {
     expect(link.pathname).toBe("/patient-view/oeffnen");
     expect(link.searchParams.get("tenant")).toMatch(/^[0-9a-f-]{36}$/);
     expect(link.searchParams.get("token")).toBeTruthy();
+
+    // Copying it says so. The page answers its actions in a toast — its errors too — and lost
+    // every one silently once, when it left the shell that provided the toasts.
+    await page
+      .context()
+      .grantPermissions(["clipboard-read", "clipboard-write"]);
+    await released.getByRole("button", { name: "Link kopieren" }).click();
+    await expect(page.getByText("Link kopiert.")).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      accessLink,
+    );
+
     await released
       .getByRole("button", { name: "Schließen", exact: true })
       .click();
