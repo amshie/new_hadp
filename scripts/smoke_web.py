@@ -126,24 +126,38 @@ def assert_client_address_is_passed_on() -> None:
 
     seen_by_proxy = "203.0.113.77"  # what a proxy in front of the web server adds
     written_by_client = "198.51.100.77"  # what the client put into the header itself
+    stepped_over = "203.0.113.78"  # see the second request
     store = redis.Redis.from_url(get_settings().redis_url, socket_timeout=5)
     counters = [f"rl:patient_view:{address}" for address in (seen_by_proxy, written_by_client)]
-    store.delete(*counters)
-    with httpx.Client(base_url=WEB, timeout=60.0, follow_redirects=False) as patient:
-        r = patient.get(
-            "/patient-view",
-            headers={
-                "cookie": f"hadp_pv={uuid.uuid4()}:synthetic-smoke",
-                "x-forwarded-for": f"{written_by_client}, {seen_by_proxy}",
-            },
-        )
-    assert r.status_code == 200, ("/patient-view with a forwarded address", r.status_code)
-    assert "Dieser Bericht ist nicht verfügbar." in r.text, "the wrong link was not refused"
+    store.delete(*counters, f"rl:patient_view:{stepped_over}")
+
+    def refused_view(forwarded: str) -> None:
+        with httpx.Client(base_url=WEB, timeout=60.0, follow_redirects=False) as patient:
+            r = patient.get(
+                "/patient-view",
+                headers={
+                    "cookie": f"hadp_pv={uuid.uuid4()}:synthetic-smoke",
+                    "x-forwarded-for": forwarded,
+                },
+            )
+        assert r.status_code == 200, ("/patient-view with a forwarded address", r.status_code)
+        assert "Dieser Bericht ist nicht verfügbar." in r.text, "the wrong link was not refused"
+
+    refused_view(f"{written_by_client}, {seen_by_proxy}")
     counted = [store.get(counter) for counter in counters]
     assert counted == [b"1", None], (
         "the patient view was not counted under the address the proxy named "
         "(is the API started with TRUSTED_PROXIES naming the web server?)",
         counted,
+    )
+    # One reader of the header. The right-most entry is now this machine's own address: the
+    # API reads the entry it was told to and counts that. uvicorn's own handling of the header
+    # — on unless the API server is started with --no-proxy-headers — would step over an
+    # address it trusts and hand the API the one before it as the peer.
+    refused_view(f"{stepped_over}, 127.0.0.1")
+    assert store.get(f"rl:patient_view:{stepped_over}") is None, (
+        "the entry before the web server's own address was counted: "
+        "is the API server started without --no-proxy-headers?"
     )
 
 

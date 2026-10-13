@@ -33,14 +33,16 @@ MAX_PROXY_HOPS = 8
 def parse_trusted_proxies(spec: str) -> tuple[Network, ...]:
     """The networks named in TRUSTED_PROXIES: addresses or CIDR ranges, separated by commas.
 
-    Raises ValueError for an entry that is neither — and for a range that holds every
-    address, which would let any caller say on whose behalf it calls.
+    Raises ValueError for an entry that is neither; for a range that holds every address,
+    which would let any caller say on whose behalf it calls; and for an address written with
+    a mask (`10.20.0.5/24`) — that names the whole network around it, which is rarely what
+    the person who wrote one address meant.
     """
     networks: list[Network] = []
     for entry in (part.strip() for part in spec.split(",")):
         if not entry:
             continue
-        network = ipaddress.ip_network(entry, strict=False)
+        network = ipaddress.ip_network(entry, strict=True)
         if network.prefixlen == 0:
             raise ValueError("a range that holds every address")
         networks.append(network)
@@ -126,8 +128,8 @@ class Settings(BaseSettings):
             parse_trusted_proxies(self.trusted_proxies)
         except ValueError:
             raise ValueError(
-                "TRUSTED_PROXIES must be addresses or CIDR ranges separated by commas, "
-                "and no range may hold every address"
+                "TRUSTED_PROXIES must be addresses or CIDR ranges separated by commas; "
+                "a range is written by its network address, and none may hold every address"
             ) from None
         if not 1 <= self.trusted_proxy_hops <= MAX_PROXY_HOPS:
             raise ValueError(f"TRUSTED_PROXY_HOPS must be between 1 and {MAX_PROXY_HOPS}")

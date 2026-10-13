@@ -110,6 +110,7 @@ def test_trusted_proxies_are_addresses_and_networks() -> None:
         "0.0.0.0/0",
         "::/0",
         "10.20.0.5, 0.0.0.0/0",
+        "10.20.0.5/24",  # one address with a mask would name the 255 around it as well
         "web",  # a host name is not an address
         "10.20.0.5, the-web-server.internal",
         "10.20.0.5;10.20.0.6",

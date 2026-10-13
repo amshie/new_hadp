@@ -22,9 +22,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from hadp_api.config import get_settings
+from hadp_api.errors import ServiceUnavailable
 from hadp_api.modules.audit.models import AuditEvent
 from hadp_api.modules.enums import Role
 from hadp_api.modules.tenancy.models import Tenant
+from hadp_api.security import rate_limit
 from hadp_api.security.rate_limit import (
     REFUSAL_WINDOW_SECONDS,
     REFUSALS_RECORDED,
@@ -225,6 +227,27 @@ def test_one_address_is_stopped_by_its_own_limit_before_recording_stops(  # type
     assert answers == [404] * 30 + [429] * 3
     assert _trail(admin_session, tenant.id) == {"report.patient_view_denied": REFUSALS_RECORDED}
     assert _throttled(admin_session) == 1  # once for the window, without a clinic
+
+
+def test_without_the_count_a_refusal_is_not_recorded_and_the_answer_says_so(  # type: ignore[no-untyped-def]
+    client, admin_session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fail closed, like the limiter: if the count of recorded refusals cannot be read, nothing
+    is written — and the caller is told the service is unavailable, not that the link is wrong."""
+    tenant = _clinic(admin_session, "outage")
+    count = rate_limit._count
+
+    def count_unless_recording(name: str, window_seconds: int) -> int:
+        if name.startswith("rl-recorded:"):
+            raise ServiceUnavailable("rate limiting unavailable")
+        return count(name, window_seconds)
+
+    monkeypatch.setattr(rate_limit, "_count", count_unless_recording)
+
+    resp = client.post("/api/v1/patient-view", json={"tenant": str(tenant.id), "token": "guess"})
+
+    assert resp.status_code == 503, resp.text
+    assert _trail(admin_session, tenant.id) == {}
 
 
 def test_the_verdicts_of_one_window() -> None:

@@ -332,16 +332,26 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   (`security/rate_limit.py::refusal_recording`, three new audit actions `…_denials_unrecorded`,
   named on the trail page). Verified by `tests/test_client_address.py`,
   `tests/test_refusal_recording.py` and end to end in both smokes (the web route smoke on the
-  loopback address, the stack smoke between containers).
-  Still open: **`TRUSTED_PROXIES` is empty by default and nothing refuses to start without it**
-  — a deployment that forgets it keeps the shared budget (the API warns at start); the
-  compose file of the production-shaped stack leaves it empty (Docker assigns the addresses; the
-  smoke names the stack's own network for its run), and neither stack has a proxy in front of
-  the web server — both smokes play that proxy themselves; the rule depends on the proxy in front of the web server setting or appending the header (a proxy that
-  passes a client's own header through lets the client pick its counter); an address with a
-  port is not read; a refusal for a clinic that does not exist still costs a failed insert and
-  an ERROR log line per request (bounded per address only); the number of refusals after
-  recording stopped is not on record; the web's part (four call sites) is held by a source scan
-  and the smoke, not by a unit test (the web has no test runner).
+  loopback address, the stack smoke between containers) — the passing-on and the trusted peer,
+  that is; that uvicorn leaves the header alone is held by a source scan and by a second
+  request in the web route smoke that the two rules count differently.
+  From the independent review, taken: one address written with a mask is refused (it named the
+  whole network around it); the smoke could not tell the API's rule from uvicorn's, now it can;
+  the documents say what a hop count set too high does, and no longer call the production
+  sign-in address-limited (it does not exist yet).
+  Still open: **`TRUSTED_PROXIES` is empty by default and nothing refuses to start without it** —
+  a deployment that forgets it keeps the shared budget (the API warns at start); the compose file
+  of the production-shaped stack leaves it empty (Docker assigns the addresses; the smoke names
+  the stack's own network for its run), and neither stack has a proxy in front of the web server
+  — both smokes play that proxy themselves; the rule depends on the proxy in front of the web
+  server setting or appending the header (a proxy that passes a client's own header through lets
+  the client pick its counter); **a hop count set too high fails open** (the entry read is one
+  the client wrote — to be fixed against the real ingress, a pen-test item); client addresses are
+  the limiter's keys in Redis for 60 seconds and appear in no record of processing (before real
+  data); a range given in two halves still holds every address; clients behind one NAT64 prefix
+  share a budget; an address with a port is not read; a refusal for a clinic that does not exist
+  still costs a failed insert and an ERROR log line per request (bounded per address only); the
+  number of refusals after recording stopped is not on record; the web's part (four call sites)
+  is held by a source scan and the smoke, not by a unit test (the web has no test runner).
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

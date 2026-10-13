@@ -137,6 +137,20 @@ def test_the_entry_is_counted_from_the_right_by_the_number_of_proxies(
     assert _counted() == {f"rl:patient_view:{A}": 1}
 
 
+def test_a_number_of_proxies_set_too_high_reads_what_the_client_wrote(  # type: ignore[no-untyped-def]
+    client, trust_proxies
+) -> None:
+    """The one way to get the setting wrong that fails open, held here as a known property:
+    with one proxy and a count of two, the entry that is read is one the client sent. (Set
+    too low, or not at all, the result is a shared budget instead.)"""
+    trust_proxies(WEB, hops=2)
+
+    # One proxy: it added 198.51.100.1, the address it saw. A is what that client wrote.
+    assert _guess(_from(client, WEB), f"{A}, 198.51.100.1") == 404
+
+    assert _counted() == {f"rl:patient_view:{A}": 1}
+
+
 def test_a_header_sent_twice_reads_as_one_list(client, trust_proxies) -> None:  # type: ignore[no-untyped-def]
     trust_proxies(WEB)
 
