@@ -223,6 +223,115 @@ export const de = {
     showing: "Zeige {shown} von {total}",
     loading: "Patientenverzeichnis wird geladen …",
   },
+  // The dialog to add a patient (components/vitabahn/AddPatientDialog.tsx) and the server
+  // actions behind it (app/patients/actions.ts). The wording of the consent purposes is not
+  // here: it is versioned text (lib/consentCopy.ts) and stays as it was recorded.
+  addPatient: {
+    open: "Patient hinzufügen",
+    subtitle: "Synthetische Demodaten · kein realer Patient.",
+    steps: "Schritte",
+    stepNames: {
+      identity: "Identität",
+      consent: "Einwilligung",
+      review: "Prüfung",
+    },
+    stepLabel: "{n}. {label}",
+    stepDone: "{n}. {label} – abgeschlossen",
+    optional: "(optional)",
+    cancel: "Abbrechen",
+    back: "Zurück",
+    next: "Weiter",
+    close: "Schließen",
+    openRecord: "Akte öffnen",
+    discard: {
+      title: "Eingaben verwerfen?",
+      note: "Die bisherigen Angaben werden nicht gespeichert.",
+      keep: "Weiter bearbeiten",
+      confirm: "Verwerfen",
+    },
+    identity: {
+      title: "Identität & Stammdaten",
+      name: "Name",
+      namePlaceholder: "z. B. Maria Beispiel",
+      dob: "Geburtsdatum",
+      ref: "Externe ID",
+      refPlaceholder: "z. B. SYN-0042",
+      refHint: "Referenz Ihres Praxissystems.",
+      duplicateNote:
+        "Vor dem Anlegen wird im Mandanten auf mögliche Duplikate geprüft.",
+    },
+    consent: {
+      title: "Einwilligungen",
+      note: "Vor Ort erteilte Einwilligungen werden mit Zeitstempel, Zweck und erfassender Person dokumentiert (unveränderliches Protokoll). Alternativ kann die Person sie später selbst über den Einladungslink erteilen.",
+      channel:
+        "Erfassung: persönlich vor Ort · Zweckkatalog der Pilotumgebung (synthetische Daten).",
+    },
+    review: {
+      title: "Prüfen & Bestätigen",
+      name: "Name",
+      dob: "Geburtsdatum",
+      age: { one: "· {n} Jahr", other: "· {n} Jahre" },
+      ref: "Externe ID",
+      consents: "Einwilligungen",
+      noConsents: "Keine dokumentiert",
+      create: "Patient anlegen",
+      creating: "Wird angelegt …",
+    },
+    duplicates: {
+      running: "Duplikatprüfung läuft …",
+      unavailable: "Duplikatprüfung derzeit nicht verfügbar.",
+      retry: "Erneut prüfen",
+      strong: "Möglicherweise bereits vorhanden",
+      similar: "Ähnlicher Eintrag im Mandanten",
+      match: {
+        external_ref: "Gleiche externe ID",
+        name_dob: "Name + Geburtsdatum",
+        name: "Gleicher Name",
+      },
+      createAnyway:
+        "Trotzdem neu anlegen — es handelt sich um eine andere Person.",
+      none: "Keine Übereinstimmungen im Mandanten gefunden.",
+    },
+    done: {
+      title: "Patient angelegt",
+      summary: "· synthetischer Demodatensatz · {consents}.",
+      consents: {
+        one: "{n} Einwilligung dokumentiert",
+        other: "{n} Einwilligungen dokumentiert",
+      },
+      noConsents: "keine Einwilligungen dokumentiert",
+      inviteTitle: "Einladung zur eigenständigen Einwilligung",
+      inviteNote:
+        "Die Person kann Einwilligungen auch selbst über einen einmaligen Einladungslink erteilen.",
+      inviteLink: "Einladungslink",
+      copy: "Kopieren",
+      copied: "Kopiert",
+      validUntil:
+        "Gültig bis {when} · wird nur einmal angezeigt — bitte sicher und persönlich übermitteln.",
+      createLink: "Einladungslink erstellen",
+      creatingLink: "Wird erstellt …",
+      another: "Weitere Person anlegen",
+    },
+    errors: {
+      nameRequired: "Bitte einen Namen angeben.",
+      nameTooLong: "Der Name darf höchstens 200 Zeichen haben.",
+      dobInvalid: "Bitte ein gültiges Geburtsdatum angeben.",
+      dobFuture: "Das Geburtsdatum darf nicht in der Zukunft liegen.",
+      dobTooEarly: "Bitte ein Geburtsdatum ab {year} angeben.",
+      refTooLong: "Die externe ID darf höchstens 120 Zeichen haben.",
+      signInAgain: "Nicht berechtigt. Bitte erneut anmelden.",
+      duplicate:
+        "Im Mandanten existiert bereits ein Eintrag mit diesen Angaben.",
+      checkInput: "Anlegen fehlgeschlagen. Bitte Eingaben prüfen.",
+      failed: "Anlegen fehlgeschlagen. Bitte erneut versuchen.",
+    },
+    invitationErrors: {
+      invalidPatient: "Ungültige Patientenreferenz.",
+      notAllowed: "Diese Aktion ist Ihrer Rolle nicht erlaubt.",
+      tooMany: "Zu viele Einladungen. Bitte später erneut.",
+      failed: "Einladung fehlgeschlagen. Bitte erneut versuchen.",
+    },
+  },
   notFound: {
     title: "Seite nicht gefunden",
     note: "Die angeforderte Seite existiert nicht oder ist nicht verfügbar.",
@@ -255,7 +364,7 @@ export const de = {
     note: "Die Sprache der Oberfläche auf diesem Gerät. Inhalte wie Berichte, Bezeichnungen aus dem Labor und Namen bleiben in der Sprache, in der sie erfasst wurden.",
     // Says exactly what is done. To be widened with every part, and removed with the last page.
     progress:
-      "Englisch wird Seite für Seite ergänzt: die Navigation, die Anmeldung, die Übersicht, die Patientenliste und diese Übersicht der Einstellungen sind umgestellt; der Dialog „Patient hinzufügen“ und alle übrigen Seiten erscheinen vorerst auf Deutsch.",
+      "Englisch wird Seite für Seite ergänzt: die Navigation, die Anmeldung, die Übersicht, die Patientenliste und diese Übersicht der Einstellungen sind umgestellt; alle übrigen Seiten erscheinen vorerst auf Deutsch. Der Wortlaut der Einwilligungszwecke bleibt Deutsch.",
     selected: "ausgewählt",
     choose: "Sprache der Oberfläche",
   },

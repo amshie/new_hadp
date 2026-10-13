@@ -382,7 +382,7 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   environment. Open from that review: no lockout on the gate; visitors who arrive over IPv6
   share one limiter budget; the stack is open from the server itself; the role posture of the
   database is checked by the production-shaped smoke only; nothing tells visitors apart.
-- **Interface language, German or English (2026-10-13): PARTS 1–2 of several; ADR-0007.** A person
+- **Interface language, German or English (2026-10-13): PARTS 1–3a of several; ADR-0007.** A person
   chooses under Einstellungen or on the sign-in page; the choice is a cookie on the device
   (`hadp_locale`), German without one (`apps/web/src/lib/i18n`: `messages/de.ts` is the source of
   the keys, `messages/en.ts` is typed against it; server components ask `getMessages()`, client
@@ -420,9 +420,27 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   an owner to read before outside readers do: "real observations", "real-data view" and "real
   timestamps" stand next to "synthetic sample data" on these pages, as "echte …" does in
   German (meant: read from the database, not mocked).
-  **Still German** (each marks its content `lang="de"`): the dialog to add a patient (its
-  button on both pages, its three steps, and the messages its server actions return — the
-  component carries the mark itself), the
+  Part 3a: the dialog to add a patient (its button on both pages, the three steps, the
+  duplicate check, the invitation link) and what its server actions answer
+  (`app/patients/actions.ts`: creating, the duplicate check, the invitation — in the language
+  of the request). **The wording of the consent purposes is not translated** and is marked
+  `lang="de"` inside the English dialog: `lib/consentCopy.ts` is versioned text (ADR-0007), and
+  what a person consents to in the practice is the text that is recorded. Dates in the dialog
+  keep the German form. One German sentence changed: a patient one year old is "1 Jahr", no
+  longer "1 Jahre". The request to delete a record (same file) is used by the patient page
+  only and stays German until that page is translated; until then the patient page marks the
+  one message it shows from the invitation action with the language it arrives in.
+  **Found while reading the patient page for part 3b, and decisive for it:** that page shows
+  the six domain axes, CIS, Actionability, follow-up adequacy, the tri-state axes, the
+  position against the reference interval and the comparability notes — every closed
+  vocabulary ADR-0007 keeps German until the medical director has confirmed its English
+  terms. Part 3b therefore translates the page AROUND them (header and actions, data
+  coverage, laboratory files, consent, data export, the invitation and deletion dialogs) and
+  leaves those labels German and marked, until that confirmation is on record.
+  Seen and not fixed here (chip filed): Escape in this dialog discards what was entered
+  without asking — the shared `Dialog` calls the close handler of its first render; the Cancel
+  button asks.
+  **Still German** (each marks its content `lang="de"`): the
   patient page (laboratory upload, consent, data export), review queue,
   interpretation, report review, the four settings sub-pages (members, deletion requests, the
   audit trail with its ~60 event labels, preparation time), the patient-facing pages, the

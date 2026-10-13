@@ -23,6 +23,7 @@ import type {
 } from "@/lib/api";
 import { Dialog } from "@/components/vitabahn/Dialog";
 import { clickable } from "@/components/vitabahn/interactive";
+import { useI18n } from "@/lib/i18n/I18nProvider";
 import { lageLabel } from "@/lib/lageCopy";
 import type { ReferencePosition } from "@/lib/referencePosition";
 import type { DetailView } from "@/lib/presenters/patientDetail";
@@ -298,6 +299,7 @@ export function PatientDetailContent({
     };
   });
 
+  const { locale } = useI18n();
   const firstWithMarkers =
     domains.find((d) => d.markerCodes.length > 0)?.domainAxis ??
     domains[0]?.domainAxis ??
@@ -1394,8 +1396,10 @@ export function PatientDetailContent({
               : "Erstellt einen einmalig einlösbaren, zeitlich begrenzten Einladungslink, über den die Einwilligung (Berichtsfreigabe) erfasst wird. Der Link wird genau einmal angezeigt. Synthetische Demo: kein realer Patient."}
           </p>
           {inviteError && (
+            // The action answers in the interface language; this page is not translated yet.
             <p
               role="alert"
+              lang={locale}
               style={{
                 margin: "12px 0 0",
                 fontSize: "12.5px",
