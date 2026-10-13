@@ -43,7 +43,7 @@
                                                               │ signed access
                                                ┌──────────────▼──────────────┐
                                                │ (B5) S3-compatible storage   │
-                                               │  (MinIO local / EU bucket)   │
+                                               │  (S3 double local/EU bucket) │
                                                └──────────────────────────────┘
    ┌──────────────────────────────────────────────────────────────────────┐
    │ (B6) External/gated: OIDC IdP (gated stub), optional AI provider,      │

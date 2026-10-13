@@ -120,8 +120,8 @@ the smoke names the stack's own network for its run.
 - **It is not a database of record.** PostgreSQL and Redis keep their data on tmpfs; stopping
   the stack loses everything in it. There is no volume to back up.
 - **Its object store is a test double** (moto): it keeps objects in memory and accepts any
-  credentials. The MinIO images the development compose names can no longer be pulled, and
-  which store a deployment uses is an open vendor decision.
+  credentials — the double the development compose and CI use, since the MinIO images can no
+  longer be pulled. Which store a deployment uses is an open vendor decision.
 
 ## The demo stack
 

@@ -40,7 +40,7 @@ Prerequisites: Docker, Node ≥ 20 + `pnpm`, and [`uv`](https://docs.astral.sh/u
 
 ```bash
 make bootstrap     # install deps, create .env.local
-make db-up         # start Postgres (:55433), Redis (:56379), MinIO (:59000/59001)
+make db-up         # start Postgres (:55433), Redis (:56379), an S3 test double (:59000)
 make db-init       # create the non-superuser app role + test database
 make migrate       # apply migrations to the dev database
 make seed          # load synthetic tenants / users / patients / lab data

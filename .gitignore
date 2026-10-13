@@ -28,7 +28,6 @@ packages/api-client/src/generated/
 
 # Object storage / local data
 .data/
-minio-data/
 postgres-data/
 
 # Logs

@@ -163,9 +163,8 @@ jobs:
 
       - name: Start an S3 endpoint for the browser test (a test double)
         # A laboratory file is stored before it is read, and the browser test uploads one. The
-        # MinIO images docker-compose.yml names can no longer be pulled (Docker Hub answers 404
-        # for minio/minio and minio/mc), so this job cannot start them. An S3 test double in a
-        # process instead: the API reaches it over HTTP with boto3, on its default endpoint
+        # S3 test double docker-compose.yml runs (moto), here in a process rather than a
+        # container: the API reaches it over HTTP with boto3, on its default endpoint
         # and with its default development credentials — the same code path as an object
         # store. It says nothing about which store a deployment uses.
         run: |
@@ -257,6 +256,15 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
+      - name: Development infrastructure (make db-up)
+        # What a developer starts first (docker-compose.yml): Postgres, Redis and the S3 test
+        # double, whose bucket must exist when db-up returns. Nothing else in CI starts this
+        # file — its object store stopped being pullable once and nobody saw. It holds no data.
+        run: |
+          make db-up
+          curl -sf -o /dev/null http://127.0.0.1:59000/hadp-source-documents
+          make db-down
 
       - name: Build the images and run the stack smoke
         run: make stack-smoke

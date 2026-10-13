@@ -94,7 +94,10 @@ Deferred (out of scope for M0/M0.5 — tracked here, not silently dropped):
   already holds them keeps working; a new machine, or one that lost its image cache, cannot
   start local object storage. CI therefore gives the browser test an S3 test double (moto, in
   a process). Local development needs another S3-compatible image — a choice to make, not
-  made here.
+  made here. ✅ Fixed 2026-10-13: `docker-compose.yml` runs the same double (moto 5.2.3) with
+  its bucket, `make db-up` makes the bucket before it returns, and the `container-images` CI
+  job runs `make db-up` so the file cannot rot unseen again. The double keeps objects in
+  memory: a restart loses the uploaded files while the database still names them.
 - **Broad static forbidden-language scan over all UI copy**: ✅ DONE — `apps/api/tests/
 test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restricted
   intended-use terms (stem-matched to catch plurals + German inflections), strips comments

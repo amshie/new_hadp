@@ -91,9 +91,9 @@ services:
       timeout: 3s
       retries: 30
 
-  # Object storage: an S3 TEST DOUBLE (moto), not an object store. The MinIO images the
-  # development compose names can no longer be pulled (Docker Hub answers 404 for minio/minio
-  # and minio/mc), and which store a deployment uses is an open vendor decision. It keeps
+  # Object storage: an S3 TEST DOUBLE (moto), not an object store — the one the development
+  # compose and CI use (the MinIO images can no longer be pulled: Docker Hub answers 404 for
+  # minio/minio and minio/mc). Which store a deployment uses is an open vendor decision. It keeps
   # objects in memory and accepts any credentials — the smoke proves that the API is wired to
   # an S3 endpoint and can reach its bucket, not that access to it is controlled.
   s3:

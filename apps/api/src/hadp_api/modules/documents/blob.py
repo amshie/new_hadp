@@ -1,8 +1,9 @@
 """Object storage abstraction (S3-compatible).
 
-Production/dev use MinIO/S3 (private bucket, EU region, short-lived signed access). Tests
-use an in-process fake so they do not depend on a running object store. Source files are
-stored before parsing and addressed by content (tenant/patient/checksum).
+Production uses S3 (private bucket, EU region, short-lived signed access); development an
+S3 test double (docker-compose.yml). Tests use an in-process fake so they do not depend on
+a running object store. Source files are stored before parsing and addressed by content
+(tenant/patient/checksum).
 """
 
 from __future__ import annotations
@@ -58,7 +59,7 @@ class InMemoryBlobStore:
 
 
 class S3BlobStore:
-    """S3-compatible store (MinIO locally, EU-region bucket in production)."""
+    """S3-compatible store (a test double locally, EU-region bucket in production)."""
 
     def __init__(self, settings: Settings) -> None:
         import boto3
@@ -112,7 +113,7 @@ _in_memory_singleton: InMemoryBlobStore | None = None
 
 
 def get_blob_store(settings: Settings) -> BlobStore:
-    # Tests run against a process-local fake so they never require MinIO.
+    # Tests run against a process-local fake so they never require an object store.
     if settings.app_env == "test":
         global _in_memory_singleton
         if _in_memory_singleton is None:
