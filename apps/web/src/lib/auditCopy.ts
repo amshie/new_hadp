@@ -36,14 +36,21 @@ const ACTION_LABELS: Record<string, string> = {
   // The event knows that the holder of a link opened the report — not who that was.
   "report.patient_view": "Bericht über einen Zugriffslink geöffnet",
   "report.patient_view_denied": "Zugriff über einen Zugriffslink abgewiesen",
+  // After 30 refusals in a minute the trail takes no more single entries for that minute.
+  "report.patient_view_denials_unrecorded":
+    "Zugriffslinks: weitere Abweisungen bis zu einer Minute lang nicht einzeln protokolliert",
   "invitation.create": "Patienteneinladung erstellt",
   "invitation.revoked": "Patienteneinladung widerrufen",
   "invitation.redeemed": "Patienteneinladung eingelöst",
   "invitation.redeem_denied": "Einlösen einer Patienteneinladung abgewiesen",
+  "invitation.redeem_denials_unrecorded":
+    "Patienteneinladungen: weitere Abweisungen bis zu einer Minute lang nicht einzeln protokolliert",
   "staff_invite.create": "Teameinladung erstellt",
   "staff_invite.revoked": "Teameinladung widerrufen",
   "staff_invite.redeemed": "Teameinladung eingelöst",
   "staff_invite.redeem_denied": "Einlösen einer Teameinladung abgewiesen",
+  "staff_invite.redeem_denials_unrecorded":
+    "Teameinladungen: weitere Abweisungen bis zu einer Minute lang nicht einzeln protokolliert",
   "member.role_changed": "Rolle geändert",
   "member.removed": "Mitglied entfernt",
   "privacy.export": "Datenauskunft erstellt",

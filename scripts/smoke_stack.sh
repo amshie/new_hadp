@@ -79,6 +79,13 @@ sql() { compose exec -T postgres psql -U postgres -d hadp -v ON_ERROR_STOP=1 -At
 echo "--- starting $PROJECT ---"
 # A stack left over from an interrupted run is this script's own (same project name).
 compose down --timeout 20 > /dev/null 2>&1 || true
+# The API takes a client's address from the web server only (TRUSTED_PROXIES). Docker assigns
+# this stack's addresses, so the network is brought up first and its range is named: for this
+# run "the web server" is any container of this stack.
+compose up -d postgres
+export TRUSTED_PROXIES
+TRUSTED_PROXIES="$(docker network inspect "${PROJECT}_default" -f '{{range .IPAM.Config}}{{.Subnet}},{{end}}')"
+[ -n "$TRUSTED_PROXIES" ] || fail "could not read the address range of the stack's network"
 # Returns once every dependency condition has held: postgres/redis/s3 healthy, the migrate
 # and bucket jobs completed successfully, the API healthy.
 compose up -d
@@ -242,6 +249,43 @@ compose exec -T web node -e '
 ' || fail "web /login"
 ok "GET /login: 200 with every security header of next.config.mjs (production policy)"
 ok "the login page says that no sign-in is set up, and shows no form"
+
+echo "--- client address (for the limits that count per address) ---"
+# Sent the way a proxy in front of the web server would pass a request on: what the client
+# wrote into the header itself on the left, the address the proxy saw on the right. The
+# clinic does not exist, so the link is refused and nothing reaches a trail.
+compose exec -T web node -e '
+fetch("http://127.0.0.1:3000/patient-view", {
+  headers: {
+    cookie: "hadp_pv=00000000-0000-0000-0000-000000000000:smoke-not-a-token",
+    "x-forwarded-for": "198.51.100.77, 203.0.113.77",
+  },
+}).then(
+  async (res) => {
+    const html = await res.text();
+    if (res.status !== 200 || !html.includes("Dieser Bericht ist nicht verf")) {
+      console.error(`/patient-view answered ${res.status} without the refusal`);
+      process.exit(1);
+    }
+  },
+  (err) => {
+    console.error(String(err));
+    process.exit(1);
+  },
+);
+' || fail "a patient view through the web server, with a forwarded address"
+expect "the API counted that patient view under the address the proxy named, not the client's claim" \
+  "1 None" "$(
+  compose exec -T api python -c '
+import redis
+
+from hadp_api.config import get_settings
+
+store = redis.Redis.from_url(get_settings().redis_url, socket_timeout=5)
+named, claimed = (store.get(f"rl:patient_view:{a}") for a in ("203.0.113.77", "198.51.100.77"))
+print(named.decode() if named else None, claimed)
+'
+)"
 
 echo "--- processes and images ---"
 # Production mode is the API image's default: started with no configuration at all it must

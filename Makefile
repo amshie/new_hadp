@@ -145,7 +145,7 @@ stack-smoke: images ## Build the images, boot the production-shaped stack, asser
 
 .PHONY: api-dev
 api-dev: ## Run the FastAPI dev server
-	$(API_RUN) uvicorn hadp_api.main:app --reload --port 8000
+	$(API_RUN) uvicorn hadp_api.main:app --reload --port 8000 --no-proxy-headers
 
 .PHONY: web-dev
 web-dev: ## Run the Next.js dev server

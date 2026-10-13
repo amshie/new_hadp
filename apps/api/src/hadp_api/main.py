@@ -7,6 +7,7 @@ handling (no echoing of request bodies), and the /api/v1 routers.
 from __future__ import annotations
 
 import hmac
+import logging
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -34,11 +35,13 @@ from hadp_api.api import (
     tenancy_routes,
     worklist_routes,
 )
-from hadp_api.config import get_settings
+from hadp_api.config import get_settings, parse_trusted_proxies
 from hadp_api.db.engine import get_engine
 from hadp_api.errors import AppError, app_error_handler
 from hadp_api.logging import configure_logging
 from hadp_api.modules.audit.service import record_security_event
+
+logger = logging.getLogger(__name__)
 
 API_PREFIX = "/api/v1"
 
@@ -70,6 +73,24 @@ async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
     # (db/engine.py). Without this it would start, answer /health, and be refused only when
     # a request first reached the database.
     get_engine()
+    # Which address the address-keyed limits count is a matter of configuration that fails
+    # quietly: unset, every client behind the web server shares one budget. Said once, at
+    # start, where an operator reads it (counts only — no address is logged).
+    settings = get_settings()
+    trusted = parse_trusted_proxies(settings.trusted_proxies)
+    if trusted:
+        logger.info(
+            "address-keyed limits count the client a trusted proxy names "
+            "(trusted networks=%d, hops=%d)",
+            len(trusted),
+            settings.trusted_proxy_hops,
+        )
+    else:
+        logger.log(
+            logging.WARNING if settings.is_production else logging.INFO,
+            "address-keyed limits count the peer address: TRUSTED_PROXIES is not set, "
+            "so every client behind the web server shares one budget",
+        )
     yield
 
 

@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers as requestHeaders } from "next/headers";
 
 import type { components } from "@hadp/api-client";
 
@@ -119,13 +119,32 @@ export class ApiError extends Error {
   }
 }
 
+// Some limits of the API count per client address: sign-in, the patient view and the two
+// invitation redemptions. The API's peer is this server for every browser, so on those calls
+// the X-Forwarded-For this server received is passed on as it is. This server asserts nothing
+// about it — the list is whatever the client and the proxies in front wrote; the API decides
+// which entry it believes, and whether it believes this server at all (TRUSTED_PROXIES and
+// TRUSTED_PROXY_HOPS, apps/api/src/hadp_api/security/client_address.py). Only on those calls:
+// no other call of the API needs to know where a request came from.
+async function forwardedFor(): Promise<Record<string, string>> {
+  const chain = (await requestHeaders()).get("x-forwarded-for");
+  return chain ? { "x-forwarded-for": chain } : {};
+}
+
+type ApiInit = RequestInit & {
+  auth?: boolean;
+  // Pass the client's address on (see forwardedFor).
+  forClient?: boolean;
+};
+
 // One authenticated call to the API: forwards the session + CSRF cookies, maps an error
 // response to ApiError, and hands back the raw response (a JSON body or a file).
-async function send(
-  path: string,
-  init?: RequestInit & { auth?: boolean },
-): Promise<Response> {
+async function send(path: string, init?: ApiInit): Promise<Response> {
   const headers = new Headers(init?.headers);
+  if (init?.forClient) {
+    for (const [name, value] of Object.entries(await forwardedFor()))
+      headers.set(name, value);
+  }
   // A multipart body carries its own content type (with the boundary); everything else is JSON.
   if (init?.body && !(init.body instanceof FormData))
     headers.set("content-type", "application/json");
@@ -166,10 +185,7 @@ async function send(
   return res;
 }
 
-async function request<T>(
-  path: string,
-  init?: RequestInit & { auth?: boolean },
-): Promise<T> {
+async function request<T>(path: string, init?: ApiInit): Promise<T> {
   const res = await send(path, init);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -206,7 +222,7 @@ export async function signInMode(): Promise<SignInMode> {
 export async function devLogin(email: string): Promise<LoginResponse> {
   const res = await fetch(`${API_BASE}/api/v1/auth/dev-login`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...(await forwardedFor()) },
     body: JSON.stringify({ email }),
     cache: "no-store",
   });
@@ -365,6 +381,7 @@ export const redeemInvitation = (tenant: string, token: string) =>
     method: "POST",
     body: JSON.stringify({ tenant, token }),
     auth: false,
+    forClient: true,
   });
 
 export const reviewQueue = () =>
@@ -421,6 +438,7 @@ export const patientView = (tenant: string, token: string) =>
     method: "POST",
     body: JSON.stringify({ tenant, token }),
     auth: false,
+    forClient: true,
   });
 
 // Staff administration (owner-only server-side): invite a colleague, list pending invites,
@@ -522,6 +540,7 @@ export const redeemStaffInvitation = (input: {
       method: "POST",
       body: JSON.stringify(input),
       auth: false,
+      forClient: true,
     },
   );
 

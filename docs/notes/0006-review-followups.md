@@ -278,10 +278,10 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   tenant table enables and forces RLS.
   From that review, open: the role guard does not refuse a table **owner**, and an unset
   `APP_DATABASE_URL` still falls back to the admin DSN ([[0005-rls-fail-open-production-guard]]);
-  **the limits keyed on a client address (sign-in, the patient-view token surface, invitation
-  redemption) count the web server's address, which is the API's peer for every browser — all
-  patients share one budget, and one client can exhaust it for everyone** (found by the review
-  of the browser test; `docs/security/THREAT_MODEL.md` §5);
+  the limits keyed on a client address (sign-in, the patient-view token surface, invitation
+  redemption) counted the web server's address, which is the API's peer for every browser — all
+  patients shared one budget, and one client could exhaust it for everyone (found by the review
+  of the browser test; closed 2026-10-13, see the entry on address-keyed limits below);
   `rate_limited` events carry neither user nor clinic, so a breach cannot be tied to anyone and
   reaches no clinic's trail; editing a report has no size limit and no rate limit, and each
   edit of an approved or rejected version adds a version; a failed sign-out call is swallowed
@@ -308,7 +308,7 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   figure cannot be reproduced after an erasure; `elapsed()` and the page have no tests of their
   own (the web has no test runner); the form loses its input on a refused submission.
 - **Container images and a production-shaped stack (go-live plan C, 2026-10-13):** ✅ three
-  images, a migrate step that seeds the KPI catalog, `make stack-smoke` (37 checks) and an image
+  images, a migrate step that seeds the KPI catalog, `make stack-smoke` (38 checks since the client-address check) and an image
   scan in CI — `infra/docker/README.md`. From the independent review, taken: production mode is
   the API image's default (it would have started in development mode, password-less sign-in
   live, if `APP_ENV` was forgotten); the seeding command no longer reports success on a stale
@@ -321,5 +321,27 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   the job runs on every pull request without a layer cache; the stack's object store is a test
   double that accepts any credentials; everything in workstream C that needs a vendor (TLS,
   managed PostgreSQL, backups and restore, a secret manager, a deploy job, monitoring, runbooks).
+- **The address-keyed limits count the client (go-live plan §9.5 step 1, 2026-10-13):** ✅ the
+  web server passes on the `X-Forwarded-For` it received on the four calls whose limit counts
+  per address (sign-in, patient view, the two invitation redemptions); the API believes it only
+  from a peer in `TRUSTED_PROXIES`, and only the entry `TRUSTED_PROXY_HOPS` from the right
+  (`security/client_address.py`); anything else leaves the peer. With real client addresses the
+  limit per address no longer bounds what a caller without a session writes into a clinic's
+  trail (it had, by accident: everyone shared one budget), so the trail now takes 30 refusals
+  per surface, clinic and minute and then one entry that says recording stops for that minute
+  (`security/rate_limit.py::refusal_recording`, three new audit actions `…_denials_unrecorded`,
+  named on the trail page). Verified by `tests/test_client_address.py`,
+  `tests/test_refusal_recording.py` and end to end in both smokes (the web route smoke on the
+  loopback address, the stack smoke between containers).
+  Still open: **`TRUSTED_PROXIES` is empty by default and nothing refuses to start without it**
+  — a deployment that forgets it keeps the shared budget (the API warns at start); the
+  compose file of the production-shaped stack leaves it empty (Docker assigns the addresses; the
+  smoke names the stack's own network for its run), and neither stack has a proxy in front of
+  the web server — both smokes play that proxy themselves; the rule depends on the proxy in front of the web server setting or appending the header (a proxy that
+  passes a client's own header through lets the client pick its counter); an address with a
+  port is not read; a refusal for a clinic that does not exist still costs a failed insert and
+  an ERROR log line per request (bounded per address only); the number of refusals after
+  recording stopped is not on record; the web's part (four call sites) is held by a source scan
+  and the smoke, not by a unit test (the web has no test runner).
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.
