@@ -62,7 +62,6 @@ export default async function AssessmentReviewPage({
       crumb={messages.reportPage.crumb}
       crumbParent={{ label: view.patientName, href: `/patients/${id}` }}
       identity={shellIdentity(session)}
-      translated
     >
       <ToastProvider>
         <ReviewContent

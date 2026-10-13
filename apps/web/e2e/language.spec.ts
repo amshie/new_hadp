@@ -5,13 +5,12 @@ import { asStaff, hydrated, watchPageErrors } from "./support/staff";
 // The interface language is a person's choice — under Einstellungen, or on the sign-in page —
 // kept on the device (apps/web/src/lib/i18n). German is what a device without a choice gets.
 //
-// The pages are being translated one after another; these tests hold what is done: the two
-// navigation shells, the settings overview, the overview, the patients list, the dialog to
-// add a patient (opened from the overview), the patient page, the review queue, the
-// interpretation form, the report page, the members and deletion requests under settings,
-// the sign-in page and the not-found page — and that a page which is still German says so. They leave every
-// other test in German: each runs in a browser context of its own, and none of them signs out
-// (the session is shared).
+// These tests hold what is translated: the navigation shell, the settings overview and its
+// four pages, the overview, the patients list, the dialog to add a patient (opened from the
+// overview), the patient page, the review queue, the interpretation form, the report page, the
+// sign-in page and the not-found page — and that a page which is still German (one a patient
+// or an invited colleague opens) says so. They leave every other test in German: each runs in
+// a browser context of its own, and none of them signs out (the session is shared).
 
 // The medical director: the one seeded role whose name differs between the two languages.
 const ROLE = { de: "Ärztliche Leitung", en: "Medical director" };
@@ -483,16 +482,14 @@ test("the patient page follows the choice; what is not interface stays German an
     await detail.getByRole("button", { name: "Close" }).click();
     await expect(detail).toHaveCount(0);
 
-    // A page that is not translated yet — the audit trail under settings: the shell is
-    // English, and the page says it is German.
-    await page.goto("/einstellungen/audit");
+    // A page that is not translated yet — the one an invited colleague opens (here without a
+    // valid link, so nothing is asked of the API): the document is English, and the page says
+    // it is German.
+    await page.goto("/team-einladung");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await expect(
-      page.getByRole("complementary", { name: "Main navigation" }),
-    ).toContainText("Review queue");
-    const requests = page.getByRole("heading", { level: 1 });
-    await expect(requests).toBeVisible();
-    expect(await languageOf(requests)).toBe("de");
+    const invitation = page.getByRole("heading", { level: 1 });
+    await expect(invitation).toHaveText("Einladung ins Klinik-Team");
+    expect(await languageOf(invitation)).toBe("de");
   });
 
   // What a server action of this page answers follows the choice as well. A file whose name
@@ -828,6 +825,94 @@ test("members and deletion requests follow the choice; names are shown as record
     await expect(page.getByRole("main")).toContainText(
       "Managing deletion requests is reserved for owners and the medical director.",
     );
+  });
+});
+
+test("the audit trail and preparation time follow the choice; codes and names stay as recorded", async ({
+  browser,
+  baseURL,
+}) => {
+  await asStaff(browser, "owner", async (page) => {
+    await page
+      .context()
+      .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
+    const main = page.getByRole("main");
+
+    // The audit trail: its frame, its filter and its table are English, and so is the label of
+    // every event — next to the code the API wrote, which stays as it is. The owner's own entry
+    // into the clinic is always there.
+    await page.goto("/einstellungen");
+    await page.getByRole("link", { name: /Audit trail/ }).click();
+    await expect(page).toHaveURL(/\/einstellungen\/audit$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Audit trail" }),
+    ).toBeVisible();
+    await expect(main.locator("summary")).toHaveText(
+      "What this trail does not show",
+    );
+    await expect(main).toContainText(
+      "Not recorded at present: a report read by staff",
+    );
+    const area = page.getByRole("combobox", { name: "Area" });
+    await expect(area.locator("option").first()).toHaveText("All areas");
+    await expect(area.locator("option[value=tenant]")).toHaveText(
+      "Entering the clinic",
+    );
+    await page.goto("/einstellungen/audit?category=tenant");
+    const table = page.getByRole("table", {
+      name: "Audit trail, newest entries first",
+    });
+    for (const column of ["Time", "Who", "Event", "Record", "Details"]) {
+      await expect(
+        table.getByRole("columnheader", { name: column, exact: true }),
+      ).toBeVisible();
+    }
+    await expect(table.getByText("Clinic selected").first()).toBeVisible();
+    await expect(table.getByText("tenant.select").first()).toBeVisible();
+    for (const german of [
+      "Audit-Protokoll",
+      "Praxis ausgewählt",
+      "Was dieses Protokoll nicht zeigt",
+      "Alle Bereiche",
+      "Vorgang",
+    ]) {
+      await expect(main).not.toContainText(german);
+    }
+
+    // Preparation time: what the clinic states and what the platform measures, in English;
+    // so is what the form's action answers. (A figure the form refuses records nothing.)
+    await page.goto("/einstellungen/vorbereitungszeit?fehler=minuten");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Preparation time" }),
+    ).toBeVisible();
+    for (const heading of [
+      "Stated by the clinic",
+      "Measured from the course of the reports",
+      "What these figures are – and what they are not",
+    ]) {
+      await expect(
+        page.getByRole("heading", { level: 2, name: heading }),
+      ).toBeVisible();
+    }
+    // (Within main: Next's route announcer is an alert of its own.)
+    await expect(main.getByRole("alert")).toHaveText(
+      "The figure was not saved: the median is a whole number from 1 to 600 minutes.",
+    );
+    await expect(
+      page.getByRole("combobox", { name: "Kind of figure" }).locator("option"),
+    ).toHaveText(["Baseline", "Follow-up figure"]);
+    await expect(main).toContainText("not working time");
+    for (const german of [
+      "Vorbereitungszeit",
+      "Angaben der Praxis",
+      "Ausgangswert",
+      "Arbeitszeit",
+      "nicht gespeichert",
+    ]) {
+      await expect(main).not.toContainText(german);
+    }
   });
 });
 

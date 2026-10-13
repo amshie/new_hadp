@@ -80,7 +80,6 @@ export default async function AuthorRunPage({
         })}
         crumbParent={{ label: patient.display_name, href: `/patients/${id}` }}
         identity={shellIdentity(session)}
-        translated
       >
         <AuthorRunContent
           patientId={id}

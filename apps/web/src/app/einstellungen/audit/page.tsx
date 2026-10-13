@@ -10,6 +10,7 @@ import {
 } from "@/lib/api";
 import { auditCategory } from "@/lib/auditCopy";
 import { clinicDayStart } from "@/lib/clinicTime";
+import { getLocale, getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
 import { isUuid } from "@/lib/uuid";
 
@@ -20,7 +21,8 @@ import { AuditContent, type AuditQuery } from "./AuditContent";
 // a deny-by-default load. Filters and the paging position live in the URL, so a view can be
 // reloaded and handed on. Every query parameter is validated before it is used, and one that
 // is not what it should be is no filter at all — the form then shows none, so what is shown as
-// the selection is always what was asked of the API.
+// the selection is always what was asked of the API. The page follows the interface language
+// (lib/i18n).
 export const dynamic = "force-dynamic";
 
 const CURSOR = /^[A-Za-z0-9_-]{1,200}$/;
@@ -34,15 +36,21 @@ export default async function AuditPageRoute({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await me().catch(() => null);
+  const [session, messages, locale] = await Promise.all([
+    me().catch(() => null),
+    getMessages(),
+    getLocale(),
+  ]);
   if (!session) redirect("/login");
   const identity = shellIdentity(session);
+  const t = messages.auditPage;
+  const title = messages.settings.auditTrail.title;
 
   const shell = (children: React.ReactNode) => (
     <VitaShell
       nav="einstellungen"
-      crumb="Audit-Protokoll"
-      crumbParent={{ label: "Einstellungen", href: "/einstellungen" }}
+      crumb={title}
+      crumbParent={{ label: messages.settings.title, href: "/einstellungen" }}
       identity={identity}
     >
       {children}
@@ -51,17 +59,14 @@ export default async function AuditPageRoute({
   const notice = (text: string) =>
     shell(
       <div style={{ maxWidth: "620px" }}>
-        <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>
-          Audit-Protokoll
-        </h1>
+        <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>{title}</h1>
         <p style={{ lineHeight: 1.55, color: "var(--text-muted, #5b6b70)" }}>
           {text}
         </p>
       </div>,
     );
 
-  if (session.role !== "owner")
-    return notice("Das Audit-Protokoll ist nur für Inhaber verfügbar.");
+  if (session.role !== "owner") return notice(t.ownersOnly);
 
   const raw = await searchParams;
   // "Von" / "Bis einschließlich" are calendar days on the clinic's wall clock; the window the
@@ -102,14 +107,8 @@ export default async function AuditPageRoute({
   } catch (e) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403))
       redirect("/login");
-    if (e instanceof ApiError && e.status === 429)
-      return notice(
-        "Das Protokoll wurde in kurzer Zeit sehr oft abgerufen. Bitte versuchen Sie es in einer Minute erneut.",
-      );
-    if (e instanceof ApiError && e.status === 503)
-      return notice(
-        "Das Protokoll ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.",
-      );
+    if (e instanceof ApiError && e.status === 429) return notice(t.tooMany);
+    if (e instanceof ApiError && e.status === 503) return notice(t.unavailable);
     throw e;
   }
 
@@ -119,6 +118,9 @@ export default async function AuditPageRoute({
       query={query}
       continued={Boolean(cursor) && !stalePosition}
       stalePosition={stalePosition}
+      t={t}
+      title={title}
+      locale={locale}
     />,
   );
 }

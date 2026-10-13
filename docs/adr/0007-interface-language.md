@@ -40,7 +40,8 @@ product do not all read it.
    report statements, the names a laboratory wrote, the names of people. A report approved in
    German is a German report whatever the reader's interface shows.
 6. **A page says which language it is in.** `<html lang>` follows the choice. A page that is not
-   translated yet marks its content `lang="de"` (the shells do it unless told `translated`). On
+   translated yet marks its content `lang="de"` (the shell did until every page in it was
+   translated, part 7b; the pages outside it do it themselves). On
    a translated page, what stays German by a rule of this record is marked `lang="de"`: the
    wording of the consent purposes, the values of the closed vocabularies. What was recorded
    in a language nobody recorded — a laboratory's names, the names of people — carries no
@@ -83,7 +84,9 @@ product do not all read it.
   every word of the dictionary is on every page.
 - Tests that pin German wording by file (`apps/api/tests/test_audit_read.py` reads
   `auditCopy.ts` and a sentence of the audit page) have to move with the wording when those
-  pages are translated, and the English needs the same guard.
+  pages are translated, and the English needs the same guard. Done with part 7b: the event
+  labels hold both languages side by side in `auditCopy.ts` (the compiler holds that each has
+  both), and the test reads the sentence of what is not recorded in `de.ts` and in `en.ts`.
 - Role names had a second German source (`MitgliederContent.tsx`) until that page was
   translated (part 7a); the dictionary's `roles` is now the only one.
 - A presenter shared with a page that is not translated yet keeps its German wording and

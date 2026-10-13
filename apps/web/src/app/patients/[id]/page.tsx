@@ -102,7 +102,6 @@ export default async function PatientDetailPage({
       crumb={view.review.patientName}
       crumbParent={{ label: messages.patients.title, href: "/patients" }}
       identity={shellIdentity(session)}
-      translated
     >
       <PatientDetailContent
         view={view}

@@ -36,7 +36,8 @@ URL = "/api/v1/audit-events"
 _API_SRC = Path(__file__).resolve().parents[1] / "src" / "hadp_api"
 _WEB_SRC = Path(__file__).resolve().parents[2] / "web" / "src"
 _AUDIT_COPY = _WEB_SRC / "lib" / "auditCopy.ts"
-_AUDIT_PAGE = _WEB_SRC / "app" / "einstellungen" / "audit" / "AuditContent.tsx"
+# The audit page's wording, German and English (ADR-0007).
+_MESSAGES = _WEB_SRC / "lib" / "i18n" / "messages"
 
 
 def _owner(client, admin_session, slug: str):  # type: ignore[no-untyped-def]
@@ -608,8 +609,8 @@ def test_the_web_names_exactly_what_the_trail_can_hold() -> None:
     assert _copy_keys("ACTION_LABELS") == {action for action, tenant, _t, _w in writes if tenant}
     assert _copy_keys("TARGET_LABELS") == {target for _a, _tenant, target, _w in writes if target}
     assert _copy_keys("CATEGORY_LABELS") == {c.value for c in AuditCategory}
-    # What the page says a search by patient record finds (AuditContent.tsx, "Was dieses
-    # Protokoll nicht zeigt"): the events filed under the record itself.
+    # What the page says a search by patient record finds (auditPage.notShown.byRecord in the
+    # web's messages): the events filed under the record itself.
     assert {action for action, _tenant, target, _w in writes if target == "patient"} == {
         "patient.create",
         "patient.read",
@@ -658,23 +659,61 @@ def test_audit_events_are_written_in_one_way_only() -> None:
 
 
 # A GET handler that records nothing -> the words by which the page names that read as not
-# recorded. None: no clinic's data (liveness; the session's own identity and clinics).
-SILENT_READS: dict[tuple[str, str], str | None] = {
+# recorded, in German and in English. None: no clinic's data (liveness; the session's own
+# identity and clinics).
+SILENT_READS: dict[tuple[str, str], tuple[str, str] | None] = {
     ("health.py", "health"): None,
     ("auth_routes.py", "me"): None,
     ("tenancy_routes.py", "my_tenants"): None,
-    ("reports_routes.py", "get_report"): "das Lesen eines Berichts",
-    ("members_routes.py", "list_members"): "Mitglieder",
-    ("staff_invitations_routes.py", "list_staff_invitations"): "Teameinladungen",
-    ("privacy_routes.py", "list_deletion_requests"): "Löschanträge",
-    ("privacy_routes.py", "list_patient_data_exports"): "Verlauf der Datenauskünfte",
+    ("reports_routes.py", "get_report"): ("das Lesen eines Berichts", "a report read by staff"),
+    ("members_routes.py", "list_members"): ("Mitglieder", "members"),
+    ("staff_invitations_routes.py", "list_staff_invitations"): (
+        "Teameinladungen",
+        "team invitations",
+    ),
+    ("privacy_routes.py", "list_deletion_requests"): ("Löschanträge", "deletion requests"),
+    ("privacy_routes.py", "list_patient_data_exports"): (
+        "Verlauf der Datenauskünfte",
+        "history of data exports",
+    ),
 }
+
+# The sentence that lists them, in each language: its file, how it opens, the word that joins
+# the last two, and every read it names.
+_NOT_RECORDED = (
+    (
+        "de.ts",
+        "Derzeit nicht protokolliert:",
+        " und ",
+        {
+            "das Lesen eines Berichts durch Mitarbeitende",
+            "das Lesen der Verwaltungslisten",
+            "Mitglieder",
+            "Teameinladungen",
+            "Löschanträge",
+            "Verlauf der Datenauskünfte",
+        },
+    ),
+    (
+        "en.ts",
+        "Not recorded at present:",
+        " and ",
+        {
+            "a report read by staff",
+            "the reading of the administrative lists",
+            "members",
+            "team invitations",
+            "deletion requests",
+            "history of data exports",
+        },
+    ),
+)
 
 
 def test_the_reads_that_leave_no_trace_are_the_ones_the_page_names() -> None:
     """The page lists what is not recorded. A read that starts or stops being recorded changes
-    that list (AuditContent.tsx, "Derzeit nicht protokolliert") — this fails until both the
-    table above and the sentence on the page say what the code does."""
+    that list (auditPage.notShown.notRecorded, in both languages) — this fails until the table
+    above and the sentence in each language say what the code does."""
     silent: set[tuple[str, str]] = set()
     for path in sorted((_API_SRC / "api").glob("*.py")):
         for node in ast.parse(path.read_text()).body:
@@ -694,20 +733,14 @@ def test_the_reads_that_leave_no_trace_are_the_ones_the_page_names() -> None:
                 silent.add((path.name, node.name))
 
     assert silent == set(SILENT_READS)
-    page = " ".join(_AUDIT_PAGE.read_text().split())
-    sentence = re.search(r"Derzeit nicht protokolliert:(.*?)</li>", page)
-    assert sentence, "the page no longer says what is not recorded"
-    named = sentence.group(1)
-    for handler, words in SILENT_READS.items():
-        if words is not None:
-            assert words in named, f"the page does not name {handler} as not recorded"
-    # Nothing else is claimed to be unrecorded: every listed read is one of the above.
-    listed = {w.strip(" .") for w in re.split(r",|\(|\)| und ", named) if w.strip(" .")}
-    assert listed == {
-        "das Lesen eines Berichts durch Mitarbeitende",
-        "das Lesen der Verwaltungslisten",
-        "Mitglieder",
-        "Teameinladungen",
-        "Löschanträge",
-        "Verlauf der Datenauskünfte",
-    }
+    for language, (file, opening, conjunction, expected) in enumerate(_NOT_RECORDED):
+        source = " ".join((_MESSAGES / file).read_text().split())
+        sentence = re.search(rf'{re.escape(opening)}([^"]*)"', source)
+        assert sentence, f"{file} no longer says what is not recorded"
+        named = sentence.group(1)
+        for handler, words in SILENT_READS.items():
+            if words is not None:
+                assert words[language] in named, f"{file} does not name {handler} as not recorded"
+        # Nothing else is claimed to be unrecorded: every listed read is one of the above.
+        pieces = re.split(rf",|\(|\)|{conjunction}", named)
+        assert {w.strip(" .") for w in pieces if w.strip(" .")} == expected, file
