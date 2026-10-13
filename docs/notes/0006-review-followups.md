@@ -353,6 +353,35 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   still costs a failed insert and an ERROR log line per request (bounded per address only); the
   number of refusals after recording stopped is not on record; the web's part (four call sites)
   is held by a source scan and the smoke, not by a unit test (the web has no test runner).
+- **Demo stack (2026-10-13):** `infra/docker/compose.demo.yml` + `scripts/demo_stack.sh` put
+  HADP on one server behind a gate (TLS and a shared user name and password at a proxy), for
+  showing the product on synthetic data; `scripts/smoke_demo.sh` runs in CI. It is the first
+  stack with a real proxy in front of the web server: `TRUSTED_PROXIES` is the web server's one
+  fixed address there, and the smoke checks that a visitor is counted under the address the
+  proxy saw. `infra/docker/README.md` says what it is not.
+  Still open: one shared gate password, no per-person access; the API runs in development mode
+  there (the only sign-in that exists), so it must stay synthetic; uploaded files are lost on a
+  restart (the object store is the test double — decision 14 of the go-live plan); the images
+  are built on the server, not pulled from a registry; `caddy:2-alpine` floats; a public
+  certificate is not part of any automated check (the smoke uses the proxy's own).
+  **First server, 2026-10-13** (one rented machine, Ubuntu 26.04, 2 vCPU / 4 GB): the packages
+  the README names exist there; both images built on it; `scripts/smoke_demo.sh` passed on it
+  (20 checks) with those images; after `init` and `up` the proxy obtained a public certificate
+  (Let's Encrypt) for a name of the form `<address>.sslip.io` within seconds, and from outside
+  every path answers 401 without the gate and plain HTTP is sent to HTTPS. **Not confirmed in
+  the repository:** a sign-in through the gate in a browser (the gate password is the
+  operator's; the smoke does not make the form's own request). The provider's firewall was
+  created but not attached to the server when this was written — closed ports answered from
+  the server itself.
+  From the independent review, taken: the gate's block is in the committed proxy configuration
+  and nothing starts without a password hash (an import of an empty generated file would have
+  been no gate); `up` creates the proxy again and waits for it; the project name is fixed in
+  the script; the smoke covers every path and method, a foreign host name, a new gate password
+  and the logs. Found by CI, not by the local run: the proxy could not read a gate file owned by
+  another user (it has no capability for that) — the gate now reaches it through its
+  environment. Open from that review: no lockout on the gate; visitors who arrive over IPv6
+  share one limiter budget; the stack is open from the server itself; the role posture of the
+  database is checked by the production-shaped smoke only; nothing tells visitors apart.
 - **Interface language, German or English (2026-10-13): PART 1 of several.** A person chooses
   under Einstellungen; the choice is a cookie on the device (`hadp_locale`), German without one
   (`apps/web/src/lib/i18n`: `messages/de.ts` is the source of the keys, `messages/en.ts` is typed
