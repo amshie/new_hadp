@@ -382,7 +382,7 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   environment. Open from that review: no lockout on the gate; visitors who arrive over IPv6
   share one limiter budget; the stack is open from the server itself; the role posture of the
   database is checked by the production-shaped smoke only; nothing tells visitors apart.
-- **Interface language, German or English (2026-10-13): PARTS 1–3a of several; ADR-0007.** A person
+- **Interface language, German or English (2026-10-13): PARTS 1–3b of several; ADR-0007.** A person
   chooses under Einstellungen or on the sign-in page; the choice is a cookie on the device
   (`hadp_locale`), German without one (`apps/web/src/lib/i18n`: `messages/de.ts` is the source of
   the keys, `messages/en.ts` is typed against it; server components ask `getMessages()`, client
@@ -453,13 +453,44 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   Seen and not fixed here (chip filed): Escape in this dialog discards what was entered
   without asking — the shared `Dialog` calls the close handler of its first render; the Cancel
   button asks.
-  **Still German** (each marks its content `lang="de"`): the
-  patient page (laboratory upload, consent, data export), review queue,
+  Part 3b: the patient page — header and actions, data coverage, the consent card, the
+  laboratory-files card, the data-export card, the audit steps, the dialogs (invitation,
+  marker detail, deletion request, consent, data export) and what its server actions answer
+  (deletion request, consent, laboratory upload and import with its twenty reasons for not
+  reading a file).
+  **German on that page whatever the choice, each marked `lang="de"`:** the names of the six
+  domain axes, the line "Follow-up-Adäquanz: …", the position against the reference interval
+  (pill, screen-reader sentence, the sentence in the marker dialog), the comparability note,
+  the wording of the consent purposes — and a message of the report-draft action
+  (`app/reports/actions.ts` belongs to the report pages, not translated yet). The headings of
+  the two position columns and the sentence "position relative to the source reference
+  interval" are English, in the words `lageCopy.ts` already holds; the VALUES are not.
+  How it is built: `lib/presenters/review.ts` keeps its German wording for the report review
+  page and additionally hands out keys and values (`ageYears`, an audit step's `key` and
+  `subKey`, a source note's `source` and `unit`); the patient page words the report's state,
+  the age, the audit steps, a value's review state and the three notes on how a value relates
+  to the source's writing from the dictionary. So these few German strings have two sources
+  until the review page is translated.
+  English names given here to sets with a fixed list behind them, none clinical, none with a
+  named owner yet: the report's state on this page (five), the state of a run on a domain
+  card (reviewed / draft / no run), a value's review state (published / in review / rejected
+  in review), the three reasons of a deletion request (GDPR's own English: data subject
+  request, consent withdrawn, data minimisation), the twenty reasons a laboratory file is
+  not read.
+  One German sentence changed, as in the dialog: an age of one is "1 Jahr". Number and date
+  formats are unchanged — the consent day, upload times, file sizes and "489 T" keep the
+  German form inside English sentences. `scripts/smoke_web.py` checks the page in both
+  directions and that a consent purpose and a domain name read the same in both;
+  `e2e/fill.spec.ts` pins every German sentence that is put together.
+  Known and left: an `aria-label` that names a domain ("Select domain Metabolisch") cannot
+  mark the German word inside it; what a laboratory wrote (analyte names) and people's names
+  carry no language mark of their own — the language of recorded content is not recorded.
+  **Still German** (each marks its content `lang="de"`): review queue,
   interpretation, report review, the four settings sub-pages (members, deletion requests, the
   audit trail with its ~60 event labels, preparation time), the patient-facing pages, the
   colleague's onboarding page (`/team-einladung`), the error page, the disclaimer, the toasts,
-  and every message a server action returns except the two of sign-in and the three of the
-  dialog to add a patient. All date and number
+  and every message a server action returns except those of sign-in, of the dialog to add a
+  patient and of the patient page. All date and number
   formats are `de-DE`, written out in about twenty places. The settings page says what is done
   while that is true — widen that sentence (`language.progress`) with every part and remove it
   with the last page.

@@ -17,6 +17,7 @@ import {
   type ReportView,
   type SourceDocument,
 } from "@/lib/api";
+import { getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
 import { presentDetail, type DetailView } from "@/lib/presenters/patientDetail";
 import { isUuid } from "@/lib/uuid";
@@ -84,9 +85,10 @@ export default async function PatientDetailPage({
   if (!isUuid(id)) notFound();
   // The session role drives which staff actions render (invite); the API enforces them.
   // The report draft + Freigabe workflow lives on the dedicated review page, not here.
-  const [{ view, documents, consents }, session] = await Promise.all([
+  const [{ view, documents, consents }, session, messages] = await Promise.all([
     loadView(id),
     me().catch(() => null),
+    getMessages(),
   ]);
   // The export list is the owner's (the API refuses every other role), and a tombstoned
   // record has none. A failed read must not take the patient page down with it.
@@ -98,8 +100,9 @@ export default async function PatientDetailPage({
     <VitaShell
       nav="patienten"
       crumb={view.review.patientName}
-      crumbParent={{ label: "Patienten", href: "/patients" }}
+      crumbParent={{ label: messages.patients.title, href: "/patients" }}
       identity={shellIdentity(session)}
+      translated
     >
       <PatientDetailContent
         view={view}

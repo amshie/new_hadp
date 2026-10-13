@@ -80,3 +80,78 @@ test("the German of the dialog to add a patient, put together", () => {
   expect(byCount(t.review.age, 0)).toBe("· 0 Jahre");
   expect(byCount(t.review.age, 34)).toBe("· 34 Jahre");
 });
+
+// The same for the patient page: every sentence that is put together from wording and values.
+test("the German of the patient page, put together", () => {
+  const t = de.patientPage;
+  expect(byCount(t.age, 46)).toBe("46 Jahre");
+  expect(fill(t.reportVersion, { version: 2 })).toBe("Bericht · v2");
+  expect(fill(t.coverage.days, { n: 489 })).toBe("489 T");
+  expect(fill(t.domains.select, { axis: "Metabolisch" })).toBe(
+    "Domäne Metabolisch auswählen",
+  );
+  expect(fill(t.domains.show, { n: 2 })).toBe("Biomarker ansehen (2)");
+  expect(fill(t.evidence.open, { name: "HbA1c" })).toBe("Marker HbA1c öffnen");
+  expect(fill(t.evidence.reference, { range: "0–5.6" })).toBe("Ref 0–5.6");
+  const converted = { source: "97 mg/dL", unit: "mmol/L" };
+  expect(fill(t.sourceNote.converted.short, converted)).toBe(
+    "umgerechnet aus 97 mg/dL",
+  );
+  expect(fill(t.sourceNote.converted.full, converted)).toBe(
+    "Die Quelle nennt 97 mg/dL; der Wert – und das Referenzintervall, soweit eines angezeigt ist – wurde in mmol/L umgerechnet.",
+  );
+  const event = {
+    day: "12.10.2026",
+    how: t.consent.channels.in_person,
+    version: "synthetic-v1",
+  };
+  expect(fill(t.consent.granted, event)).toBe(
+    "Erteilt am 12.10.2026 (vor Ort erklärt) · Textversion synthetic-v1",
+  );
+  expect(fill(t.consent.withdrawn, event)).toBe(
+    "Widerrufen am 12.10.2026 (vor Ort erklärt) · Textversion synthetic-v1",
+  );
+  expect(t.consent.note + t.consent.readOnly).toBe(
+    "Stand je Zweck. Jeder Eintrag ist ein neuer, zugeordneter und auditierter Vermerk — frühere Einträge werden nie geändert. Das Dokumentieren ist dem Praxisteam vorbehalten (Nur-Lese-Ansicht).",
+  );
+
+  const lab = t.lab;
+  expect(fill(lab.read, { parser: "ldt", version: 3 })).toBe(
+    "Eingelesen (ldt v3): ",
+  );
+  expect(
+    [
+      fill(lab.counts.published, { n: 3 }),
+      fill(lab.counts.review, { n: 1 }),
+      fill(lab.counts.duplicate, { n: 0 }),
+      fill(lab.counts.notImported, { n: 2 }),
+    ].join(" · "),
+  ).toBe(
+    "3 veröffentlicht · 1 zur Prüfung · 0 bereits vorhanden · 2 nicht übernommen",
+  );
+  const where = fill(lab.errors.line, { line: 4 });
+  expect(
+    fill(lab.errors.nothingTaken, {
+      reason: lab.refusals.ambiguous_header,
+      where,
+    }),
+  ).toBe(
+    "Der Tabellenkopf nennt eine Spalte doppelt. (Zeile 4) Es wurde nichts übernommen.",
+  );
+  expect(
+    fill(lab.errors.nothingTaken, {
+      reason: lab.refusals.empty_document,
+      where: "",
+    }),
+  ).toBe("Die Datei enthält keine Laborwerte. Es wurde nichts übernommen.");
+  expect(fill(lab.errors.unreadableCode, { code: "new_code", where })).toBe(
+    "Die Datei konnte nicht eingelesen werden (Grund: new_code) (Zeile 4). Es wurde nichts übernommen.",
+  );
+
+  const file = t.dataExport;
+  expect(
+    `${fill(file.values, { n: 12 })} · ${fill(file.files, { n: 3 })}${fill(file.filesChanged, { n: 1 })}${fill(file.filesNeverRead, { n: 2 })} · ${fill(file.versions, { n: 2 })}`,
+  ).toBe(
+    "12 Werte · 3 Originaldateien (1 nicht mehr unverändert im Speicher) (2 nie eingelesen, nicht enthalten) · 2 Berichtsfassungen",
+  );
+});

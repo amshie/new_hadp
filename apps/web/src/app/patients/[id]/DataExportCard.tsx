@@ -6,11 +6,17 @@ import { useState, useTransition, type CSSProperties } from "react";
 import { Dialog } from "@/components/vitabahn/Dialog";
 import type { DataExport } from "@/lib/api";
 import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
+import { fill } from "@/lib/i18n/fill";
+import { useI18n } from "@/lib/i18n/I18nProvider";
+import type { Messages } from "@/lib/i18n/messages";
 
 // Data export for one patient (GDPR Art. 15 access / Art. 20 portability) — the owner's tool
 // to answer a data subject's request. The API builds the file on request and stores nothing;
 // the list below is read from the audit trail. The card says what the file holds and what it
 // leaves out, so nobody hands it over as more than it is.
+//
+// The card follows the interface language (lib/i18n); dates and sizes keep their German form
+// (ADR-0007: formats are decided on their own).
 
 const cardStyle: CSSProperties = {
   background: "var(--surface-card)",
@@ -40,22 +46,25 @@ const btnPri: CSSProperties = {
   color: "var(--text-on-brand)",
 };
 
-const ERRORS: Record<string, string> = {
-  patient_erased: "Diese Akte wurde gelöscht; es gibt nichts zu exportieren.",
-  export_too_large:
-    "Die gespeicherten Originaldateien sind zu groß für eine einzelne Datei.",
-  storage_unavailable:
-    "Eine gespeicherte Originaldatei konnte gerade nicht gelesen werden. Es wurde keine Datei erstellt — bitte später erneut versuchen.",
-  cross_origin: "Die Anfrage wurde abgelehnt. Bitte die Seite neu laden.",
-};
-
-function errorMessage(status: number, code: string): string {
-  if (ERRORS[code]) return ERRORS[code];
-  if (status === 403) return "Diese Aktion ist Ihrer Rolle nicht erlaubt.";
-  if (status === 404) return "Diese Akte ist nicht verfügbar.";
-  if (status === 429)
-    return "Zu viele Datenauskünfte in kurzer Zeit. Bitte später erneut versuchen.";
-  return "Die Datenauskunft konnte nicht erstellt werden. Bitte erneut versuchen.";
+// Keyed by the code the route answers with (lib/i18n: patientPage.dataExport.errors).
+function errorMessage(
+  status: number,
+  code: string,
+  page: Messages["patientPage"],
+): string {
+  const t = page.dataExport.errors;
+  const coded = [
+    "patient_erased",
+    "export_too_large",
+    "storage_unavailable",
+    "cross_origin",
+  ] as const;
+  const known = coded.find((c) => c === code);
+  if (known) return t[known];
+  if (status === 403) return page.notAllowed;
+  if (status === 404) return page.recordUnavailable;
+  if (status === 429) return t.tooMany;
+  return t.failed;
 }
 
 // On the clinic's wall clock, whatever zone the server or the reader's device is in: the same
@@ -89,6 +98,8 @@ export function DataExportCard({
   patientId: string;
   exports: DataExport[];
 }) {
+  const page = useI18n().t.patientPage;
+  const t = page.dataExport;
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,13 +116,13 @@ export function DataExportCard({
           method: "POST",
         });
       } catch {
-        setError(errorMessage(0, ""));
+        setError(errorMessage(0, "", page));
         setConfirming(false);
         return;
       }
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { code?: string };
-        setError(errorMessage(res.status, body.code ?? ""));
+        setError(errorMessage(res.status, body.code ?? "", page));
         setConfirming(false);
         return;
       }
@@ -125,7 +136,7 @@ export function DataExportCard({
         blob = await res.blob();
       } catch {
         // The transfer broke off: no partial file is offered.
-        setError(errorMessage(0, ""));
+        setError(errorMessage(0, "", page));
         setConfirming(false);
         return;
       }
@@ -160,7 +171,7 @@ export function DataExportCard({
             margin: 0,
           }}
         >
-          Datenauskunft
+          {t.title}
         </h3>
         <p
           style={{
@@ -171,19 +182,11 @@ export function DataExportCard({
             maxWidth: "88ch",
           }}
         >
-          Eine Datei mit den zu dieser Person gespeicherten Daten, für eine
-          Auskunft (Art. 15 DSGVO) oder eine Datenübertragung (Art. 20 DSGVO):
-          Stammdaten, Einwilligungsvermerke, alle Werte, die in diese Akte
-          eingelesenen Originaldateien und die freigegebenen Berichtsfassungen.{" "}
+          {t.noteBefore}{" "}
           <strong style={{ color: "var(--text-strong)" }}>
-            Nicht enthalten
+            {t.notIncluded}
           </strong>{" "}
-          sind unter anderem nicht freigegebene Berichtsfassungen, die
-          Arbeitsdokumentation zur Interpretation, Prüfentscheidungen, das
-          Audit-Protokoll, Angaben zum Personal und gespeicherte Dateien, die
-          nie in diese Akte eingelesen wurden — die vollständige Liste steht in
-          der Datei selbst. Ob diese Teile zu einer vollständigen Auskunft
-          gehören, ist rechtlich noch zu klären.
+          {t.noteAfter}
         </p>
         <div
           style={{
@@ -204,14 +207,14 @@ export function DataExportCard({
               setConfirming(true);
             }}
           >
-            Datenauskunft erstellen
+            {t.create}
           </button>
           {done && (
             <span
               role="status"
               style={{ fontSize: "12.5px", color: "var(--text-strong)" }}
             >
-              Datei erstellt und heruntergeladen.
+              {t.done}
             </span>
           )}
         </div>
@@ -238,9 +241,7 @@ export function DataExportCard({
         }}
       >
         {exports.length === 0 ? (
-          <span style={{ color: "var(--text-muted)" }}>
-            Für diese Akte wurde noch keine Datenauskunft erstellt.
-          </span>
+          <span style={{ color: "var(--text-muted)" }}>{t.none}</span>
         ) : (
           <>
             <div
@@ -253,7 +254,7 @@ export function DataExportCard({
                 marginBottom: "6px",
               }}
             >
-              Bisher erstellt (aus dem Audit-Protokoll)
+              {t.history}
             </div>
             <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
               {exports.map((entry) => (
@@ -262,14 +263,19 @@ export function DataExportCard({
                   style={{ padding: "4px 0", lineHeight: 1.5 }}
                 >
                   {fmtWhen(entry.exported_at)} · {fmtSize(entry.byte_size)} ·{" "}
-                  {entry.observations} Werte · {entry.source_files}{" "}
-                  Originaldateien
+                  {fill(t.values, { n: entry.observations })} ·{" "}
+                  {fill(t.files, { n: entry.source_files })}
                   {entry.source_files_missing + entry.source_files_changed >
                     0 &&
-                    ` (${entry.source_files_missing + entry.source_files_changed} nicht mehr unverändert im Speicher)`}
+                    fill(t.filesChanged, {
+                      n:
+                        entry.source_files_missing + entry.source_files_changed,
+                    })}
                   {entry.source_documents_not_imported > 0 &&
-                    ` (${entry.source_documents_not_imported} nie eingelesen, nicht enthalten)`}{" "}
-                  · {entry.released_report_versions} Berichtsfassungen ·{" "}
+                    fill(t.filesNeverRead, {
+                      n: entry.source_documents_not_imported,
+                    })}{" "}
+                  · {fill(t.versions, { n: entry.released_report_versions })} ·{" "}
                   <span
                     title={entry.checksum_sha256}
                     style={{
@@ -319,7 +325,7 @@ export function DataExportCard({
               margin: 0,
             }}
           >
-            Datenauskunft erstellen?
+            {t.confirmTitle}
           </h3>
           <p
             style={{
@@ -329,11 +335,7 @@ export function DataExportCard({
               color: "var(--text-muted)",
             }}
           >
-            Die Datei enthält personenbezogene Gesundheitsdaten dieser Person
-            und wird auf dieses Gerät heruntergeladen. Bewahren Sie sie
-            geschützt auf und geben Sie sie nur an die betroffene Person weiter.
-            Die Erstellung wird Ihnen zugeordnet und auditiert; in der Plattform
-            wird keine Kopie der Datei gespeichert.
+            {t.confirmNote}
           </p>
           <div
             style={{
@@ -349,7 +351,7 @@ export function DataExportCard({
               disabled={pending}
               onClick={() => setConfirming(false)}
             >
-              Abbrechen
+              {page.cancel}
             </button>
             <button
               type="button"
@@ -357,7 +359,7 @@ export function DataExportCard({
               disabled={pending}
               onClick={run}
             >
-              {pending ? "Wird erstellt …" : "Erstellen und herunterladen"}
+              {pending ? t.creating : t.confirm}
             </button>
           </div>
         </Dialog>

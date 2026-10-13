@@ -294,6 +294,13 @@ def main() -> int:
                 "en": ("Patient directory", "No report", "Add patient"),
             },
         }
+        # The patient page as well. What is not interface on it reads the same in both: the
+        # wording of a consent purpose, the name of a domain axis.
+        wording[f"/patients/{pid}"] = {
+            "de": ("Datenlage", "Labordaten", "Audit-Status", "Zurück zu Patienten"),
+            "en": ("Data coverage", "Laboratory data", "Audit status", "Back to patients"),
+        }
+        as_recorded = ("Freigabe geprüfter Berichte", "Metabolisch")
         for path, words in wording.items():
             for language, other in (("de", "en"), ("en", "de")):
                 cookie = f"hadp_session={session}"
@@ -304,6 +311,9 @@ def main() -> int:
                     assert word in page, f"{path} ({language}) does not say {word!r}"
                 for word in words[other]:
                     assert word not in page, f"{path} ({language}) says {word!r}"
+                if path == f"/patients/{pid}":
+                    for word in as_recorded:
+                        assert word in page, f"{path} ({language}) lost {word!r}"
 
         r = web.get(f"/patients/{pid}")
         assert r.status_code == 200, ("/patients/[id] authed", r.status_code)
@@ -571,7 +581,7 @@ def main() -> int:
     print(f"  client address passed on to the API: {forwarding}")
     print(
         "  interface language: German by default, English by choice, on /login, the 404 page,"
-        " /overview and /patients"
+        " /overview, /patients and the patient page"
     )
     return 0
 

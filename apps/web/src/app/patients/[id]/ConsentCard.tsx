@@ -6,12 +6,19 @@ import { Dialog } from "@/components/vitabahn/Dialog";
 import type { ConsentState } from "@/lib/api";
 import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
 import { CONSENT_OPTIONS, type ConsentPurpose } from "@/lib/consentCopy";
+import { fill } from "@/lib/i18n/fill";
+import { useI18n } from "@/lib/i18n/I18nProvider";
+import type { Messages } from "@/lib/i18n/messages";
 
 import { recordConsentAction } from "./consent-actions";
 
 // Consent state of one patient, per purpose of the closed vocabulary, with the two staff
 // operations: document a consent, document a withdrawal. Both append a new event; nothing is
 // edited. The state shown is the rule the release gate applies (latest event is a grant).
+//
+// The card follows the interface language (lib/i18n). The wording of the purposes does not:
+// it is versioned text (lib/consentCopy.ts), shown as it is recorded and marked as German.
+// The day keeps its German form (ADR-0007: formats are decided on their own).
 
 const cardStyle: CSSProperties = {
   background: "var(--surface-card)",
@@ -41,10 +48,6 @@ const btnPri: CSSProperties = {
   color: "var(--text-on-brand)",
 };
 
-const CHANNEL_LABELS: Record<string, string> = {
-  in_person: "vor Ort erklärt",
-};
-
 // The day on the clinic's wall clock — not the server's and not the reader's device's.
 function fmtDay(iso: string): string {
   return new Date(iso).toLocaleDateString("de-DE", {
@@ -55,12 +58,18 @@ function fmtDay(iso: string): string {
   });
 }
 
-function stateLine(state: ConsentState | undefined): string {
+function stateLine(
+  state: ConsentState | undefined,
+  t: Messages["patientPage"]["consent"],
+): string {
   const event = state?.last_event;
-  if (!event) return "Nicht dokumentiert";
-  const how = CHANNEL_LABELS[event.channel] ?? event.channel;
-  const what = event.event_type === "granted" ? "Erteilt" : "Widerrufen";
-  return `${what} am ${fmtDay(event.recorded_at)} (${how}) · Textversion ${event.consent_text_version}`;
+  if (!event) return t.notDocumented;
+  const channels: Record<string, string> = t.channels;
+  return fill(event.event_type === "granted" ? t.granted : t.withdrawn, {
+    day: fmtDay(event.recorded_at),
+    how: channels[event.channel] ?? event.channel,
+    version: event.consent_text_version,
+  });
 }
 
 export function ConsentCard({
@@ -72,6 +81,8 @@ export function ConsentCard({
   consents: ConsentState[];
   canRecord: boolean;
 }) {
+  const page = useI18n().t.patientPage;
+  const t = page.consent;
   const [confirm, setConfirm] = useState<{
     purpose: ConsentPurpose;
     label: string;
@@ -118,7 +129,7 @@ export function ConsentCard({
             margin: 0,
           }}
         >
-          Einwilligungen
+          {t.title}
         </h3>
         <p
           style={{
@@ -129,10 +140,8 @@ export function ConsentCard({
             maxWidth: "88ch",
           }}
         >
-          Stand je Zweck. Jeder Eintrag ist ein neuer, zugeordneter und
-          auditierter Vermerk — frühere Einträge werden nie geändert.
-          {!canRecord &&
-            " Das Dokumentieren ist dem Praxisteam vorbehalten (Nur-Lese-Ansicht)."}
+          {t.note}
+          {!canRecord && t.readOnly}
         </p>
       </div>
 
@@ -153,7 +162,8 @@ export function ConsentCard({
                 borderTop: "1px solid var(--border-subtle)",
               }}
             >
-              <div style={{ minWidth: "240px", flex: "1 1 320px" }}>
+              {/* The purpose as it is recorded — not interface wording. */}
+              <div lang="de" style={{ minWidth: "240px", flex: "1 1 320px" }}>
                 <div
                   style={{
                     fontSize: "13.5px",
@@ -181,10 +191,10 @@ export function ConsentCard({
                 }}
               >
                 <strong style={{ color: "var(--text-strong)" }}>
-                  {active ? "Aktiv" : "Nicht aktiv"}
+                  {active ? t.active : t.inactive}
                 </strong>
                 {" — "}
-                {stateLine(state)}
+                {stateLine(state, t)}
               </div>
               {canRecord && (
                 <button
@@ -199,9 +209,7 @@ export function ConsentCard({
                     })
                   }
                 >
-                  {active
-                    ? "Widerruf dokumentieren"
-                    : "Einwilligung dokumentieren"}
+                  {active ? t.recordWithdrawal : t.recordGrant}
                 </button>
               )}
             </li>
@@ -218,11 +226,7 @@ export function ConsentCard({
           color: "var(--text-faint)",
         }}
       >
-        Synthetische Demo: Zwecke und Einwilligungstext sind Platzhalter.
-        Technisch durchgesetzt wird derzeit nur die Freigabe geprüfter Berichte
-        (ohne aktive Einwilligung keine Freigabe; ein Widerruf entzieht
-        bestehende Zugriffslinks). Die übrigen Zwecke werden dokumentiert, aber
-        noch nicht technisch durchgesetzt.
+        {t.footnote}
       </p>
 
       {confirm && (
@@ -257,9 +261,7 @@ export function ConsentCard({
               margin: 0,
             }}
           >
-            {confirm.kind === "grant"
-              ? "Einwilligung dokumentieren?"
-              : "Widerruf dokumentieren?"}
+            {confirm.kind === "grant" ? t.grantTitle : t.withdrawTitle}
           </h3>
           <p
             style={{
@@ -269,15 +271,13 @@ export function ConsentCard({
               color: "var(--text-muted)",
             }}
           >
-            <strong style={{ color: "var(--text-strong)" }}>
+            <strong lang="de" style={{ color: "var(--text-strong)" }}>
               {confirm.label}.
             </strong>{" "}
-            {confirm.kind === "grant"
-              ? "Sie dokumentieren, dass die Person diesem Zweck vor Ort zugestimmt hat. Der Vermerk wird Ihnen zugeordnet und auditiert; er lässt sich nicht ändern, nur durch einen Widerruf ergänzen."
-              : "Sie dokumentieren, dass die Person ihre Einwilligung vor Ort widerrufen hat. Der Vermerk wird Ihnen zugeordnet und auditiert; die frühere Einwilligung bleibt als Eintrag erhalten."}
+            {confirm.kind === "grant" ? t.grantNote : t.withdrawNote}
             {confirm.kind === "withdraw" &&
               confirm.purpose === "report_release" &&
-              " Bestehende Zugriffslinks der Person werden sofort ungültig; eine neue Freigabe ist erst nach erneuter Einwilligung möglich."}
+              t.withdrawReleaseNote}
           </p>
           {error && (
             <p
@@ -305,7 +305,7 @@ export function ConsentCard({
               disabled={pending}
               onClick={close}
             >
-              Abbrechen
+              {page.cancel}
             </button>
             <button
               type="button"
@@ -313,9 +313,7 @@ export function ConsentCard({
               disabled={pending}
               onClick={run}
             >
-              {confirm.kind === "grant"
-                ? "Dokumentieren"
-                : "Widerruf dokumentieren"}
+              {confirm.kind === "grant" ? t.confirmGrant : t.recordWithdrawal}
             </button>
           </div>
         </Dialog>

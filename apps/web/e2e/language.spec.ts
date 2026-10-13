@@ -7,8 +7,8 @@ import { asStaff, hydrated, watchPageErrors } from "./support/staff";
 //
 // The pages are being translated one after another; these tests hold what is done: the two
 // navigation shells, the settings overview, the overview, the patients list, the dialog to
-// add a patient (opened from the overview), the sign-in page and the not-found page — and
-// that a page which is still German says so. They leave every
+// add a patient (opened from the overview), the patient page, the sign-in page and the
+// not-found page — and that a page which is still German says so. They leave every
 // other test in German: each runs in a browser context of its own, and none of them signs out
 // (the session is shared).
 
@@ -294,6 +294,88 @@ test("the overview and the patients list show the same in both languages", async
     await expect(rows).toHaveCount(none);
     for (const row of await rows.all()) {
       await expect(row).toContainText("No draft");
+    }
+  });
+});
+
+test("the patient page follows the choice; what is not interface stays German and says so", async ({
+  browser,
+  baseURL,
+}) => {
+  await asStaff(browser, "medicalDirector", async (page) => {
+    await page
+      .context()
+      .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
+    const languageOf = (part: Locator) =>
+      part.evaluate((element) =>
+        element.closest("[lang]")?.getAttribute("lang"),
+      );
+
+    // The seeded patient, opened from the list by its row.
+    await page.goto("/patients");
+    const row = page.getByRole("button", {
+      name: /^Open patient .*, SYN-0001$/,
+    });
+    await hydrated(row);
+    await row.click();
+    await expect(page).toHaveURL(/\/patients\/[0-9a-f-]{36}$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    const body = page.locator("body");
+
+    // The page's own wording is English: the way back, its cards, the audit steps.
+    const back = page.getByRole("button", { name: "Back to patients" });
+    await expect(back).toBeVisible();
+    expect(await languageOf(back)).toBe("en");
+    for (const heading of [
+      "Data coverage",
+      "Consents",
+      "Laboratory data",
+      "Audit status",
+    ]) {
+      await expect(
+        page.getByRole("heading", { level: 3, name: heading, exact: true }),
+      ).toBeVisible();
+    }
+    for (const german of [
+      "Datenlage",
+      "Labordaten",
+      "Audit-Status",
+      "Zurück zu Patienten",
+    ]) {
+      await expect(body).not.toContainText(german);
+    }
+    // This role reads and does not record: the two cards say so, each in one sentence.
+    await expect(body).toContainText(
+      "earlier entries are never changed. Documenting is reserved for the practice team (read-only view).",
+    );
+    await expect(body).toContainText(
+      "Uploading and reading is reserved for the practice team (read-only view).",
+    );
+
+    // Not interface, and German whatever the choice: the wording of a consent purpose, and
+    // the names of the six domain axes (a closed vocabulary — ADR-0007).
+    const purpose = page.getByText("Freigabe geprüfter Berichte", {
+      exact: true,
+    });
+    await expect(purpose).toBeVisible();
+    expect(await languageOf(purpose)).toBe("de");
+    for (const axis of [
+      "Metabolisch",
+      "Immun / Entzündung",
+      "Kardiovaskulär",
+      "Neurokognitiv",
+      "Muskuloskelettal",
+      "Regenerationskapazität",
+    ]) {
+      const name = page
+        .locator(".vb-domaincard")
+        .getByText(axis, { exact: true });
+      await expect(name).toBeVisible();
+      expect(await languageOf(name)).toBe("de");
+    }
+    // A position against the reference interval, where the page shows one, is German too.
+    for (const pill of await page.locator(".vb-erow .sr-only").all()) {
+      expect(await languageOf(pill)).toBe("de");
     }
   });
 });

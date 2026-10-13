@@ -23,7 +23,9 @@ import type {
 } from "@/lib/api";
 import { Dialog } from "@/components/vitabahn/Dialog";
 import { clickable } from "@/components/vitabahn/interactive";
+import { byCount, fill } from "@/lib/i18n/fill";
 import { useI18n } from "@/lib/i18n/I18nProvider";
+import type { Messages } from "@/lib/i18n/messages";
 import { lageLabel } from "@/lib/lageCopy";
 import type { ReferencePosition } from "@/lib/referencePosition";
 import type { DetailView } from "@/lib/presenters/patientDetail";
@@ -38,6 +40,29 @@ import { LabDocumentsCard } from "./LabDocumentsCard";
 // is the verdict-free positional Lage (Über/Unter Referenz · Im Intervall · Keine Referenz),
 // NOT a Normal/Grenzwertig/Auffällig verdict — that has no real source and crosses the MDR
 // boundary. The marker modal uses the lab-only reference bar, not a heuristic severity gauge.
+//
+// The page follows the interface language (lib/i18n). Four things on it do not, and are
+// marked lang="de" wherever they show: the names of the domain axes, follow-up adequacy, the
+// position against the reference interval, and the comparability notes — closed vocabularies
+// whose English terms need the medical director (ADR-0007). So is a message of the report
+// draft action, which belongs to the report pages. Numbers and dates keep their form.
+const GERMAN = "de";
+
+// How a shown value relates to what the source wrote, in the page's language.
+function sourceNoteText(
+  note: NonNullable<MarkerView["sourceNote"]>,
+  t: Messages["patientPage"]["sourceNote"],
+): { short: string; full: string } {
+  if (note.kind !== "converted") return t[note.kind];
+  const values = {
+    source: note.source ?? "",
+    unit: note.unit ?? t.converted.unitOfMetric,
+  };
+  return {
+    short: fill(t.converted.short, values),
+    full: fill(t.converted.full, values),
+  };
+}
 
 const cardStyle: CSSProperties = {
   background: "var(--surface-card)",
@@ -71,7 +96,7 @@ const EGRID =
 
 function statusVita(
   status: string,
-  label: string,
+  t: Messages["patientPage"]["reportStatus"],
 ): {
   fg: string;
   bg: string;
@@ -83,34 +108,34 @@ function statusVita(
       fg: "var(--vital-500)",
       bg: "rgba(20,169,130,0.12)",
       bd: "rgba(20,169,130,0.30)",
-      text: label,
+      text: t.released,
     };
   if (status === "approved")
     return {
       fg: "var(--sky-400)",
       bg: "rgba(63,164,201,0.12)",
       bd: "rgba(63,164,201,0.30)",
-      text: label,
+      text: t.approved,
     };
   if (status === "draft_generated" || status === "draft_edited")
     return {
       fg: "var(--amber-500)",
       bg: "rgba(201,136,28,0.12)",
       bd: "rgba(201,136,28,0.30)",
-      text: label,
+      text: t.draft,
     };
   if (status === "rejected")
     return {
       fg: "var(--rose-500)",
       bg: "rgba(194,74,74,0.12)",
       bd: "rgba(194,74,74,0.30)",
-      text: label,
+      text: t.rejected,
     };
   return {
     fg: "var(--text-muted)",
     bg: "var(--surface-sunken)",
     bd: "var(--border-default)",
-    text: "Kein Entwurf",
+    text: t.none,
   };
 }
 
@@ -146,6 +171,7 @@ function initialsOf(name: string): string {
 }
 
 function ReferenceBar({ marker }: { marker: MarkerView }) {
+  const t = useI18n().t.patientPage.evidence;
   const bar = marker.lageBar;
   if (!bar.hasScale)
     return (
@@ -156,7 +182,7 @@ function ReferenceBar({ marker }: { marker: MarkerView }) {
           color: "var(--text-faint)",
         }}
       >
-        keine Skala
+        {t.noScale}
       </span>
     );
   return (
@@ -219,7 +245,7 @@ function ReferenceBar({ marker }: { marker: MarkerView }) {
             marginTop: "3px",
           }}
         >
-          Ref {marker.referenceRange}
+          {fill(t.reference, { range: marker.referenceRange })}
         </div>
       )}
     </div>
@@ -230,7 +256,9 @@ function LagePill({ pos }: { pos: ReferencePosition }) {
   const l = lageLabel(pos);
   const c = lageVita(pos);
   return (
+    // The German name, until the English one is confirmed (see the top of this file).
     <span
+      lang={GERMAN}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -299,7 +327,8 @@ export function PatientDetailContent({
     };
   });
 
-  const { locale } = useI18n();
+  const t = useI18n().t.patientPage;
+  const valueStatus: Record<string, string> = t.valueStatus;
   const firstWithMarkers =
     domains.find((d) => d.markerCodes.length > 0)?.domainAxis ??
     domains[0]?.domainAxis ??
@@ -401,7 +430,7 @@ export function PatientDetailContent({
     );
   }, [curDomain, review.markers]);
 
-  const sb = statusVita(review.status, review.statusLabel);
+  const sb = statusVita(review.status, t.reportStatus);
   const idBadge = sb;
 
   return (
@@ -439,7 +468,7 @@ export function PatientDetailContent({
         >
           <path d="M19 12H5M12 19l-7-7 7-7" />
         </svg>
-        Zurück zu Patienten
+        {t.back}
       </button>
 
       {erased && (
@@ -479,7 +508,7 @@ export function PatientDetailContent({
                 marginBottom: "3px",
               }}
             >
-              Dieser Datensatz wurde gelöscht
+              {t.erased.title}
             </div>
             <p
               style={{
@@ -489,9 +518,7 @@ export function PatientDetailContent({
                 color: "var(--text-muted)",
               }}
             >
-              Die Daten dieser Person wurden anonymisiert und unwiderruflich
-              entfernt (Beobachtungen, Dokumente und Berichte). Der Eintrag
-              bleibt nur als Nachweis im Prüfprotokoll bestehen.
+              {t.erased.note}
             </p>
           </div>
         </div>
@@ -607,7 +634,11 @@ export function PatientDetailContent({
                     background: "var(--border-strong)",
                   }}
                 />
-                <span>{review.ageProfile}</span>
+                <span>
+                  {review.ageYears === null
+                    ? t.ageUnknown
+                    : byCount(t.age, review.ageYears)}
+                </span>
                 <span
                   style={{
                     width: "3px",
@@ -618,8 +649,8 @@ export function PatientDetailContent({
                 />
                 <span>
                   {review.status === "none"
-                    ? "Kein Bericht"
-                    : `Bericht · v${review.versionNo}`}
+                    ? t.noReport
+                    : fill(t.reportVersion, { version: review.versionNo })}
                 </span>
               </div>
             </div>
@@ -644,7 +675,7 @@ export function PatientDetailContent({
                       textDecoration: "none",
                     }}
                   >
-                    Bericht öffnen
+                    {t.actions.openReport}
                   </Link>
                 )}
                 {canDraft && (
@@ -656,8 +687,8 @@ export function PatientDetailContent({
                     style={secBtn}
                   >
                     {draftPending
-                      ? "Entwurf wird erstellt …"
-                      : "Berichtsentwurf erstellen"}
+                      ? t.actions.creatingDraft
+                      : t.actions.createDraft}
                   </button>
                 )}
                 {canInvite && sessionRole === "clinician" && (
@@ -683,7 +714,7 @@ export function PatientDetailContent({
                       cursor: "pointer",
                     }}
                   >
-                    Interpretation erfassen
+                    {t.actions.recordInterpretation}
                   </button>
                 )}
                 {canInvite && (
@@ -698,7 +729,7 @@ export function PatientDetailContent({
                     className="vb-btn-sec"
                     style={secBtn}
                   >
-                    Patient einladen
+                    {t.actions.invite}
                   </button>
                 )}
                 {canRequestDeletion && (
@@ -724,7 +755,7 @@ export function PatientDetailContent({
                       cursor: "pointer",
                     }}
                   >
-                    Löschung beantragen
+                    {t.actions.requestDeletion}
                   </button>
                 )}
               </div>
@@ -734,6 +765,7 @@ export function PatientDetailContent({
         {draftError && (
           <p
             role="alert"
+            lang={GERMAN}
             style={{
               margin: "0 0 14px",
               fontSize: "12.5px",
@@ -767,7 +799,7 @@ export function PatientDetailContent({
                 letterSpacing: "-0.01em",
               }}
             >
-              Datenlage
+              {t.coverage.title}
             </h3>
             <p
               style={{
@@ -776,29 +808,30 @@ export function PatientDetailContent({
                 margin: 0,
               }}
             >
-              Deterministisch aus den Beobachtungen · keine klinische
-              Qualitätsbewertung.
+              {t.coverage.note}
             </p>
           </div>
           <div style={{ display: "flex", gap: "26px", flexWrap: "wrap" }}>
             {[
-              { v: String(completeness.total), l: "Beobachtungen" },
+              { v: String(completeness.total), l: t.coverage.observations },
               {
                 v: `${completeness.published}/${completeness.total}`,
-                l: "veröffentlicht",
+                l: t.coverage.published,
               },
               {
                 v: `${completeness.withReference}/${completeness.total}`,
-                l: "mit Referenz",
+                l: t.coverage.withReference,
               },
               {
                 v:
                   completeness.latestAgeDays == null
                     ? "—"
                     : completeness.latestAgeDays === 0
-                      ? "heute"
-                      : `${completeness.latestAgeDays} T`,
-                l: "letzte Messung",
+                      ? t.coverage.today
+                      : fill(t.coverage.days, {
+                          n: completeness.latestAgeDays,
+                        }),
+                l: t.coverage.latest,
               },
             ].map((s) => (
               <div key={s.l}>
@@ -862,8 +895,7 @@ export function PatientDetailContent({
             lineHeight: 1.5,
           }}
         >
-          Noch kein Interpretationslauf — die sechs Domänen-Achsen werden als
-          Entwurf angezeigt.
+          {t.domains.noRun}
         </p>
       )}
       <div
@@ -882,7 +914,7 @@ export function PatientDetailContent({
               className="vb-domaincard"
               {...clickable(
                 () => setDomainAxis(d.domainAxis),
-                `Domäne ${d.axisLabel} auswählen`,
+                fill(t.domains.select, { axis: d.axisLabel }),
               )}
               aria-pressed={sel}
               style={{
@@ -916,7 +948,7 @@ export function PatientDetailContent({
                     letterSpacing: "-0.01em",
                   }}
                 >
-                  {d.axisLabel}
+                  <span lang={GERMAN}>{d.axisLabel}</span>
                 </span>
                 <span
                   style={{
@@ -931,14 +963,18 @@ export function PatientDetailContent({
                 >
                   {d.assessed
                     ? d.reviewed
-                      ? "Geprüft"
-                      : "Entwurf"
-                    : "Kein Lauf"}
+                      ? t.domains.reviewed
+                      : t.domains.draft
+                    : t.domains.none}
                 </span>
               </div>
               {d.assessed ? (
                 <>
-                  <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                  {/* A closed vocabulary: its name and its value stay German. */}
+                  <div
+                    lang={GERMAN}
+                    style={{ fontSize: "12px", color: "var(--text-muted)" }}
+                  >
                     Follow-up-Adäquanz: {d.adequacyLabel}
                   </div>
                   {d.citesReplaced && (
@@ -949,8 +985,7 @@ export function PatientDetailContent({
                         color: "var(--danger)",
                       }}
                     >
-                      Stützt sich auf einen vom Labor korrigierten Wert —
-                      Interpretation prüfen.
+                      {t.domains.citesReplaced}
                     </div>
                   )}
                   {sel ? (
@@ -979,7 +1014,7 @@ export function PatientDetailContent({
                       >
                         <path d="M20 6L9 17l-5-5" />
                       </svg>
-                      Biomarker im Beobachtungsnachweis
+                      {t.domains.shown}
                     </div>
                   ) : (
                     <div
@@ -990,13 +1025,13 @@ export function PatientDetailContent({
                         color: "var(--brand)",
                       }}
                     >
-                      Biomarker ansehen ({d.markerCodes.length})
+                      {fill(t.domains.show, { n: d.markerCodes.length })}
                     </div>
                   )}
                 </>
               ) : (
                 <div style={{ fontSize: "12px", color: "var(--text-faint)" }}>
-                  Noch nicht interpretiert
+                  {t.domains.notInterpreted}
                 </div>
               )}
             </div>
@@ -1017,7 +1052,13 @@ export function PatientDetailContent({
               letterSpacing: "-0.02em",
             }}
           >
-            Beobachtungsnachweis{curDomain ? ` · ${curDomain.axisLabel}` : ""}
+            {t.evidence.title}
+            {curDomain && (
+              <>
+                {" · "}
+                <span lang={GERMAN}>{curDomain.axisLabel}</span>
+              </>
+            )}
           </h3>
           <p
             style={{
@@ -1027,9 +1068,7 @@ export function PatientDetailContent({
               maxWidth: "94ch",
             }}
           >
-            Quellengebundene Beobachtungen · Lage relativ zum
-            Quellreferenzintervall · keine automatische Diagnose oder
-            Therapieempfehlung.
+            {t.evidence.note}
           </p>
         </div>
         <div style={{ overflowX: "auto", marginTop: "10px" }}>
@@ -1046,18 +1085,21 @@ export function PatientDetailContent({
                 background: "var(--surface-sunken)",
               }}
             >
-              <span style={colLabel}>Marker</span>
-              <span style={colLabel}>Kategorie</span>
-              <span style={colLabel}>Wert</span>
-              <span style={colLabel}>Δ</span>
-              <span style={colLabel}>Lage z. Referenz</span>
-              <span style={colLabel}>Referenzlage</span>
+              <span style={colLabel}>{t.evidence.columns.marker}</span>
+              <span style={colLabel}>{t.evidence.columns.category}</span>
+              <span style={colLabel}>{t.evidence.columns.value}</span>
+              <span style={colLabel}>{t.evidence.columns.change}</span>
+              <span style={colLabel}>{t.evidence.columns.position}</span>
+              <span style={colLabel}>{t.evidence.columns.bar}</span>
             </div>
             {evidence.map((m, i) => (
               <div
                 key={m.code + m.name + i}
                 className="vb-erow"
-                {...clickable(() => openObs(m), `Marker ${m.name} öffnen`)}
+                {...clickable(
+                  () => openObs(m),
+                  fill(t.evidence.open, { name: m.name }),
+                )}
                 style={{
                   display: "grid",
                   gridTemplateColumns: EGRID,
@@ -1077,7 +1119,7 @@ export function PatientDetailContent({
                   }}
                 >
                   {m.name}
-                  {m.statusLabel && (
+                  {m.reviewRequired && (
                     <span
                       style={{
                         display: "block",
@@ -1086,7 +1128,7 @@ export function PatientDetailContent({
                         color: "var(--text-body)",
                       }}
                     >
-                      {m.statusLabel}
+                      {valueStatus[m.status] ?? m.status}
                     </span>
                   )}
                   {m.superseded && (
@@ -1098,7 +1140,7 @@ export function PatientDetailContent({
                         color: "var(--text-muted)",
                       }}
                     >
-                      durch Laborkorrektur ersetzt
+                      {t.evidence.superseded}
                     </span>
                   )}
                   {m.inputReplaced && (
@@ -1110,7 +1152,7 @@ export function PatientDetailContent({
                         color: "var(--text-muted)",
                       }}
                     >
-                      Eingangswert durch Laborkorrektur ersetzt
+                      {t.evidence.inputReplaced}
                     </span>
                   )}
                 </span>
@@ -1129,7 +1171,11 @@ export function PatientDetailContent({
                       border: "1px solid var(--border-subtle)",
                     }}
                   >
-                    {m.primaryDomainLabel ?? "—"}
+                    {m.primaryDomainLabel ? (
+                      <span lang={GERMAN}>{m.primaryDomainLabel}</span>
+                    ) : (
+                      "—"
+                    )}
                   </span>
                 </span>
                 <span
@@ -1145,7 +1191,7 @@ export function PatientDetailContent({
                   {m.current}
                   {m.sourceNote && (
                     <span
-                      title={m.sourceNote.full}
+                      title={sourceNoteText(m.sourceNote, t.sourceNote).full}
                       style={{
                         display: "block",
                         fontFamily: "var(--font-text)",
@@ -1154,7 +1200,7 @@ export function PatientDetailContent({
                         color: "var(--text-muted)",
                       }}
                     >
-                      {m.sourceNote.short}
+                      {sourceNoteText(m.sourceNote, t.sourceNote).short}
                     </span>
                   )}
                 </span>
@@ -1185,7 +1231,7 @@ export function PatientDetailContent({
                   color: "var(--text-muted)",
                 }}
               >
-                Keine Beobachtungen in dieser Domäne.
+                {t.evidence.empty}
               </div>
             )}
           </div>
@@ -1210,7 +1256,7 @@ export function PatientDetailContent({
             letterSpacing: "-0.01em",
           }}
         >
-          Audit-Status
+          {t.audit.title}
         </h3>
         <p
           style={{
@@ -1219,13 +1265,11 @@ export function PatientDetailContent({
             margin: "0 0 18px",
           }}
         >
-          Fortschritt von Datenerfassung bis Patientenfreigabe (aus dem
-          Berichtsstatus abgeleitet).
+          {t.audit.note}
         </p>
         {review.status === "none" ? (
           <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-            Noch kein Berichtsentwurf — der Audit-Lifecycle beginnt mit der
-            Entwurfserstellung.
+            {t.audit.none}
           </div>
         ) : (
           <div
@@ -1236,6 +1280,8 @@ export function PatientDetailContent({
             }}
           >
             {review.auditSteps.map((s, i, a) => {
+              // The step's wording in the page's language, by the step and its line.
+              const step: Record<string, string> = t.audit.steps[s.key];
               const done = s.state === "done";
               const active = s.state === "active";
               const dotBg = done
@@ -1246,7 +1292,7 @@ export function PatientDetailContent({
               const dotFg = done || active ? "#fff" : "var(--text-faint)";
               return (
                 <div
-                  key={s.label}
+                  key={s.key}
                   style={{
                     flex: 1,
                     display: "flex",
@@ -1323,7 +1369,7 @@ export function PatientDetailContent({
                         color: "var(--text-strong)",
                       }}
                     >
-                      {s.label}
+                      {step.label}
                     </div>
                     <div
                       style={{
@@ -1333,7 +1379,7 @@ export function PatientDetailContent({
                         marginTop: "2px",
                       }}
                     >
-                      {s.sub}
+                      {step[s.subKey] ?? ""}
                     </div>
                   </div>
                 </div>
@@ -1379,9 +1425,7 @@ export function PatientDetailContent({
               margin: 0,
             }}
           >
-            {inviteState.phase === "done"
-              ? "Einladung erstellt — Einmal-Link"
-              : "Patient einladen?"}
+            {inviteState.phase === "done" ? t.invite.doneTitle : t.invite.title}
           </h3>
           <p
             style={{
@@ -1391,15 +1435,11 @@ export function PatientDetailContent({
               color: "var(--text-muted)",
             }}
           >
-            {inviteState.phase === "done"
-              ? "Den Link manuell und sicher außerhalb des Systems teilen — kein automatischer Versand. Er ist einmalig einlösbar, zeitlich begrenzt und wird nur jetzt angezeigt. Synthetische Demo: kein realer Patient."
-              : "Erstellt einen einmalig einlösbaren, zeitlich begrenzten Einladungslink, über den die Einwilligung (Berichtsfreigabe) erfasst wird. Der Link wird genau einmal angezeigt. Synthetische Demo: kein realer Patient."}
+            {inviteState.phase === "done" ? t.invite.doneNote : t.invite.note}
           </p>
           {inviteError && (
-            // The action answers in the interface language; this page is not translated yet.
             <p
               role="alert"
-              lang={locale}
               style={{
                 margin: "12px 0 0",
                 fontSize: "12.5px",
@@ -1418,7 +1458,7 @@ export function PatientDetailContent({
                 color: "var(--text-muted)",
               }}
             >
-              Einladungslink (einmalig angezeigt)
+              {t.invite.link}
               <input
                 readOnly
                 value={inviteState.url}
@@ -1469,7 +1509,7 @@ export function PatientDetailContent({
                     cursor: "pointer",
                   }}
                 >
-                  {inviteCopied ? "Link kopiert" : "Link kopieren"}
+                  {inviteCopied ? t.invite.copied : t.invite.copy}
                 </button>
                 <button
                   type="button"
@@ -1488,7 +1528,7 @@ export function PatientDetailContent({
                     cursor: "pointer",
                   }}
                 >
-                  Schließen
+                  {t.close}
                 </button>
               </>
             ) : (
@@ -1511,7 +1551,7 @@ export function PatientDetailContent({
                     cursor: "pointer",
                   }}
                 >
-                  Abbrechen
+                  {t.cancel}
                 </button>
                 <button
                   type="button"
@@ -1531,7 +1571,7 @@ export function PatientDetailContent({
                     cursor: "pointer",
                   }}
                 >
-                  Einladung erstellen
+                  {t.invite.create}
                 </button>
               </>
             )}
@@ -1587,8 +1627,12 @@ export function PatientDetailContent({
                   marginBottom: "6px",
                 }}
               >
-                Marker-Detail ·{" "}
-                {openMarker.primaryDomainLabel ?? openMarker.code}
+                {t.marker.kicker}{" "}
+                {openMarker.primaryDomainLabel ? (
+                  <span lang={GERMAN}>{openMarker.primaryDomainLabel}</span>
+                ) : (
+                  openMarker.code
+                )}
               </div>
               <h3
                 id="vb-marker-title"
@@ -1608,7 +1652,7 @@ export function PatientDetailContent({
               type="button"
               ref={closeBtnRef}
               onClick={closeObs}
-              aria-label="Schließen"
+              aria-label={t.close}
               className="vb-closebtn"
               style={{
                 width: "34px",
@@ -1678,7 +1722,9 @@ export function PatientDetailContent({
                   fontSize: "12.5px",
                 }}
               >
-                <span style={{ color: "var(--text-muted)" }}>Referenz</span>
+                <span style={{ color: "var(--text-muted)" }}>
+                  {t.marker.reference}
+                </span>
                 <span
                   style={{
                     fontFamily: "var(--font-mono)",
@@ -1696,7 +1742,9 @@ export function PatientDetailContent({
                   fontSize: "12.5px",
                 }}
               >
-                <span style={{ color: "var(--text-muted)" }}>Veränderung</span>
+                <span style={{ color: "var(--text-muted)" }}>
+                  {t.marker.change}
+                </span>
                 <span
                   style={{
                     fontFamily: "var(--font-mono)",
@@ -1715,7 +1763,7 @@ export function PatientDetailContent({
                 }}
               >
                 <span style={{ color: "var(--text-muted)" }}>
-                  Quelle / Code
+                  {t.marker.source}
                 </span>
                 <span
                   style={{
@@ -1735,7 +1783,7 @@ export function PatientDetailContent({
                 }}
               >
                 <span style={{ color: "var(--text-muted)" }}>
-                  Review-Status
+                  {t.marker.status}
                 </span>
                 <span
                   style={{
@@ -1743,7 +1791,9 @@ export function PatientDetailContent({
                     color: "var(--text-body)",
                   }}
                 >
-                  {openMarker.statusLabel ?? "veröffentlicht"}
+                  {openMarker.reviewRequired
+                    ? (valueStatus[openMarker.status] ?? openMarker.status)
+                    : t.valueStatus.published}
                 </span>
               </div>
             </div>
@@ -1756,11 +1806,12 @@ export function PatientDetailContent({
                   color: "var(--text-muted)",
                 }}
               >
-                {openMarker.sourceNote.full}
+                {sourceNoteText(openMarker.sourceNote, t.sourceNote).full}
               </p>
             )}
             {openMarker.comparabilityFull && (
               <p
+                lang={GERMAN}
                 style={{
                   margin: "14px 0 0",
                   fontSize: "12px",
@@ -1780,12 +1831,14 @@ export function PatientDetailContent({
               }}
             >
               {openMarker.reviewRequired ? (
-                "Für einen nicht veröffentlichten Wert wird keine Lage zum Referenzintervall angegeben."
+                t.marker.noPosition
               ) : (
                 <>
-                  Lage relativ zum Quellreferenzintervall · keine automatische
-                  Diagnose oder Therapieempfehlung.{" "}
-                  {lageLabel(openMarker.lagePosition).sentence}.
+                  {t.marker.positionNote}{" "}
+                  <span lang={GERMAN}>
+                    {lageLabel(openMarker.lagePosition).sentence}
+                  </span>
+                  .
                 </>
               )}
             </p>
@@ -1830,7 +1883,7 @@ export function PatientDetailContent({
                   margin: "0 0 6px",
                 }}
               >
-                Löschantrag gestellt
+                {t.deletion.doneTitle}
               </h2>
               <p
                 id="del-desc"
@@ -1841,10 +1894,7 @@ export function PatientDetailContent({
                   margin: "0 0 18px",
                 }}
               >
-                Die Ärztliche Leitung prüft den Antrag (Vier-Augen-Prinzip). Bis
-                zur Freigabe und gesonderten Ausführung bleibt der Datensatz
-                unverändert. Sie finden den Antrag unter Einstellungen →
-                Löschanträge.
+                {t.deletion.doneNote}
               </p>
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <button
@@ -1863,7 +1913,7 @@ export function PatientDetailContent({
                     cursor: "pointer",
                   }}
                 >
-                  Schließen
+                  {t.close}
                 </button>
               </div>
             </div>
@@ -1879,7 +1929,7 @@ export function PatientDetailContent({
                   margin: "0 0 6px",
                 }}
               >
-                Löschung beantragen
+                {t.deletion.title}
               </h2>
               <p
                 id="del-desc"
@@ -1890,13 +1940,11 @@ export function PatientDetailContent({
                   margin: "0 0 16px",
                 }}
               >
-                Dies stellt einen Antrag auf endgültige Löschung der Daten von{" "}
+                {t.deletion.noteBefore}{" "}
                 <strong style={{ color: "var(--text-strong)" }}>
                   {review.patientName}
                 </strong>
-                . Es wird nichts sofort gelöscht — die Ärztliche Leitung muss
-                den Antrag freigeben (Vier-Augen-Prinzip), die Ausführung
-                erfolgt gesondert und ist unwiderruflich.
+                {t.deletion.noteAfter}
               </p>
               <label
                 htmlFor="del-reason"
@@ -1908,7 +1956,7 @@ export function PatientDetailContent({
                   marginBottom: "5px",
                 }}
               >
-                Grund
+                {t.deletion.reason}
               </label>
               <select
                 id="del-reason"
@@ -1930,12 +1978,14 @@ export function PatientDetailContent({
                 }}
               >
                 <option value="patient_request">
-                  Betroffenenanfrage (Art. 17)
+                  {t.deletion.reasons.patient_request}
                 </option>
                 <option value="withdrawn_consent">
-                  Einwilligung widerrufen
+                  {t.deletion.reasons.withdrawn_consent}
                 </option>
-                <option value="data_minimization">Datenminimierung</option>
+                <option value="data_minimization">
+                  {t.deletion.reasons.data_minimization}
+                </option>
               </select>
 
               {deletionError && (
@@ -1979,7 +2029,7 @@ export function PatientDetailContent({
                     cursor: deletionPending ? "default" : "pointer",
                   }}
                 >
-                  Abbrechen
+                  {t.cancel}
                 </button>
                 <button
                   type="button"
@@ -1999,7 +2049,7 @@ export function PatientDetailContent({
                     opacity: deletionPending ? 0.7 : 1,
                   }}
                 >
-                  {deletionPending ? "Wird beantragt …" : "Löschung beantragen"}
+                  {deletionPending ? t.deletion.submitting : t.deletion.submit}
                 </button>
               </div>
             </div>
