@@ -3,42 +3,36 @@ import { redirect } from "next/navigation";
 
 import { VitaShell } from "@/components/vitabahn/VitaShell";
 import { me } from "@/lib/api";
+import { LOCALES } from "@/lib/i18n/locales";
+import { LANGUAGE_NAMES, type Messages } from "@/lib/i18n/messages";
+import { getLocale, getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
+
+import { setLocale } from "./actions";
 
 // Einstellungen landing page: a role-gated index of the settings sections. The sidebar
 // "Einstellungen" item points here (not straight to Mitglieder, which is owner-only), so every
 // role sees the sections it may actually open — e.g. the medical director reaches Löschanträge.
 // Server-side authorization on each sub-page remains the control; this is navigation only.
+// The language choice is for everyone who is signed in, whatever their role.
 export const dynamic = "force-dynamic";
 
-const SECTIONS: {
-  href: string;
-  title: string;
-  desc: string;
-  roles: string[];
-}[] = [
-  {
-    href: "/einstellungen/mitglieder",
-    title: "Mitglieder",
-    desc: "Team verwalten, Rollen ändern und Kolleg:innen einladen.",
-    roles: ["owner"],
-  },
+type SectionKey = keyof Pick<
+  Messages["settings"],
+  "members" | "deletionRequests" | "auditTrail" | "preparationTime"
+>;
+
+const SECTIONS: { href: string; key: SectionKey; roles: string[] }[] = [
+  { href: "/einstellungen/mitglieder", key: "members", roles: ["owner"] },
   {
     href: "/einstellungen/loeschantraege",
-    title: "Löschanträge",
-    desc: "Anträge auf Patientenlöschung prüfen und ausführen (Vier-Augen-Prinzip).",
+    key: "deletionRequests",
     roles: ["owner", "medical_director"],
   },
-  {
-    href: "/einstellungen/audit",
-    title: "Audit-Protokoll",
-    desc: "Die protokollierten Vorgänge der Praxis einsehen: wer, wann, welcher Vorgang, an welchem Datensatz.",
-    roles: ["owner"],
-  },
+  { href: "/einstellungen/audit", key: "auditTrail", roles: ["owner"] },
   {
     href: "/einstellungen/vorbereitungszeit",
-    title: "Vorbereitungszeit",
-    desc: "Ausgangswert und Folgeangaben der Praxis erfassen und die gemessene Durchlaufzeit der Berichte einsehen.",
+    key: "preparationTime",
     roles: ["owner"],
   },
 ];
@@ -48,12 +42,19 @@ export default async function EinstellungenPage() {
   if (!session) redirect("/login");
   const identity = shellIdentity(session);
   const role = session.role ?? "";
-  const sections = SECTIONS.filter((s) => s.roles.includes(role));
+  const locale = await getLocale();
+  const messages = await getMessages();
+  const t = messages.settings;
+  const sections = SECTIONS.filter((s) => s.roles.includes(role)).map((s) => ({
+    href: s.href,
+    title: t[s.key].title,
+    desc: t[s.key].desc,
+  }));
 
   return (
-    <VitaShell nav="einstellungen" crumb="Einstellungen" identity={identity}>
+    <VitaShell nav="einstellungen" crumb={t.title} identity={identity}>
       <div style={{ maxWidth: "820px" }}>
-        <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>Einstellungen</h1>
+        <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>{t.title}</h1>
         <p
           style={{
             color: "var(--text-muted, #5b6b70)",
@@ -62,13 +63,96 @@ export default async function EinstellungenPage() {
             lineHeight: 1.55,
           }}
         >
-          Verwaltung des Mandanten. Die verfügbaren Bereiche richten sich nach
-          Ihrer Rolle.
+          {t.intro}
         </p>
+
+        <section
+          aria-labelledby="language-title"
+          style={{
+            padding: "18px 20px",
+            borderRadius: "12px",
+            border: "1px solid var(--border-subtle, #dfe5e7)",
+            background: "var(--surface-card, #fff)",
+            marginBottom: "22px",
+          }}
+        >
+          <h2
+            id="language-title"
+            style={{
+              fontSize: "15px",
+              margin: "0 0 4px",
+              color: "var(--text-strong, #17292f)",
+            }}
+          >
+            {messages.language.title}
+          </h2>
+          <p
+            style={{
+              fontSize: "12.5px",
+              color: "var(--text-muted, #5b6b70)",
+              lineHeight: 1.5,
+              margin: "0 0 12px",
+            }}
+          >
+            {messages.language.note}
+          </p>
+          <form
+            action={setLocale}
+            role="group"
+            aria-label={messages.language.choose}
+            style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}
+          >
+            {LOCALES.map((option) => {
+              const current = option === locale;
+              return (
+                <button
+                  key={option}
+                  type="submit"
+                  name="locale"
+                  value={option}
+                  lang={option}
+                  aria-pressed={current}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    border: current
+                      ? "1.5px solid var(--brand, #0f6b5f)"
+                      : "1px solid var(--border-default, #c9d3d6)",
+                    background: current
+                      ? "var(--brand-soft, #e3f1ee)"
+                      : "var(--surface-card, #fff)",
+                    color: "var(--text-strong, #17292f)",
+                  }}
+                >
+                  {LANGUAGE_NAMES[option]}
+                  {current && (
+                    <span style={{ fontWeight: 400 }}>
+                      {" "}
+                      · {messages.language.selected}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </form>
+          <p
+            style={{
+              fontSize: "12px",
+              color: "var(--text-muted, #5b6b70)",
+              lineHeight: 1.5,
+              margin: "12px 0 0",
+            }}
+          >
+            {messages.language.progress}
+          </p>
+        </section>
 
         {sections.length === 0 ? (
           <p style={{ color: "var(--text-muted, #5b6b70)", fontSize: "13px" }}>
-            Für Ihre Rolle sind derzeit keine Einstellungen verfügbar.
+            {t.noSections}
           </p>
         ) : (
           <div

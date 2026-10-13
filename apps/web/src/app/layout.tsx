@@ -15,16 +15,30 @@ import "../styles/tokens.css";
 import "../styles/hadp.css";
 import "../styles/vitabahn.css";
 
-export const metadata = {
-  title: "HADP · Health Analytics",
-  description:
-    "Klinischer, quellengebundener Workspace — menschliche Prüfung vor jeder Freigabe.",
-};
+import { I18nProvider } from "@/lib/i18n/I18nProvider";
+import { getLocale, getMessages } from "@/lib/i18n/server";
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export async function generateMetadata() {
+  return {
+    title: "HADP · Health Analytics",
+    description: (await getMessages()).meta.description,
+  };
+}
+
+// The interface language is the person's choice on this device (Einstellungen), German
+// without one: it names the document's language, and client components read it from the
+// provider.
+export default async function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const locale = await getLocale();
   return (
-    <html lang="de">
-      <body>{children}</body>
+    <html lang={locale}>
+      <body>
+        <I18nProvider locale={locale}>{children}</I18nProvider>
+      </body>
     </html>
   );
 }

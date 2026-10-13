@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, type CSSProperties, type ReactNode } from "react";
 
 import { signOut } from "@/app/login/actions";
+import { useI18n } from "@/lib/i18n/I18nProvider";
 import { initialsOf, type ShellIdentity } from "@/lib/identity";
 
 // VitaBahn dashboard shell (ADR-0005): sidebar + topbar + theme toggle, a faithful
@@ -93,8 +94,12 @@ export function VitaShell({
   identity?: ShellIdentity | null;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   const personName = identity?.name ?? "—";
-  const personRole = identity?.roleLabel ?? "—";
+  // The role in the interface language; a role this wording does not know, as the API names it.
+  const roleNames: Record<string, string> = t.roles;
+  const personRole =
+    (identity?.role && roleNames[identity.role]) ?? identity?.roleLabel ?? "—";
   const clinicName = identity?.tenantName ?? "—";
   const personInitials = initialsOf(personName);
   // Lazy-init from localStorage so a returning dark-mode user doesn't get a light flash on
@@ -158,7 +163,7 @@ export function VitaShell({
     >
       {/* ============ SIDEBAR ============ */}
       <aside
-        aria-label="Hauptnavigation"
+        aria-label={t.shell.navAria}
         style={{
           width: "256px",
           flexShrink: 0,
@@ -231,7 +236,7 @@ export function VitaShell({
         </div>
 
         <nav style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
-          <div style={navLabelStyle()}>Arbeitsbereich</div>
+          <div style={navLabelStyle()}>{t.shell.workspace}</div>
 
           <NavItem
             active={nav === "uebersicht"}
@@ -245,7 +250,7 @@ export function VitaShell({
               </>,
               { width: 1.8 },
             )}
-            label="Übersicht"
+            label={t.shell.overview}
           />
           <NavItem
             active={nav === "patienten"}
@@ -258,7 +263,7 @@ export function VitaShell({
                 <path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </>,
             )}
-            label="Patienten"
+            label={t.shell.patients}
           />
           <NavItem
             active={nav === "review"}
@@ -269,10 +274,10 @@ export function VitaShell({
                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
               </>,
             )}
-            label="Review-Queue"
+            label={t.shell.reviewQueue}
           />
 
-          <div style={navLabelStyle("6px")}>Verwaltung</div>
+          <div style={navLabelStyle("6px")}>{t.shell.administration}</div>
           <NavItem
             active={nav === "einstellungen"}
             href="/einstellungen"
@@ -282,7 +287,7 @@ export function VitaShell({
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
               </>,
             )}
-            label="Einstellungen"
+            label={t.shell.settings}
           />
         </nav>
 
@@ -323,7 +328,7 @@ export function VitaShell({
                   fontWeight: 600,
                 }}
               >
-                Pilotumgebung
+                {t.shell.pilot}
               </span>
             </div>
             <div
@@ -333,7 +338,7 @@ export function VitaShell({
                 color: "var(--slate-400)",
               }}
             >
-              Synthetische Beispieldaten · keine reale Patientenversorgung.
+              {t.shell.pilotNote}
             </div>
           </div>
           <div
@@ -391,7 +396,7 @@ export function VitaShell({
                   cursor: "pointer",
                 }}
               >
-                Abmelden
+                {t.shell.signOut}
               </button>
             </form>
           </div>
@@ -434,7 +439,9 @@ export function VitaShell({
               whiteSpace: "nowrap",
             }}
           >
-            <span style={{ color: "var(--text-faint)" }}>Arbeitsbereich</span>
+            <span style={{ color: "var(--text-faint)" }}>
+              {t.shell.workspace}
+            </span>
             <span style={{ color: "var(--text-faint)" }}>/</span>
             {crumbParent && (
               <>
@@ -489,7 +496,7 @@ export function VitaShell({
                 <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z" />
                 <path d="M2 21c0-3 1.85-5.36 5.08-6" />
               </svg>
-              <span className="sr-only">Mandant: </span>
+              <span className="sr-only">{t.shell.clinic}</span>
               <span
                 style={{
                   fontSize: "13px",
@@ -505,7 +512,7 @@ export function VitaShell({
             <button
               type="button"
               onClick={toggleTheme}
-              aria-label="Theme wechseln"
+              aria-label={t.shell.toggleTheme}
               className="vb-iconbtn"
               style={{
                 width: "38px",

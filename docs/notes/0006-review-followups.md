@@ -353,5 +353,23 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   still costs a failed insert and an ERROR log line per request (bounded per address only); the
   number of refusals after recording stopped is not on record; the web's part (four call sites)
   is held by a source scan and the smoke, not by a unit test (the web has no test runner).
+- **Interface language, German or English (2026-10-13): PART 1 of several.** A person chooses
+  under Einstellungen; the choice is a cookie on the device (`hadp_locale`), German without one
+  (`apps/web/src/lib/i18n`: `messages/de.ts` is the source of the keys, `messages/en.ts` is typed
+  against it; server components ask `getMessages()`, client components `useI18n()`). Done: the
+  navigation shell, sign-in, the settings index, the not-found page; `apps/web/e2e/language.spec.ts`.
+  **Still German, page by page to follow:** overview, patients, the patient page (laboratory
+  upload, consent, data export), review queue, interpretation, report review, the four settings
+  sub-pages (members, deletion requests, audit trail with its ~60 event labels, preparation
+  time), the patient-facing pages, every message a server action returns, and all date and
+  number formats (`de-DE` is written out in many places; `FORMAT_LOCALE` exists and is used
+  nowhere yet). The settings page says so while it is true — remove that sentence
+  (`language.progress`) with the last page.
+  Decisions this raises: the English names of the closed vocabularies (CIS, Actionability,
+  tri-state, rejection reasons) must be the doctrine's own terms and need the medical director's
+  confirmation before the review pages are translated (register row); report CONTENT stays in
+  the language it was written in — an English interface shows a German report; whether the
+  patient-facing pages follow a patient's language is undecided; the choice is per device, not
+  per account (two people on one browser share it).
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

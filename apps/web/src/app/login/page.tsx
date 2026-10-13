@@ -1,5 +1,6 @@
 import { Icon } from "@/components/Icon";
 import { signInMode } from "@/lib/api";
+import { getMessages } from "@/lib/i18n/server";
 
 import { SignInForm } from "./SignInForm";
 
@@ -11,11 +12,12 @@ export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
   const mode = await signInMode();
+  const t = (await getMessages()).login;
 
   return (
     <main className="auth-page">
       <section className="auth-brand" aria-labelledby="auth-brand-title">
-        <a className="brand" href="/login" aria-label="HADP Startseite">
+        <a className="brand" href="/login" aria-label={t.homeAria}>
           <span className="brand-mark" aria-hidden="true" />
           <span className="brand-copy">
             <strong>HADP</strong>
@@ -24,79 +26,64 @@ export default async function LoginPage() {
         </a>
 
         <div className="auth-message">
-          <span className="kicker">Klinischer Arbeitsbereich</span>
-          <h1 id="auth-brand-title">
-            Gesundheitsdaten verstehen. Entscheidungen nachvollziehbar
-            dokumentieren.
-          </h1>
-          <p>
-            Ein ruhiger, quellengebundener Workspace für Longevity- und
-            Präventionskliniken – mit menschlicher Prüfung vor jeder Freigabe.
-          </p>
+          <span className="kicker">{t.kicker}</span>
+          <h1 id="auth-brand-title">{t.title}</h1>
+          <p>{t.lead}</p>
         </div>
 
-        <div className="auth-trust" aria-label="Merkmale dieser Umgebung">
+        <div className="auth-trust" aria-label={t.trustAria}>
           <div className="auth-trust-item">
             <span className="auth-trust-icon" aria-hidden="true">
               <Icon name="lock" />
             </span>
-            <span>Sitzungen sind zeitlich begrenzt</span>
+            <span>{t.sessionsLimited}</span>
           </div>
           <div className="auth-trust-item">
             <span className="auth-trust-icon" aria-hidden="true">
               <Icon name="reports" />
             </span>
-            <span>
-              Zugriffe und Änderungen werden für das Audit protokolliert
-            </span>
+            <span>{t.audited}</span>
           </div>
           {mode === "development" && (
             <div className="auth-trust-item">
               <span className="auth-trust-icon" aria-hidden="true">
                 <Icon name="shieldCheck" />
               </span>
-              <span>
-                Pilotumgebung mit synthetischen Beispieldaten – keine reale
-                Patientenversorgung
-              </span>
+              <span>{t.pilot}</span>
             </div>
           )}
         </div>
       </section>
 
-      <section className="auth-main" id="auth-content" aria-label="Anmeldung">
+      <section
+        className="auth-main"
+        id="auth-content"
+        aria-label={t.sectionAria}
+      >
         <div className="auth-wrap">
           <div className="auth-card">
-            <div className="eyebrow">Klinischer Zugang</div>
+            <div className="eyebrow">{t.eyebrow}</div>
             {mode === "development" && (
               <>
-                <h2>Anmelden</h2>
-                <p className="auth-sub">
-                  Pilotumgebung mit synthetischen Beispieldaten. Die Anmeldung
-                  erfolgt hier ohne Passwort – mit der E-Mail-Adresse eines
-                  eingerichteten Kontos.
-                </p>
+                <h2>{t.heading}</h2>
+                <p className="auth-sub">{t.devNote}</p>
                 <SignInForm />
               </>
             )}
             {mode === "none" && (
               <>
-                <h2>Anmeldung nicht eingerichtet</h2>
+                <h2>{t.noneHeading}</h2>
                 <p className="auth-sub" style={{ marginBottom: 0 }}>
-                  Für diese Umgebung ist kein Anmeldeverfahren eingerichtet.
-                  Eine Anmeldung ist derzeit nicht möglich.
+                  {t.noneNote}
                 </p>
               </>
             )}
             {mode === "unreachable" && (
               <>
-                <h2>Anmeldung derzeit nicht möglich</h2>
-                <p className="auth-sub">
-                  Der Anmeldedienst ist nicht erreichbar. Bitte versuchen Sie es
-                  in einigen Minuten erneut.
-                </p>
+                <h2>{t.unreachableHeading}</h2>
+                <p className="auth-sub">{t.unreachableNote}</p>
                 <a className="btn btn-secondary btn-block" href="/login">
-                  Erneut versuchen
+                  {t.retry}
                 </a>
               </>
             )}

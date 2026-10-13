@@ -3,6 +3,7 @@
 import { useState, useTransition, type FormEvent } from "react";
 
 import { Icon } from "@/components/Icon";
+import { useI18n } from "@/lib/i18n/I18nProvider";
 import { useHydrated } from "@/lib/useHydrated";
 
 import { login } from "./actions";
@@ -11,6 +12,7 @@ import { login } from "./actions";
 // rendered only where the API offers it (outside production) and says what it is — there is
 // no password or second factor to ask for until a production identity provider is connected.
 export function SignInForm() {
+  const t = useI18n().t.login;
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   // Until the page is hydrated the form would submit natively and put the address into the URL.
@@ -33,7 +35,7 @@ export function SignInForm() {
   return (
     <form className="auth-form" onSubmit={submit}>
       <label className="field">
-        <span className="field-label">E-Mail-Adresse</span>
+        <span className="field-label">{t.emailLabel}</span>
         <span className="input-wrap">
           <Icon name="mail" className="input-icon" />
           <input
@@ -61,15 +63,12 @@ export function SignInForm() {
         type="submit"
         disabled={pending || !hydrated}
       >
-        {pending ? "Anmeldung läuft …" : "Anmelden"}
+        {pending ? t.pending : t.submit}
       </button>
 
       <div className="notice notice-brand">
         <Icon name="shieldInfo" />
-        <span>
-          Der Zugriff auf Patientendaten ist zweckgebunden und wird
-          protokolliert.
-        </span>
+        <span>{t.purposeNote}</span>
       </div>
     </form>
   );

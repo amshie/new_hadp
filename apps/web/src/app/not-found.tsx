@@ -1,7 +1,10 @@
 import Link from "next/link";
 
+import { getMessages } from "@/lib/i18n/server";
+
 // Neutral 404 for unknown routes and notFound() throws — no route details echoed.
-export default function NotFound() {
+export default async function NotFound() {
+  const t = (await getMessages()).notFound;
   return (
     <main
       style={{
@@ -11,13 +14,9 @@ export default function NotFound() {
         fontFamily: "var(--font-sans, system-ui, sans-serif)",
       }}
     >
-      <h1 style={{ fontSize: "22px", marginBottom: "10px" }}>
-        Seite nicht gefunden
-      </h1>
-      <p style={{ marginBottom: "20px", lineHeight: 1.5 }}>
-        Die angeforderte Seite existiert nicht oder ist nicht verfügbar.
-      </p>
-      <Link href="/overview">Zur Übersicht</Link>
+      <h1 style={{ fontSize: "22px", marginBottom: "10px" }}>{t.title}</h1>
+      <p style={{ marginBottom: "20px", lineHeight: 1.5 }}>{t.note}</p>
+      <Link href="/overview">{t.back}</Link>
     </main>
   );
 }
