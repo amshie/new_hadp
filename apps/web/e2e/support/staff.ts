@@ -29,6 +29,7 @@ export async function hydrated(control: Locator): Promise<void> {
 // The seeded synthetic accounts of the demo clinic, by the role the API gives them, with the
 // role as the shell names it next to the signed-in person.
 const STAFF = {
+  owner: { email: "owner@demo.synthetic", roleLabel: "Inhaber" },
   assistant: { email: "assistant@demo.synthetic", roleLabel: "Assistenz" },
   clinician: { email: "clinician@demo.synthetic", roleLabel: "Clinician" },
   medicalDirector: {

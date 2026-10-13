@@ -84,8 +84,8 @@ product do not all read it.
 - Tests that pin German wording by file (`apps/api/tests/test_audit_read.py` reads
   `auditCopy.ts` and a sentence of the audit page) have to move with the wording when those
   pages are translated, and the English needs the same guard.
-- Role names still have a second German source (`MitgliederContent.tsx`) until that page is
-  translated.
+- Role names had a second German source (`MitgliederContent.tsx`) until that page was
+  translated (part 7a); the dictionary's `roles` is now the only one.
 - A presenter shared with a page that is not translated yet keeps its German wording and
   hands out KEYS and values besides; the translated page words them from the dictionary. Those
   strings have two German sources until the other page follows — and then the presenter's

@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import type { MemberOut, StaffInvitationListItem } from "@/lib/api";
+import { fill } from "@/lib/i18n/fill";
+import { useI18n } from "@/lib/i18n/I18nProvider";
 
 import {
   changeMemberRoleAction,
@@ -12,12 +14,9 @@ import {
   revokeStaffInviteAction,
 } from "./actions";
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: "Inhaber",
-  clinician: "Clinician",
-  assistant: "Assistenz",
-  medical_director: "Ärztliche Leitung",
-};
+// The page follows the interface language (lib/i18n); the names of the roles are the
+// dictionary's own (`roles`), as in the shell. Names and e-mail addresses are shown as they
+// are recorded, and the date of an invitation keeps its form.
 const ROLE_ORDER = ["clinician", "assistant", "medical_director", "owner"];
 
 const card: React.CSSProperties = {
@@ -38,6 +37,9 @@ export function MitgliederContent({
   selfUserId: string;
 }) {
   const router = useRouter();
+  const messages = useI18n().t;
+  const t = messages.membersPage;
+  const roleLabels: Record<string, string> = messages.roles;
   const [role, setRole] = useState("clinician");
   const [link, setLink] = useState<{ url: string; role: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +73,7 @@ export function MitgliederContent({
   const remove = (membershipId: string, name: string) =>
     startTransition(async () => {
       setError(null);
-      if (!window.confirm(`${name} aus dem Team entfernen?`)) return;
+      if (!window.confirm(fill(t.removeConfirm, { name }))) return;
       const res = await removeMemberAction(membershipId);
       if (res.ok) router.refresh();
       else setError(res.error);
@@ -79,7 +81,9 @@ export function MitgliederContent({
 
   return (
     <div style={{ maxWidth: "760px" }}>
-      <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>Mitglieder</h1>
+      <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>
+        {messages.settings.members.title}
+      </h1>
       <p
         style={{
           color: "var(--text-muted, #5b6b70)",
@@ -88,13 +92,13 @@ export function MitgliederContent({
           lineHeight: 1.5,
         }}
       >
-        Laden Sie eine Kollegin oder einen Kollegen in Ihr Klinik-Team ein. Die
-        eingeladene Person richtet ihren Zugang selbst über einen einmaligen
-        Link ein. Die Rolle legen Sie hier fest.
+        {t.lead}
       </p>
 
-      <section aria-label="Team" style={{ marginBottom: "26px" }}>
-        <strong style={{ display: "block", margin: "6px 0 12px" }}>Team</strong>
+      <section aria-label={t.team} style={{ marginBottom: "26px" }}>
+        <strong style={{ display: "block", margin: "6px 0 12px" }}>
+          {t.team}
+        </strong>
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {members.map((m) => {
             const isSelf = m.user_id === selfUserId;
@@ -105,6 +109,9 @@ export function MitgliederContent({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  // On a phone the role and the button go below the name; the address
+                  // breaks rather than running under them.
+                  flexWrap: "wrap",
                   gap: "12px",
                   padding: "12px 14px",
                   border: "1px solid var(--border-subtle, #dfe5e7)",
@@ -112,7 +119,13 @@ export function MitgliederContent({
                   marginBottom: "8px",
                 }}
               >
-                <span style={{ fontSize: "14px", minWidth: 0 }}>
+                <span
+                  style={{
+                    fontSize: "14px",
+                    minWidth: 0,
+                    overflowWrap: "anywhere",
+                  }}
+                >
                   <strong>{m.display_name}</strong>
                   <span
                     style={{
@@ -122,7 +135,7 @@ export function MitgliederContent({
                     }}
                   >
                     {m.email}
-                    {isSelf ? " · Sie" : ""}
+                    {isSelf ? t.you : ""}
                   </span>
                 </span>
                 <span
@@ -130,13 +143,13 @@ export function MitgliederContent({
                 >
                   {isSelf ? (
                     <span style={{ fontSize: "13px", fontWeight: 600 }}>
-                      {ROLE_LABELS[m.role] ?? m.role}
+                      {roleLabels[m.role] ?? m.role}
                     </span>
                   ) : (
                     <>
                       <label
                         style={{ fontSize: "12px" }}
-                        aria-label={`Rolle von ${m.display_name}`}
+                        aria-label={fill(t.roleOf, { name: m.display_name })}
                       >
                         <select
                           value={m.role}
@@ -153,7 +166,7 @@ export function MitgliederContent({
                         >
                           {ROLE_ORDER.map((r) => (
                             <option key={r} value={r}>
-                              {ROLE_LABELS[r]}
+                              {roleLabels[r]}
                             </option>
                           ))}
                         </select>
@@ -173,7 +186,7 @@ export function MitgliederContent({
                           cursor: pending ? "wait" : "pointer",
                         }}
                       >
-                        Entfernen
+                        {t.remove}
                       </button>
                     </>
                   )}
@@ -184,9 +197,9 @@ export function MitgliederContent({
         </ul>
       </section>
 
-      <section style={card} aria-label="Kolleg:in einladen">
+      <section style={card} aria-label={t.invite.title}>
         <strong style={{ display: "block", marginBottom: "12px" }}>
-          Kolleg:in einladen
+          {t.invite.title}
         </strong>
         <div
           style={{
@@ -197,7 +210,7 @@ export function MitgliederContent({
           }}
         >
           <label style={{ fontSize: "13px" }}>
-            Rolle{" "}
+            {t.invite.role}{" "}
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
@@ -210,7 +223,7 @@ export function MitgliederContent({
             >
               {ROLE_ORDER.map((r) => (
                 <option key={r} value={r}>
-                  {ROLE_LABELS[r]}
+                  {roleLabels[r]}
                 </option>
               ))}
             </select>
@@ -229,7 +242,7 @@ export function MitgliederContent({
               cursor: pending ? "wait" : "pointer",
             }}
           >
-            Einladung erstellen
+            {t.invite.create}
           </button>
         </div>
 
@@ -244,16 +257,15 @@ export function MitgliederContent({
             }}
           >
             <p style={{ margin: "0 0 8px", fontSize: "13px", lineHeight: 1.5 }}>
-              Einladung für{" "}
-              <strong>{ROLE_LABELS[link.role] ?? link.role}</strong> erstellt.
-              Geben Sie diesen Link an die eingeladene Person weiter — er wird{" "}
-              <strong>nur einmal angezeigt</strong>.
+              {t.invite.createdBefore}{" "}
+              <strong>{roleLabels[link.role] ?? link.role}</strong>{" "}
+              {t.invite.createdAfter} <strong>{t.invite.once}</strong>.
             </p>
             <input
               readOnly
               value={link.url}
               onFocus={(e) => e.currentTarget.select()}
-              aria-label="Einmaliger Einladungslink"
+              aria-label={t.invite.link}
               style={{
                 width: "100%",
                 padding: "8px 10px",
@@ -273,13 +285,13 @@ export function MitgliederContent({
         </p>
       )}
 
-      <section aria-label="Ausstehende Einladungen">
+      <section aria-label={t.pending.title}>
         <strong style={{ display: "block", margin: "6px 0 12px" }}>
-          Ausstehende Einladungen
+          {t.pending.title}
         </strong>
         {invitations.length === 0 ? (
           <p style={{ color: "var(--text-muted, #5b6b70)", fontSize: "13px" }}>
-            Keine ausstehenden Einladungen.
+            {t.pending.none}
           </p>
         ) : (
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -298,7 +310,7 @@ export function MitgliederContent({
                 }}
               >
                 <span style={{ fontSize: "14px" }}>
-                  <strong>{ROLE_LABELS[inv.role] ?? inv.role}</strong>
+                  <strong>{roleLabels[inv.role] ?? inv.role}</strong>
                   <span
                     style={{
                       color: "var(--text-muted, #5b6b70)",
@@ -306,7 +318,9 @@ export function MitgliederContent({
                       fontSize: "12px",
                     }}
                   >
-                    gültig bis {inv.expires_at.slice(0, 10)}
+                    {fill(t.pending.validUntil, {
+                      day: inv.expires_at.slice(0, 10),
+                    })}
                   </span>
                 </span>
                 <button
@@ -324,7 +338,7 @@ export function MitgliederContent({
                     cursor: pending ? "wait" : "pointer",
                   }}
                 >
-                  Widerrufen
+                  {t.pending.revoke}
                 </button>
               </li>
             ))}

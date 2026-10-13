@@ -1035,6 +1035,85 @@ export const de = {
       chooseReason: "Bitte einen Grund wählen.",
     },
   },
+  // Settings → members (owners only). The names of the roles are `roles` above.
+  membersPage: {
+    ownersOnly: "Die Mitgliederverwaltung ist nur für Inhaber verfügbar.",
+    lead: "Laden Sie eine Kollegin oder einen Kollegen in Ihr Klinik-Team ein. Die eingeladene Person richtet ihren Zugang selbst über einen einmaligen Link ein. Die Rolle legen Sie hier fest.",
+    team: "Team",
+    you: " · Sie",
+    roleOf: "Rolle von {name}",
+    remove: "Entfernen",
+    removeConfirm: "{name} aus dem Team entfernen?",
+    invite: {
+      title: "Kolleg:in einladen",
+      role: "Rolle",
+      create: "Einladung erstellen",
+      // Around the name of the role, then around "shown only once" (both bold).
+      createdBefore: "Einladung für",
+      createdAfter:
+        "erstellt. Geben Sie diesen Link an die eingeladene Person weiter — er wird",
+      once: "nur einmal angezeigt",
+      link: "Einmaliger Einladungslink",
+    },
+    pending: {
+      title: "Ausstehende Einladungen",
+      none: "Keine ausstehenden Einladungen.",
+      validUntil: "gültig bis {day}",
+      revoke: "Widerrufen",
+    },
+    // What the server actions answer.
+    errors: {
+      invalidRole: "Ungültige Rolle.",
+      invalidInvitation: "Ungültige Einladung.",
+      invalidInput: "Ungültige Eingabe.",
+      forbidden: "Diese Aktion ist Ihrer Rolle nicht erlaubt.",
+      ownMembership: "Die eigene Mitgliedschaft kann nicht geändert werden.",
+      lastOwner: "Die Klinik benötigt mindestens einen Inhaber.",
+      notPending: "Diese Einladung ist nicht mehr ausstehend.",
+      tooMany: "Zu viele Anfragen. Bitte später erneut versuchen.",
+      failed:
+        "Die Aktion konnte nicht ausgeführt werden. Bitte erneut versuchen.",
+    },
+  },
+  // Settings → deletion requests (owners and the medical director). The reasons of a request
+  // are worded on the patient page (patientPage.deletion.reasons).
+  deletionRequestsPage: {
+    reserved:
+      "Die Verwaltung von Löschanträgen ist Inhabern und der Ärztlichen Leitung vorbehalten.",
+    lead: "Anträge auf Löschung von Patientendaten. Ein Antrag wird von der Inhaberin oder dem Inhaber gestellt und von der Ärztlichen Leitung geprüft (Vier-Augen-Prinzip). Die eigentliche, unwiderrufliche Löschung anonymisiert den Datensatz und wird gesondert ausgeführt.",
+    none: "Keine Löschanträge vorhanden.",
+    erased: "Gelöschter Datensatz",
+    requested: "beantragt {day}",
+    // Where a request stands — a workflow state.
+    status: {
+      pending: "Offen",
+      approved: "Freigegeben",
+      rejected: "Abgelehnt",
+      cancelled: "Zurückgezogen",
+      executed: "Ausgeführt",
+    },
+    execute: "Endgültig löschen",
+    executeConfirm:
+      'Daten von „{name}" jetzt endgültig und unwiderruflich löschen? Der Datensatz wird anonymisiert; abgeleitete Daten, Dokumente und Berichte werden gelöscht. Dies kann nicht rückgängig gemacht werden.',
+    executionPending: "Ausführung ausstehend",
+    approve: "Freigeben",
+    approveConfirm:
+      'Löschung für „{name}" freigeben? Die Ausführung erfolgt gesondert und ist unwiderruflich.',
+    reject: "Ablehnen",
+    cancel: "Zurückziehen",
+    // What the server actions answer.
+    errors: {
+      failedShort: "Aktion fehlgeschlagen.",
+      invalid: "Ungültige Anfrage.",
+      forbidden: "Diese Aktion ist Ihrer Rolle nicht erlaubt.",
+      notFound: "Die Anfrage wurde nicht gefunden.",
+      notOpen: "Die Anfrage ist nicht mehr offen.",
+      requesterOnly: "Nur die anfragende Person kann zurückziehen.",
+      wrongStatus: "Die Anfrage kann in diesem Status nicht bearbeitet werden.",
+      failed:
+        "Die Aktion konnte nicht ausgeführt werden. Bitte erneut versuchen.",
+    },
+  },
   notFound: {
     title: "Seite nicht gefunden",
     note: "Die angeforderte Seite existiert nicht oder ist nicht verfügbar.",
@@ -1067,7 +1146,7 @@ export const de = {
     note: "Die Sprache der Oberfläche auf diesem Gerät. Inhalte wie Berichte, Bezeichnungen aus dem Labor und Namen bleiben in der Sprache, in der sie erfasst wurden.",
     // Says exactly what is done. To be widened with every part, and removed with the last page.
     progress:
-      "Englisch wird Seite für Seite ergänzt: die Navigation, die Anmeldung, die Übersicht, die Patientenliste, die Patientenseite, die Review-Queue, die Erfassung einer Interpretation, die Berichtsseite und diese Übersicht der Einstellungen sind umgestellt; alle übrigen Seiten erscheinen vorerst auf Deutsch. Der Wortlaut der Einwilligungszwecke, die klinischen Bezeichnungen (Domänen, CIS, Actionability, Follow-up- und Endpunkt-Adäquanz, Tri-State-Achsen und ihre Zustände, Lage zum Referenzintervall, Vergleichbarkeit), die Gründe der Prüfaufgaben und die Gründe einer Zurückweisung bleiben Deutsch.",
+      "Englisch wird Seite für Seite ergänzt: die Navigation, die Anmeldung, die Übersicht, die Patientenliste, die Patientenseite, die Review-Queue, die Erfassung einer Interpretation, die Berichtsseite, diese Übersicht der Einstellungen sowie die Mitglieder und die Löschanträge sind umgestellt; alle übrigen Seiten erscheinen vorerst auf Deutsch. Der Wortlaut der Einwilligungszwecke, die klinischen Bezeichnungen (Domänen, CIS, Actionability, Follow-up- und Endpunkt-Adäquanz, Tri-State-Achsen und ihre Zustände, Lage zum Referenzintervall, Vergleichbarkeit), die Gründe der Prüfaufgaben und die Gründe einer Zurückweisung bleiben Deutsch.",
     selected: "ausgewählt",
     choose: "Sprache der Oberfläche",
   },

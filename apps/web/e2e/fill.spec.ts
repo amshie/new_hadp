@@ -316,3 +316,46 @@ test("the English of the report page, put together", () => {
     `${t.stage.badge.released} — ${t.stage.detail.released}`,
   );
 });
+
+// Members and deletion requests under settings, as they were in German: the sentences they
+// put together from pieces and values.
+test("the German of members and deletion requests, put together", () => {
+  const m = de.membersPage;
+  expect(
+    `${m.invite.createdBefore} ${de.roles.medical_director} ${m.invite.createdAfter} ${m.invite.once}.`,
+  ).toBe(
+    "Einladung für Ärztliche Leitung erstellt. Geben Sie diesen Link an die eingeladene Person weiter — er wird nur einmal angezeigt.",
+  );
+  expect(fill(m.removeConfirm, { name: "Synthetic Clinician" })).toBe(
+    "Synthetic Clinician aus dem Team entfernen?",
+  );
+  expect(fill(m.roleOf, { name: "Synthetic Clinician" })).toBe(
+    "Rolle von Synthetic Clinician",
+  );
+  expect(fill(m.pending.validUntil, { day: "2026-10-20" })).toBe(
+    "gültig bis 2026-10-20",
+  );
+
+  const d = de.deletionRequestsPage;
+  expect(
+    `${de.patientPage.deletion.reasons.patient_request} · ${fill(d.requested, { day: "13.10.2026" })}`,
+  ).toBe("Betroffenenanfrage (Art. 17) · beantragt 13.10.2026");
+  expect(fill(d.executeConfirm, { name: "Synthetic E2E" })).toBe(
+    'Daten von „Synthetic E2E" jetzt endgültig und unwiderruflich löschen? Der Datensatz wird anonymisiert; abgeleitete Daten, Dokumente und Berichte werden gelöscht. Dies kann nicht rückgängig gemacht werden.',
+  );
+  expect(fill(d.approveConfirm, { name: "Synthetic E2E" })).toBe(
+    'Löschung für „Synthetic E2E" freigeben? Die Ausführung erfolgt gesondert und ist unwiderruflich.',
+  );
+});
+
+test("the English of members and deletion requests, put together", () => {
+  const m = en.membersPage;
+  expect(
+    `${m.invite.createdBefore} ${en.roles.medical_director} ${m.invite.createdAfter} ${m.invite.once}.`,
+  ).toBe(
+    "Invitation for Medical director created. Pass this link on to the person invited — it is shown only once.",
+  );
+  expect(
+    `${en.patientPage.deletion.reasons.data_minimization} · ${fill(en.deletionRequestsPage.requested, { day: "13.10.2026" })}`,
+  ).toBe("Data minimisation · requested 13.10.2026");
+});

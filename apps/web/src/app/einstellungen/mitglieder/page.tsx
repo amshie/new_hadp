@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { VitaShell } from "@/components/vitabahn/VitaShell";
 import { ApiError, listMembers, listStaffInvitations, me } from "@/lib/api";
+import { getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
 
 import { MitgliederContent } from "./MitgliederContent";
@@ -9,26 +10,32 @@ import { MitgliederContent } from "./MitgliederContent";
 // Owner-only staff administration (real-data path): the API gates every staff-invite endpoint
 // to owners server-side (STAFF_INVITE_CREATE). This page mirrors that with a deny-by-default
 // load — non-owners never reach the management surface — but the server authorization is the
-// control, not this UI check.
+// control, not this UI check. The page follows the interface language (lib/i18n).
 export const dynamic = "force-dynamic";
 
 export default async function MitgliederPage() {
-  const session = await me().catch(() => null);
+  const [session, messages] = await Promise.all([
+    me().catch(() => null),
+    getMessages(),
+  ]);
   if (!session) redirect("/login");
   const identity = shellIdentity(session);
+  const title = messages.settings.members.title;
+  const parent = { label: messages.settings.title, href: "/einstellungen" };
 
   if (session.role !== "owner") {
     return (
       <VitaShell
         nav="einstellungen"
-        crumb="Mitglieder"
-        crumbParent={{ label: "Einstellungen", href: "/einstellungen" }}
+        crumb={title}
+        crumbParent={parent}
         identity={identity}
+        translated
       >
         <div style={{ maxWidth: "620px" }}>
-          <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>Mitglieder</h1>
+          <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>{title}</h1>
           <p style={{ lineHeight: 1.55, color: "var(--text-muted, #5b6b70)" }}>
-            Die Mitgliederverwaltung ist nur für Inhaber verfügbar.
+            {messages.membersPage.ownersOnly}
           </p>
         </div>
       </VitaShell>
@@ -50,9 +57,10 @@ export default async function MitgliederPage() {
   return (
     <VitaShell
       nav="einstellungen"
-      crumb="Mitglieder"
-      crumbParent={{ label: "Einstellungen", href: "/einstellungen" }}
+      crumb={title}
+      crumbParent={parent}
       identity={identity}
+      translated
     >
       <MitgliederContent
         members={members}

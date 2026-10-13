@@ -333,6 +333,16 @@ def main() -> int:
             "de": ("Datenlage", "Labordaten", "Audit-Status", "Zurück zu Patienten"),
             "en": ("Data coverage", "Laboratory data", "Audit status", "Back to patients"),
         }
+        # Members and deletion requests: this session's role is told, in its language, that
+        # they are not for it.
+        wording["/einstellungen/mitglieder"] = {
+            "de": ("Die Mitgliederverwaltung ist nur für Inhaber verfügbar.",),
+            "en": ("Member management is available to owners only.",),
+        }
+        wording["/einstellungen/loeschantraege"] = {
+            "de": ("Die Verwaltung von Löschanträgen ist Inhabern und der Ärztlichen Leitung",),
+            "en": ("Managing deletion requests is reserved for owners and the medical director.",),
+        }
         # The interpretation form: its fields are interface, what is chosen in them is not.
         wording[f"/patients/{pid}/interpretation/neu"] = {
             "de": ("Grund des Runs (Pflicht)", "Endpunkt-Adäquanz", "Bitte wählen"),
@@ -661,8 +671,8 @@ def main() -> int:
     print(f"  client address passed on to the API: {forwarding}")
     print(
         "  interface language: German by default, English by choice, on /login, the 404 page,"
-        " /overview, /patients, the patient page, the review queue, the interpretation form and"
-        " the report page (in every report status checked above)"
+        " /overview, /patients, the patient page, the review queue, the interpretation form,"
+        " the report page (in every report status checked above), members and deletion requests"
     )
     return 0
 
