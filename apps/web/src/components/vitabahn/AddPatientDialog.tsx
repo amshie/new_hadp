@@ -1080,8 +1080,11 @@ export function AddPatientDialog({
                     {CONSENT_OPTIONS.map((o) => {
                       const checked = consents[o.purpose];
                       return (
+                        // The purpose as it is recorded — not interface wording. The mark is
+                        // on the label: its text is the name of the checkbox, too.
                         <label
                           key={o.purpose}
+                          lang="de"
                           style={{
                             display: "flex",
                             gap: "10px",
@@ -1113,8 +1116,7 @@ export function AddPatientDialog({
                               accentColor: "var(--brand)",
                             }}
                           />
-                          {/* The purposes as they are recorded — not interface wording. */}
-                          <span lang="de" style={{ minWidth: 0 }}>
+                          <span style={{ minWidth: 0 }}>
                             <span
                               style={{
                                 display: "block",

@@ -426,15 +426,24 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   of the request). **The wording of the consent purposes is not translated** and is marked
   `lang="de"` inside the English dialog: `lib/consentCopy.ts` is versioned text (ADR-0007), and
   what a person consents to in the practice is the text that is recorded. Dates in the dialog
-  keep the German form. One German sentence changed: a patient one year old is "1 Jahr", no
-  longer "1 Jahre". The request to delete a record (same file) is used by the patient page
+  keep the German form. One German sentence of the dialog changed: a patient one year old is
+  "1 Jahr", no longer "1 Jahre" (and, as with every part, the sentence on the settings page
+  that says what is done). The request to delete a record (same file) is used by the patient page
   only and stays German until that page is translated; until then the patient page marks the
-  one message it shows from the invitation action with the language it arrives in.
+  one message it shows from the invitation action with the interface language (`lang={locale}`)
+  — the language the action answers in, unless the choice was changed in another tab since the
+  page was loaded: then a server message arrives in the new language inside a page or dialog
+  still rendered in the old one, until the page is loaded again (the class already recorded for
+  part 2; an action that returned a code, with the wording chosen on the page, could not
+  differ — to weigh for part 3b).
   **Found while reading the patient page for part 3b, and decisive for it:** that page shows
-  the six domain axes, CIS, Actionability, follow-up adequacy, the tri-state axes, the
-  position against the reference interval and the comparability notes — every closed
-  vocabulary ADR-0007 keeps German until the medical director has confirmed its English
-  terms. Part 3b therefore translates the page AROUND them (header and actions, data
+  CIS, Actionability, the tri-state axes, the position against the reference interval and the
+  comparability notes — closed vocabularies ADR-0007 named as German until the medical
+  director has confirmed their English terms — and two more that ADR-0003 closes and ADR-0007
+  had not named: the six domain axes and follow-up adequacy (added to ADR-0007 and the
+  register with this part). Closed sets on that page whose English has no named owner yet:
+  the reasons of a deletion request, and the state of a run on a domain card (reviewed /
+  draft / no run). Part 3b therefore translates the page AROUND them (header and actions, data
   coverage, laboratory files, consent, data export, the invitation and deletion dialogs) and
   leaves those labels German and marked, until that confirmation is on record.
   Seen and not fixed here (chip filed): Escape in this dialog discards what was entered
@@ -445,7 +454,8 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   interpretation, report review, the four settings sub-pages (members, deletion requests, the
   audit trail with its ~60 event labels, preparation time), the patient-facing pages, the
   colleague's onboarding page (`/team-einladung`), the error page, the disclaimer, the toasts,
-  and every message a server action returns except the two of sign-in. All date and number
+  and every message a server action returns except the two of sign-in and the three of the
+  dialog to add a patient. All date and number
   formats are `de-DE`, written out in about twenty places. The settings page says what is done
   while that is true — widen that sentence (`language.progress`) with every part and remove it
   with the last page.

@@ -247,7 +247,7 @@ export const en: Messages = {
       confirm: "Discard",
     },
     identity: {
-      title: "Identity & master data",
+      title: "Identity & basic details",
       name: "Name",
       namePlaceholder: "e.g. Maria Example",
       dob: "Date of birth",
@@ -259,7 +259,7 @@ export const en: Messages = {
     },
     consent: {
       title: "Consents",
-      note: "Consents given in person are documented with a timestamp, the purpose and the person who recorded them (unchangeable log). Alternatively, the person can give them later through the invitation link.",
+      note: "Consents given in person are documented with a timestamp, the purpose and the person who recorded them (unchangeable log). Alternatively, the person can give them themselves later through the invitation link.",
       channel:
         "Recorded: in person · the pilot environment's catalogue of purposes (synthetic data).",
     },
@@ -296,9 +296,9 @@ export const en: Messages = {
         other: "{n} consents documented",
       },
       noConsents: "no consents documented",
-      inviteTitle: "Invitation to give consent oneself",
+      inviteTitle: "Invitation for the person to give consent themselves",
       inviteNote:
-        "The person can also give consents through a single-use invitation link.",
+        "The person can also give consents themselves through a single-use invitation link.",
       inviteLink: "Invitation link",
       copy: "Copy",
       copied: "Copied",
