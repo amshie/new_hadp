@@ -337,8 +337,12 @@ def main() -> int:
         assert r.status_code == 200, ("review page via detail link", r.status_code)
         assert f'href="/patients/{pid}"' in shown(r), "review page has no way back to the patient"
         assert_no_mock_ui("review page", shown(r))
-        # The legacy shell's navigation leads to the real pages (it used to be dead links).
-        assert_nav("review page", shown(r), "nav-link")
+        # The dashboard shell's navigation leads to the real pages, and the page has its skip
+        # link and its main landmark (the shell it left gave it both).
+        assert_nav("review page", shown(r), "vb-nav")
+        assert 'href="#main-content"' in shown(r) and 'id="main-content"' in shown(r), (
+            "review page has no skip link to its main content"
+        )
         report = api.get(f"/reports/{report_id}").json()
         assert_stage("review page", shown(r), report)
         checked = [report["status"]]

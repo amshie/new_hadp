@@ -14,12 +14,18 @@ import { Icon } from "./Icon";
 type Tone = "default" | "success";
 type ToastItem = { id: number; message: string; tone: Tone; leaving: boolean };
 
-const ToastContext = createContext<(message: string, tone?: Tone) => void>(
-  () => {},
-);
+type Toast = (message: string, tone?: Tone) => void;
 
-export function useToast() {
-  return useContext(ToastContext);
+// No provider, no toast: a page that shows its actions' errors this way must not lose them to
+// a silent default (it did once, when the review page left the shell that provided one).
+const ToastContext = createContext<Toast | null>(null);
+
+export function useToast(): Toast {
+  const toast = useContext(ToastContext);
+  if (toast === null) {
+    throw new Error("useToast() needs a <ToastProvider> around the component");
+  }
+  return toast;
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {

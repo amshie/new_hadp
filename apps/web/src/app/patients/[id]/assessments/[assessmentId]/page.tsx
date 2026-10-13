@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { AppShell } from "@/components/AppShell";
+import { ToastProvider } from "@/components/Toaster";
+import { VitaShell } from "@/components/vitabahn/VitaShell";
 import {
   ApiError,
   getPatient,
@@ -51,25 +51,23 @@ export default async function AssessmentReviewPage({
     me().catch(() => null),
   ]);
 
+  // The dashboard shell, as every other workspace page. The page inside is not translated
+  // yet (ADR-0007): its crumbs and content stay German, and say so. The page reports what
+  // its actions answer — an error among them — through the toast provider.
   return (
-    <AppShell
-      active="patients"
+    <VitaShell
+      nav="patienten"
+      crumb="Bericht"
+      crumbParent={{ label: view.patientName, href: `/patients/${id}` }}
       identity={shellIdentity(session)}
-      breadcrumbs={
-        <nav className="breadcrumbs" aria-label="Brotkrümelnavigation">
-          <Link href="/patients">Patienten</Link>
-          <span>/</span>
-          <Link href={`/patients/${id}`}>{view.patientName}</Link>
-          <span>/</span>
-          <span>Bericht</span>
-        </nav>
-      }
     >
-      <ReviewContent
-        view={view}
-        sessionRole={session?.role ?? null}
-        path={`/patients/${id}/assessments/${assessmentId}`}
-      />
-    </AppShell>
+      <ToastProvider>
+        <ReviewContent
+          view={view}
+          sessionRole={session?.role ?? null}
+          path={`/patients/${id}/assessments/${assessmentId}`}
+        />
+      </ToastProvider>
+    </VitaShell>
   );
 }

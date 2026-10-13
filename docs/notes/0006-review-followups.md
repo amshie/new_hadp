@@ -117,7 +117,10 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   the issued link. Still open, deliberately: the two Übersicht panels that say why they are
   empty (ADR-0006 — activity feed, imports) use engineering wording; the legal links
   (Datenschutz, Nutzungsbedingungen) return when those pages exist (workstream D); the report
-  review page keeps the legacy shell (on a narrow screen its only way out is the brand link).
+  review page keeps the legacy shell (on a narrow screen its only way out is the brand link) —
+  ✅ fixed 2026-10-13: it has the dashboard shell (`VitaShell`) like every workspace page, in
+  both themes, and `AppShell` is gone; the shell gained the skip link and the main landmark the
+  page had in the old one.
   The report statements themselves are the next entry. Found by the review
   and not fixed here: reading a report (`GET /reports/{id}`) writes no audit event, while the
   sign-in page says access is logged; the staff-invitation page tells a new colleague to sign
