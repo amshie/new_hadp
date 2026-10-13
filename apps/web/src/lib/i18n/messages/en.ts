@@ -91,7 +91,7 @@ export const en: Messages = {
       openReviews: { label: "Open reviews", help: "Clinical review pending" },
       approved: {
         label: "Approved",
-        help: "Waiting for the medical director's release",
+        help: "Waiting for release by a physician",
       },
       released: { label: "Released", help: "Released to the patient" },
       patients: {
@@ -168,11 +168,11 @@ export const en: Messages = {
       created: "Created",
       totalSigned: "Signed in total",
       totalCreated: "Created in total",
-      avgSigned: "Ø signed / day",
+      avgSigned: "Avg. signed / day",
       showTable: "Show data table",
       day: "Day",
       summary:
-        "Review throughput over {days} days: {signed} signed, {created} created, Ø {avg} signed per day.",
+        "Review throughput over {days} days: {signed} signed, {created} created, an average of {avg} signed per day.",
     },
   },
   patients: {
@@ -188,7 +188,7 @@ export const en: Messages = {
       withReport: { label: "With a report", help: "At least one report draft" },
       open: { label: "Open assessments", help: "Clinical review pending" },
       quality: {
-        label: "Ø data quality",
+        label: "Avg. data quality",
         help: "No data-quality model (Gate G1)",
       },
     },
@@ -254,7 +254,7 @@ export const en: Messages = {
     title: "Language",
     note: "The language of the interface on this device. Content such as reports, laboratory terms and names stays in the language it was recorded in.",
     progress:
-      "English is being added page by page: the navigation, sign-in, the overview, the patients list and this settings overview are done; all other pages are shown in German for now.",
+      "English is being added page by page: the navigation, sign-in, the overview, the patients list and this settings overview are done; the dialog to add a patient and all other pages are shown in German for now.",
     selected: "selected",
     choose: "Interface language",
   },

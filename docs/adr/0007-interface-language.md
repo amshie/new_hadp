@@ -34,8 +34,8 @@ product do not all read it.
    one helper, and a plural is two keys chosen by the code. Messages stay strings: the type
    that holds the two languages together cannot check a function. (`lib/i18n/fill.ts`: `fill`
    and `byCount`. A place the values do not name is left as written, so a slip shows on the
-   page.) **Nothing is decided by a label**: a filter, a tab or a count reads a key of its own
-   — the wording differs by language.
+   page.) **Nothing is decided by a label**: a tab or a count reads a key of its own — the
+   wording differs by language. (A search reads what the page shows.)
 5. **Interface, not content.** What was recorded stays in the language it was recorded in:
    report statements, the names a laboratory wrote, the names of people. A report approved in
    German is a German report whatever the reader's interface shows.
@@ -68,6 +68,10 @@ product do not all read it.
 
 - Until the last page is translated the interface is mixed for someone who chose English; the
   settings page says which parts are done, and that sentence is kept true with every part.
+- The wording of the chosen language travels to the browser in a script of every page. A check
+  of what a page says therefore reads the page's markup WITHOUT its scripts
+  (`scripts/smoke_web.py::shown`; a browser test reads the rendered text anyway) — read raw,
+  every word of the dictionary is on every page.
 - Tests that pin German wording by file (`apps/api/tests/test_audit_read.py` reads
   `auditCopy.ts` and a sentence of the audit page) have to move with the wording when those
   pages are translated, and the English needs the same guard.

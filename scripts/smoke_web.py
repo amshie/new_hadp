@@ -62,6 +62,18 @@ NAV_TARGETS = ["/overview", "/patients", "/review-queue", "/einstellungen"]
 DRAFT_HEADLINES = ("Systementwurf", "Überarbeiteter Entwurf")
 
 
+def shown(response: httpx.Response) -> str:
+    """A page's markup without its scripts — what it shows, not everything it carries.
+
+    The wording of the chosen interface language travels to the browser inside a script of
+    every page (apps/web/src/lib/i18n: the root layout hands it to the provider), and so does
+    the data of every client component. A word of the dictionary is therefore in the raw
+    HTML of every page whether the page shows it or not: read raw, "this page says X" cannot
+    fail and "this page does not say X" fails for a page that does not say it.
+    """
+    return re.sub(r"<script\b[^>]*>.*?</script>", "", response.text, flags=re.S)
+
+
 def assert_no_mock_ui(path: str, html: str) -> None:
     """Nothing on a page pretends: no prototype wording, no control without a function."""
     for marker in MOCK_UI:
@@ -141,7 +153,7 @@ def assert_client_address_is_passed_on() -> None:
                 },
             )
         assert r.status_code == 200, ("/patient-view with a forwarded address", r.status_code)
-        assert "Dieser Bericht ist nicht verfügbar." in r.text, "the wrong link was not refused"
+        assert "Dieser Bericht ist nicht verfügbar." in shown(r), "the wrong link was not refused"
 
     refused_view(f"{written_by_client}, {seen_by_proxy}")
     counted = [store.get(counter) for counter in counters]
@@ -173,13 +185,15 @@ def assert_interface_language() -> None:
             return device.get(path, headers=headers)
 
     r = page("/login", "en")
-    assert '<html lang="en"' in r.text, "/login does not name English as its language"
-    assert "Clinical access" in r.text and "Klinischer Zugang" not in r.text, "/login in English"
+    assert '<html lang="en"' in shown(r), "/login does not name English as its language"
+    assert "Clinical access" in shown(r) and "Klinischer Zugang" not in shown(r), (
+        "/login in English"
+    )
     r = page("/this-route-does-not-exist", "en")
-    assert r.status_code == 404 and "Page not found" in r.text, "the not-found page in English"
+    assert r.status_code == 404 and "Page not found" in shown(r), "the not-found page in English"
     for choice in (None, "fr", "EN"):
         r = page("/login", choice)
-        assert '<html lang="de"' in r.text and "Klinischer Zugang" in r.text, (
+        assert '<html lang="de"' in shown(r) and "Klinischer Zugang" in shown(r), (
             "/login is not German for a device without a valid choice",
             choice,
         )
@@ -191,11 +205,11 @@ def main() -> int:
     with httpx.Client(base_url=WEB, timeout=60.0, follow_redirects=False) as web:
         r = web.get("/login")
         assert r.status_code == 200, ("/login", r.status_code)
-        assert "Klinischer Zugang" in r.text, "/login did not render the sign-in card"
+        assert "Klinischer Zugang" in shown(r), "/login did not render the sign-in card"
         # The development sign-in asks for an account's e-mail address and nothing else.
-        assert 'name="email"' in r.text, "/login offers no sign-in form in dev mode"
-        assert "Zwei-Faktor" not in r.text, "/login still shows a second-factor step"
-        assert_no_mock_ui("/login", r.text)
+        assert 'name="email"' in shown(r), "/login offers no sign-in form in dev mode"
+        assert "Zwei-Faktor" not in shown(r), "/login still shows a second-factor step"
+        assert_no_mock_ui("/login", shown(r))
 
         for path in ("/", "/overview", "/review-queue"):
             r = web.get(path)
@@ -208,19 +222,19 @@ def main() -> int:
 
         r = web.get("/this-route-does-not-exist")
         assert r.status_code == 404, ("unknown route", r.status_code)
-        assert "Seite nicht gefunden" in r.text, "not-found boundary did not render"
+        assert "Seite nicht gefunden" in shown(r), "not-found boundary did not render"
 
         # Patient-facing pages: neutral fail states + the four-part disclaimer, no fetch
         # on a malformed link (UUID guard), German copy.
         r = web.get("/einladung?tenant=not-a-uuid&token=x")
         assert r.status_code == 200, ("/einladung guard", r.status_code)
-        assert "nicht oder nicht mehr gültig" in r.text
-        assert "Pilotumgebung" in r.text, "disclaimer missing on /einladung"
+        assert "nicht oder nicht mehr gültig" in shown(r)
+        assert "Pilotumgebung" in shown(r), "disclaimer missing on /einladung"
 
         r = web.get("/patient-view")
         assert r.status_code == 200, ("/patient-view neutral", r.status_code)
-        assert "nicht oder nicht mehr gültig" in r.text
-        assert "Pilotumgebung" in r.text, "disclaimer missing on /patient-view"
+        assert "nicht oder nicht mehr gültig" in shown(r)
+        assert "Pilotumgebung" in shown(r), "disclaimer missing on /patient-view"
 
         # Cookie-exchange entry: the token-bearing link 303-redirects to a clean,
         # tokenless /patient-view and stashes the credential in an httpOnly cookie, so the
@@ -252,53 +266,65 @@ def main() -> int:
     ) as web:
         r = web.get("/overview")
         assert r.status_code == 200, ("/overview authed", r.status_code)
-        assert "Synthetische Beispieldaten" in r.text, "synthetic banner missing on /overview"
-        assert_no_mock_ui("/overview", r.text)
+        assert "Synthetische Beispieldaten" in shown(r), "synthetic banner missing on /overview"
+        assert_no_mock_ui("/overview", shown(r))
         # Every navigation entry leads somewhere: the four real destinations, nothing else.
-        assert_nav("/overview", r.text, "vb-nav")
-
-        assert "Klinische Arbeitsliste" in r.text, "/overview is not German without a choice"
+        assert_nav("/overview", shown(r), "vb-nav")
 
         r = web.get("/patients")
         assert r.status_code == 200, ("/patients authed", r.status_code)
-        assert_no_mock_ui("/patients", r.text)
-        assert "Patientenverzeichnis" in r.text, "/patients is not German without a choice"
+        assert_no_mock_ui("/patients", shown(r))
 
-        # The two pages in English, for a device that chose it (the pages translated so far).
-        for path, english, german in (
-            ("/overview", "Clinical work list", "Klinische Arbeitsliste"),
-            ("/patients", "Patient directory", "Patientenverzeichnis"),
-        ):
-            r = web.get(path, headers={"cookie": f"hadp_session={session}; hadp_locale=en"})
-            assert r.status_code == 200, (path, "in English", r.status_code)
-            assert english in r.text and german not in r.text, f"{path} is not English by choice"
+        # The pages translated so far, in the language of the device: German without a choice,
+        # English by choice — each with the wording of its own language and none of the other.
+        # The overview names all five places a report can stand in, whatever the data.
+        wording = {
+            "/overview": {
+                "de": ("Klinische Arbeitsliste", "In Prüfung", "Kein Entwurf"),
+                "en": ("Clinical work list", "In review", "No draft"),
+            },
+            "/patients": {
+                "de": ("Patientenverzeichnis", "Ohne Bericht"),
+                "en": ("Patient directory", "No report"),
+            },
+        }
+        for path, words in wording.items():
+            for language, other in (("de", "en"), ("en", "de")):
+                cookie = f"hadp_session={session}"
+                if language == "en":
+                    cookie += "; hadp_locale=en"
+                page = shown(web.get(path, headers={"cookie": cookie}))
+                for word in words[language]:
+                    assert word in page, f"{path} ({language}) does not say {word!r}"
+                for word in words[other]:
+                    assert word not in page, f"{path} ({language}) says {word!r}"
 
         r = web.get(f"/patients/{pid}")
         assert r.status_code == 200, ("/patients/[id] authed", r.status_code)
-        assert_no_mock_ui("/patients/[id]", r.text)
+        assert_no_mock_ui("/patients/[id]", shown(r))
         # The seeded patient has a report: the detail page must link to its review surface
         # (the only place approve/release live), and that link must resolve.
-        review = re.search(rf'href="(/patients/{pid}/assessments/[0-9a-f-]{{36}})"', r.text)
+        review = re.search(rf'href="(/patients/{pid}/assessments/[0-9a-f-]{{36}})"', shown(r))
         assert review, "patient detail does not link to the report review page"
         # Laboratory file intake lives on the patient page (care staff): the card and its
         # file field must render.
-        assert "Labordaten" in r.text, "patient detail has no laboratory-files card"
-        assert 'type="file"' in r.text, "laboratory-files card has no upload field"
+        assert "Labordaten" in shown(r), "patient detail has no laboratory-files card"
+        assert 'type="file"' in shown(r), "laboratory-files card has no upload field"
         # Consent state per purpose is shown on the patient page (all staff).
-        assert "Einwilligungen" in r.text, "patient detail has no consent card"
-        assert "Freigabe geprüfter Berichte" in r.text, "consent card lists no purposes"
+        assert "Einwilligungen" in shown(r), "patient detail has no consent card"
+        assert "Freigabe geprüfter Berichte" in shown(r), "consent card lists no purposes"
         # The data export is tenant administration (owner): this clinician session sees no card.
-        assert "Datenauskunft erstellen" not in r.text, "data-export card shown to a non-owner"
+        assert "Datenauskunft erstellen" not in shown(r), "data-export card shown to a non-owner"
         review_path = review.group(1)
         report_id = review_path.rsplit("/", 1)[1]
         r = web.get(review_path)
         assert r.status_code == 200, ("review page via detail link", r.status_code)
-        assert f'href="/patients/{pid}"' in r.text, "review page has no way back to the patient"
-        assert_no_mock_ui("review page", r.text)
+        assert f'href="/patients/{pid}"' in shown(r), "review page has no way back to the patient"
+        assert_no_mock_ui("review page", shown(r))
         # The legacy shell's navigation leads to the real pages (it used to be dead links).
-        assert_nav("review page", r.text, "nav-link")
+        assert_nav("review page", shown(r), "nav-link")
         report = api.get(f"/reports/{report_id}").json()
-        assert_stage("review page", r.text, report)
+        assert_stage("review page", shown(r), report)
         checked = [report["status"]]
 
         if EXERCISE_RELEASE:
@@ -307,7 +333,7 @@ def main() -> int:
             if report["status"] in ("draft_generated", "draft_edited"):
                 r = api.post(f"/reports/{report_id}/approve")
                 assert r.status_code == 200, ("approve", r.status_code, r.text)
-                page = web.get(review_path).text
+                page = shown(web.get(review_path))
                 approved = api.get(f"/reports/{report_id}").json()
                 assert approved["status"] == "approved", approved["status"]
                 assert_stage("review page (approved)", page, approved)
@@ -330,7 +356,7 @@ def main() -> int:
                     issued = re.search(r"hadp_pv=([^;]+)", r.headers.get("set-cookie", ""))
                     assert issued, "patient link issued no hadp_pv cookie"
                     cookie = {"cookie": f"hadp_pv={issued.group(1)}"}
-                    page = patient.get("/patient-view", headers=cookie).text
+                    page = shown(patient.get("/patient-view", headers=cookie))
                 # React separates adjacent text nodes with empty comments.
                 page = page.replace("<!-- -->", "")
                 assert re.search(r"Ärztlich freigegeben\s+am \d{2}\.\d{2}\.\d{4}", page), (
@@ -342,7 +368,7 @@ def main() -> int:
                 "release exercise",
                 released["status"],
             )
-            assert_stage("review page (released)", web.get(review_path).text, released)
+            assert_stage("review page (released)", shown(web.get(review_path)), released)
             checked.append("released")
 
             # A value entered now is not one of the six names the import acts on by itself: it
@@ -366,7 +392,7 @@ def main() -> int:
             )
             assert r.status_code == 201, ("import", r.status_code, r.text)
             assert r.json()["published_count"] == 0, "a value was published without a human"
-            page = web.get(review_path).text.replace("<!-- -->", "")
+            page = shown(web.get(review_path)).replace("<!-- -->", "")
             row = re.search(
                 r"<tr[^>]*>(?:(?!</tr>).)*Smoke-Analyt(?:(?!</tr>).)*</tr>", page, re.DOTALL
             )
@@ -385,7 +411,7 @@ def main() -> int:
             assert r.status_code == 200, ("reject", r.status_code, r.text)
             rejected = api.get(f"/reports/{second['report_id']}").json()
             assert rejected["status"] == "rejected", rejected["status"]
-            assert_stage("review page (rejected)", web.get(second_path).text, rejected)
+            assert_stage("review page (rejected)", shown(web.get(second_path)), rejected)
             checked.append("rejected")
             statements = [
                 {
@@ -400,18 +426,18 @@ def main() -> int:
             assert r.status_code == 200, ("edit", r.status_code, r.text)
             reworked = api.get(f"/reports/{second['report_id']}").json()
             assert reworked["status"] == "draft_edited", reworked["status"]
-            assert_stage("review page (reworked)", web.get(second_path).text, reworked)
+            assert_stage("review page (reworked)", shown(web.get(second_path)), reworked)
             checked.append("draft_edited")
 
         r = web.get("/review-queue")
         assert r.status_code == 200, ("/review-queue authed", r.status_code)
-        assert "Review-Queue" in r.text, "review queue page did not render"
-        assert_no_mock_ui("/review-queue", r.text)
+        assert "Review-Queue" in shown(r), "review queue page did not render"
+        assert_no_mock_ui("/review-queue", shown(r))
 
         r = web.get(f"/patients/{pid}/interpretation/neu")
         assert r.status_code == 200, ("/interpretation/neu authed", r.status_code)
-        assert "Korrektur-Run erfassen" in r.text or "Interpretation erfassen" in r.text
-        assert_no_mock_ui("/interpretation/neu", r.text)
+        assert "Korrektur-Run erfassen" in shown(r) or "Interpretation erfassen" in shown(r)
+        assert_no_mock_ui("/interpretation/neu", shown(r))
 
         # The audit trail is tenant administration: this clinician session is told so and
         # is shown no entry.
@@ -420,8 +446,8 @@ def main() -> int:
             "/einstellungen/audit as clinician",
             r.status_code,
         )
-        assert "nur für Inhaber" in r.text, "audit trail not refused to a non-owner"
-        assert "<table" not in r.text, "audit entries rendered for a non-owner"
+        assert "nur für Inhaber" in shown(r), "audit trail not refused to a non-owner"
+        assert "<table" not in shown(r), "audit entries rendered for a non-owner"
 
         # The preparation-time metric is tenant administration as well: no figure, no form.
         r = web.get("/einstellungen/vorbereitungszeit")
@@ -429,10 +455,10 @@ def main() -> int:
             "/einstellungen/vorbereitungszeit as clinician",
             r.status_code,
         )
-        assert "nur für Inhaber" in r.text, "the metric is not refused to a non-owner"
+        assert "nur für Inhaber" in shown(r), "the metric is not refused to a non-owner"
         # (The shell has a form of its own — the sign-out button.)
-        assert "Angaben der Praxis" not in r.text, "the metric is shown to a non-owner"
-        assert 'name="median_minutes"' not in r.text, "the metric form is shown to a non-owner"
+        assert "Angaben der Praxis" not in shown(r), "the metric is shown to a non-owner"
+        assert 'name="median_minutes"' not in shown(r), "the metric form is shown to a non-owner"
 
     # The owner reads the clinic's trail: who did what, on the clinic's wall clock.
     owner = staff_session("owner@demo.synthetic")
@@ -446,42 +472,44 @@ def main() -> int:
                 """The table's rows — not the shell around them, which names the reader."""
                 r = web.get(path)
                 assert r.status_code == 200, (path, r.status_code)
-                assert "<tbody" in r.text, f"{path} shows no audit entries"
-                return r.text.split("<tbody", 1)[1].split("</tbody>", 1)[0]
+                assert "<tbody" in shown(r), f"{path} shows no audit entries"
+                return shown(r).split("<tbody", 1)[1].split("</tbody>", 1)[0]
 
             r = web.get("/einstellungen")
-            assert 'href="/einstellungen/audit"' in r.text, "settings do not list the audit trail"
+            assert 'href="/einstellungen/audit"' in shown(r), "settings do not list the audit trail"
             # The preparation-time metric: what the clinic states and what the platform
             # measures stand in two sections, and the page says what the figures are not.
-            assert 'href="/einstellungen/vorbereitungszeit"' in r.text, "settings do not list it"
+            assert 'href="/einstellungen/vorbereitungszeit"' in shown(r), "settings do not list it"
             r = web.get("/einstellungen/vorbereitungszeit")
             assert r.status_code == 200, (
                 "/einstellungen/vorbereitungszeit as owner",
                 r.status_code,
             )
-            assert_no_mock_ui("/einstellungen/vorbereitungszeit", r.text)
+            assert_no_mock_ui("/einstellungen/vorbereitungszeit", shown(r))
             for heading in (
                 "Angaben der Praxis",
                 "Gemessen aus dem Ablauf der Berichte",
                 "Was diese Zahlen sind",
             ):
-                assert heading in r.text, f"the metric page lacks the section {heading!r}"
-            assert "keine Arbeitszeit" in r.text, "the page does not say what is measured"
-            assert 'name="median_minutes"' in r.text, "no form to state a preparation time"
+                assert heading in shown(r), f"the metric page lacks the section {heading!r}"
+            assert "keine Arbeitszeit" in shown(r), "the page does not say what is measured"
+            assert 'name="median_minutes"' in shown(r), "no form to state a preparation time"
             # An outcome code that is not one of the page's own shows no message.
             r = web.get("/einstellungen/vorbereitungszeit?fehler=nope&gespeichert=yes")
             assert r.status_code == 200, ("metric page with unknown outcome codes", r.status_code)
-            assert "nicht gespeichert" not in r.text, "an unknown code shows a failure message"
-            assert "wurde gespeichert" not in r.text, "an unknown code shows a success message"
+            assert "nicht gespeichert" not in shown(r), "an unknown code shows a failure message"
+            assert "wurde gespeichert" not in shown(r), "an unknown code shows a success message"
             r = web.get("/einstellungen/audit")
             assert r.status_code == 200, (
                 "/einstellungen/audit as owner",
                 r.status_code,
             )
-            assert_no_mock_ui("/einstellungen/audit", r.text)
+            assert_no_mock_ui("/einstellungen/audit", shown(r))
             # The page says what the trail does not hold.
-            assert "Was dieses Protokoll nicht zeigt" in r.text, "the trail's limits are not stated"
-            assert "Derzeit nicht protokolliert" in r.text
+            assert "Was dieses Protokoll nicht zeigt" in shown(r), (
+                "the trail's limits are not stated"
+            )
+            assert "Derzeit nicht protokolliert" in shown(r)
             rows = entries("/einstellungen/audit")
             # A colleague's entry into the clinic, named by the account that acted.
             assert "tenant.select" in rows and "Praxis ausgewählt" in rows
@@ -493,7 +521,7 @@ def main() -> int:
             assert "Audit-Protokoll gelesen" in entries("/einstellungen/audit?category=audit")
             # Reads can be left out, and then the page says that they are.
             r = web.get("/einstellungen/audit?reads=0")
-            assert "Lesezugriffe sind ausgeblendet" in r.text
+            assert "Lesezugriffe sind ausgeblendet" in shown(r)
             hidden = entries("/einstellungen/audit?reads=0")
             assert "audit.read" not in hidden and "patient.list" not in hidden
             # A day is a day on the clinic's wall clock: today has this run's entries, and a
@@ -503,8 +531,8 @@ def main() -> int:
                 f"/einstellungen/audit?from={today}&to={today}&category=tenant"
             )
             r = web.get("/einstellungen/audit?from=2099-01-01")
-            assert r.status_code == 200 and "<tbody" not in r.text, "entries from the future"
-            assert "keine Einträge" in r.text
+            assert r.status_code == 200 and "<tbody" not in shown(r), "entries from the future"
+            assert "keine Einträge" in shown(r)
             # A parameter that is not what it claims to be is no filter — and is not shown as one.
             r = web.get(
                 "/einstellungen/audit?category=nope&target=not-a-uuid&from=yesterday&to=2026-02-30"
@@ -513,11 +541,11 @@ def main() -> int:
                 "audit trail with malformed filters",
                 r.status_code,
             )
-            assert "<tbody" in r.text, "a malformed filter emptied the trail"
+            assert "<tbody" in shown(r), "a malformed filter emptied the trail"
             # (The address is echoed in the page's own routing data; the form is what counts.)
-            assert 'value="2026-02-30"' not in r.text and "Filter zurücksetzen" not in r.text
+            assert 'value="2026-02-30"' not in shown(r) and "Filter zurücksetzen" not in shown(r)
             r = web.get("/einstellungen/audit?cursor=not-a-cursor")
-            assert r.status_code == 200 and "nicht gültig" in r.text, "a damaged position link"
+            assert r.status_code == 200 and "nicht gültig" in shown(r), "a damaged position link"
             # One view of the page is one read of the trail, recorded once. (The API read that
             # counts them is not in its own answer.)
             checked_at = datetime.now(UTC).isoformat()

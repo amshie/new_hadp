@@ -111,7 +111,6 @@ export interface WorkRowView {
   ref: string;
   assessment: string;
   group: StatusGroup;
-  statusLabel: string;
   statusBadge: BadgeMeta;
   updatedLabel: string;
   reviewUrl: string | null;
@@ -146,7 +145,6 @@ export function presentOverview(
         ? fill(w.reportVersion, { version: r.version_no ?? 1 })
         : w.status.none,
       group,
-      statusLabel: sm.label,
       statusBadge: sm,
       updatedLabel: relativeTime(r.updated_at, w.time),
       reviewUrl: r.report_id
@@ -310,7 +308,6 @@ export interface DirectoryRowView {
   ref: string;
   age: string;
   group: StatusGroup;
-  statusLabel: string;
   statusBadge: BadgeMeta;
   lastAssessment: string;
 }
@@ -340,7 +337,6 @@ export function presentDirectory(
       ref: p.external_ref ?? "—",
       age: ageYears(p.date_of_birth),
       group,
-      statusLabel: sm.label,
       statusBadge: sm,
       lastAssessment: r ? relativeTime(r.updated_at, w.time) : "—",
     };

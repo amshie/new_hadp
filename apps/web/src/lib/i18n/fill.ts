@@ -6,7 +6,9 @@ export function fill(
   values: Record<string, string | number>,
 ): string {
   return template.replace(/\{(\w+)\}/g, (whole, name: string) =>
-    name in values ? String(values[name]) : whole,
+    Object.prototype.hasOwnProperty.call(values, name)
+      ? String(values[name])
+      : whole,
   );
 }
 

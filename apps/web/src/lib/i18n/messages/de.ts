@@ -255,7 +255,7 @@ export const de = {
     note: "Die Sprache der Oberfläche auf diesem Gerät. Inhalte wie Berichte, Bezeichnungen aus dem Labor und Namen bleiben in der Sprache, in der sie erfasst wurden.",
     // Says exactly what is done. To be widened with every part, and removed with the last page.
     progress:
-      "Englisch wird Seite für Seite ergänzt: die Navigation, die Anmeldung, die Übersicht, die Patientenliste und diese Übersicht der Einstellungen sind umgestellt; alle übrigen Seiten erscheinen vorerst auf Deutsch.",
+      "Englisch wird Seite für Seite ergänzt: die Navigation, die Anmeldung, die Übersicht, die Patientenliste und diese Übersicht der Einstellungen sind umgestellt; der Dialog „Patient hinzufügen“ und alle übrigen Seiten erscheinen vorerst auf Deutsch.",
     selected: "ausgewählt",
     choose: "Sprache der Oberfläche",
   },

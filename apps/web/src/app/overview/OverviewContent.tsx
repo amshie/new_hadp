@@ -577,10 +577,7 @@ export function OverviewContent({
               : t.waitingRest.other}
           </p>
         </div>
-        {/* The dialog to add a patient is not translated yet. */}
-        <span lang="de">
-          <AddPatientDialog />
-        </span>
+        <AddPatientDialog />
       </div>
 
       {/* KPI ROW (real counts) */}

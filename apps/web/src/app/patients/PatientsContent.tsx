@@ -194,10 +194,7 @@ export function PatientsContent({
             {t.lead}
           </p>
         </div>
-        {/* The dialog to add a patient is not translated yet. */}
-        <span lang="de">
-          <AddPatientDialog />
-        </span>
+        <AddPatientDialog />
       </div>
 
       {/* stat chips */}
