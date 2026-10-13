@@ -50,4 +50,6 @@ ENV APP_ENV=production \
 # Numeric, so an orchestrator can verify "not root" without reading /etc/passwd.
 USER 10001:10001
 EXPOSE 8000
-CMD ["uvicorn", "hadp_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# --no-proxy-headers: the API itself decides whose request it is (security/client_address.py,
+# TRUSTED_PROXIES); uvicorn must not rewrite the peer from X-Forwarded-For before it does.
+CMD ["uvicorn", "hadp_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers"]

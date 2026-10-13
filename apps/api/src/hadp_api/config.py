@@ -7,6 +7,7 @@ always take precedence. No secrets are hard-coded.
 
 from __future__ import annotations
 
+import ipaddress
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -21,6 +22,31 @@ _DEV_S3_CREDENTIAL = "minioadmin"
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 
 AppEnv = Literal["development", "test", "production"]
+
+Network = ipaddress.IPv4Network | ipaddress.IPv6Network
+
+# How many entries of X-Forwarded-For a deployment may have to step over (TRUSTED_PROXY_HOPS).
+MAX_PROXY_HOPS = 8
+
+
+@lru_cache
+def parse_trusted_proxies(spec: str) -> tuple[Network, ...]:
+    """The networks named in TRUSTED_PROXIES: addresses or CIDR ranges, separated by commas.
+
+    Raises ValueError for an entry that is neither; for a range that holds every address,
+    which would let any caller say on whose behalf it calls; and for an address written with
+    a mask (`10.20.0.5/24`) — that names the whole network around it, which is rarely what
+    the person who wrote one address meant.
+    """
+    networks: list[Network] = []
+    for entry in (part.strip() for part in spec.split(",")):
+        if not entry:
+            continue
+        network = ipaddress.ip_network(entry, strict=True)
+        if network.prefixlen == 0:
+            raise ValueError("a range that holds every address")
+        networks.append(network)
+    return tuple(networks)
 
 
 class Settings(BaseSettings):
@@ -69,6 +95,18 @@ class Settings(BaseSettings):
     # Web app base URL — used to build the patient-facing view link on report release.
     web_base_url: str = "http://127.0.0.1:3000"
 
+    # Whose request it is, for the limits that count per client address
+    # (security/client_address.py). The API's peer is the web server for every browser, so the
+    # web server passes on the X-Forwarded-For it received — and the API believes that header
+    # only from a peer named here (addresses or CIDR ranges, separated by commas: the web
+    # server's). Empty: the header is never read and those limits count the peer, which is
+    # one budget for everyone behind the web server.
+    trusted_proxies: str = ""
+    # Which entry of X-Forwarded-For is the client, counted from the right: the number of
+    # proxies in front of the web server that each add the address they saw (1 = one TLS
+    # proxy). Everything further left was written by the client itself.
+    trusted_proxy_hops: int = 1
+
     # Production OIDC provider (gated vendor decision; unset in dev/test).
     oidc_issuer: str | None = None
     oidc_client_id: str | None = None
@@ -81,6 +119,21 @@ class Settings(BaseSettings):
     @property
     def effective_app_database_url(self) -> str:
         return self.app_database_url or self.database_url
+
+    @model_validator(mode="after")
+    def _check_trusted_proxies(self) -> Settings:
+        """In every environment: a value that cannot be read is refused at start, not at the
+        first request that would need it. The message names the setting, never its value."""
+        try:
+            parse_trusted_proxies(self.trusted_proxies)
+        except ValueError:
+            raise ValueError(
+                "TRUSTED_PROXIES must be addresses or CIDR ranges separated by commas; "
+                "a range is written by its network address, and none may hold every address"
+            ) from None
+        if not 1 <= self.trusted_proxy_hops <= MAX_PROXY_HOPS:
+            raise ValueError(f"TRUSTED_PROXY_HOPS must be between 1 and {MAX_PROXY_HOPS}")
+        return self
 
     @model_validator(mode="after")
     def _enforce_production_safety(self) -> Settings:

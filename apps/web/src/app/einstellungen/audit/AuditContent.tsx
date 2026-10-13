@@ -236,6 +236,13 @@ export function AuditContent({
             Kennung – hinterlassen keinen Eintrag.
           </li>
           <li>
+            Abgewiesene Einladungs- und Zugriffslinks stehen einzeln im
+            Protokoll, bis je Vorgangsart 30 in einer Minute erreicht sind. Ein
+            Eintrag hält dann fest, dass weitere Abweisungen bis zum Ablauf
+            dieser Minute nicht mehr einzeln protokolliert werden – wie viele es
+            waren, steht nicht im Protokoll.
+          </li>
+          <li>
             Ein Eintrag steht unter dem Datensatz, an dem er protokolliert ist.
             Unter einer Akte stehen das Anlegen und Öffnen der Akte, das Lesen
             von Werten, Interpretation, Einwilligungen und Dateiliste, die in

@@ -41,6 +41,14 @@ x-api-environment: &api-environment
   # A deployment names its public https origins here; this stack has none.
   API_BASE_URL: http://api:8000
   WEB_BASE_URL: http://web:3000
+  # Whose word the API takes for a client's address, for the limits that count per address
+  # (hadp_api/security/client_address.py): the web server's. A deployment names the web
+  # server's address or network, and how many proxies stand in front of it. Docker assigns
+  # this stack's addresses, so there is no value to write here: empty means the header is
+  # never read and every client behind the web server shares one budget. The smoke names
+  # the stack's own network for its run.
+  TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+  TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
 
 services:
   postgres:

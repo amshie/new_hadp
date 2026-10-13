@@ -72,8 +72,45 @@ generates random secrets for the run, boots the stack, checks it, and tears it d
   an unknown session is refused after a database lookup; the API reaches Redis and its bucket;
 - the web app's `/login` answers 200 with every security header of `next.config.mjs`, says
   that no sign-in is set up, and shows no form;
+- a patient view sent through the web server with a forwarded address is counted by the API
+  under the address a proxy would have named — not under the web server's, and not under what
+  the client wrote into the header itself;
 - api, worker and web run as non-root, carry no `.env` file, never restarted, and mount no
   volume.
+
+### The client's address
+
+The patient view and the two invitation redemptions are limited per client address — as is
+the development sign-in, which does not exist in production (what limits the production
+sign-in is decided with the identity provider).
+A browser never reaches the API — the web server does — so the web server passes on the
+`X-Forwarded-For` it received on those four calls, and the API decides what to believe
+(`apps/api/src/hadp_api/security/client_address.py`):
+
+| Setting (API)        | Meaning                                                                                                                                         |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TRUSTED_PROXIES`    | The web server's address(es) or network(s), comma-separated. Only a peer named here is believed. Empty (the default): the header is never read. |
+| `TRUSTED_PROXY_HOPS` | How many proxies stand in front of the web server; the client is that entry from the right (default 1: one TLS proxy).                          |
+
+A deployment has to set both, or every client behind the web server shares one budget that
+one of them can use up (the API says so when it starts — a warning in production). Four
+things to hold when setting them:
+
+- the proxy in front of the web server must **set or append** `X-Forwarded-For`. One that
+  passes a client's own header through lets the client choose the address it is counted
+  under (nginx does that unless the header is set from `$proxy_add_x_forwarded_for`);
+- **count the proxies exactly.** `TRUSTED_PROXY_HOPS` set too high reads an entry the client
+  wrote — the client then chooses its counter, and nothing looks wrong. Set too low it reads a
+  proxy's address: a shared budget, the safe direction. A hop between the web server and the
+  API that appends to the header (a sidecar, an internal load balancer) counts as well;
+- name the web server narrowly. Any peer inside `TRUSTED_PROXIES` can say on whose behalf it
+  calls; a range that holds every address is refused at start, and so is one address written
+  with a mask (`10.20.0.5/24` would name the whole network around it);
+- the API server runs with `--no-proxy-headers` (the image's command does): uvicorn would
+  otherwise rewrite the peer from the same header, by its own rule, before the API reads it.
+
+The compose file leaves `TRUSTED_PROXIES` empty — Docker assigns the stack's addresses — and
+the smoke names the stack's own network for its run.
 
 ### What it is not
 

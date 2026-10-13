@@ -24,6 +24,7 @@ from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.enums import Role
 from hadp_api.modules.tenancy.models import Tenant
 from hadp_api.modules.tenancy.service import get_membership, list_memberships
+from hadp_api.security.client_address import client_address
 from hadp_api.security.rate_limit import check_rate_limit
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -110,10 +111,10 @@ def dev_login(
     if settings.is_production:
         # Do not reveal the existence of the dev endpoint in production.
         raise NotFound("not found")
-    # Login is the classic brute-force surface — throttle per client IP (P-pre-1).
+    # Login is the classic brute-force surface — throttle per client address (P-pre-1).
     check_rate_limit(
         action="auth.dev_login",
-        key=request.client.host if request.client else "unknown",
+        key=client_address(request),
         limit=10,
         window_seconds=60,
         correlation_id=correlation_id,

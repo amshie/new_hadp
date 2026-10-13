@@ -27,7 +27,13 @@ from hadp_api.errors import NotFound
 from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.invitations import service as invitations_service
 from hadp_api.modules.patients import service as patients_service
-from hadp_api.security.rate_limit import check_rate_limit
+from hadp_api.security.client_address import client_address
+from hadp_api.security.rate_limit import (
+    REFUSAL_WINDOW_SECONDS,
+    REFUSALS_RECORDED,
+    check_rate_limit,
+    refusal_recording,
+)
 
 router = APIRouter(tags=["invitations"])
 
@@ -124,10 +130,10 @@ def redeem_invitation(
     request: Request,
     db: Session = RequestSession,
 ) -> RedeemOut:
-    # Public token surface: throttle per client IP before touching the database.
+    # Public token surface: throttle per client address before touching the database.
     check_rate_limit(
         action="invitation.redeem",
-        key=request.client.host if request.client else "unknown",
+        key=client_address(request),
         limit=30,
         window_seconds=60,
         correlation_id=getattr(request.state, "correlation_id", None),
@@ -139,12 +145,22 @@ def redeem_invitation(
             db, tenant_id=body.tenant, raw_token=body.token
         )
     except NotFound:
-        record_security_event(
-            action="invitation.redeem_denied",
-            tenant_id=body.tenant,
-            correlation_id=getattr(request.state, "correlation_id", None),
-            detail={"reason": "not_found"},
-        )
+        # As much of it as a clinic's trail takes from callers without a session.
+        recording = refusal_recording(surface="invitation.redeem", tenant_id=body.tenant)
+        if recording == "each":
+            record_security_event(
+                action="invitation.redeem_denied",
+                tenant_id=body.tenant,
+                correlation_id=getattr(request.state, "correlation_id", None),
+                detail={"reason": "not_found"},
+            )
+        elif recording == "stops":
+            record_security_event(
+                action="invitation.redeem_denials_unrecorded",
+                tenant_id=body.tenant,
+                correlation_id=getattr(request.state, "correlation_id", None),
+                detail={"recorded": REFUSALS_RECORDED, "window_seconds": REFUSAL_WINDOW_SECONDS},
+            )
         raise
     record_audit(
         db,

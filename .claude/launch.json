@@ -12,7 +12,8 @@
         "hadp_api.main:app",
         "--reload",
         "--port",
-        "8000"
+        "8000",
+        "--no-proxy-headers"
       ],
       "port": 8000,
       "autoPort": false

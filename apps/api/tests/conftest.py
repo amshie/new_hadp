@@ -18,7 +18,7 @@ os.environ["APP_ENV"] = "test"
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", _DEFAULT_ADMIN)
 os.environ["APP_DATABASE_URL"] = os.environ.get("TEST_APP_DATABASE_URL", _DEFAULT_APP)
 
-from collections.abc import Iterator  # noqa: E402
+from collections.abc import Callable, Iterator  # noqa: E402
 
 import pytest  # noqa: E402
 from sqlalchemy import URL, create_engine, make_url, text  # noqa: E402
@@ -155,3 +155,18 @@ def client() -> Iterator[TestClient]:  # type: ignore[name-defined]  # noqa: F82
     reset_engine()
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture()
+def trust_proxies(monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[..., None]]:
+    """Name the peers whose X-Forwarded-For the API believes (security/client_address.py) for
+    one test — `trust_proxies("10.20.0.5")`, optionally `hops=2` — then put the settings back."""
+
+    def use(trusted: str, *, hops: int = 1) -> None:
+        monkeypatch.setenv("TRUSTED_PROXIES", trusted)
+        monkeypatch.setenv("TRUSTED_PROXY_HOPS", str(hops))
+        get_settings.cache_clear()
+
+    yield use
+    monkeypatch.undo()
+    get_settings.cache_clear()

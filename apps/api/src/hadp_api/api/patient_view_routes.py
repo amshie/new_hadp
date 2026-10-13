@@ -21,7 +21,13 @@ from hadp_api.db.session import RequestSession
 from hadp_api.errors import NotFound
 from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.reports import service as reports_service
-from hadp_api.security.rate_limit import check_rate_limit
+from hadp_api.security.client_address import client_address
+from hadp_api.security.rate_limit import (
+    REFUSAL_WINDOW_SECONDS,
+    REFUSALS_RECORDED,
+    check_rate_limit,
+    refusal_recording,
+)
 
 router = APIRouter(tags=["patient-view"])
 
@@ -37,11 +43,11 @@ def patient_view(
     request: Request,
     db: Session = RequestSession,
 ) -> dict[str, Any]:
-    # The token surface is public and brute-forceable — throttle per client IP
+    # The token surface is public and brute-forceable — throttle per client address
     # (P-pre-1) before touching the database.
     check_rate_limit(
         action="patient_view",
-        key=request.client.host if request.client else "unknown",
+        key=client_address(request),
         limit=30,
         window_seconds=60,
         correlation_id=getattr(request.state, "correlation_id", None),
@@ -51,12 +57,21 @@ def patient_view(
     try:
         view = reports_service.resolve_patient_view(db, body.token)
     except NotFound:
-        # Audit denied/failed access (independent transaction; survives request rollback).
-        record_security_event(
-            action="report.patient_view_denied",
-            tenant_id=body.tenant,
-            detail={"reason": "not_found"},
-        )
+        # Audit denied/failed access (independent transaction; survives request rollback) —
+        # as much of it as a clinic's trail takes from callers without a session.
+        recording = refusal_recording(surface="patient_view", tenant_id=body.tenant)
+        if recording == "each":
+            record_security_event(
+                action="report.patient_view_denied",
+                tenant_id=body.tenant,
+                detail={"reason": "not_found"},
+            )
+        elif recording == "stops":
+            record_security_event(
+                action="report.patient_view_denials_unrecorded",
+                tenant_id=body.tenant,
+                detail={"recorded": REFUSALS_RECORDED, "window_seconds": REFUSAL_WINDOW_SECONDS},
+            )
         raise
     record_audit(
         db,

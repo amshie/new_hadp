@@ -103,6 +103,10 @@ jobs:
       SESSION_SECRET: ci-only-not-a-secret
       API_BASE_URL: http://127.0.0.1:8000
       WEB_BASE_URL: http://127.0.0.1:3000
+      # The web server reaches the API from this address: the API takes its word for a
+      # client's address (apps/api/src/hadp_api/security/client_address.py). The route smoke
+      # below checks that the address arrives.
+      TRUSTED_PROXIES: 127.0.0.1
     services:
       postgres:
         image: postgres:16-alpine
@@ -195,7 +199,7 @@ jobs:
 
       - name: Start API and web servers
         run: |
-          cd apps/api && nohup uv run uvicorn hadp_api.main:app --host 127.0.0.1 --port 8000 > /tmp/api.log 2>&1 &
+          cd apps/api && nohup uv run uvicorn hadp_api.main:app --host 127.0.0.1 --port 8000 --no-proxy-headers > /tmp/api.log 2>&1 &
           cd "$GITHUB_WORKSPACE" && nohup pnpm --filter @hadp/web start > /tmp/web.log 2>&1 &
           for i in $(seq 1 60); do
             curl -sf http://127.0.0.1:8000/api/v1/health > /dev/null && break; sleep 1;
@@ -209,8 +213,10 @@ jobs:
       - name: Web route smoke
         # WEB_SMOKE_RELEASE: also approve and release the seeded report through the API, so
         # the review page's wording is checked as a draft, approved and released.
+        # WEB_SMOKE_FORWARDED: also check that a client's address reaches the API's limiter.
         env:
           WEB_SMOKE_RELEASE: "1"
+          WEB_SMOKE_FORWARDED: "1"
         run: cd apps/api && uv run python ../../scripts/smoke_web.py
 
       - name: Install Chromium for the browser test
