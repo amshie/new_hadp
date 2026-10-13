@@ -13,6 +13,8 @@ import { signOut } from "@/app/login/actions";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { initialsOf, roleName, type ShellIdentity } from "@/lib/identity";
 
+import { chooseTheme, useDarkTheme } from "./theme";
+
 // VitaBahn dashboard shell (ADR-0005): sidebar + topbar + theme toggle, a faithful
 // port of the Claude Design comp's chrome. Wraps the /overview, /patients and
 // /patients/[id] screens. Synthetic Alpha only.
@@ -23,7 +25,6 @@ import { initialsOf, roleName, type ShellIdentity } from "@/lib/identity";
 
 type NavKey = "uebersicht" | "patienten" | "review" | "einstellungen";
 
-const THEME_KEY = "vb-theme";
 // The width at which the sidebar becomes a drawer — the same as in styles/vitabahn.css.
 const NARROW = "(max-width: 900px)";
 
@@ -120,17 +121,7 @@ export function VitaShell({
   const contentLang = translated ? undefined : "de";
   const clinicName = identity?.tenantName ?? "—";
   const personInitials = initialsOf(personName);
-  // Lazy-init from localStorage so a returning dark-mode user doesn't get a light flash on
-  // client navigations. SSR has no localStorage and renders light; suppressHydrationWarning on
-  // the root covers the intentional server/client data-theme difference.
-  const [dark, setDark] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return localStorage.getItem(THEME_KEY) === "dark";
-    } catch {
-      return false;
-    }
-  });
+  const dark = useDarkTheme();
 
   // The drawer on a narrow screen. Escape and its close button give the focus back to the
   // button that opened it — once it is closed, as the page behind is inert until then.
@@ -168,17 +159,7 @@ export function VitaShell({
     };
   }, [menuOpen]);
 
-  const toggleTheme = () => {
-    setDark((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(THEME_KEY, next ? "dark" : "light");
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  };
+  const toggleTheme = () => chooseTheme(!dark);
 
   const stroke = (
     d: ReactNode,
@@ -204,7 +185,6 @@ export function VitaShell({
     <div
       className="vb-scope"
       data-theme={dark ? "dark" : "light"}
-      suppressHydrationWarning
       style={{
         display: "flex",
         minHeight: "100vh",
