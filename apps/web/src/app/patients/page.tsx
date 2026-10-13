@@ -38,7 +38,6 @@ export default async function PatientsPage() {
       nav="patienten"
       crumb={messages.patients.title}
       identity={identity}
-      translated
     >
       <PatientsContent view={view} tenantName={identity?.tenantName ?? "—"} />
     </VitaShell>

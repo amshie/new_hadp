@@ -1056,6 +1056,168 @@ export const en: Messages = {
       failed: "The action could not be carried out. Please try again.",
     },
   },
+  auditPage: {
+    ownersOnly: "The audit trail is available to owners only.",
+    tooMany:
+      "The trail was requested very often in a short time. Please try again in a minute.",
+    unavailable:
+      "The trail is temporarily unavailable. Please try again later.",
+    lead: "The recorded events of this clinic: who, when, which event, on which record. An entry holds identifiers, codes, counts and times – no measured values and no names of patients. Who acted is given by the name and e-mail address of the account. The application only appends entries; it changes and deletes none. Times in the time zone {zone}.",
+    notShown: {
+      title: "What this trail does not show",
+      tenantless:
+        "Events recorded without a clinic: signing in and out, failed sign-ins, throttled requests and requests refused for security reasons, and access attempts without a selected clinic or after a membership has ended. Entering the clinic is recorded.",
+      notRecorded:
+        "Not recorded at present: a report read by staff and the reading of the administrative lists (members, team invitations, deletion requests, history of data exports).",
+      refusals:
+        "Refused events are recorded only in part: role denials, refused imports and data exports, refused invitation and access links. Other refusals – such as a release without consent or a request for an unknown identifier – leave no entry.",
+      linkRefusals:
+        "Refused invitation and access links are recorded one by one until 30 in a minute are reached for each kind of event. An entry then records that further refusals are no longer recorded one by one until that minute is over – how many there were is not in the trail.",
+      byRecord:
+        "An entry is filed under the record it is recorded on. Under a patient record are creating and opening the record, reading values, interpretation, consents and the file list, the consents and withdrawals documented in the clinic, and the data export. Reports, files, imports, recorded interpretations, review items, invitations and deletion requests are filed under their own identifier and do not appear when a patient record is chosen; a consent given through an invitation is filed under the invitation.",
+      lists:
+        "List views (record list, overview, review queue) are recorded as a read access, without naming the individual records. Opening a record also loads the overview and leaves an entry of its own for that.",
+      erased:
+        "Entries about a deleted record are kept with the record's identifier.",
+      sameTime:
+        "Entries that arise in the same request carry the same time; their order among each other is not fixed.",
+      paging:
+        "When paging to older entries, an entry that was stored only while reading may be missing. Reading again from the first page shows it.",
+    },
+    filter: {
+      category: "Area",
+      allCategories: "All areas",
+      from: "From",
+      to: "Up to and including",
+      hideReads: "Hide read accesses",
+      apply: "Apply",
+      reset: "Reset filters",
+    },
+    targetBefore: "Only entries recorded under the record",
+    targetAfter: ".",
+    allTargets: "Show all records",
+    readsHidden: "Read accesses are hidden.",
+    showReads: "Show read accesses",
+    stalePosition:
+      "The requested position is not valid. The newest entries are shown.",
+    entries: "Entries",
+    emptyFiltered: "There are no entries for this selection.",
+    empty: "No entries yet.",
+    tableAria: "Audit trail, newest entries first",
+    columns: {
+      time: "Time",
+      who: "Who",
+      action: "Event",
+      target: "Record",
+      details: "Details",
+    },
+    noActor: "no signed-in person",
+    onlyThisTarget: "Show only entries for this record",
+    openRecord: "Open record",
+    yes: "yes",
+    no: "no",
+    older: "Older entries",
+    newest: "To the newest entries",
+  },
+  preparationPage: {
+    ownersOnly: "Preparation time is available to owners only.",
+    tooMany:
+      "The page was requested very often in a short time. Please try again in a minute.",
+    unavailable:
+      "The metric is temporarily unavailable. Please try again later.",
+    lead: "How long preparing an appointment takes. This page keeps two things apart: what the clinic states itself, and what the platform measures from the course of the reports. It holds no data of patients. Times in the time zone {zone}.",
+    saved: "The figure was saved.",
+    failures: {
+      eingabe: "The figure was not saved: the input was incomplete.",
+      minuten:
+        "The figure was not saved: the median is a whole number from 1 to 600 minutes.",
+      stichprobe:
+        "The figure was not saved: a timed sample needs the number of appointments timed (1 to 100000).",
+      schaetzung:
+        "The figure was not saved: an estimate has no number of timed appointments. Please leave the field empty or choose “Timed sample”.",
+      rolle: "The figure was not saved: only owners may do this.",
+      zuviele:
+        "The figure was not saved: too many figures in a short time. Please wait a minute.",
+      allgemein:
+        "Whether the figure was saved could not be confirmed. Please check the history before entering it again.",
+    },
+    kind: { baseline: "Baseline", follow_up: "Follow-up figure" },
+    basis: { estimate: "Estimate", timed_sample: "Timed sample" },
+    timedOver: {
+      one: "Timed sample over {n} appointment",
+      other: "Timed sample over {n} appointments",
+    },
+    minutes: "{n} min",
+    elapsed: {
+      underOne: "under 1 min",
+      minutes: "{m} min",
+      hours: "{h} h",
+      hoursMinutes: "{h} h {m} min",
+      days: { one: "{n} day", other: "{n} days" },
+      daysHours: { one: "{n} day {h} h", other: "{n} days {h} h" },
+    },
+    stated: {
+      title: "Stated by the clinic",
+      note: "The median preparation time per appointment, in minutes, as the clinic states it: the baseline before the platform was used, and later follow-up figures. The platform takes these figures over and does not check them.",
+      latestFollowUp: "Latest follow-up figure",
+      noBaseline: "No baseline recorded yet.",
+      noFollowUp: "No follow-up figure recorded yet.",
+      perAppointment: "Median per appointment · {basis}",
+      recordedAt: "recorded on",
+      recordedBy: " by {name}",
+      same: "The latest follow-up figure equals the baseline.",
+      below: "The latest follow-up figure is {n} min below the baseline.",
+      above: "The latest follow-up figure is {n} min above the baseline.",
+      bothStated: "Both figures are stated by the clinic",
+      differentBasis: " – on different bases ({first} and {second}).",
+    },
+    form: {
+      kind: "Kind of figure",
+      median: "Median per appointment (minutes)",
+      basis: "Basis",
+      sample: "Number of appointments timed (timed sample only)",
+      save: "Save figure",
+      note: "A saved figure is not changed or deleted. A correction is a new figure; the earlier one stays in the history.",
+    },
+    history: {
+      shown: "The history shows the newest {shown} of {total} figures.",
+      caption: "History of the clinic's figures, newest first",
+      columns: {
+        recordedAt: "Recorded on",
+        kind: "Kind",
+        median: "Median per appointment",
+        basis: "Basis",
+        recordedBy: "Recorded by",
+      },
+    },
+    measured: {
+      title: "Measured from the course of the reports",
+      note: "The time from a report's first draft to its first clinical approval that stood – from the times the platform records along the way anyway. This is turnaround time, not working time, and not yet the preparation time itself.",
+      last30: "Last 30 days",
+      allTime: "All of the clinic's approved reports",
+      median:
+        "Median from the first draft to the first approval that stood · {n} reports",
+      middleHalf: "Middle half of the reports: {q1} to {q3}",
+      none: "No approved report in this period yet.",
+      tooFew:
+        "Approved reports in this period: {n}. A median is given from {minimum} reports on.",
+    },
+    limits: {
+      title: "What these figures are – and what they are not",
+      waiting:
+        "The measured time includes every wait between draft and approval – nights and weekends too. What happens before the draft (looking through values, deciding review items, recording the interpretation) is not included.",
+      notOffset:
+        "It is therefore not set off against the clinic's stated minutes: they are two different quantities. A measurement that can be compared with the baseline does not exist yet – the platform does not yet record when preparation begins.",
+      countsOnce:
+        "A report counts once: with its first approval that was not rejected again. An approval that was refused or withdrawn at the release by a physician does not end the measurement. Reports without an approval do not count.",
+      minimum:
+        "Below {minimum} reports no median is given: with so few reports, any figure is close to the time of a single report. This is caution with small numbers, not protection of individual people: if only a few people in the clinic approve, the figure describes their work even with many reports.",
+      computed:
+        "The metric is computed from the existing reports each time the page is opened. If a record is deleted, its reports drop out here too – a figure read earlier can then no longer be recomputed.",
+      audited:
+        "Reading this page and every recorded figure are in the audit trail. Version of the measurement rule: {definition}.",
+    },
+  },
   notFound: {
     title: "Page not found",
     note: "The page you asked for does not exist or is not available.",
@@ -1087,7 +1249,7 @@ export const en: Messages = {
     title: "Language",
     note: "The language of the interface on this device. Content such as reports, laboratory terms and names stays in the language it was recorded in.",
     progress:
-      "English is being added page by page: the navigation, sign-in, the overview, the patients list, the patient page, the review queue, recording an interpretation, the report page, this settings overview, members and deletion requests are done; all other pages are shown in German for now. The wording of the consent purposes, the clinical labels (domains, CIS, Actionability, follow-up and endpoint adequacy, the tri-state axes and their states, position relative to the reference interval, comparability), the reasons of the review tasks and the reasons for a rejection stay German.",
+      "All of the clinic team's pages are available in English. The pages for patients, the invitation pages and the error page are shown in German for now. The wording of the consent purposes, the clinical labels (domains, CIS, Actionability, follow-up and endpoint adequacy, the tri-state axes and their states, position relative to the reference interval, comparability), the reasons of the review tasks and the reasons for a rejection stay German.",
     selected: "selected",
     choose: "Interface language",
   },

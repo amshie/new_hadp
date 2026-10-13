@@ -61,7 +61,6 @@ export default async function OverviewPage() {
       nav="uebersicht"
       crumb={messages.overview.title}
       identity={shellIdentity(session)}
-      translated
     >
       <OverviewContent view={overview} coverage={cov} throughput={thru} />
     </VitaShell>

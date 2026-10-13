@@ -1114,6 +1114,182 @@ export const de = {
         "Die Aktion konnte nicht ausgeführt werden. Bitte erneut versuchen.",
     },
   },
+  // Settings → audit trail (owners only). The labels of the events, their families and the
+  // kinds of record are in lib/auditCopy.ts, in both languages.
+  auditPage: {
+    ownersOnly: "Das Audit-Protokoll ist nur für Inhaber verfügbar.",
+    tooMany:
+      "Das Protokoll wurde in kurzer Zeit sehr oft abgerufen. Bitte versuchen Sie es in einer Minute erneut.",
+    unavailable:
+      "Das Protokoll ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.",
+    lead: "Die protokollierten Vorgänge dieser Praxis: wer, wann, welcher Vorgang, an welchem Datensatz. Ein Eintrag enthält Kennungen, Codes, Zähler und Zeitpunkte – keine Messwerte und keine Namen von Patientinnen und Patienten. Wer gehandelt hat, ist mit dem Namen und der E-Mail-Adresse des Kontos angegeben. Die Anwendung fügt Einträge nur an; sie ändert und löscht keine. Zeiten in der Zeitzone {zone}.",
+    // What the trail does not show. `notRecorded` is held against the API's reads that write
+    // no event (apps/api/tests/test_audit_read.py).
+    notShown: {
+      title: "Was dieses Protokoll nicht zeigt",
+      tenantless:
+        "Vorgänge, die ohne Praxis protokolliert werden: Anmeldung und Abmeldung, fehlgeschlagene Anmeldungen, gedrosselte und aus Sicherheitsgründen abgewiesene Anfragen sowie Zugriffsversuche ohne ausgewählte Praxis oder nach dem Ende einer Mitgliedschaft. Der Eintritt in die Praxis ist protokolliert.",
+      notRecorded:
+        "Derzeit nicht protokolliert: das Lesen eines Berichts durch Mitarbeitende und das Lesen der Verwaltungslisten (Mitglieder, Teameinladungen, Löschanträge, Verlauf der Datenauskünfte).",
+      refusals:
+        "Abgewiesene Vorgänge sind nur zum Teil protokolliert: Rollenverweigerungen, abgelehnte Einlesevorgänge und Datenauskünfte, abgewiesene Einladungs- und Zugriffslinks. Andere Ablehnungen – etwa eine Freigabe ohne Einwilligung oder der Aufruf einer unbekannten Kennung – hinterlassen keinen Eintrag.",
+      linkRefusals:
+        "Abgewiesene Einladungs- und Zugriffslinks stehen einzeln im Protokoll, bis je Vorgangsart 30 in einer Minute erreicht sind. Ein Eintrag hält dann fest, dass weitere Abweisungen bis zum Ablauf dieser Minute nicht mehr einzeln protokolliert werden – wie viele es waren, steht nicht im Protokoll.",
+      byRecord:
+        "Ein Eintrag steht unter dem Datensatz, an dem er protokolliert ist. Unter einer Akte stehen das Anlegen und Öffnen der Akte, das Lesen von Werten, Interpretation, Einwilligungen und Dateiliste, die in der Praxis dokumentierten Einwilligungen und Widerrufe und die Datenauskunft. Berichte, Dateien, Einlesevorgänge, erfasste Interpretationen, Review-Einträge, Einladungen und Löschanträge stehen unter ihrer eigenen Kennung und erscheinen bei der Auswahl einer Akte nicht; eine über eine Einladung erteilte Einwilligung steht unter der Einladung.",
+      lists:
+        "Listenansichten (Aktenliste, Übersicht, Review-Queue) sind als Lesezugriff protokolliert, ohne die einzelnen Akten zu nennen. Das Öffnen einer Akte lädt auch die Übersicht und hinterlässt dafür einen eigenen Eintrag.",
+      erased:
+        "Einträge zu einer gelöschten Akte bleiben mit der Kennung der Akte erhalten.",
+      sameTime:
+        "Einträge, die in derselben Anfrage entstehen, tragen denselben Zeitpunkt; ihre Reihenfolge untereinander ist nicht festgelegt.",
+      paging:
+        "Beim Blättern zu älteren Einträgen kann ein Eintrag fehlen, der erst während des Lesens gespeichert wurde. Ein erneutes Lesen von der ersten Seite an zeigt ihn.",
+    },
+    filter: {
+      category: "Bereich",
+      allCategories: "Alle Bereiche",
+      from: "Von",
+      to: "Bis einschließlich",
+      hideReads: "Lesezugriffe ausblenden",
+      apply: "Anwenden",
+      reset: "Filter zurücksetzen",
+    },
+    // Around the record's identifier (shown as it is).
+    targetBefore: "Nur Einträge, die unter dem Datensatz",
+    targetAfter: " protokolliert sind.",
+    allTargets: "Alle Datensätze anzeigen",
+    readsHidden: "Lesezugriffe sind ausgeblendet.",
+    showReads: "Lesezugriffe einblenden",
+    stalePosition:
+      "Die aufgerufene Position ist nicht gültig. Angezeigt werden die neuesten Einträge.",
+    entries: "Einträge",
+    emptyFiltered: "Zu dieser Auswahl gibt es keine Einträge.",
+    empty: "Noch keine Einträge.",
+    tableAria: "Audit-Protokoll, neueste Einträge zuerst",
+    columns: {
+      time: "Zeit",
+      who: "Wer",
+      action: "Vorgang",
+      target: "Datensatz",
+      details: "Details",
+    },
+    noActor: "ohne angemeldete Person",
+    onlyThisTarget: "Nur Einträge zu diesem Datensatz anzeigen",
+    openRecord: "Akte öffnen",
+    yes: "ja",
+    no: "nein",
+    older: "Ältere Einträge",
+    newest: "Zu den neuesten Einträgen",
+  },
+  // Settings → preparation time (owners only): what the clinic states, and what the platform
+  // measures — two quantities the page never sets against each other.
+  preparationPage: {
+    ownersOnly: "Die Vorbereitungszeit ist nur für Inhaber verfügbar.",
+    tooMany:
+      "Die Seite wurde in kurzer Zeit sehr oft abgerufen. Bitte versuchen Sie es in einer Minute erneut.",
+    unavailable:
+      "Die Kennzahl ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.",
+    lead: "Wie lange die Vorbereitung eines Termins dauert. Diese Seite hält zwei Dinge auseinander: was die Praxis selbst angibt, und was die Plattform aus dem Ablauf der Berichte misst. Sie enthält keine Daten von Patientinnen und Patienten. Zeiten in der Zeitzone {zone}.",
+    saved: "Die Angabe wurde gespeichert.",
+    // Keyed by the outcome code the form's action puts in the URL.
+    failures: {
+      eingabe:
+        "Die Angabe wurde nicht gespeichert: Die Eingabe war unvollständig.",
+      minuten:
+        "Die Angabe wurde nicht gespeichert: Der Median ist eine ganze Zahl von 1 bis 600 Minuten.",
+      stichprobe:
+        "Die Angabe wurde nicht gespeichert: Zu einer Zeitmessung gehört die Anzahl der gemessenen Termine (1 bis 100000).",
+      schaetzung:
+        "Die Angabe wurde nicht gespeichert: Eine Schätzung hat keine Anzahl gemessener Termine. Bitte das Feld leer lassen oder „Zeitmessung“ wählen.",
+      rolle:
+        "Die Angabe wurde nicht gespeichert: Das ist nur Inhabern erlaubt.",
+      zuviele:
+        "Die Angabe wurde nicht gespeichert: zu viele Angaben in kurzer Zeit. Bitte warten Sie eine Minute.",
+      // The API may have recorded it although its answer did not arrive: say what is known.
+      allgemein:
+        "Ob die Angabe gespeichert wurde, konnte nicht bestätigt werden. Bitte prüfen Sie den Verlauf, bevor Sie sie erneut eingeben.",
+    },
+    kind: { baseline: "Ausgangswert", follow_up: "Folgeangabe" },
+    basis: { estimate: "Schätzung", timed_sample: "Zeitmessung" },
+    timedOver: {
+      one: "Zeitmessung über {n} Termin",
+      other: "Zeitmessung über {n} Termine",
+    },
+    minutes: "{n} Min.",
+    // An elapsed time in the two largest units that say something; nothing finer than a minute.
+    elapsed: {
+      underOne: "unter 1 Min.",
+      minutes: "{m} Min.",
+      hours: "{h} Std.",
+      hoursMinutes: "{h} Std. {m} Min.",
+      days: { one: "{n} Tag", other: "{n} Tage" },
+      daysHours: { one: "{n} Tag {h} Std.", other: "{n} Tage {h} Std." },
+    },
+    stated: {
+      title: "Angaben der Praxis",
+      note: "Der Median der Vorbereitungszeit je Termin, in Minuten, wie die Praxis ihn angibt: der Ausgangswert vor dem Einsatz der Plattform und spätere Folgeangaben. Die Plattform übernimmt diese Zahlen und prüft sie nicht.",
+      latestFollowUp: "Letzte Folgeangabe",
+      noBaseline: "Noch kein Ausgangswert erfasst.",
+      noFollowUp: "Noch keine Folgeangabe erfasst.",
+      perAppointment: "Median je Termin · {basis}",
+      // Before the time it was recorded, then who recorded it.
+      recordedAt: "erfasst am",
+      recordedBy: " von {name}",
+      same: "Die letzte Folgeangabe entspricht dem Ausgangswert.",
+      below: "Die letzte Folgeangabe liegt {n} Min. unter dem Ausgangswert.",
+      above: "Die letzte Folgeangabe liegt {n} Min. über dem Ausgangswert.",
+      bothStated: "Beide Zahlen sind Angaben der Praxis",
+      differentBasis:
+        " – auf unterschiedlicher Grundlage ({first} und {second}).",
+    },
+    form: {
+      kind: "Art der Angabe",
+      median: "Median je Termin (Minuten)",
+      basis: "Grundlage",
+      sample: "Anzahl gemessener Termine (nur bei Zeitmessung)",
+      save: "Angabe speichern",
+      note: "Eine gespeicherte Angabe wird nicht geändert oder gelöscht. Eine Korrektur ist eine neue Angabe; die frühere bleibt im Verlauf stehen.",
+    },
+    history: {
+      shown: "Der Verlauf zeigt die neuesten {shown} von {total} Angaben.",
+      caption: "Verlauf der Angaben der Praxis, neueste zuerst",
+      columns: {
+        recordedAt: "Erfasst am",
+        kind: "Art",
+        median: "Median je Termin",
+        basis: "Grundlage",
+        recordedBy: "Erfasst von",
+      },
+    },
+    measured: {
+      title: "Gemessen aus dem Ablauf der Berichte",
+      note: "Die Zeit vom ersten Entwurf eines Berichts bis zu seiner ersten klinischen Genehmigung, die Bestand hatte – aus den Zeitpunkten, die die Plattform dabei ohnehin festhält. Das ist Durchlaufzeit, keine Arbeitszeit, und noch nicht die Vorbereitungszeit selbst.",
+      last30: "Letzte 30 Tage",
+      allTime: "Alle genehmigten Berichte der Praxis",
+      median:
+        "Median vom ersten Entwurf bis zur ersten Genehmigung, die Bestand hatte · {n} Berichte",
+      middleHalf: "Mittlere Hälfte der Berichte: {q1} bis {q3}",
+      none: "Noch kein genehmigter Bericht in diesem Zeitraum.",
+      tooFew:
+        "Genehmigte Berichte in diesem Zeitraum: {n}. Ein Median wird ab {minimum} Berichten angegeben.",
+    },
+    limits: {
+      title: "Was diese Zahlen sind – und was nicht",
+      waiting:
+        "Die gemessene Zeit enthält jede Wartezeit zwischen Entwurf und Genehmigung – auch Nächte und Wochenenden. Was vor dem Entwurf geschieht (Werte sichten, Review-Einträge entscheiden, Interpretation erfassen), ist nicht enthalten.",
+      notOffset:
+        "Sie wird deshalb nicht mit den Minuten-Angaben der Praxis verrechnet: Es sind zwei verschiedene Größen. Eine Messung, die sich mit dem Ausgangswert vergleichen lässt, gibt es noch nicht – die Plattform hält bisher keinen Beginn der Vorbereitung fest.",
+      countsOnce:
+        "Ein Bericht zählt einmal: mit seiner ersten Genehmigung, die nicht wieder zurückgewiesen wurde. Eine Genehmigung, die bei der ärztlichen Freigabe abgelehnt oder zurückgezogen wurde, beendet die Messung nicht. Berichte ohne Genehmigung zählen nicht.",
+      minimum:
+        "Unter {minimum} Berichten wird kein Median angegeben: Bei so wenigen Berichten entspricht jede Zahl nahezu der Zeit eines einzelnen Berichts. Das ist eine Vorsicht bei kleinen Zahlen, kein Schutz einzelner Personen: Genehmigen in der Praxis nur wenige, so beschreibt die Zahl auch bei vielen Berichten deren Arbeit.",
+      computed:
+        "Die Kennzahl wird bei jedem Aufruf aus den vorhandenen Berichten gebildet. Wird eine Akte gelöscht, entfallen ihre Berichte auch hier – eine früher abgelesene Zahl lässt sich dann nicht mehr nachrechnen.",
+      audited:
+        "Das Lesen dieser Seite und jede erfasste Angabe stehen im Audit-Protokoll. Stand der Messvorschrift: {definition}.",
+    },
+  },
   notFound: {
     title: "Seite nicht gefunden",
     note: "Die angeforderte Seite existiert nicht oder ist nicht verfügbar.",
@@ -1146,7 +1322,7 @@ export const de = {
     note: "Die Sprache der Oberfläche auf diesem Gerät. Inhalte wie Berichte, Bezeichnungen aus dem Labor und Namen bleiben in der Sprache, in der sie erfasst wurden.",
     // Says exactly what is done. To be widened with every part, and removed with the last page.
     progress:
-      "Englisch wird Seite für Seite ergänzt: die Navigation, die Anmeldung, die Übersicht, die Patientenliste, die Patientenseite, die Review-Queue, die Erfassung einer Interpretation, die Berichtsseite, diese Übersicht der Einstellungen sowie die Mitglieder und die Löschanträge sind umgestellt; alle übrigen Seiten erscheinen vorerst auf Deutsch. Der Wortlaut der Einwilligungszwecke, die klinischen Bezeichnungen (Domänen, CIS, Actionability, Follow-up- und Endpunkt-Adäquanz, Tri-State-Achsen und ihre Zustände, Lage zum Referenzintervall, Vergleichbarkeit), die Gründe der Prüfaufgaben und die Gründe einer Zurückweisung bleiben Deutsch.",
+      "Alle Seiten des Praxisteams sind auf Englisch umgestellt. Die Seiten für Patientinnen und Patienten, die Einladungsseiten und die Fehlerseite erscheinen vorerst auf Deutsch. Der Wortlaut der Einwilligungszwecke, die klinischen Bezeichnungen (Domänen, CIS, Actionability, Follow-up- und Endpunkt-Adäquanz, Tri-State-Achsen und ihre Zustände, Lage zum Referenzintervall, Vergleichbarkeit), die Gründe der Prüfaufgaben und die Gründe einer Zurückweisung bleiben Deutsch.",
     selected: "ausgewählt",
     choose: "Sprache der Oberfläche",
   },

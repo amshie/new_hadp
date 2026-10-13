@@ -7,6 +7,7 @@ import {
   me,
   type PreparationTime,
 } from "@/lib/api";
+import { getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
 
 import { PreparationTimeContent, type Outcome } from "./PreparationTimeContent";
@@ -15,7 +16,8 @@ import { PreparationTimeContent, type Outcome } from "./PreparationTimeContent";
 // time, and what the platform measures from the report lifecycle. The API authorizes the read
 // and the write (METRIC_READ / METRIC_RECORD); this page mirrors the role check with a
 // deny-by-default load. The outcome of a submitted statement arrives as a code in the URL —
-// one of a closed set; anything else is no message at all.
+// one of a closed set; anything else is no message at all. The page follows the interface
+// language (lib/i18n).
 export const dynamic = "force-dynamic";
 
 const FAILURES = [
@@ -37,15 +39,20 @@ export default async function PreparationTimePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await me().catch(() => null);
+  const [session, messages] = await Promise.all([
+    me().catch(() => null),
+    getMessages(),
+  ]);
   if (!session) redirect("/login");
   const identity = shellIdentity(session);
+  const t = messages.preparationPage;
+  const title = messages.settings.preparationTime.title;
 
   const shell = (children: React.ReactNode) => (
     <VitaShell
       nav="einstellungen"
-      crumb="Vorbereitungszeit"
-      crumbParent={{ label: "Einstellungen", href: "/einstellungen" }}
+      crumb={title}
+      crumbParent={{ label: messages.settings.title, href: "/einstellungen" }}
       identity={identity}
     >
       {children}
@@ -54,17 +61,14 @@ export default async function PreparationTimePage({
   const notice = (text: string) =>
     shell(
       <div style={{ maxWidth: "620px" }}>
-        <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>
-          Vorbereitungszeit
-        </h1>
+        <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>{title}</h1>
         <p style={{ lineHeight: 1.55, color: "var(--text-muted, #5b6b70)" }}>
           {text}
         </p>
       </div>,
     );
 
-  if (session.role !== "owner")
-    return notice("Die Vorbereitungszeit ist nur für Inhaber verfügbar.");
+  if (session.role !== "owner") return notice(t.ownersOnly);
 
   let metric: PreparationTime;
   try {
@@ -72,14 +76,8 @@ export default async function PreparationTimePage({
   } catch (e) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403))
       redirect("/login");
-    if (e instanceof ApiError && e.status === 429)
-      return notice(
-        "Die Seite wurde in kurzer Zeit sehr oft abgerufen. Bitte versuchen Sie es in einer Minute erneut.",
-      );
-    if (e instanceof ApiError && e.status === 503)
-      return notice(
-        "Die Kennzahl ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.",
-      );
+    if (e instanceof ApiError && e.status === 429) return notice(t.tooMany);
+    if (e instanceof ApiError && e.status === 503) return notice(t.unavailable);
     throw e;
   }
 
@@ -91,5 +89,12 @@ export default async function PreparationTimePage({
       ? { saved: true }
       : {};
 
-  return shell(<PreparationTimeContent metric={metric} outcome={outcome} />);
+  return shell(
+    <PreparationTimeContent
+      metric={metric}
+      outcome={outcome}
+      t={t}
+      title={title}
+    />,
+  );
 }

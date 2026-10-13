@@ -102,23 +102,19 @@ export function VitaShell({
   crumb,
   crumbParent,
   identity,
-  translated = false,
   children,
 }: {
   nav: NavKey;
   crumb: string;
   crumbParent?: { label: string; href: string };
   identity?: ShellIdentity | null;
-  // Whether the page inside (and the crumbs it names) follows the interface language. The
-  // pages are translated one after another: until a page is, what it shows is German, and
-  // says so — a screen reader would otherwise read German with another language's sounds.
-  translated?: boolean;
+  // The page inside, and the crumbs it names, follow the interface language (ADR-0007) — every
+  // page in this shell is translated. What stays German on a page is marked so by the page.
   children: ReactNode;
 }) {
   const { t } = useI18n();
   const personName = identity?.name ?? "—";
   const personRole = roleName(t.roles, identity?.role);
-  const contentLang = translated ? undefined : "de";
   const clinicName = identity?.tenantName ?? "—";
   const personInitials = initialsOf(personName);
   const dark = useDarkTheme();
@@ -522,7 +518,6 @@ export function VitaShell({
                 <Link
                   href={crumbParent.href}
                   className="vb-crumblink vb-crumb-parent"
-                  lang={contentLang}
                   style={{
                     color: "var(--text-muted)",
                     cursor: "pointer",
@@ -537,7 +532,6 @@ export function VitaShell({
               </>
             )}
             <span
-              lang={contentLang}
               className="vb-crumb-current"
               style={{ color: "var(--text-strong)", fontWeight: 600 }}
             >
@@ -703,7 +697,6 @@ export function VitaShell({
         <div style={{ flex: 1, overflowY: "auto" }}>
           <main
             id="main-content"
-            lang={contentLang}
             className="vb-content"
             style={{
               maxWidth: "1340px",

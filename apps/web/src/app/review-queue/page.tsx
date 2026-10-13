@@ -44,7 +44,6 @@ export default async function ReviewQueuePage() {
       nav="review"
       crumb={messages.reviewQueue.title}
       identity={shellIdentity(session)}
-      translated
     >
       <ReviewQueueContent
         items={items}

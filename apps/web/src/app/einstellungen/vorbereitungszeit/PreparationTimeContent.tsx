@@ -6,6 +6,8 @@ import type {
   PreparationTime,
 } from "@/lib/api";
 import { CLINIC_TIME_ZONE, clinicTime } from "@/lib/clinicTime";
+import { byCount, fill } from "@/lib/i18n/fill";
+import type { Messages } from "@/lib/i18n/messages";
 
 import { recordStatementAction } from "./actions";
 
@@ -16,6 +18,9 @@ import { recordStatementAction } from "./actions";
 // one from the other — and it says that a measure which could be set against the stated
 // minutes does not exist yet. Covered by the web copy scan
 // (apps/api/tests/test_web_copy_language.py).
+//
+// The page follows the interface language (lib/i18n): its wording comes in from the route.
+// Names are shown as recorded; times and figures keep their form.
 
 export type Outcome = {
   saved?: boolean;
@@ -29,31 +34,7 @@ export type Outcome = {
     | "allgemein";
 };
 
-const FAILURE_TEXT: Record<NonNullable<Outcome["failure"]>, string> = {
-  eingabe: "Die Angabe wurde nicht gespeichert: Die Eingabe war unvollständig.",
-  minuten:
-    "Die Angabe wurde nicht gespeichert: Der Median ist eine ganze Zahl von 1 bis 600 Minuten.",
-  stichprobe:
-    "Die Angabe wurde nicht gespeichert: Zu einer Zeitmessung gehört die Anzahl der gemessenen Termine (1 bis 100000).",
-  schaetzung:
-    "Die Angabe wurde nicht gespeichert: Eine Schätzung hat keine Anzahl gemessener Termine. Bitte das Feld leer lassen oder „Zeitmessung“ wählen.",
-  rolle: "Die Angabe wurde nicht gespeichert: Das ist nur Inhabern erlaubt.",
-  zuviele:
-    "Die Angabe wurde nicht gespeichert: zu viele Angaben in kurzer Zeit. Bitte warten Sie eine Minute.",
-  // The API may have recorded it although its answer did not arrive: say what is known.
-  allgemein:
-    "Ob die Angabe gespeichert wurde, konnte nicht bestätigt werden. Bitte prüfen Sie den Verlauf, bevor Sie sie erneut eingeben.",
-};
-
-const KIND_LABEL: Record<PreparationStatement["kind"], string> = {
-  baseline: "Ausgangswert",
-  follow_up: "Folgeangabe",
-};
-
-const BASIS_LABEL: Record<PreparationStatement["basis"], string> = {
-  estimate: "Schätzung",
-  timed_sample: "Zeitmessung",
-};
+type T = Messages["preparationPage"];
 
 const cardStyle: CSSProperties = {
   background: "var(--surface-card)",
@@ -119,36 +100,40 @@ const figureStyle: CSSProperties = {
 };
 
 // An elapsed time in the two largest units that say something: "unter 1 Min.", "12 Min.",
-// "2 Std. 5 Min.", "3 Tage 4 Std.". Nothing finer than a minute is shown.
-export function elapsed(seconds: number): string {
+// "2 Std. 5 Min.", "3 Tage 4 Std." (in German). Nothing finer than a minute is shown.
+export function elapsed(seconds: number, t: T["elapsed"]): string {
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 1) return "unter 1 Min.";
-  if (minutes < 60) return `${minutes} Min.`;
+  if (minutes < 1) return t.underOne;
+  if (minutes < 60) return fill(t.minutes, { m: minutes });
   const hours = Math.floor(minutes / 60);
   if (hours < 24) {
     const rest = minutes % 60;
-    return rest ? `${hours} Std. ${rest} Min.` : `${hours} Std.`;
+    return rest
+      ? fill(t.hoursMinutes, { h: hours, m: rest })
+      : fill(t.hours, { h: hours });
   }
   const days = Math.floor(hours / 24);
   const rest = hours % 24;
-  const unit = days === 1 ? "Tag" : "Tage";
-  return rest ? `${days} ${unit} ${rest} Std.` : `${days} ${unit}`;
+  return rest
+    ? fill(byCount(t.daysHours, days), { h: rest })
+    : byCount(t.days, days);
 }
 
-function basisText(statement: PreparationStatement): string {
-  if (statement.basis !== "timed_sample") return BASIS_LABEL.estimate;
-  const appointments = statement.sample_size === 1 ? "Termin" : "Termine";
-  return `${BASIS_LABEL.timed_sample} über ${statement.sample_size} ${appointments}`;
+function basisText(statement: PreparationStatement, t: T): string {
+  if (statement.basis !== "timed_sample") return t.basis.estimate;
+  return byCount(t.timedOver, statement.sample_size ?? 0);
 }
 
 function Stated({
   title,
   statement,
   empty,
+  t,
 }: {
   title: string;
   statement: PreparationStatement | null;
   empty: string;
+  t: T;
 }) {
   return (
     <div style={{ ...cardStyle, flex: "1 1 260px" }}>
@@ -157,17 +142,21 @@ function Stated({
       </div>
       {statement ? (
         <>
-          <div style={figureStyle}>{statement.median_minutes} Min.</div>
+          <div style={figureStyle}>
+            {fill(t.minutes, { n: statement.median_minutes })}
+          </div>
           <div style={{ fontSize: "12.5px", color: "var(--text-body)" }}>
-            Median je Termin · {basisText(statement)}
+            {fill(t.stated.perAppointment, { basis: basisText(statement, t) })}
           </div>
           <div style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>
-            erfasst am{" "}
+            {t.stated.recordedAt}{" "}
             <time dateTime={statement.recorded_at}>
               {clinicTime(statement.recorded_at)}
             </time>
             {statement.recorded_by
-              ? ` von ${statement.recorded_by.display_name}`
+              ? fill(t.stated.recordedBy, {
+                  name: statement.recorded_by.display_name,
+                })
               : ""}
           </div>
         </>
@@ -184,10 +173,12 @@ function Measured({
   title,
   measured,
   minimum,
+  t,
 }: {
   title: string;
   measured: PreparationMeasured;
   minimum: number;
+  t: T;
 }) {
   const shown =
     measured.median_seconds !== null &&
@@ -200,21 +191,24 @@ function Measured({
       </div>
       {shown ? (
         <>
-          <div style={figureStyle}>{elapsed(measured.median_seconds!)}</div>
+          <div style={figureStyle}>
+            {elapsed(measured.median_seconds!, t.elapsed)}
+          </div>
           <div style={{ fontSize: "12.5px", color: "var(--text-body)" }}>
-            Median vom ersten Entwurf bis zur ersten Genehmigung, die Bestand
-            hatte · {measured.reports} Berichte
+            {fill(t.measured.median, { n: measured.reports })}
           </div>
           <div style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>
-            Mittlere Hälfte der Berichte: {elapsed(measured.q1_seconds!)} bis{" "}
-            {elapsed(measured.q3_seconds!)}
+            {fill(t.measured.middleHalf, {
+              q1: elapsed(measured.q1_seconds!, t.elapsed),
+              q3: elapsed(measured.q3_seconds!, t.elapsed),
+            })}
           </div>
         </>
       ) : (
         <div style={{ fontSize: "12.5px", color: "var(--text-body)" }}>
           {measured.reports === 0
-            ? "Noch kein genehmigter Bericht in diesem Zeitraum."
-            : `Genehmigte Berichte in diesem Zeitraum: ${measured.reports}. Ein Median wird ab ${minimum} Berichten angegeben.`}
+            ? t.measured.none
+            : fill(t.measured.tooFew, { n: measured.reports, minimum })}
         </div>
       )}
     </div>
@@ -224,9 +218,13 @@ function Measured({
 export function PreparationTimeContent({
   metric,
   outcome,
+  t,
+  title,
 }: {
   metric: PreparationTime;
   outcome: Outcome;
+  t: T;
+  title: string;
 }) {
   const { baseline, latest_follow_up: followUp } = metric;
   const difference =
@@ -236,14 +234,9 @@ export function PreparationTimeContent({
 
   return (
     <div style={{ maxWidth: "1040px" }}>
-      <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>
-        Vorbereitungszeit
-      </h1>
+      <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>{title}</h1>
       <p style={{ ...leadStyle, fontSize: "13px" }}>
-        Wie lange die Vorbereitung eines Termins dauert. Diese Seite hält zwei
-        Dinge auseinander: was die Praxis selbst angibt, und was die Plattform
-        aus dem Ablauf der Berichte misst. Sie enthält keine Daten von
-        Patientinnen und Patienten. Zeiten in der Zeitzone {CLINIC_TIME_ZONE}.
+        {fill(t.lead, { zone: CLINIC_TIME_ZONE })}
       </p>
 
       {outcome.saved && (
@@ -251,7 +244,7 @@ export function PreparationTimeContent({
           role="status"
           style={{ ...leadStyle, color: "var(--text-strong)", fontWeight: 600 }}
         >
-          Die Angabe wurde gespeichert.
+          {t.saved}
         </p>
       )}
       {outcome.failure && (
@@ -259,20 +252,15 @@ export function PreparationTimeContent({
           role="alert"
           style={{ ...leadStyle, color: "var(--text-strong)", fontWeight: 600 }}
         >
-          {FAILURE_TEXT[outcome.failure]}
+          {t.failures[outcome.failure]}
         </p>
       )}
 
       <section aria-labelledby="angaben" style={{ marginBottom: "26px" }}>
         <h2 id="angaben" style={h2Style}>
-          Angaben der Praxis
+          {t.stated.title}
         </h2>
-        <p style={leadStyle}>
-          Der Median der Vorbereitungszeit je Termin, in Minuten, wie die Praxis
-          ihn angibt: der Ausgangswert vor dem Einsatz der Plattform und spätere
-          Folgeangaben. Die Plattform übernimmt diese Zahlen und prüft sie
-          nicht.
-        </p>
+        <p style={leadStyle}>{t.stated.note}</p>
         <div
           style={{
             display: "flex",
@@ -282,26 +270,31 @@ export function PreparationTimeContent({
           }}
         >
           <Stated
-            title="Ausgangswert"
+            title={t.kind.baseline}
             statement={baseline}
-            empty="Noch kein Ausgangswert erfasst."
+            empty={t.stated.noBaseline}
+            t={t}
           />
           <Stated
-            title="Letzte Folgeangabe"
+            title={t.stated.latestFollowUp}
             statement={followUp}
-            empty="Noch keine Folgeangabe erfasst."
+            empty={t.stated.noFollowUp}
+            t={t}
           />
         </div>
         {difference !== null && (
           <p style={{ ...leadStyle, color: "var(--text-body)" }}>
             {difference === 0
-              ? "Die letzte Folgeangabe entspricht dem Ausgangswert."
-              : `Die letzte Folgeangabe liegt ${Math.abs(difference)} Min. ${
-                  difference < 0 ? "unter" : "über"
-                } dem Ausgangswert.`}{" "}
-            Beide Zahlen sind Angaben der Praxis
+              ? t.stated.same
+              : fill(difference < 0 ? t.stated.below : t.stated.above, {
+                  n: Math.abs(difference),
+                })}{" "}
+            {t.stated.bothStated}
             {baseline && followUp && baseline.basis !== followUp.basis
-              ? ` – auf unterschiedlicher Grundlage (${BASIS_LABEL[baseline.basis]} und ${BASIS_LABEL[followUp.basis]}).`
+              ? fill(t.stated.differentBasis, {
+                  first: t.basis[baseline.basis],
+                  second: t.basis[followUp.basis],
+                })
               : "."}
           </p>
         )}
@@ -317,14 +310,14 @@ export function PreparationTimeContent({
           }}
         >
           <label style={labelStyle}>
-            Art der Angabe
+            {t.form.kind}
             <select name="kind" defaultValue="baseline" style={fieldStyle}>
-              <option value="baseline">Ausgangswert</option>
-              <option value="follow_up">Folgeangabe</option>
+              <option value="baseline">{t.kind.baseline}</option>
+              <option value="follow_up">{t.kind.follow_up}</option>
             </select>
           </label>
           <label style={labelStyle}>
-            Median je Termin (Minuten)
+            {t.form.median}
             <input
               name="median_minutes"
               type="number"
@@ -337,14 +330,14 @@ export function PreparationTimeContent({
             />
           </label>
           <label style={labelStyle}>
-            Grundlage
+            {t.form.basis}
             <select name="basis" defaultValue="estimate" style={fieldStyle}>
-              <option value="estimate">Schätzung</option>
-              <option value="timed_sample">Zeitmessung</option>
+              <option value="estimate">{t.basis.estimate}</option>
+              <option value="timed_sample">{t.basis.timed_sample}</option>
             </select>
           </label>
           <label style={labelStyle}>
-            Anzahl gemessener Termine (nur bei Zeitmessung)
+            {t.form.sample}
             <input
               name="sample_size"
               type="number"
@@ -364,7 +357,7 @@ export function PreparationTimeContent({
               padding: "0 16px",
             }}
           >
-            Angabe speichern
+            {t.form.save}
           </button>
           <p
             style={{
@@ -374,40 +367,38 @@ export function PreparationTimeContent({
               color: "var(--text-muted)",
             }}
           >
-            Eine gespeicherte Angabe wird nicht geändert oder gelöscht. Eine
-            Korrektur ist eine neue Angabe; die frühere bleibt im Verlauf
-            stehen.
+            {t.form.note}
           </p>
         </form>
 
         {metric.statements_total > metric.statements.length && (
           <p style={{ ...leadStyle, margin: "14px 0 0" }}>
-            Der Verlauf zeigt die neuesten {metric.statements.length} von{" "}
-            {metric.statements_total} Angaben.
+            {fill(t.history.shown, {
+              shown: metric.statements.length,
+              total: metric.statements_total,
+            })}
           </p>
         )}
         {metric.statements.length > 0 && (
           <div style={{ ...cardStyle, padding: 0, marginTop: "14px" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <caption className="sr-only">
-                Verlauf der Angaben der Praxis, neueste zuerst
-              </caption>
+              <caption className="sr-only">{t.history.caption}</caption>
               <thead>
                 <tr>
                   <th scope="col" style={{ ...thStyle, paddingLeft: "22px" }}>
-                    Erfasst am
+                    {t.history.columns.recordedAt}
                   </th>
                   <th scope="col" style={thStyle}>
-                    Art
+                    {t.history.columns.kind}
                   </th>
                   <th scope="col" style={thStyle}>
-                    Median je Termin
+                    {t.history.columns.median}
                   </th>
                   <th scope="col" style={thStyle}>
-                    Grundlage
+                    {t.history.columns.basis}
                   </th>
                   <th scope="col" style={thStyle}>
-                    Erfasst von
+                    {t.history.columns.recordedBy}
                   </th>
                 </tr>
               </thead>
@@ -422,9 +413,11 @@ export function PreparationTimeContent({
                         {clinicTime(s.recorded_at)}
                       </time>
                     </td>
-                    <td style={tdStyle}>{KIND_LABEL[s.kind]}</td>
-                    <td style={tdStyle}>{s.median_minutes} Min.</td>
-                    <td style={tdStyle}>{basisText(s)}</td>
+                    <td style={tdStyle}>{t.kind[s.kind]}</td>
+                    <td style={tdStyle}>
+                      {fill(t.minutes, { n: s.median_minutes })}
+                    </td>
+                    <td style={tdStyle}>{basisText(s, t)}</td>
                     <td style={tdStyle}>
                       {s.recorded_by?.display_name ?? "–"}
                     </td>
@@ -438,31 +431,28 @@ export function PreparationTimeContent({
 
       <section aria-labelledby="gemessen" style={{ marginBottom: "26px" }}>
         <h2 id="gemessen" style={h2Style}>
-          Gemessen aus dem Ablauf der Berichte
+          {t.measured.title}
         </h2>
-        <p style={leadStyle}>
-          Die Zeit vom ersten Entwurf eines Berichts bis zu seiner ersten
-          klinischen Genehmigung, die Bestand hatte – aus den Zeitpunkten, die
-          die Plattform dabei ohnehin festhält. Das ist Durchlaufzeit, keine
-          Arbeitszeit, und noch nicht die Vorbereitungszeit selbst.
-        </p>
+        <p style={leadStyle}>{t.measured.note}</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "14px" }}>
           <Measured
-            title="Letzte 30 Tage"
+            title={t.measured.last30}
             measured={metric.measured_last_30_days}
             minimum={metric.minimum_reports}
+            t={t}
           />
           <Measured
-            title="Alle genehmigten Berichte der Praxis"
+            title={t.measured.allTime}
             measured={metric.measured_all_time}
             minimum={metric.minimum_reports}
+            t={t}
           />
         </div>
       </section>
 
       <section aria-labelledby="grenzen">
         <h2 id="grenzen" style={h2Style}>
-          Was diese Zahlen sind – und was nicht
+          {t.limits.title}
         </h2>
         <ul
           style={{
@@ -471,41 +461,12 @@ export function PreparationTimeContent({
             paddingLeft: "18px",
           }}
         >
-          <li>
-            Die gemessene Zeit enthält jede Wartezeit zwischen Entwurf und
-            Genehmigung – auch Nächte und Wochenenden. Was vor dem Entwurf
-            geschieht (Werte sichten, Review-Einträge entscheiden,
-            Interpretation erfassen), ist nicht enthalten.
-          </li>
-          <li>
-            Sie wird deshalb nicht mit den Minuten-Angaben der Praxis
-            verrechnet: Es sind zwei verschiedene Größen. Eine Messung, die sich
-            mit dem Ausgangswert vergleichen lässt, gibt es noch nicht – die
-            Plattform hält bisher keinen Beginn der Vorbereitung fest.
-          </li>
-          <li>
-            Ein Bericht zählt einmal: mit seiner ersten Genehmigung, die nicht
-            wieder zurückgewiesen wurde. Eine Genehmigung, die bei der
-            ärztlichen Freigabe abgelehnt oder zurückgezogen wurde, beendet die
-            Messung nicht. Berichte ohne Genehmigung zählen nicht.
-          </li>
-          <li>
-            Unter {metric.minimum_reports} Berichten wird kein Median angegeben:
-            Bei so wenigen Berichten entspricht jede Zahl nahezu der Zeit eines
-            einzelnen Berichts. Das ist eine Vorsicht bei kleinen Zahlen, kein
-            Schutz einzelner Personen: Genehmigen in der Praxis nur wenige, so
-            beschreibt die Zahl auch bei vielen Berichten deren Arbeit.
-          </li>
-          <li>
-            Die Kennzahl wird bei jedem Aufruf aus den vorhandenen Berichten
-            gebildet. Wird eine Akte gelöscht, entfallen ihre Berichte auch hier
-            – eine früher abgelesene Zahl lässt sich dann nicht mehr
-            nachrechnen.
-          </li>
-          <li>
-            Das Lesen dieser Seite und jede erfasste Angabe stehen im
-            Audit-Protokoll. Stand der Messvorschrift: {metric.definition}.
-          </li>
+          <li>{t.limits.waiting}</li>
+          <li>{t.limits.notOffset}</li>
+          <li>{t.limits.countsOnce}</li>
+          <li>{fill(t.limits.minimum, { minimum: metric.minimum_reports })}</li>
+          <li>{t.limits.computed}</li>
+          <li>{fill(t.limits.audited, { definition: metric.definition })}</li>
         </ul>
       </section>
     </div>

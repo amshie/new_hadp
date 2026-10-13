@@ -359,3 +359,48 @@ test("the English of members and deletion requests, put together", () => {
     `${en.patientPage.deletion.reasons.data_minimization} · ${fill(en.deletionRequestsPage.requested, { day: "13.10.2026" })}`,
   ).toBe("Data minimisation · requested 13.10.2026");
 });
+
+// The audit trail and preparation time, as they were in German: the sentences they put
+// together from pieces and values.
+test("the German of the audit trail and preparation time, put together", () => {
+  const a = de.auditPage;
+  expect(fill(a.lead, { zone: "Europe/Berlin" })).toMatch(
+    /löscht keine\. Zeiten in der Zeitzone Europe\/Berlin\.$/,
+  );
+  expect(`${a.targetBefore} 1e230c23${a.targetAfter}`).toBe(
+    "Nur Einträge, die unter dem Datensatz 1e230c23 protokolliert sind.",
+  );
+
+  const p = de.preparationPage;
+  const e = p.elapsed;
+  expect(fill(e.minutes, { m: 12 })).toBe("12 Min.");
+  expect(fill(e.hoursMinutes, { h: 2, m: 5 })).toBe("2 Std. 5 Min.");
+  expect(fill(byCount(e.daysHours, 1), { h: 4 })).toBe("1 Tag 4 Std.");
+  expect(fill(byCount(e.daysHours, 3), { h: 4 })).toBe("3 Tage 4 Std.");
+  expect(byCount(e.days, 2)).toBe("2 Tage");
+  expect(byCount(p.timedOver, 1)).toBe("Zeitmessung über 1 Termin");
+  expect(byCount(p.timedOver, 12)).toBe("Zeitmessung über 12 Termine");
+  expect(
+    `${fill(p.stated.below, { n: 15 })} ${p.stated.bothStated}${fill(p.stated.differentBasis, { first: p.basis.estimate, second: p.basis.timed_sample })}`,
+  ).toBe(
+    "Die letzte Folgeangabe liegt 15 Min. unter dem Ausgangswert. Beide Zahlen sind Angaben der Praxis – auf unterschiedlicher Grundlage (Schätzung und Zeitmessung).",
+  );
+  expect(fill(p.measured.tooFew, { n: 3, minimum: 5 })).toBe(
+    "Genehmigte Berichte in diesem Zeitraum: 3. Ein Median wird ab 5 Berichten angegeben.",
+  );
+  expect(fill(p.history.shown, { shown: 20, total: 31 })).toBe(
+    "Der Verlauf zeigt die neuesten 20 von 31 Angaben.",
+  );
+});
+
+test("the English of the audit trail and preparation time, put together", () => {
+  expect(
+    `${en.auditPage.targetBefore} 1e230c23${en.auditPage.targetAfter}`,
+  ).toBe("Only entries recorded under the record 1e230c23.");
+  const p = en.preparationPage;
+  expect(fill(byCount(p.elapsed.daysHours, 1), { h: 4 })).toBe("1 day 4 h");
+  expect(byCount(p.timedOver, 12)).toBe("Timed sample over 12 appointments");
+  expect(`${p.stated.same} ${p.stated.bothStated}.`).toBe(
+    "The latest follow-up figure equals the baseline. Both figures are stated by the clinic.",
+  );
+});

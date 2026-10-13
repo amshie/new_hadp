@@ -2,13 +2,20 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import type { AuditCategory, AuditEvent, AuditPage } from "@/lib/api";
-import { AUDIT_CATEGORIES, actionLabel, targetLabel } from "@/lib/auditCopy";
+import { actionLabel, auditCategories, targetLabel } from "@/lib/auditCopy";
 import { CLINIC_TIME_ZONE, clinicTime } from "@/lib/clinicTime";
+import { fill } from "@/lib/i18n/fill";
+import type { Locale } from "@/lib/i18n/locales";
+import type { Messages } from "@/lib/i18n/messages";
 
 // The audit trail as a table: when, who, what, on which record, with which details. Rendered
 // on the server — a production build sends only what is shown. Filters and the paging
 // position are URL parameters the page has already validated; the filter is a plain GET form.
 // Times are on the clinic's wall clock, and say so.
+//
+// The page follows the interface language (lib/i18n): its wording comes in from the route,
+// the labels of events from lib/auditCopy.ts. Codes, identifiers, details, names and e-mail
+// addresses are shown as recorded; times keep their form.
 //
 // The links of the table and of the paging are not prefetched (the shell's navigation links
 // are, as on every page). A row carries up to two links and a page fifty rows; a prefetch asks
@@ -93,15 +100,27 @@ function href(query: AuditQuery, extra?: { cursor?: string }): string {
   return text ? `${PATH}?${text}` : PATH;
 }
 
-function detailText(value: unknown): string {
+type T = Messages["auditPage"];
+
+function detailText(value: unknown, t: T): string {
   if (value === null) return "–";
-  if (typeof value === "boolean") return value ? "ja" : "nein";
+  if (typeof value === "boolean") return value ? t.yes : t.no;
   if (typeof value === "string" || typeof value === "number")
     return String(value);
   return JSON.stringify(value);
 }
 
-function Row({ event, query }: { event: AuditEvent; query: AuditQuery }) {
+function Row({
+  event,
+  query,
+  t,
+  locale,
+}: {
+  event: AuditEvent;
+  query: AuditQuery;
+  t: T;
+  locale: Locale;
+}) {
   const details = Object.entries(event.detail);
   return (
     <tr>
@@ -119,26 +138,24 @@ function Row({ event, query }: { event: AuditEvent; query: AuditQuery }) {
             <div style={mono}>{event.actor.email}</div>
           </>
         ) : (
-          <span style={{ color: "var(--text-muted)" }}>
-            ohne angemeldete Person
-          </span>
+          <span style={{ color: "var(--text-muted)" }}>{t.noActor}</span>
         )}
       </td>
       <td style={tdStyle}>
         <div style={{ color: "var(--text-strong)" }}>
-          {actionLabel(event.action)}
+          {actionLabel(event.action, locale)}
         </div>
         <div style={mono}>{event.action}</div>
       </td>
       <td style={tdStyle}>
         {event.target_id ? (
           <>
-            <div>{targetLabel(event.target_type)}</div>
+            <div>{targetLabel(event.target_type, locale)}</div>
             <div style={mono}>
               <Link
                 href={href({ ...query, target: event.target_id })}
                 prefetch={false}
-                title="Nur Einträge zu diesem Datensatz anzeigen"
+                title={t.onlyThisTarget}
               >
                 {event.target_id.slice(0, 8)}
               </Link>
@@ -146,7 +163,7 @@ function Row({ event, query }: { event: AuditEvent; query: AuditQuery }) {
                 <>
                   {" · "}
                   <Link href={`/patients/${event.target_id}`} prefetch={false}>
-                    Akte öffnen
+                    {t.openRecord}
                   </Link>
                 </>
               )}
@@ -161,7 +178,7 @@ function Row({ event, query }: { event: AuditEvent; query: AuditQuery }) {
           ? "—"
           : details.map(([key, value]) => (
               <div key={key} style={{ overflowWrap: "anywhere" }}>
-                {key}: {detailText(value)}
+                {key}: {detailText(value, t)}
               </div>
             ))}
       </td>
@@ -174,19 +191,26 @@ export function AuditContent({
   query,
   continued,
   stalePosition,
+  t,
+  title,
+  locale,
 }: {
   page: AuditPage;
   query: AuditQuery;
   continued: boolean;
   stalePosition: boolean;
+  t: T;
+  title: string;
+  locale: Locale;
 }) {
+  const notShown = t.notShown;
   const filtered = Boolean(
     query.category || query.target || query.from || query.to || query.hideReads,
   );
 
   return (
     <div style={{ maxWidth: "1180px" }}>
-      <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>Audit-Protokoll</h1>
+      <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>{title}</h1>
       <p
         style={{
           color: "var(--text-muted)",
@@ -196,12 +220,7 @@ export function AuditContent({
           maxWidth: "92ch",
         }}
       >
-        Die protokollierten Vorgänge dieser Praxis: wer, wann, welcher Vorgang,
-        an welchem Datensatz. Ein Eintrag enthält Kennungen, Codes, Zähler und
-        Zeitpunkte – keine Messwerte und keine Namen von Patientinnen und
-        Patienten. Wer gehandelt hat, ist mit dem Namen und der E-Mail-Adresse
-        des Kontos angegeben. Die Anwendung fügt Einträge nur an; sie ändert und
-        löscht keine. Zeiten in der Zeitzone {CLINIC_TIME_ZONE}.
+        {fill(t.lead, { zone: CLINIC_TIME_ZONE })}
       </p>
       <details
         style={{
@@ -213,65 +232,18 @@ export function AuditContent({
         }}
       >
         <summary style={{ cursor: "pointer", color: "var(--text-body)" }}>
-          Was dieses Protokoll nicht zeigt
+          {notShown.title}
         </summary>
         <ul style={{ margin: "8px 0 0", paddingLeft: "18px" }}>
-          <li>
-            Vorgänge, die ohne Praxis protokolliert werden: Anmeldung und
-            Abmeldung, fehlgeschlagene Anmeldungen, gedrosselte und aus
-            Sicherheitsgründen abgewiesene Anfragen sowie Zugriffsversuche ohne
-            ausgewählte Praxis oder nach dem Ende einer Mitgliedschaft. Der
-            Eintritt in die Praxis ist protokolliert.
-          </li>
-          <li>
-            Derzeit nicht protokolliert: das Lesen eines Berichts durch
-            Mitarbeitende und das Lesen der Verwaltungslisten (Mitglieder,
-            Teameinladungen, Löschanträge, Verlauf der Datenauskünfte).
-          </li>
-          <li>
-            Abgewiesene Vorgänge sind nur zum Teil protokolliert:
-            Rollenverweigerungen, abgelehnte Einlesevorgänge und Datenauskünfte,
-            abgewiesene Einladungs- und Zugriffslinks. Andere Ablehnungen – etwa
-            eine Freigabe ohne Einwilligung oder der Aufruf einer unbekannten
-            Kennung – hinterlassen keinen Eintrag.
-          </li>
-          <li>
-            Abgewiesene Einladungs- und Zugriffslinks stehen einzeln im
-            Protokoll, bis je Vorgangsart 30 in einer Minute erreicht sind. Ein
-            Eintrag hält dann fest, dass weitere Abweisungen bis zum Ablauf
-            dieser Minute nicht mehr einzeln protokolliert werden – wie viele es
-            waren, steht nicht im Protokoll.
-          </li>
-          <li>
-            Ein Eintrag steht unter dem Datensatz, an dem er protokolliert ist.
-            Unter einer Akte stehen das Anlegen und Öffnen der Akte, das Lesen
-            von Werten, Interpretation, Einwilligungen und Dateiliste, die in
-            der Praxis dokumentierten Einwilligungen und Widerrufe und die
-            Datenauskunft. Berichte, Dateien, Einlesevorgänge, erfasste
-            Interpretationen, Review-Einträge, Einladungen und Löschanträge
-            stehen unter ihrer eigenen Kennung und erscheinen bei der Auswahl
-            einer Akte nicht; eine über eine Einladung erteilte Einwilligung
-            steht unter der Einladung.
-          </li>
-          <li>
-            Listenansichten (Aktenliste, Übersicht, Review-Queue) sind als
-            Lesezugriff protokolliert, ohne die einzelnen Akten zu nennen. Das
-            Öffnen einer Akte lädt auch die Übersicht und hinterlässt dafür
-            einen eigenen Eintrag.
-          </li>
-          <li>
-            Einträge zu einer gelöschten Akte bleiben mit der Kennung der Akte
-            erhalten.
-          </li>
-          <li>
-            Einträge, die in derselben Anfrage entstehen, tragen denselben
-            Zeitpunkt; ihre Reihenfolge untereinander ist nicht festgelegt.
-          </li>
-          <li>
-            Beim Blättern zu älteren Einträgen kann ein Eintrag fehlen, der erst
-            während des Lesens gespeichert wurde. Ein erneutes Lesen von der
-            ersten Seite an zeigt ihn.
-          </li>
+          <li>{notShown.tenantless}</li>
+          <li>{notShown.notRecorded}</li>
+          <li>{notShown.refusals}</li>
+          <li>{notShown.linkRefusals}</li>
+          <li>{notShown.byRecord}</li>
+          <li>{notShown.lists}</li>
+          <li>{notShown.erased}</li>
+          <li>{notShown.sameTime}</li>
+          <li>{notShown.paging}</li>
         </ul>
       </details>
 
@@ -291,14 +263,14 @@ export function AuditContent({
         }}
       >
         <label style={labelStyle}>
-          Bereich
+          {t.filter.category}
           <select
             name="category"
             defaultValue={query.category ?? ""}
             style={fieldStyle}
           >
-            <option value="">Alle Bereiche</option>
-            {AUDIT_CATEGORIES.map((c) => (
+            <option value="">{t.filter.allCategories}</option>
+            {auditCategories(locale).map((c) => (
               <option key={c.key} value={c.key}>
                 {c.label}
               </option>
@@ -306,7 +278,7 @@ export function AuditContent({
           </select>
         </label>
         <label style={labelStyle}>
-          Von
+          {t.filter.from}
           <input
             type="date"
             name="from"
@@ -315,7 +287,7 @@ export function AuditContent({
           />
         </label>
         <label style={labelStyle}>
-          Bis einschließlich
+          {t.filter.to}
           <input
             type="date"
             name="to"
@@ -339,7 +311,7 @@ export function AuditContent({
             value="0"
             defaultChecked={query.hideReads}
           />
-          Lesezugriffe ausblenden
+          {t.filter.hideReads}
         </label>
         {query.target && (
           <input type="hidden" name="target" value={query.target} />
@@ -356,36 +328,35 @@ export function AuditContent({
             cursor: "pointer",
           }}
         >
-          Anwenden
+          {t.filter.apply}
         </button>
         {filtered && (
           <a href={PATH} style={{ fontSize: "12.5px", lineHeight: "36px" }}>
-            Filter zurücksetzen
+            {t.filter.reset}
           </a>
         )}
       </form>
 
       {query.target && (
         <p style={noteStyle}>
-          Nur Einträge, die unter dem Datensatz{" "}
-          <span style={mono}>{query.target}</span> protokolliert sind.{" "}
+          {t.targetBefore} <span style={mono}>{query.target}</span>
+          {t.targetAfter}{" "}
           <Link href={href({ ...query, target: undefined })} prefetch={false}>
-            Alle Datensätze anzeigen
+            {t.allTargets}
           </Link>
         </p>
       )}
       {query.hideReads && (
         <p style={noteStyle}>
-          Lesezugriffe sind ausgeblendet.{" "}
+          {t.readsHidden}{" "}
           <Link href={href({ ...query, hideReads: false })} prefetch={false}>
-            Lesezugriffe einblenden
+            {t.showReads}
           </Link>
         </p>
       )}
       {stalePosition && (
         <p role="status" style={noteStyle}>
-          Die aufgerufene Position ist nicht gültig. Angezeigt werden die
-          neuesten Einträge.
+          {t.stalePosition}
         </p>
       )}
 
@@ -394,7 +365,7 @@ export function AuditContent({
         aria-labelledby="audit-heading"
       >
         <h2 id="audit-heading" className="sr-only">
-          Einträge
+          {t.entries}
         </h2>
         {page.items.length === 0 ? (
           <p
@@ -405,38 +376,42 @@ export function AuditContent({
               color: "var(--text-muted)",
             }}
           >
-            {filtered || continued
-              ? "Zu dieser Auswahl gibt es keine Einträge."
-              : "Noch keine Einträge."}
+            {filtered || continued ? t.emptyFiltered : t.empty}
           </p>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table
               style={{ width: "100%", borderCollapse: "collapse" }}
-              aria-label="Audit-Protokoll, neueste Einträge zuerst"
+              aria-label={t.tableAria}
             >
               <thead>
                 <tr>
                   <th scope="col" style={{ ...thStyle, paddingLeft: "22px" }}>
-                    Zeit
+                    {t.columns.time}
                   </th>
                   <th scope="col" style={thStyle}>
-                    Wer
+                    {t.columns.who}
                   </th>
                   <th scope="col" style={thStyle}>
-                    Vorgang
+                    {t.columns.action}
                   </th>
                   <th scope="col" style={thStyle}>
-                    Datensatz
+                    {t.columns.target}
                   </th>
                   <th scope="col" style={{ ...thStyle, paddingRight: "22px" }}>
-                    Details
+                    {t.columns.details}
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {page.items.map((event) => (
-                  <Row key={event.id} event={event} query={query} />
+                  <Row
+                    key={event.id}
+                    event={event}
+                    query={query}
+                    t={t}
+                    locale={locale}
+                  />
                 ))}
               </tbody>
             </table>
@@ -457,12 +432,12 @@ export function AuditContent({
             href={href(query, { cursor: page.next_cursor })}
             prefetch={false}
           >
-            Ältere Einträge
+            {t.older}
           </Link>
         )}
         {continued && (
           <Link href={href(query)} prefetch={false}>
-            Zu den neuesten Einträgen
+            {t.newest}
           </Link>
         )}
       </p>

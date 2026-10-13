@@ -343,6 +343,14 @@ def main() -> int:
             "de": ("Die Verwaltung von Löschanträgen ist Inhabern und der Ärztlichen Leitung",),
             "en": ("Managing deletion requests is reserved for owners and the medical director.",),
         }
+        wording["/einstellungen/audit"] = {
+            "de": ("Das Audit-Protokoll ist nur für Inhaber verfügbar.",),
+            "en": ("The audit trail is available to owners only.",),
+        }
+        wording["/einstellungen/vorbereitungszeit"] = {
+            "de": ("Die Vorbereitungszeit ist nur für Inhaber verfügbar.",),
+            "en": ("Preparation time is available to owners only.",),
+        }
         # The interpretation form: its fields are interface, what is chosen in them is not.
         wording[f"/patients/{pid}/interpretation/neu"] = {
             "de": ("Grund des Runs (Pflicht)", "Endpunkt-Adäquanz", "Bitte wählen"),
@@ -605,6 +613,17 @@ def main() -> int:
             assert r.status_code == 200, ("metric page with unknown outcome codes", r.status_code)
             assert "nicht gespeichert" not in shown(r), "an unknown code shows a failure message"
             assert "wurde gespeichert" not in shown(r), "an unknown code shows a success message"
+            # With English chosen: the same sections, in English, and none of the German.
+            english = f"hadp_session={owner_cookie['hadp_session']}; hadp_locale=en"
+            page = shown(web.get("/einstellungen/vorbereitungszeit", headers={"cookie": english}))
+            for heading in (
+                "Stated by the clinic",
+                "Measured from the course of the reports",
+                "What these figures are",
+                "not working time",
+            ):
+                assert heading in page, f"the English metric page lacks {heading!r}"
+            assert "Angaben der Praxis" not in page, "the English metric page says German"
             r = web.get("/einstellungen/audit")
             assert r.status_code == 200, (
                 "/einstellungen/audit as owner",
@@ -619,6 +638,13 @@ def main() -> int:
             rows = entries("/einstellungen/audit")
             # A colleague's entry into the clinic, named by the account that acted.
             assert "tenant.select" in rows and "Praxis ausgewählt" in rows
+            # With English chosen: the trail's frame and its labels in English, the codes as
+            # the API wrote them.
+            page = shown(web.get("/einstellungen/audit", headers={"cookie": english}))
+            assert "What this trail does not show" in page, "the English trail lacks its limits"
+            assert "Not recorded at present" in page
+            assert "Clinic selected" in page and "tenant.select" in page
+            assert "Praxis ausgewählt" not in page, "the English trail shows a German label"
             assert "clinician@demo.synthetic" in rows, "audit entries do not name who acted"
             # Every time carries its zone.
             assert re.search(r"\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}:\d{2} MES?Z", rows), "no zoned time"
@@ -672,7 +698,7 @@ def main() -> int:
     print(
         "  interface language: German by default, English by choice, on /login, the 404 page,"
         " /overview, /patients, the patient page, the review queue, the interpretation form,"
-        " the report page (in every report status checked above), members and deletion requests"
+        " the report page (in every report status checked above) and the four settings pages"
     )
     return 0
 

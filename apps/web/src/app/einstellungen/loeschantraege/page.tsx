@@ -33,7 +33,6 @@ export default async function LoeschantraegePage() {
         crumb={title}
         crumbParent={parent}
         identity={identity}
-        translated
       >
         <div style={{ maxWidth: "620px" }}>
           <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>{title}</h1>
@@ -60,7 +59,6 @@ export default async function LoeschantraegePage() {
       crumb={title}
       crumbParent={parent}
       identity={identity}
-      translated
     >
       <LoeschantraegeContent
         requests={requests}

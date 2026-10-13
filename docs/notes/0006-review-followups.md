@@ -388,7 +388,7 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   environment. Open from that review: no lockout on the gate; visitors who arrive over IPv6
   share one limiter budget; the stack is open from the server itself; the role posture of the
   database is checked by the production-shaped smoke only; nothing tells visitors apart.
-- **Interface language, German or English (2026-10-13): PARTS 1–7a of several; ADR-0007.** A person
+- **Interface language, German or English (2026-10-13): PARTS 1–7b of several; ADR-0007.** A person
   chooses under Einstellungen or on the sign-in page; the choice is a cookie on the device
   (`hadp_locale`), German without one (`apps/web/src/lib/i18n`: `messages/de.ts` is the source of
   the keys, `messages/en.ts` is typed against it; server components ask `getMessages()`, client
@@ -577,12 +577,26 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   queue, the notice a clinician gets) and signs in as the owner for it; `scripts/smoke_web.py`
   reads the clinician's notices in both languages. The check that an untranslated page says
   it is German moved to the audit trail.
+  Part 7b: the two other settings sub-pages — the audit trail and preparation time (owners),
+  with their notices. The ~60 event labels, the event families of the filter and the kinds of
+  record hold German and English side by side in `lib/auditCopy.ts` (as `lageCopy.ts` does):
+  `apps/api/tests/test_audit_read.py` still holds their keys against what the API writes, the
+  compiler holds that every label has both languages, and the test now reads the sentence of
+  what is not recorded in both dictionaries — it was checked to fail when the English drops a
+  read. On the audit page "Einlesen" is "import", since a read there is a read access. Codes,
+  identifiers, details, names and times stay as recorded; the outcome codes in the
+  preparation-time URL stay as they are. The German pages read as before: their text was
+  compared before and after the change as the owner (filtered views of the trail, the
+  preparation page with a baseline, a follow-up on another basis, a refusal and a saved
+  figure) and as a clinician; only entries the comparison itself added differed. With this,
+  every page in the dashboard shell is translated, and the shell's `translated` switch — now
+  passed by every page — is gone: the shell follows the language. The browser test reads both
+  pages in English as the owner; `scripts/smoke_web.py` reads the owner's English views and
+  the clinician's notices in both languages. The check that an untranslated page says it is
+  German moved to the page an invited colleague opens (`/team-einladung`).
   **Still German** (each marks its content `lang="de"`):
-  the two other settings sub-pages (the audit trail with its ~60 event labels, preparation
-  time), the patient-facing pages, the colleague's onboarding page (`/team-einladung`), the
-  error page, the disclaimer, and every message a server action returns except those of
-  sign-in, of the dialog to add a patient, of the patient page, of the review queue, of the
-  interpretation form, of the report pages, of members and of deletion requests. All date and number
+  the patient-facing pages, the colleague's onboarding page (`/team-einladung`), the error
+  page, the disclaimer, and the messages of their server actions. All date and number
   formats are `de-DE`, written out in about twenty places. The settings page says what is done
   while that is true — widen that sentence (`language.progress`) with every part and remove it
   with the last page.
