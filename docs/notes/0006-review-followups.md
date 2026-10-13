@@ -382,23 +382,38 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   environment. Open from that review: no lockout on the gate; visitors who arrive over IPv6
   share one limiter budget; the stack is open from the server itself; the role posture of the
   database is checked by the production-shaped smoke only; nothing tells visitors apart.
-- **Interface language, German or English (2026-10-13): PART 1 of several.** A person chooses
-  under Einstellungen; the choice is a cookie on the device (`hadp_locale`), German without one
-  (`apps/web/src/lib/i18n`: `messages/de.ts` is the source of the keys, `messages/en.ts` is typed
-  against it; server components ask `getMessages()`, client components `useI18n()`). Done: the
-  navigation shell, sign-in, the settings index, the not-found page; `apps/web/e2e/language.spec.ts`.
-  **Still German, page by page to follow:** overview, patients, the patient page (laboratory
-  upload, consent, data export), review queue, interpretation, report review, the four settings
-  sub-pages (members, deletion requests, audit trail with its ~60 event labels, preparation
-  time), the patient-facing pages, every message a server action returns, and all date and
-  number formats (`de-DE` is written out in many places; `FORMAT_LOCALE` exists and is used
-  nowhere yet). The settings page says so while it is true — remove that sentence
-  (`language.progress`) with the last page.
-  Decisions this raises: the English names of the closed vocabularies (CIS, Actionability,
-  tri-state, rejection reasons) must be the doctrine's own terms and need the medical director's
-  confirmation before the review pages are translated (register row); report CONTENT stays in
-  the language it was written in — an English interface shows a German report; whether the
-  patient-facing pages follow a patient's language is undecided; the choice is per device, not
-  per account (two people on one browser share it).
+- **Interface language, German or English (2026-10-13): PART 1 of several; ADR-0007.** A person
+  chooses under Einstellungen or on the sign-in page; the choice is a cookie on the device
+  (`hadp_locale`), German without one (`apps/web/src/lib/i18n`: `messages/de.ts` is the source of
+  the keys, `messages/en.ts` is typed against it; server components ask `getMessages()`, client
+  components `useI18n()`, and only the chosen language reaches the browser).
+  Done: both navigation shells (`VitaShell`, `AppShell`), sign-in with its two messages, the
+  settings overview, the not-found page; `apps/web/e2e/language.spec.ts`, and three browserless
+  checks in `scripts/smoke_web.py`.
+  **Still German** (each marks its content `lang="de"`): overview, patients and the dialog to
+  add one, the patient page (laboratory upload, consent, data export), review queue,
+  interpretation, report review, the four settings sub-pages (members, deletion requests, the
+  audit trail with its ~60 event labels, preparation time), the patient-facing pages, the
+  colleague's onboarding page (`/team-einladung`), the error page, the disclaimer, the toasts,
+  and every message a server action returns except the two of sign-in. All date and number
+  formats are `de-DE`, written out in about twenty places. The settings page says what is done
+  while that is true — widen that sentence (`language.progress`) with every part and remove it
+  with the last page.
+  From the independent review, taken: a page that is still German says so (the document's
+  language followed the choice while the content did not — a screen reader would have read
+  German with English sounds); the second shell is translated and the on-screen sentence says
+  exactly what is done; only the chosen language is sent to the browser, and a component
+  outside the provider fails instead of showing German; one `Locale` type; the role's name has
+  one German source less; the tests use the one role whose name differs between the languages,
+  both the scripted and the script-less submit, a link of the shell, and the cookie's
+  attributes; the language can be chosen on the sign-in page.
+  Decisions this raises (ADR-0007, register row): the English names of the closed vocabularies
+  (CIS, Actionability, tri-state, rejection reasons) must be the doctrine's own terms and need
+  the medical director's confirmation before the review pages are translated; whether numbers
+  and dates follow the interface; consent wording is versioned text, not interface; whether the
+  patient-facing pages follow a patient's language; the choice is per device, not per account.
+  Known and left: the cookie is not renewed (after a year the interface is German again); a
+  dark-theme reader's first paint shows the wrong icon of the theme switch for an instant
+  (older than this change).
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

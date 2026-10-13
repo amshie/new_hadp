@@ -9,9 +9,9 @@
 // Keys mirror the backend ReferencePosition (and the planned RuleResultReason enum), so when the
 // 0009 rules engine lands the UI sources the label from a recorded rule-evaluation with no rewrite.
 
-import type { ReferencePosition } from "@/lib/referencePosition";
+import type { Locale } from "@/lib/i18n/locales";
 
-type Locale = "de" | "en";
+import type { ReferencePosition } from "@/lib/referencePosition";
 
 export interface LageLabel {
   glyph: string; // ↑ ↓ – ⊘ — paired with the word; meaning is never carried by colour alone

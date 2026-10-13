@@ -71,7 +71,7 @@ generates random secrets for the run, boots the stack, checks it, and tears it d
 - `/api/v1/health` answers in production mode with HSTS; `/api/v1/auth/dev-login` answers 404;
   an unknown session is refused after a database lookup; the API reaches Redis and its bucket;
 - the web app's `/login` answers 200 with every security header of `next.config.mjs`, says
-  that no sign-in is set up, and shows no form;
+  that no sign-in is set up, and offers no field to type into;
 - a patient view sent through the web server with a forwarded address is counted by the API
   under the address a proxy would have named — not under the web server's, and not under what
   the client wrote into the header itself;

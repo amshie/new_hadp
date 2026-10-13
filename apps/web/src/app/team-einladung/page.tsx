@@ -17,6 +17,7 @@ export default async function TeamEinladungPage({
 
   return (
     <main
+      lang="de"
       style={{
         maxWidth: "560px",
         margin: "0 auto",

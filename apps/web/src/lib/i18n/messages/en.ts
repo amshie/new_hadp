@@ -18,6 +18,8 @@ export const en: Messages = {
     signOut: "Sign out",
     clinic: "Clinic: ",
     toggleTheme: "Switch theme",
+    skipLink: "Skip to main content",
+    brandAria: "HADP overview",
   },
   roles: {
     owner: "Owner",
@@ -27,13 +29,13 @@ export const en: Messages = {
   },
   meta: {
     description:
-      "Clinical, source-bound workspace — human review before every release.",
+      "Clinical, source-grounded workspace — human review before every release.",
   },
   login: {
     homeAria: "HADP home",
     kicker: "Clinical workspace",
     title: "Understand health data. Document decisions traceably.",
-    lead: "A calm, source-bound workspace for longevity and preventive-care clinics – with human review before every release.",
+    lead: "A calm, source-grounded workspace for longevity and preventive-care clinics – with human review before every release.",
     trustAria: "About this environment",
     sessionsLimited: "Sessions are time-limited",
     audited: "Access and changes are recorded for the audit trail",
@@ -75,7 +77,7 @@ export const en: Messages = {
     },
     deletionRequests: {
       title: "Deletion requests",
-      desc: "Review and carry out requests to delete a patient record (four-eyes principle).",
+      desc: "Review and carry out requests to delete a patient record (two-person approval).",
     },
     auditTrail: {
       title: "Audit trail",
@@ -83,14 +85,14 @@ export const en: Messages = {
     },
     preparationTime: {
       title: "Preparation time",
-      desc: "Record the clinic's baseline and follow-up statements, and view the measured turnaround time of reports.",
+      desc: "Record the clinic's baseline and its later figures, and view the measured turnaround time of reports.",
     },
   },
   language: {
     title: "Language",
-    note: "The language of the interface on this device. Content such as reports, laboratory values and names stays in the language it was recorded in.",
+    note: "The language of the interface on this device. Content such as reports, laboratory terms and names stays in the language it was recorded in.",
     progress:
-      "English is being added page by page: navigation, sign-in and settings are done; the other pages are shown in German for now.",
+      "English is being added page by page: the navigation, sign-in and this settings overview are done; all other pages are shown in German for now.",
     selected: "selected",
     choose: "Interface language",
   },

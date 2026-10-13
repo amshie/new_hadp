@@ -240,7 +240,11 @@ compose exec -T web node -e '
   if (/unsafe-eval|ws:/.test(csp)) problems.push("the development content security policy");
   // Production mode has no sign-in: the page must say so and offer no form.
   if (!html.includes("Anmeldung nicht eingerichtet")) problems.push("no \"not set up\" notice");
-  if (/<form|type="email"|type="password"/.test(html)) problems.push("a sign-in form is shown");
+  // Nothing to type into. (The language choice on this page is a form of two buttons; the
+  // only inputs it brings are hidden ones.)
+  if (/<input(?![^>]*type="hidden")|<textarea|type="email"|type="password"/.test(html)) {
+    problems.push("a sign-in field is shown");
+  }
   if (problems.length) {
     console.error(problems.join("\n"));
     process.exit(1);
@@ -248,7 +252,7 @@ compose exec -T web node -e '
 })();
 ' || fail "web /login"
 ok "GET /login: 200 with every security header of next.config.mjs (production policy)"
-ok "the login page says that no sign-in is set up, and shows no form"
+ok "the login page says that no sign-in is set up, and offers no field to type into"
 
 echo "--- client address (for the limits that count per address) ---"
 # Sent the way a proxy in front of the web server would pass a request on: what the client

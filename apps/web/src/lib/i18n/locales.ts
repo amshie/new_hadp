@@ -15,10 +15,3 @@ export function isLocale(value: unknown): value is Locale {
     typeof value === "string" && (LOCALES as readonly string[]).includes(value)
   );
 }
-
-// The locale handed to date and number formatting. English readers in the pilot's region
-// write the day before the month.
-export const FORMAT_LOCALE: Record<Locale, string> = {
-  de: "de-DE",
-  en: "en-GB",
-};

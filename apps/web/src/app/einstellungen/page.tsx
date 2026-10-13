@@ -52,7 +52,12 @@ export default async function EinstellungenPage() {
   }));
 
   return (
-    <VitaShell nav="einstellungen" crumb={t.title} identity={identity}>
+    <VitaShell
+      nav="einstellungen"
+      crumb={t.title}
+      identity={identity}
+      translated
+    >
       <div style={{ maxWidth: "820px" }}>
         <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>{t.title}</h1>
         <p

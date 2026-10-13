@@ -5,7 +5,7 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 
 import { signOut } from "@/app/login/actions";
 import { useI18n } from "@/lib/i18n/I18nProvider";
-import { initialsOf, type ShellIdentity } from "@/lib/identity";
+import { initialsOf, roleName, type ShellIdentity } from "@/lib/identity";
 
 // VitaBahn dashboard shell (ADR-0005): sidebar + topbar + theme toggle, a faithful
 // port of the Claude Design comp's chrome. Wraps the /overview, /patients and
@@ -86,20 +86,23 @@ export function VitaShell({
   crumb,
   crumbParent,
   identity,
+  translated = false,
   children,
 }: {
   nav: NavKey;
   crumb: string;
   crumbParent?: { label: string; href: string };
   identity?: ShellIdentity | null;
+  // Whether the page inside (and the crumbs it names) follows the interface language. The
+  // pages are translated one after another: until a page is, what it shows is German, and
+  // says so — a screen reader would otherwise read German with another language's sounds.
+  translated?: boolean;
   children: ReactNode;
 }) {
   const { t } = useI18n();
   const personName = identity?.name ?? "—";
-  // The role in the interface language; a role this wording does not know, as the API names it.
-  const roleNames: Record<string, string> = t.roles;
-  const personRole =
-    (identity?.role && roleNames[identity.role]) ?? identity?.roleLabel ?? "—";
+  const personRole = roleName(t.roles, identity?.role);
+  const contentLang = translated ? undefined : "de";
   const clinicName = identity?.tenantName ?? "—";
   const personInitials = initialsOf(personName);
   // Lazy-init from localStorage so a returning dark-mode user doesn't get a light flash on
@@ -448,6 +451,7 @@ export function VitaShell({
                 <Link
                   href={crumbParent.href}
                   className="vb-crumblink"
+                  lang={contentLang}
                   style={{
                     color: "var(--text-muted)",
                     cursor: "pointer",
@@ -461,7 +465,10 @@ export function VitaShell({
                 </span>
               </>
             )}
-            <span style={{ color: "var(--text-strong)", fontWeight: 600 }}>
+            <span
+              lang={contentLang}
+              style={{ color: "var(--text-strong)", fontWeight: 600 }}
+            >
               {crumb}
             </span>
           </div>
@@ -619,6 +626,7 @@ export function VitaShell({
 
         <div style={{ flex: 1, overflowY: "auto" }}>
           <div
+            lang={contentLang}
             style={{
               maxWidth: "1340px",
               margin: "0 auto",

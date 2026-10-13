@@ -161,7 +161,32 @@ def assert_client_address_is_passed_on() -> None:
     )
 
 
+def assert_interface_language() -> None:
+    """German without a choice, English for a device that chose it (apps/web/src/lib/i18n).
+
+    The choice is a cookie; a value that names no offered language counts as no choice.
+    """
+
+    def page(path: str, choice: str | None) -> httpx.Response:
+        headers = {"cookie": f"hadp_locale={choice}"} if choice else {}
+        with httpx.Client(base_url=WEB, timeout=60.0, follow_redirects=False) as device:
+            return device.get(path, headers=headers)
+
+    r = page("/login", "en")
+    assert '<html lang="en"' in r.text, "/login does not name English as its language"
+    assert "Clinical access" in r.text and "Klinischer Zugang" not in r.text, "/login in English"
+    r = page("/this-route-does-not-exist", "en")
+    assert r.status_code == 404 and "Page not found" in r.text, "the not-found page in English"
+    for choice in (None, "fr", "EN"):
+        r = page("/login", choice)
+        assert '<html lang="de"' in r.text and "Klinischer Zugang" in r.text, (
+            "/login is not German for a device without a valid choice",
+            choice,
+        )
+
+
 def main() -> int:
+    assert_interface_language()
     # Unauthenticated: deny-by-default guards + retired-route redirect + 404 boundary.
     with httpx.Client(base_url=WEB, timeout=60.0, follow_redirects=False) as web:
         r = web.get("/login")
@@ -498,6 +523,7 @@ def main() -> int:
     print(f"  report status wording checked for: {', '.join(checked)}")
     forwarding = "checked" if CHECK_FORWARDING else "not checked (WEB_SMOKE_FORWARDED is unset)"
     print(f"  client address passed on to the API: {forwarding}")
+    print("  interface language: German by default, English by choice, on /login and the 404 page")
     return 0
 
 

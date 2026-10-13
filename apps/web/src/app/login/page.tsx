@@ -1,6 +1,9 @@
+import { setLocaleBeforeSignIn } from "@/app/einstellungen/actions";
 import { Icon } from "@/components/Icon";
 import { signInMode } from "@/lib/api";
-import { getMessages } from "@/lib/i18n/server";
+import { LOCALES } from "@/lib/i18n/locales";
+import { LANGUAGE_NAMES } from "@/lib/i18n/messages";
+import { getLocale, getMessages } from "@/lib/i18n/server";
 
 import { SignInForm } from "./SignInForm";
 
@@ -12,7 +15,9 @@ export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
   const mode = await signInMode();
-  const t = (await getMessages()).login;
+  const locale = await getLocale();
+  const messages = await getMessages();
+  const t = messages.login;
 
   return (
     <main className="auth-page">
@@ -87,6 +92,39 @@ export default async function LoginPage() {
                 </a>
               </>
             )}
+
+            {/* The language can be chosen before signing in, too: an English reader's first
+                screen is this one. The same choice as under Einstellungen. */}
+            <form
+              action={setLocaleBeforeSignIn}
+              role="group"
+              aria-label={messages.language.choose}
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: "8px",
+                marginTop: "18px",
+              }}
+            >
+              {LOCALES.map((option) => (
+                <button
+                  key={option}
+                  type="submit"
+                  name="locale"
+                  value={option}
+                  lang={option}
+                  aria-pressed={option === locale}
+                  className="btn btn-secondary btn-sm"
+                  style={
+                    option === locale
+                      ? { fontWeight: 700 }
+                      : { fontWeight: 400 }
+                  }
+                >
+                  {LANGUAGE_NAMES[option]}
+                </button>
+              ))}
+            </form>
 
             <div className="auth-legal">© {new Date().getFullYear()} HADP</div>
           </div>

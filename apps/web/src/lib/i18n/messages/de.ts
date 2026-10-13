@@ -15,6 +15,8 @@ export const de = {
     signOut: "Abmelden",
     clinic: "Mandant: ",
     toggleTheme: "Theme wechseln",
+    skipLink: "Zum Hauptinhalt springen",
+    brandAria: "HADP Übersicht",
   },
   roles: {
     owner: "Inhaber",
@@ -86,10 +88,10 @@ export const de = {
   },
   language: {
     title: "Sprache",
-    note: "Die Sprache der Oberfläche auf diesem Gerät. Inhalte wie Berichte, Laborwerte und Namen bleiben in der Sprache, in der sie erfasst wurden.",
-    // To be removed when the last page is done.
+    note: "Die Sprache der Oberfläche auf diesem Gerät. Inhalte wie Berichte, Bezeichnungen aus dem Labor und Namen bleiben in der Sprache, in der sie erfasst wurden.",
+    // Says exactly what is done. To be widened with every part, and removed with the last page.
     progress:
-      "Englisch wird Seite für Seite ergänzt: Navigation, Anmeldung und Einstellungen sind umgestellt, die übrigen Seiten erscheinen vorerst auf Deutsch.",
+      "Englisch wird Seite für Seite ergänzt: die Navigation, die Anmeldung und diese Übersicht der Einstellungen sind umgestellt; alle übrigen Seiten erscheinen vorerst auf Deutsch.",
     selected: "ausgewählt",
     choose: "Sprache der Oberfläche",
   },
