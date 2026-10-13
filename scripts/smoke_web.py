@@ -304,7 +304,15 @@ def main() -> int:
             "de": ("Datenlage", "Labordaten", "Audit-Status", "Zurück zu Patienten"),
             "en": ("Data coverage", "Laboratory data", "Audit status", "Back to patients"),
         }
-        as_recorded = ("Freigabe geprüfter Berichte", "Metabolisch")
+        # The interpretation form: its fields are interface, what is chosen in them is not.
+        wording[f"/patients/{pid}/interpretation/neu"] = {
+            "de": ("Grund des Runs (Pflicht)", "Endpunkt-Adäquanz", "Bitte wählen"),
+            "en": ("Reason for the run (required)", "Endpoint adequacy", "Please choose"),
+        }
+        as_recorded = {
+            f"/patients/{pid}": ("Freigabe geprüfter Berichte", "Metabolisch"),
+            f"/patients/{pid}/interpretation/neu": ("Metabolisch", "Biologisch", "adäquat"),
+        }
         for path, words in wording.items():
             for language, other in (("de", "en"), ("en", "de")):
                 cookie = f"hadp_session={session}"
@@ -315,9 +323,8 @@ def main() -> int:
                     assert word in page, f"{path} ({language}) does not say {word!r}"
                 for word in words[other]:
                     assert word not in page, f"{path} ({language}) says {word!r}"
-                if path == f"/patients/{pid}":
-                    for word in as_recorded:
-                        assert word in page, f"{path} ({language}) lost {word!r}"
+                for word in as_recorded.get(path, ()):
+                    assert word in page, f"{path} ({language}) lost {word!r}"
 
         r = web.get(f"/patients/{pid}")
         assert r.status_code == 200, ("/patients/[id] authed", r.status_code)
@@ -600,7 +607,7 @@ def main() -> int:
     print(f"  client address passed on to the API: {forwarding}")
     print(
         "  interface language: German by default, English by choice, on /login, the 404 page,"
-        " /overview, /patients, the patient page and the review queue"
+        " /overview, /patients, the patient page, the review queue and the interpretation form"
     )
     return 0
 

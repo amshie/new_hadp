@@ -522,6 +522,81 @@ test("the patient page follows the choice; what is not interface stays German an
   });
 });
 
+test("the interpretation form follows the choice; what is chosen in it stays German and says so", async ({
+  browser,
+  baseURL,
+}) => {
+  await asStaff(browser, "clinician", async (page) => {
+    await page
+      .context()
+      .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
+    const languageOf = (part: Locator) =>
+      part.evaluate((element) =>
+        element.closest("[lang]")?.getAttribute("lang"),
+      );
+
+    // From the seeded patient's page, which has a run: the form opens as a correction.
+    await page.goto("/patients");
+    const row = page.getByRole("button", {
+      name: /^Open patient .*, SYN-0001$/,
+    });
+    await hydrated(row);
+    await row.click();
+    await expect(page).toHaveURL(/\/patients\/[0-9a-f-]{36}$/);
+    await page.getByRole("button", { name: "Record interpretation" }).click();
+    await expect(page).toHaveURL(/\/interpretation\/neu$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    const heading = page.getByRole("heading", {
+      level: 1,
+      name: /^Record correction run \(after run #\d+\)$/,
+    });
+    await expect(heading).toBeVisible();
+    expect(await languageOf(heading)).toBe("en");
+    const body = page.locator("body");
+    await expect(body).toContainText(
+      "The system validates and records your entries; it derives nothing.",
+    );
+    await expect(body).not.toContainText("Bitte wählen");
+
+    // The fields are named in English; a domain's name and every value to choose stay German.
+    const domain = page.getByRole("region", { name: "Metabolisch" });
+    for (const field of ["CIS", "Actionability", "Follow-up adequacy"]) {
+      await expect(
+        domain.getByRole("combobox", { name: field, exact: true }),
+      ).toBeVisible();
+    }
+    expect(await languageOf(domain.getByRole("heading", { level: 2 }))).toBe(
+      "de",
+    );
+    const choices = domain.locator("option:not([value=''])");
+    expect(await choices.count()).toBeGreaterThan(0);
+    for (const choice of await choices.all()) {
+      expect(await languageOf(choice)).toBe("de");
+    }
+    const biological = domain.getByRole("group", { name: /^Biologisch/ });
+    await expect(biological).toContainText("(verdict-free)");
+    await expect(
+      biological.getByRole("combobox", { name: "State", exact: true }),
+    ).toBeVisible();
+    await expect(
+      biological.getByRole("combobox", {
+        name: "Endpoint adequacy",
+        exact: true,
+      }),
+    ).toBeVisible();
+
+    // What the form says before anything is sent is English as well. Nothing is recorded.
+    const submit = page.getByRole("button", {
+      name: "Record run (append-only)",
+    });
+    await hydrated(submit);
+    await submit.click();
+    await expect(page.getByRole("main").getByRole("alert")).toHaveText(
+      "Please give a reason for the run.",
+    );
+  });
+});
+
 test("the choice works before the page is hydrated, too", async ({
   browser,
 }) => {
