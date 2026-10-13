@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit && tsc --noEmit -p e2e/tsconfig.json",
+    "lint": "eslint . --max-warnings 0",
     "test:e2e": "playwright test"
   },
   "dependencies": {
@@ -19,12 +20,17 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "9.39.5",
     "@hadp/api-client": "workspace:*",
     "@playwright/test": "1.61.0",
     "@types/node": "^22.5.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "eslint": "9.39.5",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react-hooks": "5.2.0",
     "playwright": "^1.61.0",
-    "typescript": "5.6.3"
+    "typescript": "5.6.3",
+    "typescript-eslint": "8.70.1"
   }
 }
