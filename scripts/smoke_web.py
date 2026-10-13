@@ -257,9 +257,21 @@ def main() -> int:
         # Every navigation entry leads somewhere: the four real destinations, nothing else.
         assert_nav("/overview", r.text, "vb-nav")
 
+        assert "Klinische Arbeitsliste" in r.text, "/overview is not German without a choice"
+
         r = web.get("/patients")
         assert r.status_code == 200, ("/patients authed", r.status_code)
         assert_no_mock_ui("/patients", r.text)
+        assert "Patientenverzeichnis" in r.text, "/patients is not German without a choice"
+
+        # The two pages in English, for a device that chose it (the pages translated so far).
+        for path, english, german in (
+            ("/overview", "Clinical work list", "Klinische Arbeitsliste"),
+            ("/patients", "Patient directory", "Patientenverzeichnis"),
+        ):
+            r = web.get(path, headers={"cookie": f"hadp_session={session}; hadp_locale=en"})
+            assert r.status_code == 200, (path, "in English", r.status_code)
+            assert english in r.text and german not in r.text, f"{path} is not English by choice"
 
         r = web.get(f"/patients/{pid}")
         assert r.status_code == 200, ("/patients/[id] authed", r.status_code)
@@ -523,7 +535,10 @@ def main() -> int:
     print(f"  report status wording checked for: {', '.join(checked)}")
     forwarding = "checked" if CHECK_FORWARDING else "not checked (WEB_SMOKE_FORWARDED is unset)"
     print(f"  client address passed on to the API: {forwarding}")
-    print("  interface language: German by default, English by choice, on /login and the 404 page")
+    print(
+        "  interface language: German by default, English by choice, on /login, the 404 page,"
+        " /overview and /patients"
+    )
     return 0
 
 

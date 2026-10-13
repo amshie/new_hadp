@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { AddPatientDialog } from "@/components/vitabahn/AddPatientDialog";
 import { clickable } from "@/components/vitabahn/interactive";
+import { byCount, fill } from "@/lib/i18n/fill";
+import { useI18n } from "@/lib/i18n/I18nProvider";
 import type {
   DirectoryView,
   DirectoryRowView,
@@ -33,31 +35,32 @@ const colLabel: CSSProperties = {
   fontWeight: 500,
 };
 
-const GATED = (
-  <span
-    title="Kein zugelassener Echtdaten-Indikator (ADR-0006)"
-    style={{
-      fontFamily: "var(--font-mono)",
-      fontSize: "11px",
-      color: "var(--text-faint)",
-    }}
-  >
-    n. v.
-  </span>
-);
+// A column that is kept visible and has no value: no approved source exists for it (ADR-0006).
+function Gated() {
+  const t = useI18n().t.patients;
+  return (
+    <span
+      title={t.gatedTitle}
+      style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: "11px",
+        color: "var(--text-faint)",
+      }}
+    >
+      {t.notAvailable}
+    </span>
+  );
+}
 
-const TABS: { key: string; label: string }[] = [
-  { key: "alle", label: "Alle" },
-  { key: "offen", label: "Offene Reviews" },
-  { key: "freigegeben", label: "Freigegeben" },
-  { key: "ohne", label: "Ohne Bericht" },
-];
+// The tabs of the directory, by the group a patient's latest report is in (never by its
+// label, which differs by language).
+type TabKey = "all" | "open" | "released" | "none";
+const TABS: TabKey[] = ["all", "open", "released", "none"];
 
-function rowGroup(r: DirectoryRowView): string {
-  if (r.statusLabel === "In Prüfung") return "offen";
-  if (r.statusLabel === "Freigegeben") return "freigegeben";
-  if (r.statusLabel === "Kein Entwurf") return "ohne";
-  return "andere";
+function inTab(r: DirectoryRowView, tab: TabKey): boolean {
+  if (tab === "all") return true;
+  if (tab === "open") return r.group === "review";
+  return r.group === tab;
 }
 
 export function PatientsContent({
@@ -68,16 +71,16 @@ export function PatientsContent({
   tenantName: string;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState("alle");
+  const t = useI18n().t.patients;
+  const [tab, setTab] = useState<TabKey>("all");
   const [term, setTerm] = useState("");
 
-  const counts = useMemo(
+  const counts: Record<TabKey, number> = useMemo(
     () => ({
-      alle: view.rows.length,
-      offen: view.rows.filter((r) => rowGroup(r) === "offen").length,
-      freigegeben: view.rows.filter((r) => rowGroup(r) === "freigegeben")
-        .length,
-      ohne: view.rows.filter((r) => rowGroup(r) === "ohne").length,
+      all: view.rows.length,
+      open: view.rows.filter((r) => inTab(r, "open")).length,
+      released: view.rows.filter((r) => inTab(r, "released")).length,
+      none: view.rows.filter((r) => inTab(r, "none")).length,
     }),
     [view.rows],
   );
@@ -85,32 +88,31 @@ export function PatientsContent({
   const visible = useMemo(() => {
     const q = term.toLowerCase();
     return view.rows.filter((r) => {
-      const matchTab = tab === "alle" || rowGroup(r) === tab;
       const hay = `${r.name} ${r.ref}`.toLowerCase();
-      return matchTab && hay.includes(q);
+      return inTab(r, tab) && hay.includes(q);
     });
   }, [view.rows, tab, term]);
 
   const chips: { value: ReactNode; label: string; help: string }[] = [
     {
       value: view.total,
-      label: "Gesamt",
-      help: "Im Mandanten · RLS-geschützt",
+      label: t.chips.total.label,
+      help: t.chips.total.help,
     },
     {
       value: view.withReport,
-      label: "Mit Bericht",
-      help: "Mindestens ein Berichtsentwurf",
+      label: t.chips.withReport.label,
+      help: t.chips.withReport.help,
     },
     {
       value: view.openAssessments,
-      label: "Offene Assessments",
-      help: "Klinische Prüfung ausstehend",
+      label: t.chips.open.label,
+      help: t.chips.open.help,
     },
     {
-      value: "n. v.",
-      label: "Ø Datenqualität",
-      help: "Kein Datenqualitätsmodell (Gate G1)",
+      value: t.notAvailable,
+      label: t.chips.quality.label,
+      help: t.chips.quality.help,
     },
   ];
 
@@ -162,7 +164,7 @@ export function PatientsContent({
               marginBottom: "10px",
             }}
           >
-            Mandant · {tenantName}
+            {fill(t.kicker, { clinic: tenantName })}
           </div>
           <h1
             style={{
@@ -175,7 +177,7 @@ export function PatientsContent({
               lineHeight: 1.05,
             }}
           >
-            Patienten
+            {t.title}
           </h1>
           <p
             style={{
@@ -187,13 +189,15 @@ export function PatientsContent({
             }}
           >
             <span style={{ color: "var(--text-strong)", fontWeight: 600 }}>
-              {view.total} {view.total === 1 ? "Patientin" : "Patienten"}
+              {byCount(t.count, view.total)}
             </span>{" "}
-            · tenant-bezogen, RLS-geschützt · pseudonymisierte, synthetische
-            Beispieldaten.
+            {t.lead}
           </p>
         </div>
-        <AddPatientDialog />
+        {/* The dialog to add a patient is not translated yet. */}
+        <span lang="de">
+          <AddPatientDialog />
+        </span>
       </div>
 
       {/* stat chips */}
@@ -253,7 +257,7 @@ export function PatientsContent({
               letterSpacing: "-0.01em",
             }}
           >
-            Patientenverzeichnis
+            {t.directory.title}
           </h3>
           <p
             style={{
@@ -262,10 +266,7 @@ export function PatientsContent({
               margin: "0 0 16px",
             }}
           >
-            Pseudonymisiert · keine automatische Diagnose oder
-            Therapieempfehlung. Risiko- und Datenqualitäts-Spalten sind in der
-            Echtdaten-Ansicht deaktiviert (kein zugelassener Quell-/Modellwert —
-            ADR-0006).
+            {t.directory.note}
           </p>
           {view.rows.length > 0 && (
             <div
@@ -279,19 +280,17 @@ export function PatientsContent({
               }}
             >
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                {TABS.map((t) => {
-                  const active = tab === t.key;
+                {TABS.map((key) => {
+                  const active = tab === key;
                   return (
                     <button
-                      key={t.key}
+                      key={key}
                       type="button"
-                      onClick={() => setTab(t.key)}
+                      onClick={() => setTab(key)}
                       style={tabBtn(active)}
                     >
-                      {t.label}{" "}
-                      <span style={tabBadge(active)}>
-                        {counts[t.key as keyof typeof counts] ?? 0}
-                      </span>
+                      {t.tabs[key]}{" "}
+                      <span style={tabBadge(active)}>{counts[key]}</span>
                     </button>
                   );
                 })}
@@ -326,10 +325,10 @@ export function PatientsContent({
                 <input
                   className="vb-input"
                   type="text"
-                  aria-label="Patient oder ID suchen"
+                  aria-label={t.search}
                   value={term}
                   onChange={(e) => setTerm(e.target.value)}
-                  placeholder="Patient oder ID suchen"
+                  placeholder={t.search}
                   style={{
                     height: "36px",
                     width: "220px",
@@ -388,7 +387,7 @@ export function PatientsContent({
                 marginBottom: "6px",
               }}
             >
-              Noch keine Patientinnen und Patienten angelegt
+              {t.emptyTitle}
             </div>
             <p
               style={{
@@ -399,8 +398,7 @@ export function PatientsContent({
                 lineHeight: 1.55,
               }}
             >
-              Legen Sie die erste Akte an — geführt in drei Schritten, mit
-              Duplikatprüfung und dokumentierter Einwilligung.
+              {t.emptyNote}
             </p>
             <AddPatientDialog
               trigger={(open) => (
@@ -423,7 +421,7 @@ export function PatientsContent({
                     cursor: "pointer",
                   }}
                 >
-                  Erste Akte anlegen
+                  {t.firstRecord}
                 </button>
               )}
             />
@@ -442,12 +440,12 @@ export function PatientsContent({
                   marginTop: "14px",
                 }}
               >
-                <span style={colLabel}>Patient</span>
-                <span style={colLabel}>Alter</span>
-                <span style={colLabel}>Risiko</span>
-                <span style={colLabel}>Datenqualität</span>
-                <span style={colLabel}>Letztes Assessment</span>
-                <span style={colLabel}>Status</span>
+                <span style={colLabel}>{t.columns.patient}</span>
+                <span style={colLabel}>{t.columns.age}</span>
+                <span style={colLabel}>{t.columns.risk}</span>
+                <span style={colLabel}>{t.columns.quality}</span>
+                <span style={colLabel}>{t.columns.lastAssessment}</span>
+                <span style={colLabel}>{t.columns.status}</span>
               </div>
               {visible.map((p) => {
                 const sm = p.statusBadge;
@@ -457,7 +455,7 @@ export function PatientsContent({
                     className="vb-row"
                     {...clickable(
                       () => router.push(`/patients/${p.patientId}`),
-                      `Patient ${p.name}, ${p.ref} öffnen`,
+                      fill(t.openRow, { name: p.name, ref: p.ref }),
                     )}
                     style={{
                       display: "grid",
@@ -529,8 +527,12 @@ export function PatientsContent({
                     >
                       {p.age}
                     </div>
-                    <div>{GATED}</div>
-                    <div>{GATED}</div>
+                    <div>
+                      <Gated />
+                    </div>
+                    <div>
+                      <Gated />
+                    </div>
                     <div
                       style={{
                         fontFamily: "var(--font-mono)",
@@ -571,10 +573,10 @@ export function PatientsContent({
                       marginBottom: "6px",
                     }}
                   >
-                    Keine Patienten in dieser Ansicht
+                    {t.noneTitle}
                   </div>
                   <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-                    Wählen Sie einen anderen Filter oder ändern Sie die Suche.
+                    {t.noneNote}
                   </div>
                 </div>
               )}
@@ -601,7 +603,7 @@ export function PatientsContent({
                 color: "var(--text-muted)",
               }}
             >
-              Zeige {visible.length} von {view.total}
+              {fill(t.showing, { shown: visible.length, total: view.total })}
             </span>
           </div>
         )}

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { asStaff, hydrated, watchPageErrors } from "./support/staff";
 
@@ -6,9 +6,10 @@ import { asStaff, hydrated, watchPageErrors } from "./support/staff";
 // kept on the device (apps/web/src/lib/i18n). German is what a device without a choice gets.
 //
 // The pages are being translated one after another; these tests hold what is done: the two
-// navigation shells, the settings overview, the sign-in page and the not-found page — and
-// that a page which is still German says so. They leave every other test in German: each
-// runs in a browser context of its own, and none of them signs out (the session is shared).
+// navigation shells, the settings overview, the overview, the patients list, the sign-in page
+// and the not-found page — and that a page which is still German says so. They leave every
+// other test in German: each runs in a browser context of its own, and none of them signs out
+// (the session is shared).
 
 // The medical director: the one seeded role whose name differs between the two languages.
 const ROLE = { de: "Ärztliche Leitung", en: "Medical director" };
@@ -68,23 +69,52 @@ test("a person chooses English under Einstellungen, and goes back to German", as
     expect(days).toBeGreaterThan(360);
     expect(days).toBeLessThan(370);
 
-    // It holds on the next page, reached by a link of the shell (no full page load). That
-    // page is not translated yet: the shell is English, and the page says it is German.
-    await page
-      .getByRole("complementary", { name: "Main navigation" })
-      .getByRole("link", { name: "Overview" })
-      .click();
+    // It holds on the next pages, reached by links of the shell (no full page load).
+    const navigation = page.getByRole("complementary", {
+      name: "Main navigation",
+    });
+    const languageOf = (heading: Locator) =>
+      heading.evaluate((element) =>
+        element.closest("[lang]")?.getAttribute("lang"),
+      );
+
+    // The overview is English: its headings, its work list, its report states.
+    await navigation.getByRole("link", { name: "Overview" }).click();
     await expect(page).toHaveURL(/\/overview$/);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Übersicht" }),
-    ).toBeVisible();
+    const overview = page.getByRole("heading", { level: 1, name: "Overview" });
+    await expect(overview).toBeVisible();
+    expect(await languageOf(overview)).toBe("en");
+    const body = page.locator("body");
+    await expect(body).toContainText("Clinical work list");
+    await expect(body).toContainText("Report status");
+    await expect(body).not.toContainText("Klinische Arbeitsliste");
+    await expect(body).not.toContainText("Berichtsstatus");
+    // The one part of it that is not translated yet says so.
     expect(
-      await page
-        .getByRole("heading", { level: 1, name: "Übersicht" })
-        .evaluate((heading) => heading.closest("[lang]")?.getAttribute("lang")),
+      await languageOf(
+        page.getByRole("button", { name: "Patient hinzufügen" }),
+      ),
     ).toBe("de");
+
+    // So is the patients list.
+    await navigation.getByRole("link", { name: "Patients" }).click();
+    await expect(page).toHaveURL(/\/patients$/);
+    const patients = page.getByRole("heading", { level: 1, name: "Patients" });
+    await expect(patients).toBeVisible();
+    expect(await languageOf(patients)).toBe("en");
+    await expect(body).toContainText("Patient directory");
+    await expect(body).toContainText("Last assessment");
+    await expect(body).not.toContainText("Patientenverzeichnis");
+
+    // A page that is not translated yet: the shell is English, and the page says it is German.
+    await navigation.getByRole("link", { name: "Review queue" }).click();
+    await expect(page).toHaveURL(/\/review-queue$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    const queue = page.getByRole("heading", { level: 1 });
+    await expect(queue).toBeVisible();
+    expect(await languageOf(queue)).toBe("de");
 
     // A value that is no offered language changes nothing.
     await page.goto("/einstellungen");

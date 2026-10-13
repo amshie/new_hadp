@@ -9,8 +9,10 @@ import {
   throughput,
   worklist,
 } from "@/lib/api";
+import { getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
 import {
+  type DashboardWording,
   presentCoverage,
   presentOverview,
   presentThroughput,
@@ -24,7 +26,7 @@ import { OverviewContent } from "./OverviewContent";
 // VitaBahn Übersicht (ADR-0006, real-data path): governed server load over the real
 // tenant-scoped API (authenticated principal + active tenant via the session cookie + RLS),
 // deny-by-default — ApiError 401/403 → /login.
-async function loadView(): Promise<{
+async function loadView(wording: DashboardWording): Promise<{
   overview: OverviewView;
   coverage: CoverageView | null;
   throughput: ThroughputChartView | null;
@@ -39,8 +41,8 @@ async function loadView(): Promise<{
       throughput(30).catch(() => null),
     ]);
     return {
-      overview: presentOverview(rows, patients),
-      coverage: cov ? presentCoverage(cov) : null,
+      overview: presentOverview(rows, patients, wording),
+      coverage: cov ? presentCoverage(cov, wording) : null,
       throughput: thru ? presentThroughput(thru) : null,
     };
   } catch (e) {
@@ -51,13 +53,15 @@ async function loadView(): Promise<{
 }
 
 export default async function OverviewPage() {
+  const messages = await getMessages();
   const [{ overview, coverage: cov, throughput: thru }, session] =
-    await Promise.all([loadView(), me().catch(() => null)]);
+    await Promise.all([loadView(messages.dashboard), me().catch(() => null)]);
   return (
     <VitaShell
       nav="uebersicht"
-      crumb="Übersicht"
+      crumb={messages.overview.title}
       identity={shellIdentity(session)}
+      translated
     >
       <OverviewContent view={overview} coverage={cov} throughput={thru} />
     </VitaShell>

@@ -382,7 +382,7 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   environment. Open from that review: no lockout on the gate; visitors who arrive over IPv6
   share one limiter budget; the stack is open from the server itself; the role posture of the
   database is checked by the production-shaped smoke only; nothing tells visitors apart.
-- **Interface language, German or English (2026-10-13): PART 1 of several; ADR-0007.** A person
+- **Interface language, German or English (2026-10-13): PARTS 1–2 of several; ADR-0007.** A person
   chooses under Einstellungen or on the sign-in page; the choice is a cookie on the device
   (`hadp_locale`), German without one (`apps/web/src/lib/i18n`: `messages/de.ts` is the source of
   the keys, `messages/en.ts` is typed against it; server components ask `getMessages()`, client
@@ -390,8 +390,18 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   Done: both navigation shells (`VitaShell`, `AppShell`), sign-in with its two messages, the
   settings overview, the not-found page; `apps/web/e2e/language.spec.ts`, and three browserless
   checks in `scripts/smoke_web.py`.
-  **Still German** (each marks its content `lang="de"`): overview, patients and the dialog to
-  add one, the patient page (laboratory upload, consent, data export), review queue,
+  Part 2: the overview (work list, report status, data coverage, review throughput, the four
+  switched-off tiles) and the patients list with its loading placeholder. The wording with a
+  value in it goes through `lib/i18n/fill.ts` (`fill`, `byCount`); the presenters of
+  `lib/presenters/dashboard.ts` take the wording of the page's language and hand every row a
+  `group` (review / approved / released / rejected / none) — the tabs and counts read that, no
+  longer the German label. The five English names of where a report stands are the words of
+  the `ReportStatus` values themselves; it is a workflow state, and no closed vocabulary of the
+  review is named on either page. Numbers and dates are untouched (none is formatted on these
+  two pages beyond a count).
+  **Still German** (each marks its content `lang="de"`): the dialog to add a patient (its
+  button on both pages, its three steps, and the messages its server actions return), the
+  patient page (laboratory upload, consent, data export), review queue,
   interpretation, report review, the four settings sub-pages (members, deletion requests, the
   audit trail with its ~60 event labels, preparation time), the patient-facing pages, the
   colleague's onboarding page (`/team-einladung`), the error page, the disclaimer, the toasts,

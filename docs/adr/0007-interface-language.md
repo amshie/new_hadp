@@ -32,8 +32,10 @@ product do not all read it.
    the browser. A component outside the provider fails — it does not fall back to German.
 4. **Wording with a value in it** is a string with named places (`"{count} Einträge"`) filled by
    one helper, and a plural is two keys chosen by the code. Messages stay strings: the type
-   that holds the two languages together cannot check a function. (The helper comes with the
-   first page that needs it.)
+   that holds the two languages together cannot check a function. (`lib/i18n/fill.ts`: `fill`
+   and `byCount`. A place the values do not name is left as written, so a slip shows on the
+   page.) **Nothing is decided by a label**: a filter, a tab or a count reads a key of its own
+   — the wording differs by language.
 5. **Interface, not content.** What was recorded stays in the language it was recorded in:
    report statements, the names a laboratory wrote, the names of people. A report approved in
    German is a German report whatever the reader's interface shows.

@@ -61,6 +61,168 @@ export const en: Messages = {
     errorNoClinic: "No clinic is available for this account.",
     errorFailed: "Sign-in failed. Please try again.",
   },
+  dashboard: {
+    status: {
+      review: "In review",
+      approved: "Approved",
+      released: "Released",
+      rejected: "Rejected",
+      none: "No draft",
+    },
+    reportVersion: "Report · v{version}",
+    time: {
+      now: "just now",
+      minutes: "{n} min ago",
+      hours: "{n} h ago",
+      yesterday: "yesterday",
+      days: "{n} d ago",
+    },
+  },
+  overview: {
+    kicker: "Clinical workspace",
+    title: "Overview",
+    waiting: { one: "{n} review", other: "{n} reviews" },
+    waitingRest: {
+      one: "is waiting for your review. Source-grounded drafts must be reviewed before every release. Synthetic sample data.",
+      other:
+        "are waiting for your review. Source-grounded drafts must be reviewed before every release. Synthetic sample data.",
+    },
+    kpis: {
+      openReviews: { label: "Open reviews", help: "Clinical review pending" },
+      approved: {
+        label: "Approved",
+        help: "Waiting for the medical director's release",
+      },
+      released: { label: "Released", help: "Released to the patient" },
+      patients: {
+        label: "Patients",
+        help: "Scoped to the clinic · protected by row-level security",
+      },
+    },
+    worklist: {
+      title: "Clinical work list",
+      note: "By report status · not a diagnosis or treatment advice.",
+      tabs: {
+        open: "Open reviews",
+        approved: "Approved",
+        released: "Released",
+        all: "All",
+      },
+      search: "Search patient or ID",
+      columns: {
+        patient: "Patient",
+        assessment: "Assessment",
+        status: "Status",
+        updated: "Updated",
+      },
+      openRow: "Open patient {name}, {ref}",
+      emptyTitle: "No matching items",
+      emptyNote: "Change the filter or the search term.",
+    },
+    snapshot: {
+      title: "Report status",
+      note: {
+        one: "Current state · snapshot · {n} patient",
+        other: "Current state · snapshot · {n} patients",
+      },
+    },
+    coverage: {
+      title: "Data coverage",
+      note: {
+        one: "Coverage across {n} real observation · not a quality rating",
+        other: "Coverage across {n} real observations · not a quality rating",
+      },
+      ring: "PUBLISHED",
+      published: "Published",
+      withReference: "With reference interval",
+      latest: "Latest observation",
+    },
+    gated: {
+      throughput: {
+        title: "Review throughput",
+        reason:
+          "The throughput series cannot be loaded at present. A backend slice of its own (report_versions by status).",
+      },
+      coverage: {
+        title: "Data coverage",
+        reason:
+          "Coverage across the observations cannot be loaded at present. The patient page shows the real coverage per patient.",
+      },
+      activity: {
+        title: "Recent activity",
+        reason:
+          "An activity feed needs a clinic-scoped read endpoint over the append-only events. A backend slice of its own.",
+      },
+      imports: {
+        title: "Imports & sources",
+        reason:
+          "Import status needs a read endpoint over import_jobs. A backend slice of its own.",
+      },
+    },
+    throughput: {
+      title: "Review throughput",
+      note: "Drafts created vs. reviews signed · real timestamps",
+      days14: "14 d",
+      days30: "30 d",
+      signed: "Signed",
+      created: "Created",
+      totalSigned: "Signed in total",
+      totalCreated: "Created in total",
+      avgSigned: "Ø signed / day",
+      showTable: "Show data table",
+      day: "Day",
+      summary:
+        "Review throughput over {days} days: {signed} signed, {created} created, Ø {avg} signed per day.",
+    },
+  },
+  patients: {
+    kicker: "Clinic · {clinic}",
+    title: "Patients",
+    count: { one: "{n} patient", other: "{n} patients" },
+    lead: "· scoped to the clinic, protected by row-level security · pseudonymised, synthetic sample data.",
+    chips: {
+      total: {
+        label: "Total",
+        help: "In the clinic · protected by row-level security",
+      },
+      withReport: { label: "With a report", help: "At least one report draft" },
+      open: { label: "Open assessments", help: "Clinical review pending" },
+      quality: {
+        label: "Ø data quality",
+        help: "No data-quality model (Gate G1)",
+      },
+    },
+    notAvailable: "n/a",
+    gatedTitle: "No approved real-data indicator (ADR-0006)",
+    directory: {
+      title: "Patient directory",
+      note: "Pseudonymised · not a diagnosis or treatment advice. The risk and data-quality columns are switched off in the real-data view (no approved source or model value — ADR-0006).",
+    },
+    tabs: {
+      all: "All",
+      open: "Open reviews",
+      released: "Released",
+      none: "No report",
+    },
+    search: "Search patient or ID",
+    emptyTitle: "No patient records yet",
+    emptyNote:
+      "Create the first record — guided in three steps, with a duplicate check and a documented consent.",
+    firstRecord: "Create the first record",
+    columns: {
+      patient: "Patient",
+      age: "Age",
+      risk: "Risk",
+      quality: "Data quality",
+      lastAssessment: "Last assessment",
+      status: "Status",
+    },
+    openRow: "Open patient {name}, {ref}",
+    noneTitle: "No patients in this view",
+    noneNote: "Choose another filter or change the search.",
+    showing: "Showing {shown} of {total}",
+    loading: "Loading the patient directory …",
+  },
   notFound: {
     title: "Page not found",
     note: "The page you asked for does not exist or is not available.",
@@ -92,7 +254,7 @@ export const en: Messages = {
     title: "Language",
     note: "The language of the interface on this device. Content such as reports, laboratory terms and names stays in the language it was recorded in.",
     progress:
-      "English is being added page by page: the navigation, sign-in and this settings overview are done; all other pages are shown in German for now.",
+      "English is being added page by page: the navigation, sign-in, the overview, the patients list and this settings overview are done; all other pages are shown in German for now.",
     selected: "selected",
     choose: "Interface language",
   },

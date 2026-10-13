@@ -1,6 +1,11 @@
+"use client";
+
+import { useI18n } from "@/lib/i18n/I18nProvider";
+
 // Route-level loading state for the Patienten directory (the page renders its own
 // VitaShell, so this shows a shell-free, token-true skeleton while the governed
 // server load — patients + worklist over the tenant-scoped API — is in flight.
+// A client component: it has to be there at once, and it reads the interface language.
 
 const bar = (width: string, height = "14px") => ({
   width,
@@ -11,6 +16,7 @@ const bar = (width: string, height = "14px") => ({
 });
 
 export default function PatientsLoading() {
+  const t = useI18n().t.patients;
   return (
     <div
       className="vb-scope"
@@ -59,7 +65,7 @@ export default function PatientsLoading() {
             textAlign: "center",
           }}
         >
-          Patientenverzeichnis wird geladen …
+          {t.loading}
         </p>
       </div>
     </div>
