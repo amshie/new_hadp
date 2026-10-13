@@ -35,8 +35,13 @@ bootstrap: ## Install pinned dependencies and prepare local config
 # ---- Local infrastructure ----------------------------------------------------
 
 .PHONY: db-up
-db-up: ## Start Postgres, Redis, and MinIO (local infra)
-	$(COMPOSE) up -d postgres redis minio minio-init
+db-up: ## Start Postgres, Redis, and the S3 test double with its bucket (local infra)
+	@# --remove-orphans: the MinIO container an older docker-compose.yml started would hold
+	@# port 59000. Only containers go; no volume is touched.
+	$(COMPOSE) up -d --remove-orphans postgres redis s3
+	@# The bucket, in the foreground: it waits for the double to be healthy and fails db-up
+	@# if the bucket cannot be made. The double keeps nothing, so this runs on every start.
+	$(COMPOSE) run --rm s3-init
 	@$(MAKE) db-wait
 
 .PHONY: db-wait

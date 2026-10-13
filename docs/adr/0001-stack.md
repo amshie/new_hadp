@@ -27,8 +27,9 @@ Adopt the split stack exactly as `CLAUDE.md` specifies:
 - **Database:** PostgreSQL, with row-level security as defense-in-depth for
   tenant-scoped tables.
 - **Background jobs:** Redis-backed queue with explicit retries and idempotency.
-- **Object storage:** S3-compatible (MinIO locally; an EU-region bucket in
-  production), behind a `BlobStore` interface.
+- **Object storage:** S3-compatible (an EU-region bucket in production), behind a
+  `BlobStore` interface. Locally first MinIO; since 2026-10-13 an S3 test double (moto) —
+  the MinIO images can no longer be pulled — the one CI and the demo stack use.
 - **API contract:** OpenAPI emitted by FastAPI; the TypeScript client is generated
   from it (`openapi-typescript`). The frontend never hand-duplicates API types.
 - **Toolchain:** `uv` for Python, `pnpm` workspaces for TypeScript, Docker Compose

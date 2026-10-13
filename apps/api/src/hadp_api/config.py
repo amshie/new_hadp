@@ -72,7 +72,7 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://127.0.0.1:56379/0"
 
-    # S3-compatible object storage (MinIO locally; EU-region bucket in production).
+    # S3-compatible object storage (a test double locally; EU-region bucket in production).
     s3_endpoint_url: str | None = "http://127.0.0.1:59000"
     s3_region: str = "eu-central-1"
     s3_access_key_id: str = "minioadmin"
