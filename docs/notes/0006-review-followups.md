@@ -363,7 +363,24 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   there (the only sign-in that exists), so it must stay synthetic; uploaded files are lost on a
   restart (the object store is the test double — decision 14 of the go-live plan); the images
   are built on the server, not pulled from a registry; `caddy:2-alpine` floats; a public
-  certificate was not part of any automated check (the smoke uses the proxy's own); nothing
-  has run on a real server yet.
+  certificate is not part of any automated check (the smoke uses the proxy's own).
+  **First server, 2026-10-13** (one rented machine, Ubuntu 26.04, 2 vCPU / 4 GB): the packages
+  the README names exist there; both images built on it; `scripts/smoke_demo.sh` passed on it
+  (20 checks) with those images; after `init` and `up` the proxy obtained a public certificate
+  (Let's Encrypt) for a name of the form `<address>.sslip.io` within seconds, and from outside
+  every path answers 401 without the gate and plain HTTP is sent to HTTPS. **Not confirmed in
+  the repository:** a sign-in through the gate in a browser (the gate password is the
+  operator's; the smoke does not make the form's own request). The provider's firewall was
+  created but not attached to the server when this was written — closed ports answered from
+  the server itself.
+  From the independent review, taken: the gate's block is in the committed proxy configuration
+  and nothing starts without a password hash (an import of an empty generated file would have
+  been no gate); `up` creates the proxy again and waits for it; the project name is fixed in
+  the script; the smoke covers every path and method, a foreign host name, a new gate password
+  and the logs. Found by CI, not by the local run: the proxy could not read a gate file owned by
+  another user (it has no capability for that) — the gate now reaches it through its
+  environment. Open from that review: no lockout on the gate; visitors who arrive over IPv6
+  share one limiter budget; the stack is open from the server itself; the role posture of the
+  database is checked by the production-shaped smoke only; nothing tells visitors apart.
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

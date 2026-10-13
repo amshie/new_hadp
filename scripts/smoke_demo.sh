@@ -294,8 +294,10 @@ DEMO_GATE_PASSWORD="$(openssl rand -hex 16)"
 ok "after 'gate' the old password is refused and the new one opens"
 
 echo "--- the data is the synthetic set ---"
+# `< /dev/null`: `exec` hands on whatever this script's own input holds — run over ssh with
+# the commands on standard input, it swallowed the lines that came after it.
 rows="$(compose exec -T postgres psql -U postgres -d hadp -v ON_ERROR_STOP=1 -Atc \
-  "SELECT concat_ws(' ', (SELECT count(*) FROM tenants WHERE is_synthetic), (SELECT count(*) FROM tenants WHERE NOT is_synthetic), (SELECT count(*) FROM patients WHERE NOT is_synthetic))")"
+  "SELECT concat_ws(' ', (SELECT count(*) FROM tenants WHERE is_synthetic), (SELECT count(*) FROM tenants WHERE NOT is_synthetic), (SELECT count(*) FROM patients WHERE NOT is_synthetic))" < /dev/null)"
 case "$rows" in
   "0 "*) fail "no synthetic clinic was seeded ($rows)" ;;
   *" 0 0") ok "seeded clinics are synthetic, and no record is marked otherwise ($rows)" ;;

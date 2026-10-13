@@ -170,6 +170,20 @@ cmd_up() {
   echo "the demo is up: https://$(sed -n 's/^DEMO_HOST=//p' "$ENV_FILE")/ (behind the gate; synthetic data only)"
 }
 
+# One command at a time. Two `up` runs side by side create the proxy twice and one of them
+# fails on the name (seen on the first server: two people started it in the same minute).
+# Where `flock` exists — on a server it does — the second run says so and stops.
+lock() {
+  command -v flock > /dev/null || return 0
+  [ -d "$HADP_DEMO_HOME" ] || return 0
+  exec 9> "$HADP_DEMO_HOME/.lock"
+  flock -n 9 || die "another demo_stack command is running — wait for it to finish"
+}
+
+case "${1:-}" in
+  init | gate | up | down) lock ;;
+esac
+
 case "${1:-}" in
   init) cmd_init ;;
   gate) cmd_gate ;;
