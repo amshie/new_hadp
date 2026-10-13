@@ -671,7 +671,10 @@ test("the report page follows the choice; its closed vocabularies stay German an
     await hydrated(row);
     await row.click();
     await expect(page).toHaveURL(/\/patients\/[0-9a-f-]{36}$/);
-    await page.getByRole("link", { name: "Open report" }).click();
+    // A click before the page is hydrated can be lost to the router's take-over.
+    const openReport = page.getByRole("link", { name: "Open report" });
+    await hydrated(openReport);
+    await openReport.click();
     await expect(page).toHaveURL(/\/assessments\/[0-9a-f-]{36}$/);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const main = page.getByRole("main");

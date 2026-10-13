@@ -514,7 +514,9 @@ test("the medical director releases the report", async ({ browser }) => {
       })
       .click();
     await page.waitForURL(`**${patientPath}`);
-    await page.getByRole("link", { name: "Bericht öffnen" }).click();
+    const openReport = page.getByRole("link", { name: "Bericht öffnen" });
+    await hydrated(openReport);
+    await openReport.click();
     await page.waitForURL(`**${reviewPath}`);
 
     // She releases what the clinician approved.
