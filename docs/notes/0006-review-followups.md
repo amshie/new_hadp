@@ -353,5 +353,17 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   still costs a failed insert and an ERROR log line per request (bounded per address only); the
   number of refusals after recording stopped is not on record; the web's part (four call sites)
   is held by a source scan and the smoke, not by a unit test (the web has no test runner).
+- **Demo stack (2026-10-13):** `infra/docker/compose.demo.yml` + `scripts/demo_stack.sh` put
+  HADP on one server behind a gate (TLS and a shared user name and password at a proxy), for
+  showing the product on synthetic data; `scripts/smoke_demo.sh` runs in CI. It is the first
+  stack with a real proxy in front of the web server: `TRUSTED_PROXIES` is the web server's one
+  fixed address there, and the smoke checks that a visitor is counted under the address the
+  proxy saw. `infra/docker/README.md` says what it is not.
+  Still open: one shared gate password, no per-person access; the API runs in development mode
+  there (the only sign-in that exists), so it must stay synthetic; uploaded files are lost on a
+  restart (the object store is the test double — decision 14 of the go-live plan); the images
+  are built on the server, not pulled from a registry; `caddy:2-alpine` floats; a public
+  certificate was not part of any automated check (the smoke uses the proxy's own); nothing
+  has run on a real server yet.
 - **Patient-view Beta hardening**: per-page boundary note added; a fuller
   patient-appropriate presentation is gated for the real-data Beta.

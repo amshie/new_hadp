@@ -123,6 +123,74 @@ the smoke names the stack's own network for its run.
   credentials. The MinIO images the development compose names can no longer be pulled, and
   which store a deployment uses is an open vendor decision.
 
+## The demo stack
+
+`compose.demo.yml` puts HADP on one server so that people who are shown the product can open
+it in a browser: partners, a clinic before it signs, the team at home. **Synthetic data
+only — it is not a deployment, and nothing real may ever be put into it.**
+
+What runs: the API in **development mode**, the production build of the web app, PostgreSQL
+(a named volume), Redis, the S3 test double — and in front of all of it a proxy (Caddy) that
+terminates TLS with a certificate it obtains itself and asks every visitor for the **gate's**
+user name and password. Only the proxy is published; nothing else is reachable from outside.
+
+Why development mode: the development sign-in (an account's e-mail address, no password) is
+the only sign-in that exists. That is also why the gate is not optional and why the data
+must stay synthetic — **behind the gate, anyone can act as any seeded account.**
+
+### On the server
+
+Any Linux server with Docker and a DNS name that points at it; ports 22, 80 and 443 open and
+nothing else. On Ubuntu 24.04, as root:
+
+```bash
+apt-get update && apt-get install -y docker.io docker-compose-v2 docker-buildx git openssl
+# The web image is built here; on a 4 GB server that wants some swap.
+fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+git clone https://github.com/amshie/new_hadp.git /opt/hadp && cd /opt/hadp
+scripts/demo_stack.sh init   # asks for the host name, the gate's user name and password
+scripts/demo_stack.sh up     # builds the two images, starts, migrates, seeds
+```
+
+`init` generates the stack's secrets and writes them, with the host name, to
+`/etc/hadp-demo/demo.env`; the gate's user name and the **hash** of its password go to
+`/etc/hadp-demo/gate.caddy`. Both are readable by root only, neither is in the checkout, and
+the password itself is kept nowhere. `scripts/demo_stack.sh gate` sets a new one.
+
+To show a newer state: `git pull && scripts/demo_stack.sh up`. To stop:
+`scripts/demo_stack.sh down` — the database volume stays; never add `-v`. After the server
+itself restarted, run `scripts/demo_stack.sh up --no-build` once: the services come back by
+themselves, but the object store starts empty and its bucket is created by `up`.
+
+Visitors open `https://<host name>/`, pass the gate, and sign in with one of the seeded
+synthetic accounts (`owner@demo.synthetic`, `clinician@demo.synthetic`,
+`assistant@demo.synthetic`, `medical.director@demo.synthetic`).
+
+`make demo-smoke` (and CI, on every pull request) boots this stack with a throw-away
+configuration and checks, as a visitor from another container: nothing is served without
+the gate; behind it the sign-in works and the workspace renders for a seeded account; and a
+visitor is counted under the address the proxy saw — not the web server's, and not an
+`X-Forwarded-For` the visitor sent. This is the first stack in the repository with a real
+proxy in front of the web server, so it is also where `TRUSTED_PROXIES` is set as a
+deployment would set it (the web server's one fixed address).
+
+### What the demo stack is not
+
+- **Not for patients, not for a clinic's work.** Synthetic data only. Development mode is
+  what makes it usable, and development mode is what must never meet real data.
+- **One shared gate.** Every visitor uses the same user name and password; there is no
+  per-person access and no record of who came. Give it only to people who may see the
+  product, and change it (`gate`) when that group changes.
+- **Uploaded files do not survive a restart.** The object store keeps them in memory; what
+  was read from a laboratory file stays in the database, the file itself is gone.
+- **No backup, no monitoring, no updates of its own.** The synthetic data can be seeded
+  again; what a visitor created is lost with the volume. The server's own upkeep (system
+  updates, SSH, the firewall) is its operator's.
+- **Not the production path.** The images are built on the server from the checkout; a
+  deployment pulls scanned images from a registry, runs in production mode behind the
+  production sign-in, and has the list below behind it.
+
 ## Still missing for a real deployment
 
 TLS termination and public `https` origins (the `__Host-` cookies need them — and the web app

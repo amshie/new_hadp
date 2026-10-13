@@ -1,0 +1,19 @@
+# Added to compose.demo.yml by scripts/smoke_demo.sh, and only there: a smoke run publishes
+# no port and leaves nothing behind — its database and the proxy's state go with their
+# containers.
+services:
+  postgres:
+    volumes: !override
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  proxy:
+    ports: !reset []
+    volumes: !override
+      - ./demo/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${HADP_DEMO_HOME:?}/gate.caddy:/etc/caddy/gate.caddy:ro
+    tmpfs:
+      - /tmp
+      - /data
+      - /config

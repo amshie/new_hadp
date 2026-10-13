@@ -1,0 +1,23 @@
+# The demo stack's proxy (infra/docker/compose.demo.yml). The only thing a visitor reaches.
+{
+	# No admin endpoint: the configuration is this file, read at start.
+	admin off
+}
+
+{$DEMO_HOST} {
+	# Empty for a public certificate; "tls internal" in the smoke.
+	{$DEMO_TLS}
+
+	# The gate: user name and password hash, written by `scripts/demo_stack.sh init`.
+	# Everything below is behind it — the sign-in of the demo has no password of its own.
+	import /etc/caddy/gate.caddy
+
+	encode zstd gzip
+
+	# X-Forwarded-For: Caddy writes the address it saw and drops what a client sent (it has
+	# no trusted proxies of its own configured). The API counts its per-address limits on it.
+	reverse_proxy web:3000 {
+		# The gate's credentials stop here; the application never sees them.
+		header_up -Authorization
+	}
+}
