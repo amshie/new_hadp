@@ -4,25 +4,27 @@ import type { Me } from "@/lib/api";
 // the prototype's hardcoded persona. Fallbacks are honest em-dashes, never a fake name.
 export interface ShellIdentity {
   name: string;
-  roleLabel: string;
+  // The role as the API names it; the shells say it in the interface language
+  // (lib/i18n, `roles`).
+  role: string | null;
   tenantName: string;
 }
-
-const ROLE_LABELS: Record<string, string> = {
-  owner: "Inhaber",
-  clinician: "Clinician",
-  assistant: "Assistenz",
-  medical_director: "Ärztliche Leitung",
-};
 
 export function shellIdentity(session: Me | null): ShellIdentity | null {
   if (!session) return null;
   return {
     name: session.user.display_name,
-    roleLabel:
-      (session.role && ROLE_LABELS[session.role]) || session.role || "—",
+    role: session.role ?? null,
     tenantName: session.active_tenant_name ?? "—",
   };
+}
+
+// The role in the interface language; a role the wording does not know, as the API names it.
+export function roleName(
+  roles: Record<string, string>,
+  role: string | null | undefined,
+): string {
+  return (role && (roles[role] ?? role)) || "—";
 }
 
 export function initialsOf(name: string): string {

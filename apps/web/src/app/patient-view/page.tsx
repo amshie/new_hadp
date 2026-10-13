@@ -33,6 +33,7 @@ export default async function PatientViewPage() {
 
   const shell = (children: ReactNode) => (
     <main
+      lang="de"
       style={{
         maxWidth: "640px",
         margin: "0 auto",

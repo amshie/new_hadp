@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { devLogin, logout, selectTenant } from "@/lib/api";
+import { getMessages } from "@/lib/i18n/server";
 
 export type LoginResult = { ok: false; error: string };
 
@@ -11,18 +12,16 @@ export type LoginResult = { ok: false; error: string };
 // NOT proceed — a silently-failed login must never present a logged-in shell that then 401s.
 // Returns an error on failure; on success it redirects (and never returns).
 export async function login(email: string): Promise<LoginResult> {
+  const t = (await getMessages()).login;
   try {
     const res = await devLogin(email);
     const first = res.tenants[0];
     if (!first) {
-      return { ok: false, error: "Kein Mandant für dieses Konto verfügbar." };
+      return { ok: false, error: t.errorNoClinic };
     }
     await selectTenant(first.tenant_id);
   } catch {
-    return {
-      ok: false,
-      error: "Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
-    };
+    return { ok: false, error: t.errorFailed };
   }
   redirect("/overview"); // throws NEXT_REDIRECT on success — must stay outside the try
 }

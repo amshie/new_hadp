@@ -11,6 +11,7 @@ export default function AppError({
 }) {
   return (
     <main
+      lang="de"
       style={{
         maxWidth: "560px",
         margin: "0 auto",

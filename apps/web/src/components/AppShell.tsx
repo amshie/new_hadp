@@ -4,7 +4,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { signOut } from "@/app/login/actions";
-import { initialsOf, type ShellIdentity } from "@/lib/identity";
+import { useI18n } from "@/lib/i18n/I18nProvider";
+import { initialsOf, roleName, type ShellIdentity } from "@/lib/identity";
 
 import { Icon, type IconName } from "./Icon";
 import { ToastProvider } from "./Toaster";
@@ -42,9 +43,10 @@ function Sidebar({
   active: NavKey;
   identity?: ShellIdentity | null;
 }) {
+  const { t } = useI18n();
   return (
-    <aside className="sidebar" aria-label="Hauptnavigation">
-      <Link className="brand" href="/overview" aria-label="HADP Übersicht">
+    <aside className="sidebar" aria-label={t.shell.navAria}>
+      <Link className="brand" href="/overview" aria-label={t.shell.brandAria}>
         <span className="brand-mark" aria-hidden="true" />
         <span className="brand-copy">
           <strong>HADP</strong>
@@ -52,35 +54,35 @@ function Sidebar({
         </span>
       </Link>
 
-      <div className="nav-label">Arbeitsbereich</div>
+      <div className="nav-label">{t.shell.workspace}</div>
       <nav className="nav">
         <NavLink
           icon="overview"
-          label="Übersicht"
+          label={t.shell.overview}
           active={active === "overview"}
           href="/overview"
         />
         <NavLink
           icon="patients"
-          label="Patienten"
+          label={t.shell.patients}
           active={active === "patients"}
           href="/patients"
         />
         <NavLink
           icon="check"
-          label="Review-Queue"
+          label={t.shell.reviewQueue}
           active={active === "review"}
           href="/review-queue"
         />
       </nav>
 
       <div className="nav-label" style={{ marginTop: "12px" }}>
-        Verwaltung
+        {t.shell.administration}
       </div>
       <nav className="nav">
         <NavLink
           icon="settings"
-          label="Einstellungen"
+          label={t.shell.settings}
           active={active === "settings"}
           href="/einstellungen"
         />
@@ -88,8 +90,8 @@ function Sidebar({
 
       <div className="sidebar-spacer" />
       <div className="sidebar-card">
-        <strong>Pilotumgebung</strong>Synthetische Beispieldaten · keine reale
-        Patientenversorgung
+        <strong>{t.shell.pilot}</strong>
+        {t.shell.pilotNote}
       </div>
       <div className="sidebar-user">
         <div className="avatar" aria-hidden="true">
@@ -97,7 +99,7 @@ function Sidebar({
         </div>
         <div className="meta">
           <strong>{identity?.name ?? "—"}</strong>
-          <span>{identity?.roleLabel ?? "—"}</span>
+          <span>{roleName(t.roles, identity?.role)}</span>
         </div>
       </div>
     </aside>
@@ -107,11 +109,12 @@ function Sidebar({
 // Who is signed in, and the way out. Sign-out is the only account action that exists, so it
 // is a button — not a menu with one entry.
 function TopbarUser({ identity }: { identity?: ShellIdentity | null }) {
+  const { t } = useI18n();
   return (
     <div className="topbar-user">
       <span className="user-copy">
         <strong>{identity?.name ?? "—"}</strong>
-        <span>{identity?.roleLabel ?? "—"}</span>
+        <span>{roleName(t.roles, identity?.role)}</span>
       </span>
       <span className="avatar" aria-hidden="true">
         {initialsOf(identity?.name ?? "—")}
@@ -119,7 +122,7 @@ function TopbarUser({ identity }: { identity?: ShellIdentity | null }) {
       <form action={signOut}>
         <button className="btn btn-secondary btn-sm" type="submit">
           <Icon name="logout" />
-          Abmelden
+          {t.shell.signOut}
         </button>
       </form>
     </div>
@@ -133,12 +136,13 @@ function Topbar({
   breadcrumbs: ReactNode;
   identity?: ShellIdentity | null;
 }) {
+  const { t } = useI18n();
   return (
     <header className="topbar">
       <Link
         className="brand mobile-brand"
         href="/overview"
-        aria-label="HADP Übersicht"
+        aria-label={t.shell.brandAria}
       >
         <span className="brand-mark" aria-hidden="true" />
         <span className="brand-copy">
@@ -146,11 +150,14 @@ function Topbar({
           <small>Health Analytics</small>
         </span>
       </Link>
-      {breadcrumbs}
+      {/* Named by the page inside, which is not translated yet. */}
+      <div lang="de" style={{ display: "contents" }}>
+        {breadcrumbs}
+      </div>
       <div className="topbar-spacer" />
       <div className="clinic-name">
         <Icon name="building" />
-        <span className="sr-only">Mandant: </span>
+        <span className="sr-only">{t.shell.clinic}</span>
         <span>{identity?.tenantName ?? "—"}</span>
       </div>
       <TopbarUser identity={identity} />
@@ -169,16 +176,18 @@ export function AppShell({
   identity?: ShellIdentity | null;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <ToastProvider>
       <a className="skip-link" href="#main-content">
-        Zum Hauptinhalt springen
+        {t.shell.skipLink}
       </a>
       <div className="app-shell">
         <Sidebar active={active} identity={identity} />
         <div className="app-main">
           <Topbar breadcrumbs={breadcrumbs} identity={identity} />
-          <main className="content" id="main-content">
+          {/* The page inside this shell is still German (lib/i18n: page by page). */}
+          <main className="content" id="main-content" lang="de">
             {children}
           </main>
         </div>

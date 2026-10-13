@@ -8,12 +8,12 @@
 // (apps/api/tests/test_web_copy_language.py) — the gate ADR-0004 §0 names ("DE/EN labels through the
 // language scan before any UI ships").
 
+import type { Locale } from "@/lib/i18n/locales";
+
 export interface ComparabilityNote {
   short: string; // terse cell label
   full: string; // full provenance sentence (title / screen-reader)
 }
-
-type Locale = "de" | "en";
 
 // Keyed by the backend ComparabilityReason value. A note is shown ONLY for a withheld
 // (not_comparable) delta; "comparable" and series-start (null) render no note.
