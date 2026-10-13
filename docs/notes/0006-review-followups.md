@@ -388,7 +388,7 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   environment. Open from that review: no lockout on the gate; visitors who arrive over IPv6
   share one limiter budget; the stack is open from the server itself; the role posture of the
   database is checked by the production-shaped smoke only; nothing tells visitors apart.
-- **Interface language, German or English (2026-10-13): PARTS 1–3b of several; ADR-0007.** A person
+- **Interface language, German or English (2026-10-13): PARTS 1–4 of several; ADR-0007.** A person
   chooses under Einstellungen or on the sign-in page; the choice is a cookie on the device
   (`hadp_locale`), German without one (`apps/web/src/lib/i18n`: `messages/de.ts` is the source of
   the keys, `messages/en.ts` is typed against it; server components ask `getMessages()`, client
@@ -513,12 +513,25 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   mark the German word inside it; what a laboratory wrote (analyte names) and people's names
   carry no language mark of their own — the language of recorded content is not recorded
   (ADR-0007 now says so).
-  **Still German** (each marks its content `lang="de"`): review queue,
+  Part 4: the review queue — heading, table, the context lines under a value (source reference,
+  what a publication replaces, what is already there), the confirmation dialog and what the
+  decision's server action answers. **German on that page whatever the choice, marked
+  `lang="de"`:** the reasons of the review tasks (fourteen, `REASON_LABELS`) — a closed
+  vocabulary with no decision on its English yet, which the code calls one; as with part 3b,
+  not translated before somebody decides. A value's review state ("in review") is
+  interface, as on the patient page. One German sentence changed: a count of reports is no
+  longer "Bericht(en)" ("in 1 Bericht zitiert", "in 2 Berichten zitiert"; the dialog's
+  sentence agrees with it). Found on the way and fixed: on a phone the queue's card clipped
+  its table, and the decision column — the publish and reject buttons — was out of reach;
+  the table now scrolls sideways. The browser test reads the English page, its columns, and
+  the language mark of every reason it shows; the check that an untranslated page says it is
+  German moved to the report review page.
+  **Still German** (each marks its content `lang="de"`):
   interpretation, report review, the four settings sub-pages (members, deletion requests, the
   audit trail with its ~60 event labels, preparation time), the patient-facing pages, the
   colleague's onboarding page (`/team-einladung`), the error page, the disclaimer, the toasts,
   and every message a server action returns except those of sign-in, of the dialog to add a
-  patient and of the patient page. All date and number
+  patient, of the patient page and of the review queue. All date and number
   formats are `de-DE`, written out in about twenty places. The settings page says what is done
   while that is true — widen that sentence (`language.progress`) with every part and remove it
   with the last page.

@@ -8,6 +8,7 @@ import {
   type Me,
   type ReviewQueueItem,
 } from "@/lib/api";
+import { getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
 
 import { ReviewQueueContent } from "./ReviewQueueContent";
@@ -34,12 +35,16 @@ async function load(): Promise<{
 }
 
 export default async function ReviewQueuePage() {
-  const { items, session } = await load();
+  const [{ items, session }, messages] = await Promise.all([
+    load(),
+    getMessages(),
+  ]);
   return (
     <VitaShell
       nav="review"
-      crumb="Review-Queue"
+      crumb={messages.reviewQueue.title}
       identity={shellIdentity(session)}
+      translated
     >
       <ReviewQueueContent
         items={items}

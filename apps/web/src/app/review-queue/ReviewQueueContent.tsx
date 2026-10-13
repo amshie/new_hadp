@@ -5,8 +5,18 @@ import { useState, useTransition, type CSSProperties } from "react";
 import { Dialog } from "@/components/vitabahn/Dialog";
 import type { ReviewQueueItem } from "@/lib/api";
 import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
+import { useI18n } from "@/lib/i18n/I18nProvider";
+import { byCount, fill } from "@/lib/i18n/fill";
+import type { Messages } from "@/lib/i18n/messages";
 
 import { resolveReviewItemAction } from "./actions";
+
+type Wording = Messages["reviewQueue"];
+
+// The page follows the interface language (ADR-0007); numbers and dates keep their format.
+// The reasons below are a closed vocabulary, and a closed vocabulary keeps its German until
+// its English names are confirmed — they stay German on an English page, and say so.
+const GERMAN = "de";
 
 // Closed reason vocabulary (imports/normalize.py + imports/parsers/base.py +
 // imports/matching.py) → neutral German labels. No verdict language: a queued value is
@@ -32,25 +42,20 @@ const REASON_LABELS: Record<string, string> = {
 
 type HeldValue = NonNullable<ReviewQueueItem["replaces"]>;
 
-const HELD_STATUS: Record<string, string> = {
-  published: "veröffentlicht",
-  pending: "in Prüfung",
-  rejected: "abgelehnt",
-};
-
 // A value the patient already holds, as the source wrote it, with its sampling time and
 // where it stands. The time matters: a value of the same day is not always the same sample.
-function heldLabel(held: HeldValue): string {
+function heldLabel(held: HeldValue, t: Wording): string {
   const value = `${held.original_value} ${held.original_unit ?? ""}`.trim();
-  const status = held.superseded
-    ? "ersetzt"
-    : (HELD_STATUS[held.review_status] ?? held.review_status);
-  return `${value} · ${fmtObserved(held.observed_at, held.observed_at_is_date_only)} (${status})`;
+  const status: Record<string, string> = t.heldStatus;
+  const where = held.superseded
+    ? t.heldStatus.superseded
+    : (status[held.review_status] ?? held.review_status);
+  return `${value} · ${fmtObserved(held.observed_at, held.observed_at_is_date_only)} (${where})`;
 }
 
 // The reference bounds the platform holds for a queued value: what a position against the
 // interval is stated from once the value is published. Said so the reviewer sees it before.
-function heldReference(item: ReviewQueueItem): string | null {
+function heldReference(item: ReviewQueueItem, t: Wording): string | null {
   const { reference_low: low, reference_high: high } = item;
   if (low == null && high == null) return null;
   const unit = item.reference_unit ? ` ${item.reference_unit}` : "";
@@ -58,9 +63,12 @@ function heldReference(item: ReviewQueueItem): string | null {
     low != null && high != null
       ? `${low}–${high}`
       : high != null
-        ? `obere Grenze ${high}`
-        : `untere Grenze ${low}`;
-  return `Referenz der Quelle${item.reference_converted ? " (umgerechnet)" : ""}: ${bounds}${unit}`;
+        ? fill(t.reference.upper, { high })
+        : fill(t.reference.lower, { low: low ?? "" });
+  return fill(
+    item.reference_converted ? t.reference.lineConverted : t.reference.line,
+    { bounds: `${bounds}${unit}` },
+  );
 }
 
 function reasonLabel(reason: string): string {
@@ -156,6 +164,7 @@ export function ReviewQueueContent({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const canResolve = sessionRole === "clinician";
+  const t = useI18n().t.reviewQueue;
 
   const close = () => {
     setConfirm(null);
@@ -191,7 +200,7 @@ export function ReviewQueueContent({
             letterSpacing: "-0.02em",
           }}
         >
-          Review-Queue
+          {t.title}
         </h1>
         <p
           style={{
@@ -201,11 +210,8 @@ export function ReviewQueueContent({
             maxWidth: "82ch",
           }}
         >
-          Offene Prüfaufgaben aus dem Import — kein Wert wird ohne menschliche
-          Entscheidung veröffentlicht. Angezeigt wird die Quellrepräsentation
-          (Originalname, -wert, -einheit).
-          {!canResolve &&
-            " Die Entscheidung ist der klinischen Rolle vorbehalten (Nur-Lese-Ansicht)."}
+          {t.lead}
+          {!canResolve && t.readOnly}
         </p>
       </div>
 
@@ -219,21 +225,27 @@ export function ReviewQueueContent({
             fontSize: "13.5px",
           }}
         >
-          Keine offenen Prüfaufgaben.
+          {t.empty}
         </div>
       ) : (
-        <div style={{ ...cardStyle, overflow: "hidden" }}>
+        // On a narrow screen the table scrolls sideways: clipped, its last column — the
+        // decision — was out of reach on a phone.
+        <div style={{ ...cardStyle, position: "relative", overflowX: "auto" }}>
           <table
-            style={{ width: "100%", borderCollapse: "collapse" }}
-            aria-label="Offene Prüfaufgaben"
+            style={{
+              width: "100%",
+              minWidth: "680px",
+              borderCollapse: "collapse",
+            }}
+            aria-label={t.tableAria}
           >
             <thead>
               <tr>
-                <th style={thStyle}>Patientin/Patient</th>
-                <th style={thStyle}>Wert (Quelle)</th>
-                <th style={thStyle}>Grund</th>
-                <th style={thStyle}>Beobachtet</th>
-                <th style={thStyle}>Entscheidung</th>
+                <th style={thStyle}>{t.columns.patient}</th>
+                <th style={thStyle}>{t.columns.value}</th>
+                <th style={thStyle}>{t.columns.reason}</th>
+                <th style={thStyle}>{t.columns.observed}</th>
+                <th style={thStyle}>{t.columns.decision}</th>
               </tr>
             </thead>
             <tbody>
@@ -269,23 +281,30 @@ export function ReviewQueueContent({
                     >
                       {item.original_value} {item.original_unit ?? ""}
                     </div>
-                    {heldReference(item) && (
-                      <div style={contextStyle}>{heldReference(item)}</div>
+                    {heldReference(item, t) && (
+                      <div style={contextStyle}>{heldReference(item, t)}</div>
                     )}
                     {item.replaces && (
                       <div style={contextStyle}>
-                        Ersetzt bei Veröffentlichung: {heldLabel(item.replaces)}
+                        {fill(t.replacesOnPublish, {
+                          held: heldLabel(item.replaces, t),
+                        })}
                         {item.replaces_cited_in_report_count > 0 &&
-                          ` — in ${item.replaces_cited_in_report_count} Bericht(en) zitiert`}
+                          byCount(
+                            t.citedIn,
+                            item.replaces_cited_in_report_count,
+                          )}
                       </div>
                     )}
                     {item.related.map((held) => (
                       <div key={held.observation_id} style={contextStyle}>
-                        Bereits vorhanden: {heldLabel(held)}
+                        {fill(t.alreadyHeld, { held: heldLabel(held, t) })}
                       </div>
                     ))}
                   </td>
-                  <td style={tdStyle}>{reasonLabel(item.reason)}</td>
+                  <td style={tdStyle} lang={GERMAN}>
+                    {reasonLabel(item.reason)}
+                  </td>
                   <td style={tdStyle}>
                     {fmtObserved(
                       item.observed_at,
@@ -303,7 +322,7 @@ export function ReviewQueueContent({
                             setConfirm({ item, decision: "publish" })
                           }
                         >
-                          Veröffentlichen
+                          {t.publish}
                         </button>
                         <button
                           type="button"
@@ -313,7 +332,7 @@ export function ReviewQueueContent({
                             setConfirm({ item, decision: "reject" })
                           }
                         >
-                          Ablehnen
+                          {t.reject}
                         </button>
                       </div>
                     ) : (
@@ -323,7 +342,7 @@ export function ReviewQueueContent({
                           fontSize: "12.5px",
                         }}
                       >
-                        Klinische Rolle erforderlich
+                        {t.clinicalRoleRequired}
                       </span>
                     )}
                   </td>
@@ -367,8 +386,8 @@ export function ReviewQueueContent({
             }}
           >
             {confirm.decision === "publish"
-              ? "Wert veröffentlichen?"
-              : "Wert ablehnen?"}
+              ? t.dialog.publishTitle
+              : t.dialog.rejectTitle}
           </h3>
           <p
             style={{
@@ -380,10 +399,10 @@ export function ReviewQueueContent({
           >
             {`${confirm.item.original_name}: ${confirm.item.original_value} ${confirm.item.original_unit ?? ""}`.trim()}
             {" — "}
-            {reasonLabel(confirm.item.reason)}.{" "}
+            <span lang={GERMAN}>{reasonLabel(confirm.item.reason)}</span>.{" "}
             {confirm.decision === "publish"
-              ? "Der Wert wird veröffentlicht und erscheint in der klinischen Zeitleiste. Bleibt eine weitere offene Prüfaufgabe zu diesem Wert bestehen, bleibt er bis zu deren Entscheidung zurückgehalten."
-              : "Der Wert wird abgelehnt und nie veröffentlicht. Die Entscheidung wird Ihnen zugeordnet und auditiert."}
+              ? t.dialog.publishBody
+              : t.dialog.rejectBody}
           </p>
           {confirm.item.replaces && (
             <p
@@ -394,12 +413,18 @@ export function ReviewQueueContent({
                 color: "var(--text-strong)",
               }}
             >
-              {confirm.decision === "publish"
-                ? `Mit der Veröffentlichung ersetzt dieser Wert den früheren Wert ${heldLabel(confirm.item.replaces)}. Der frühere Wert bleibt unverändert erhalten und wird als ersetzt gekennzeichnet.`
-                : `Der frühere Wert ${heldLabel(confirm.item.replaces)} bleibt bestehen.`}
+              {fill(
+                confirm.decision === "publish"
+                  ? t.dialog.replacesPublish
+                  : t.dialog.replacesReject,
+                { held: heldLabel(confirm.item.replaces, t) },
+              )}
               {confirm.decision === "publish" &&
                 confirm.item.replaces_cited_in_report_count > 0 &&
-                ` Er ist in ${confirm.item.replaces_cited_in_report_count} Bericht(en) zitiert: Diese können erst mit einem neuen Entwurf genehmigt oder freigegeben werden; ein bereits freigegebener Bericht bleibt für die Patientin sichtbar, bis auf der Berichtsseite ein neuer Entwurf erstellt wird.`}
+                byCount(
+                  t.dialog.citedInReports,
+                  confirm.item.replaces_cited_in_report_count,
+                )}
             </p>
           )}
           {error && (
@@ -428,7 +453,7 @@ export function ReviewQueueContent({
               disabled={pending}
               onClick={close}
             >
-              Abbrechen
+              {t.cancel}
             </button>
             <button
               type="button"
@@ -436,7 +461,7 @@ export function ReviewQueueContent({
               disabled={pending}
               onClick={run}
             >
-              {confirm.decision === "publish" ? "Veröffentlichen" : "Ablehnen"}
+              {confirm.decision === "publish" ? t.publish : t.reject}
             </button>
           </div>
         </Dialog>

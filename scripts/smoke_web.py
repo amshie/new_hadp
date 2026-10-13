@@ -293,6 +293,10 @@ def main() -> int:
                 "de": ("Patientenverzeichnis", "Ohne Bericht", "Patient hinzufügen"),
                 "en": ("Patient directory", "No report", "Add patient"),
             },
+            "/review-queue": {
+                "de": ("Review-Queue", "Offene Prüfaufgaben aus dem Import"),
+                "en": ("Review queue", "Open review tasks from the import"),
+            },
         }
         # The patient page as well. What is not interface on it reads the same in both: the
         # wording of a consent purpose, the name of a domain axis.
@@ -596,7 +600,7 @@ def main() -> int:
     print(f"  client address passed on to the API: {forwarding}")
     print(
         "  interface language: German by default, English by choice, on /login, the 404 page,"
-        " /overview, /patients and the patient page"
+        " /overview, /patients, the patient page and the review queue"
     )
     return 0
 

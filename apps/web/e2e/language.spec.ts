@@ -202,13 +202,33 @@ test("a person chooses English under Einstellungen, and goes back to German", as
     await expect(body).toContainText("Last assessment");
     await expect(body).not.toContainText("Patientenverzeichnis");
 
-    // A page that is not translated yet: the shell is English, and the page says it is German.
+    // The review queue is English, around the reasons of its tasks: a closed vocabulary,
+    // German until its English names are confirmed (ADR-0007), and marked so.
     await navigation.getByRole("link", { name: "Review queue" }).click();
     await expect(page).toHaveURL(/\/review-queue$/);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    const queue = page.getByRole("heading", { level: 1 });
+    const queue = page.getByRole("heading", { level: 1, name: "Review queue" });
     await expect(queue).toBeVisible();
-    expect(await languageOf(queue)).toBe("de");
+    expect(await languageOf(queue)).toBe("en");
+    await expect(body).toContainText(
+      "Open review tasks from the import — no value is published without a human decision.",
+    );
+    await expect(body).not.toContainText("Offene Prüfaufgaben");
+    const tasks = page.getByRole("table", { name: "Open review tasks" });
+    if (await tasks.count()) {
+      await expect(tasks.getByRole("columnheader")).toHaveText([
+        "Patient",
+        "Value (source)",
+        "Reason",
+        "Observed",
+        "Decision",
+      ]);
+      for (const reason of await tasks.locator("tbody td:nth-child(3)").all()) {
+        expect(await languageOf(reason)).toBe("de");
+      }
+    } else {
+      await expect(body).toContainText("No open review tasks.");
+    }
 
     // A value that is no offered language changes nothing.
     await page.goto("/einstellungen");
@@ -461,6 +481,18 @@ test("the patient page follows the choice; what is not interface stays German an
     }
     await detail.getByRole("button", { name: "Close" }).click();
     await expect(detail).toHaveCount(0);
+
+    // A page that is not translated yet — the report's review page: the shell is English,
+    // and the page says it is German.
+    await page.getByRole("link", { name: "Open report" }).click();
+    await expect(page).toHaveURL(/\/assessments\/[0-9a-f-]{36}$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(
+      page.getByRole("complementary", { name: "Main navigation" }),
+    ).toContainText("Review queue");
+    const report = page.getByRole("heading", { level: 1 });
+    await expect(report).toBeVisible();
+    expect(await languageOf(report)).toBe("de");
   });
 
   // What a server action of this page answers follows the choice as well. A file whose name
