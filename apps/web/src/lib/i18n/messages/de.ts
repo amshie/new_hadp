@@ -744,6 +744,52 @@ export const de = {
       failed: "Aktion fehlgeschlagen. Bitte erneut versuchen.",
     },
   },
+  interpretation: {
+    crumb: "Interpretation erfassen · {patient}",
+    titleNew: "Interpretation erfassen",
+    titleCorrection: "Korrektur-Run erfassen (nach Run #{run})",
+    lead: "Sechs Domänen-Achsen · CIS und Actionability als zwei getrennte, geschlossene Angaben je Achse · drei bewertungsfreie Tri-State-Zellen als Belegkontext. Das System validiert und protokolliert Ihre Angaben; es leitet nichts ab. Ein Run wird vollständig erfasst; Korrekturen erzeugen einen neuen Run (append-only).",
+    reason: "Grund des Runs (Pflicht)",
+    reasonPlaceholderNew: "z. B. Baseline-Interpretation",
+    reasonPlaceholderCorrection: "z. B. Korrektur nach neuen Laborwerten",
+    // The names of the fields; what is chosen in them stays German (ADR-0007).
+    cis: "CIS",
+    actionability: "Actionability",
+    followup: "Follow-up-Adäquanz",
+    rationale: "Begründung (optional)",
+    choose: "Bitte wählen",
+    verdictFree: "(bewertungsfrei)",
+    state: "Zustand",
+    endpoint: "Endpunkt-Adäquanz",
+    evidence: "Belege ({n} gewählt)",
+    evidenceRequired: " — Pflicht",
+    noEvidence: "Keine veröffentlichten Beobachtungen vorhanden.",
+    cancel: "Abbrechen",
+    submit: "Run erfassen (append-only)",
+    submitting: "Wird erfasst …",
+    invalid: {
+      reason: "Bitte einen Grund für den Run angeben.",
+      domain:
+        "{axis}: CIS, Actionability und Follow-up-Adäquanz sind Pflichtangaben.",
+      cell: "{axis} / {cell}: Zustand und Endpunkt-Adäquanz sind Pflichtangaben.",
+      evidence:
+        "{axis} / {cell}: eine bestimmte Zelle braucht mindestens einen Beleg.",
+    },
+    // What the server action answers.
+    errors: {
+      invalidPatient: "Ungültige Patientenreferenz.",
+      invalidPath: "Ungültiger Pfad.",
+      forbidden: "Diese Aktion ist Ihrer Rolle nicht erlaubt.",
+      vocabulary:
+        "Eingaben unvollständig oder außerhalb der geschlossenen Vokabulare.",
+      evidenceReplaced:
+        "Ein gewählter Beleg wurde inzwischen vom Labor korrigiert. Bitte die Seite neu laden und die Belege erneut wählen.",
+      evidenceUnresolved:
+        "Belege nicht auflösbar: jeder Beleg muss eine veröffentlichte Beobachtung dieser Patientin sein.",
+      shape: "Run-Struktur unvollständig (6 Domänen × 3 Zellen).",
+      failed: "Erfassen fehlgeschlagen. Bitte erneut versuchen.",
+    },
+  },
   notFound: {
     title: "Seite nicht gefunden",
     note: "Die angeforderte Seite existiert nicht oder ist nicht verfügbar.",
@@ -776,7 +822,7 @@ export const de = {
     note: "Die Sprache der Oberfläche auf diesem Gerät. Inhalte wie Berichte, Bezeichnungen aus dem Labor und Namen bleiben in der Sprache, in der sie erfasst wurden.",
     // Says exactly what is done. To be widened with every part, and removed with the last page.
     progress:
-      "Englisch wird Seite für Seite ergänzt: die Navigation, die Anmeldung, die Übersicht, die Patientenliste, die Patientenseite, die Review-Queue und diese Übersicht der Einstellungen sind umgestellt; alle übrigen Seiten erscheinen vorerst auf Deutsch. Der Wortlaut der Einwilligungszwecke, die klinischen Bezeichnungen (Domänen, Follow-up-Adäquanz, Lage zum Referenzintervall, Vergleichbarkeit) und die Gründe der Prüfaufgaben bleiben Deutsch.",
+      "Englisch wird Seite für Seite ergänzt: die Navigation, die Anmeldung, die Übersicht, die Patientenliste, die Patientenseite, die Review-Queue, die Erfassung einer Interpretation und diese Übersicht der Einstellungen sind umgestellt; alle übrigen Seiten erscheinen vorerst auf Deutsch. Der Wortlaut der Einwilligungszwecke, die klinischen Bezeichnungen (Domänen, CIS, Actionability, Follow-up- und Endpunkt-Adäquanz, Tri-State-Achsen und ihre Zustände, Lage zum Referenzintervall, Vergleichbarkeit) und die Gründe der Prüfaufgaben bleiben Deutsch.",
     selected: "ausgewählt",
     choose: "Sprache der Oberfläche",
   },

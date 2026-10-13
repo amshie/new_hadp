@@ -388,7 +388,7 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   environment. Open from that review: no lockout on the gate; visitors who arrive over IPv6
   share one limiter budget; the stack is open from the server itself; the role posture of the
   database is checked by the production-shaped smoke only; nothing tells visitors apart.
-- **Interface language, German or English (2026-10-13): PARTS 1–4 of several; ADR-0007.** A person
+- **Interface language, German or English (2026-10-13): PARTS 1–5 of several; ADR-0007.** A person
   chooses under Einstellungen or on the sign-in page; the choice is a cookie on the device
   (`hadp_locale`), German without one (`apps/web/src/lib/i18n`: `messages/de.ts` is the source of
   the keys, `messages/en.ts` is typed against it; server components ask `getMessages()`, client
@@ -526,12 +526,25 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   the table now scrolls sideways. The browser test reads the English page, its columns, and
   the language mark of every reason it shows; the check that an untranslated page says it is
   German moved to the report review page.
+  Part 5: recording an interpretation — heading, lead, the names of the fields (CIS,
+  Actionability, Follow-up adequacy, State, Endpoint adequacy — the doctrine's own English, as
+  on the patient page), "Please choose", the evidence list, the buttons, the checks made before
+  anything is sent, and what the server action answers. **German whatever the choice, marked
+  `lang="de"`:** everything CHOSEN in the form — the domain axes, CIS, Actionability, adequacy,
+  the tri-state axes and their states — and what the clinician types. Known and left, as on the
+  patient page: a check that names an axis ("Metabolisch / Biologisch: state and endpoint
+  adequacy are required.") is one string and cannot mark the German words inside it. Found on
+  the way and fixed: on a phone the form's three columns cut every chosen value to a few
+  letters ("CIS-4 · Gl"); the columns now stack where they do not fit. The browser test opens
+  the form in English as a clinician, checks the field names, the language mark of every value
+  to choose and an English check before sending; `scripts/smoke_web.py` reads the form in both
+  languages and that its German values read the same in both.
   **Still German** (each marks its content `lang="de"`):
-  interpretation, report review, the four settings sub-pages (members, deletion requests, the
+  report review, the four settings sub-pages (members, deletion requests, the
   audit trail with its ~60 event labels, preparation time), the patient-facing pages, the
   colleague's onboarding page (`/team-einladung`), the error page, the disclaimer, the toasts,
   and every message a server action returns except those of sign-in, of the dialog to add a
-  patient, of the patient page and of the review queue. All date and number
+  patient, of the patient page, of the review queue and of the interpretation form. All date and number
   formats are `de-DE`, written out in about twenty places. The settings page says what is done
   while that is true — widen that sentence (`language.progress`) with every part and remove it
   with the last page.

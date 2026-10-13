@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 
 import { VitaShell } from "@/components/vitabahn/VitaShell";
 import { ApiError, getPatient, interpretation, me, timeline } from "@/lib/api";
+import { fill } from "@/lib/i18n/fill";
+import { getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
 import { isUuid } from "@/lib/uuid";
 
@@ -24,11 +26,12 @@ export default async function AuthorRunPage({
   const { id } = await params;
   if (!isUuid(id)) notFound();
   try {
-    const [session, patient, matrix, points] = await Promise.all([
+    const [session, patient, matrix, points, messages] = await Promise.all([
       me().catch(() => null),
       getPatient(id),
       interpretation(id),
       timeline(id),
+      getMessages(),
     ]);
     if (session?.role !== "clinician") redirect(`/patients/${id}`);
 
@@ -72,9 +75,12 @@ export default async function AuthorRunPage({
     return (
       <VitaShell
         nav="patienten"
-        crumb={`Interpretation erfassen · ${patient.display_name}`}
+        crumb={fill(messages.interpretation.crumb, {
+          patient: patient.display_name,
+        })}
         crumbParent={{ label: patient.display_name, href: `/patients/${id}` }}
         identity={shellIdentity(session)}
+        translated
       >
         <AuthorRunContent
           patientId={id}

@@ -84,6 +84,29 @@ test("the German of the dialog to add a patient, put together", () => {
   expect(byCount(t.review.age, 34)).toBe("· 34 Jahre");
 });
 
+// The same for the interpretation form: the checks it makes before anything is sent read as
+// they did before they were split into wording and values.
+test("the German of the interpretation form, put together", () => {
+  const t = de.interpretation;
+  expect(fill(t.titleCorrection, { run: 3 })).toBe(
+    "Korrektur-Run erfassen (nach Run #3)",
+  );
+  expect(fill(t.crumb, { patient: "Synthetic Patient One" })).toBe(
+    "Interpretation erfassen · Synthetic Patient One",
+  );
+  expect(fill(t.evidence, { n: 2 })).toBe("Belege (2 gewählt)");
+  expect(fill(t.invalid.domain, { axis: "Metabolisch" })).toBe(
+    "Metabolisch: CIS, Actionability und Follow-up-Adäquanz sind Pflichtangaben.",
+  );
+  const cell = { axis: "Metabolisch", cell: "Biologisch" };
+  expect(fill(t.invalid.cell, cell)).toBe(
+    "Metabolisch / Biologisch: Zustand und Endpunkt-Adäquanz sind Pflichtangaben.",
+  );
+  expect(fill(t.invalid.evidence, cell)).toBe(
+    "Metabolisch / Biologisch: eine bestimmte Zelle braucht mindestens einen Beleg.",
+  );
+});
+
 // The same for the review queue. The sentences that changed: a count of reports is no longer
 // "Bericht(en)" — one report, or reports.
 test("the German of the review queue, put together", () => {

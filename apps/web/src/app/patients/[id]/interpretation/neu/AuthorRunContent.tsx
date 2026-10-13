@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition, type CSSProperties } from "react";
 
 import type { RunAuthorIn } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/I18nProvider";
+import { fill } from "@/lib/i18n/fill";
 import {
   ACTIONABILITY_LABELS,
   ADEQUACY_LABELS,
@@ -18,6 +20,11 @@ import { authorRunAction } from "./actions";
 // correction run the latest run prefills and the clinician edits. CIS and
 // Actionability are two separate closed selects; the three tri-state cells are
 // verdict-free supporting evidence with their own per-axis vocabularies.
+//
+// The form follows the interface language (ADR-0007). What is CHOSEN in it — the domain axes,
+// CIS, Actionability, adequacy, the tri-state axes and their states — is a closed clinical
+// vocabulary: German until its English names are confirmed, and marked so.
+const GERMAN = "de";
 
 export interface EvidenceOption {
   id: string;
@@ -188,6 +195,7 @@ export function AuthorRunContent({
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const t = useI18n().t.interpretation;
 
   const setDomain = (axis: string, patch: Partial<DomainDraft>) =>
     setDraft((d) => {
@@ -210,18 +218,19 @@ export function AuthorRunContent({
     });
 
   const validate = (): string | null => {
-    if (!reason.trim()) return "Bitte einen Grund für den Run angeben.";
+    if (!reason.trim()) return t.invalid.reason;
     for (const axis of AXES) {
       // Invariant: the draft always contains every axis/cell (constructed above).
       const d = draft[axis]!;
+      const where = { axis: DOMAIN_AXIS_LABELS[axis] ?? axis };
       if (!d.cis_status || !d.actionability_class || !d.followup_adequacy)
-        return `${DOMAIN_AXIS_LABELS[axis] ?? axis}: CIS, Actionability und Follow-up-Adäquanz sind Pflichtangaben.`;
+        return fill(t.invalid.domain, where);
       for (const tri of TRI_AXES) {
         const c = d.cells[tri]!;
-        if (!c.state || !c.endpoint_adequacy)
-          return `${DOMAIN_AXIS_LABELS[axis] ?? axis} / ${TRI_AXIS_LABELS[tri]}: Zustand und Endpunkt-Adäquanz sind Pflichtangaben.`;
+        const cell = { ...where, cell: TRI_AXIS_LABELS[tri] ?? tri };
+        if (!c.state || !c.endpoint_adequacy) return fill(t.invalid.cell, cell);
         if (c.state !== "INDETERMINATE" && c.evidence.length === 0)
-          return `${DOMAIN_AXIS_LABELS[axis] ?? axis} / ${TRI_AXIS_LABELS[tri]}: eine bestimmte Zelle braucht mindestens einen Beleg.`;
+          return fill(t.invalid.evidence, cell);
       }
     }
     return null;
@@ -286,8 +295,8 @@ export function AuthorRunContent({
           }}
         >
           {prefill
-            ? `Korrektur-Run erfassen (nach Run #${runNumber})`
-            : "Interpretation erfassen"}
+            ? fill(t.titleCorrection, { run: runNumber ?? "" })
+            : t.titleNew}
         </h1>
         <p
           style={{
@@ -297,17 +306,13 @@ export function AuthorRunContent({
             maxWidth: "88ch",
           }}
         >
-          Sechs Domänen-Achsen · CIS und Actionability als zwei getrennte,
-          geschlossene Angaben je Achse · drei bewertungsfreie Tri-State-Zellen
-          als Belegkontext. Das System validiert und protokolliert Ihre Angaben;
-          es leitet nichts ab. Ein Run wird vollständig erfasst; Korrekturen
-          erzeugen einen neuen Run (append-only).
+          {t.lead}
         </p>
       </div>
 
       <div style={cardStyle}>
         <label style={labelStyle} htmlFor="run-reason">
-          Grund des Runs (Pflicht)
+          {t.reason}
         </label>
         <input
           id="run-reason"
@@ -316,9 +321,7 @@ export function AuthorRunContent({
           maxLength={200}
           onChange={(e) => setReason(e.target.value)}
           placeholder={
-            prefill
-              ? "z. B. Korrektur nach neuen Laborwerten"
-              : "z. B. Baseline-Interpretation"
+            prefill ? t.reasonPlaceholderCorrection : t.reasonPlaceholderNew
           }
         />
       </div>
@@ -332,6 +335,7 @@ export function AuthorRunContent({
             aria-label={DOMAIN_AXIS_LABELS[axis] ?? axis}
           >
             <h2
+              lang={GERMAN}
               style={{
                 margin: "0 0 12px",
                 fontFamily: "var(--font-display)",
@@ -342,16 +346,18 @@ export function AuthorRunContent({
             >
               {DOMAIN_AXIS_LABELS[axis] ?? axis}
             </h2>
+            {/* Three columns where they fit; on a phone they stack, so a chosen value is read
+                whole instead of cut to a few letters. */}
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                 gap: "12px",
               }}
             >
               <div>
                 <label style={labelStyle} htmlFor={`${axis}-cis`}>
-                  CIS
+                  {t.cis}
                 </label>
                 <select
                   id={`${axis}-cis`}
@@ -361,9 +367,9 @@ export function AuthorRunContent({
                     setDomain(axis, { cis_status: e.target.value })
                   }
                 >
-                  <option value="">Bitte wählen</option>
+                  <option value="">{t.choose}</option>
                   {Object.keys(CIS_LABELS).map((k) => (
-                    <option key={k} value={k}>
+                    <option key={k} value={k} lang={GERMAN}>
                       {CIS_LABELS[k]}
                     </option>
                   ))}
@@ -371,7 +377,7 @@ export function AuthorRunContent({
               </div>
               <div>
                 <label style={labelStyle} htmlFor={`${axis}-actionability`}>
-                  Actionability
+                  {t.actionability}
                 </label>
                 <select
                   id={`${axis}-actionability`}
@@ -381,9 +387,9 @@ export function AuthorRunContent({
                     setDomain(axis, { actionability_class: e.target.value })
                   }
                 >
-                  <option value="">Bitte wählen</option>
+                  <option value="">{t.choose}</option>
                   {Object.keys(ACTIONABILITY_LABELS).map((k) => (
-                    <option key={k} value={k}>
+                    <option key={k} value={k} lang={GERMAN}>
                       {ACTIONABILITY_LABELS[k]}
                     </option>
                   ))}
@@ -391,7 +397,7 @@ export function AuthorRunContent({
               </div>
               <div>
                 <label style={labelStyle} htmlFor={`${axis}-followup`}>
-                  Follow-up-Adäquanz
+                  {t.followup}
                 </label>
                 <select
                   id={`${axis}-followup`}
@@ -401,9 +407,9 @@ export function AuthorRunContent({
                     setDomain(axis, { followup_adequacy: e.target.value })
                   }
                 >
-                  <option value="">Bitte wählen</option>
+                  <option value="">{t.choose}</option>
                   {Object.keys(ADEQUACY_LABELS).map((k) => (
-                    <option key={k} value={k}>
+                    <option key={k} value={k} lang={GERMAN}>
                       {ADEQUACY_LABELS[k]}
                     </option>
                   ))}
@@ -412,7 +418,7 @@ export function AuthorRunContent({
             </div>
             <div style={{ marginTop: "10px" }}>
               <label style={labelStyle} htmlFor={`${axis}-rationale`}>
-                Begründung (optional)
+                {t.rationale}
               </label>
               <input
                 id={`${axis}-rationale`}
@@ -426,7 +432,7 @@ export function AuthorRunContent({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                 gap: "12px",
                 marginTop: "14px",
               }}
@@ -453,10 +459,11 @@ export function AuthorRunContent({
                         marginBottom: "8px",
                       }}
                     >
-                      {TRI_AXIS_LABELS[tri]} (bewertungsfrei)
+                      <span lang={GERMAN}>{TRI_AXIS_LABELS[tri]}</span>{" "}
+                      {t.verdictFree}
                     </div>
                     <label style={labelStyle} htmlFor={`${axis}-${tri}-state`}>
-                      Zustand
+                      {t.state}
                     </label>
                     <select
                       id={`${axis}-${tri}-state`}
@@ -466,9 +473,9 @@ export function AuthorRunContent({
                         setCell(axis, tri, { state: e.target.value })
                       }
                     >
-                      <option value="">Bitte wählen</option>
+                      <option value="">{t.choose}</option>
                       {(CELL_STATES[tri] ?? []).map((s) => (
-                        <option key={s} value={s}>
+                        <option key={s} value={s} lang={GERMAN}>
                           {CELL_STATE_LABELS[s] ?? s}
                         </option>
                       ))}
@@ -477,7 +484,7 @@ export function AuthorRunContent({
                       style={{ ...labelStyle, marginTop: "8px" }}
                       htmlFor={`${axis}-${tri}-endpoint`}
                     >
-                      Endpunkt-Adäquanz
+                      {t.endpoint}
                     </label>
                     <select
                       id={`${axis}-${tri}-endpoint`}
@@ -489,20 +496,20 @@ export function AuthorRunContent({
                         })
                       }
                     >
-                      <option value="">Bitte wählen</option>
+                      <option value="">{t.choose}</option>
                       {Object.keys(ADEQUACY_LABELS).map((k) => (
-                        <option key={k} value={k}>
+                        <option key={k} value={k} lang={GERMAN}>
                           {ADEQUACY_LABELS[k]}
                         </option>
                       ))}
                     </select>
                     <details style={{ marginTop: "8px" }}>
                       <summary style={{ fontSize: "12px", cursor: "pointer" }}>
-                        Belege ({c.evidence.length} gewählt)
+                        {fill(t.evidence, { n: c.evidence.length })}
                         {c.state &&
                         c.state !== "INDETERMINATE" &&
                         c.evidence.length === 0
-                          ? " — Pflicht"
+                          ? t.evidenceRequired
                           : ""}
                       </summary>
                       <div
@@ -519,7 +526,7 @@ export function AuthorRunContent({
                               color: "var(--text-muted)",
                             }}
                           >
-                            Keine veröffentlichten Beobachtungen vorhanden.
+                            {t.noEvidence}
                           </p>
                         )}
                         {evidenceOptions.map((o) => (
@@ -589,7 +596,7 @@ export function AuthorRunContent({
             cursor: "pointer",
           }}
         >
-          Abbrechen
+          {t.cancel}
         </button>
         <button
           type="button"
@@ -607,7 +614,7 @@ export function AuthorRunContent({
             cursor: "pointer",
           }}
         >
-          {pending ? "Wird erfasst …" : "Run erfassen (append-only)"}
+          {pending ? t.submitting : t.submit}
         </button>
       </div>
     </div>
