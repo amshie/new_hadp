@@ -11,6 +11,9 @@ import {
   type CreatePatientInput,
   type DeletionReason,
 } from "@/lib/api";
+import { fill } from "@/lib/i18n/fill";
+import type { Messages } from "@/lib/i18n/messages";
+import { getMessages } from "@/lib/i18n/server";
 import { isUuid } from "@/lib/uuid";
 
 // Server-side bridge for the onboarding wizard. The session cookie is httpOnly on the
@@ -30,23 +33,23 @@ export type OnboardingConsent = NonNullable<
   CreatePatientInput["consents"]
 >[number];
 
-// Mirrors the API boundary rules (the API remains authoritative); message strings are
-// the UI language. Returns null when the draft is valid.
-function validateDraft(input: PatientDraftInput): string | null {
+// Mirrors the API boundary rules (the API remains authoritative); the messages are in the
+// language of the interface (lib/i18n). Returns null when the draft is valid.
+function validateDraft(
+  input: PatientDraftInput,
+  t: Messages["addPatient"]["errors"],
+): string | null {
   const name = input.display_name.trim();
-  if (!name) return "Bitte einen Namen angeben.";
-  if (name.length > 200) return "Der Name darf höchstens 200 Zeichen haben.";
+  if (!name) return t.nameRequired;
+  if (name.length > 200) return t.nameTooLong;
   const dob = input.date_of_birth?.trim();
   if (dob) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dob))
-      return "Bitte ein gültiges Geburtsdatum angeben.";
-    if (dob > new Date().toISOString().slice(0, 10))
-      return "Das Geburtsdatum darf nicht in der Zukunft liegen.";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) return t.dobInvalid;
+    if (dob > new Date().toISOString().slice(0, 10)) return t.dobFuture;
     if (Number(dob.slice(0, 4)) < MIN_BIRTH_YEAR)
-      return `Bitte ein Geburtsdatum ab ${MIN_BIRTH_YEAR} angeben.`;
+      return fill(t.dobTooEarly, { year: MIN_BIRTH_YEAR });
   }
-  if ((input.external_ref?.trim().length ?? 0) > 120)
-    return "Die externe ID darf höchstens 120 Zeichen haben.";
+  if ((input.external_ref?.trim().length ?? 0) > 120) return t.refTooLong;
   return null;
 }
 
@@ -60,7 +63,8 @@ export async function addPatient(
     allow_duplicate?: boolean;
   },
 ): Promise<AddPatientResult> {
-  const invalid = validateDraft(input);
+  const t = (await getMessages()).addPatient.errors;
+  const invalid = validateDraft(input, t);
   if (invalid) return { ok: false, error: invalid };
   try {
     const patient = await createPatient({
@@ -76,23 +80,12 @@ export async function addPatient(
   } catch (e) {
     if (e instanceof ApiError) {
       if (e.status === 401 || e.status === 403)
-        return { ok: false, error: "Nicht berechtigt. Bitte erneut anmelden." };
+        return { ok: false, error: t.signInAgain };
       if (e.code === "duplicate_patient")
-        return {
-          ok: false,
-          code: "duplicate_patient",
-          error:
-            "Im Mandanten existiert bereits ein Eintrag mit diesen Angaben.",
-        };
-      return {
-        ok: false,
-        error: "Anlegen fehlgeschlagen. Bitte Eingaben prüfen.",
-      };
+        return { ok: false, code: "duplicate_patient", error: t.duplicate };
+      return { ok: false, error: t.checkInput };
     }
-    return {
-      ok: false,
-      error: "Anlegen fehlgeschlagen. Bitte erneut versuchen.",
-    };
+    return { ok: false, error: t.failed };
   }
 }
 
@@ -118,7 +111,8 @@ export type DuplicateCheckResult =
 export async function checkPatientDuplicates(
   input: PatientDraftInput,
 ): Promise<DuplicateCheckResult> {
-  const invalid = validateDraft(input);
+  const t = (await getMessages()).addPatient;
+  const invalid = validateDraft(input, t.errors);
   if (invalid) return { ok: false, error: invalid };
   try {
     const res = await checkDuplicates({
@@ -139,8 +133,8 @@ export async function checkPatientDuplicates(
     };
   } catch (e) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403))
-      return { ok: false, error: "Nicht berechtigt. Bitte erneut anmelden." };
-    return { ok: false, error: "Duplikatprüfung derzeit nicht verfügbar." };
+      return { ok: false, error: t.errors.signInAgain };
+    return { ok: false, error: t.duplicates.unavailable };
   }
 }
 
@@ -152,6 +146,7 @@ const DELETION_REASONS = new Set<DeletionReason>([
 
 export type RequestDeletionResult = { ok: true } | { ok: false; error: string };
 
+// Not translated yet: this action is used by the patient page only, which is still German.
 // Owner-only: open a patient-erasure request (the medical director then decides it on the
 // Löschanträge queue). Server-side authorization is the control — the API gates
 // PRIVACY_REQUEST_CREATE to owners. No data is deleted here; this only files the request.
@@ -199,8 +194,8 @@ export type InviteResult =
 export async function createInvitationAction(
   patientId: string,
 ): Promise<InviteResult> {
-  if (!isUuid(patientId))
-    return { ok: false, error: "Ungültige Patientenreferenz." };
+  const t = (await getMessages()).addPatient.invitationErrors;
+  if (!isUuid(patientId)) return { ok: false, error: t.invalidPatient };
   try {
     const invitation = await createInvitation(patientId);
     return {
@@ -210,20 +205,9 @@ export async function createInvitationAction(
     };
   } catch (e) {
     if (e instanceof ApiError) {
-      if (e.status === 403)
-        return {
-          ok: false,
-          error: "Diese Aktion ist Ihrer Rolle nicht erlaubt.",
-        };
-      if (e.status === 429)
-        return {
-          ok: false,
-          error: "Zu viele Einladungen. Bitte später erneut.",
-        };
+      if (e.status === 403) return { ok: false, error: t.notAllowed };
+      if (e.status === 429) return { ok: false, error: t.tooMany };
     }
-    return {
-      ok: false,
-      error: "Einladung fehlgeschlagen. Bitte erneut versuchen.",
-    };
+    return { ok: false, error: t.failed };
   }
 }

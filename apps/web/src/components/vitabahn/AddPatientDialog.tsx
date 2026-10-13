@@ -19,6 +19,8 @@ import {
   type OnboardingConsent,
 } from "@/app/patients/actions";
 import { CONSENT_OPTIONS, type ConsentPurpose } from "@/lib/consentCopy";
+import { byCount, fill } from "@/lib/i18n/fill";
+import { useI18n } from "@/lib/i18n/I18nProvider";
 
 // VitaBahn patient onboarding wizard (docs/notes/0011). Replaces the flat "+ Patient
 // hinzufügen" form with a guided, validated flow:
@@ -32,9 +34,13 @@ import { CONSENT_OPTIONS, type ConsentPurpose } from "@/lib/consentCopy";
 //   ✓ Erfolg       — open record / mint invitation (one-time URL) / add another
 // Draft state lives in React only — nothing is persisted client-side beyond the
 // session, and closing with entered data asks before discarding.
+//
+// The wizard follows the interface language (lib/i18n). Two things do not: the wording of
+// the consent purposes — versioned text (lib/consentCopy.ts), shown as it is recorded and
+// marked as German — and the format of dates, which is decided on its own (ADR-0007).
 
 const MIN_BIRTH_YEAR = 1900;
-const STEPS = ["Identität", "Einwilligung", "Prüfung"] as const;
+const STEPS = ["identity", "consent", "review"] as const;
 
 type Step = 1 | 2 | 3 | "done";
 
@@ -147,17 +153,12 @@ function ageFrom(dobIso: string): number | null {
   return age >= 0 ? age : null;
 }
 
-const MATCH_LABEL: Record<DuplicateCandidateView["matchBasis"], string> = {
-  external_ref: "Gleiche externe ID",
-  name_dob: "Name + Geburtsdatum",
-  name: "Gleicher Name",
-};
-
 function StepIndicator({ step }: { step: Step }) {
+  const t = useI18n().t.addPatient;
   const activeIndex = step === "done" ? STEPS.length : step - 1;
   return (
     <ol
-      aria-label="Schritte"
+      aria-label={t.steps}
       style={{
         display: "flex",
         alignItems: "center",
@@ -167,14 +168,18 @@ function StepIndicator({ step }: { step: Step }) {
         padding: 0,
       }}
     >
-      {STEPS.map((label, i) => {
+      {STEPS.map((key, i) => {
         const done = i < activeIndex;
         const active = i === activeIndex;
+        const label = t.stepNames[key];
         return (
           <li
-            key={label}
+            key={key}
             aria-current={active ? "step" : undefined}
-            aria-label={`${i + 1}. ${label}${done ? " – abgeschlossen" : ""}`}
+            aria-label={fill(done ? t.stepDone : t.stepLabel, {
+              n: i + 1,
+              label,
+            })}
             style={{
               display: "flex",
               alignItems: "center",
@@ -256,8 +261,7 @@ export function AddPatientDialog({
   // Optional custom trigger (e.g. the empty-state CTA); defaults to the header button.
   trigger?: (open: () => void) => ReactNode;
 }) {
-  // Not translated yet (lib/i18n): the button and the dialog say that they are German,
-  // whatever the language of the page that holds them. A custom trigger is the page's own.
+  const t = useI18n().t.addPatient;
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>(1);
@@ -380,17 +384,14 @@ export function AddPatientDialog({
 
   function validateIdentity(): boolean {
     const errors: { name?: string; dob?: string; ref?: string } = {};
-    if (!name.trim()) errors.name = "Bitte einen Namen angeben.";
-    else if (name.trim().length > 200)
-      errors.name = "Der Name darf höchstens 200 Zeichen haben.";
+    if (!name.trim()) errors.name = t.errors.nameRequired;
+    else if (name.trim().length > 200) errors.name = t.errors.nameTooLong;
     if (dob) {
-      if (dob > todayIso)
-        errors.dob = "Das Geburtsdatum darf nicht in der Zukunft liegen.";
+      if (dob > todayIso) errors.dob = t.errors.dobFuture;
       else if (Number(dob.slice(0, 4)) < MIN_BIRTH_YEAR)
-        errors.dob = `Bitte ein Geburtsdatum ab ${MIN_BIRTH_YEAR} angeben.`;
+        errors.dob = fill(t.errors.dobTooEarly, { year: MIN_BIRTH_YEAR });
     }
-    if (ref.trim().length > 120)
-      errors.ref = "Die externe ID darf höchstens 120 Zeichen haben.";
+    if (ref.trim().length > 120) errors.ref = t.errors.refTooLong;
     setFieldErrors(errors);
     if (errors.name) nameRef.current?.focus();
     return Object.keys(errors).length === 0;
@@ -508,6 +509,7 @@ export function AddPatientDialog({
   }, [step, dupStale, open]);
 
   const selectedConsents = CONSENT_OPTIONS.filter((o) => consents[o.purpose]);
+  const age = dob ? ageFrom(dob) : null;
 
   const summaryRow = (label: string, value: ReactNode) => (
     <div
@@ -537,7 +539,7 @@ export function AddPatientDialog({
       {trigger ? (
         trigger(openWizard)
       ) : (
-        <button type="button" lang="de" onClick={openWizard} style={btnPrimary}>
+        <button type="button" onClick={openWizard} style={btnPrimary}>
           <svg
             aria-hidden="true"
             focusable="false"
@@ -552,7 +554,7 @@ export function AddPatientDialog({
           >
             <path d="M12 5v14M5 12h14" />
           </svg>
-          Patient hinzufügen
+          {t.open}
         </button>
       )}
 
@@ -563,7 +565,6 @@ export function AddPatientDialog({
           describedBy="add-patient-subtitle"
           initialFocusRef={nameRef}
           closeOnBackdrop={false}
-          lang="de"
           backdropStyle={{
             position: "fixed",
             inset: 0,
@@ -598,7 +599,7 @@ export function AddPatientDialog({
                   margin: "0 0 6px",
                 }}
               >
-                Eingaben verwerfen?
+                {t.discard.title}
               </h2>
               <p
                 id="add-patient-subtitle"
@@ -609,7 +610,7 @@ export function AddPatientDialog({
                   lineHeight: 1.5,
                 }}
               >
-                Die bisherigen Angaben werden nicht gespeichert.
+                {t.discard.note}
               </p>
               <div
                 style={{
@@ -624,7 +625,7 @@ export function AddPatientDialog({
                   onClick={() => setConfirmDiscard(false)}
                   style={btnSecondary}
                 >
-                  Weiter bearbeiten
+                  {t.discard.keep}
                 </button>
                 <button
                   type="button"
@@ -636,7 +637,7 @@ export function AddPatientDialog({
                     color: "var(--rose-500)",
                   }}
                 >
-                  Verwerfen
+                  {t.discard.confirm}
                 </button>
               </div>
             </div>
@@ -682,7 +683,7 @@ export function AddPatientDialog({
                   outline: "none",
                 }}
               >
-                Patient angelegt
+                {t.done.title}
               </h2>
               <p
                 id="add-patient-subtitle"
@@ -696,11 +697,12 @@ export function AddPatientDialog({
                 <span style={{ color: "var(--text-strong)", fontWeight: 600 }}>
                   {created.name}
                 </span>{" "}
-                · synthetischer Demodatensatz ·{" "}
-                {selectedConsents.length > 0
-                  ? `${selectedConsents.length} Einwilligung${selectedConsents.length === 1 ? "" : "en"} dokumentiert`
-                  : "keine Einwilligungen dokumentiert"}
-                .
+                {fill(t.done.summary, {
+                  consents:
+                    selectedConsents.length > 0
+                      ? byCount(t.done.consents, selectedConsents.length)
+                      : t.done.noConsents,
+                })}
               </p>
 
               <div
@@ -719,7 +721,7 @@ export function AddPatientDialog({
                     marginBottom: "4px",
                   }}
                 >
-                  Einladung zur eigenständigen Einwilligung
+                  {t.done.inviteTitle}
                 </div>
                 <p
                   style={{
@@ -729,8 +731,7 @@ export function AddPatientDialog({
                     lineHeight: 1.5,
                   }}
                 >
-                  Die Person kann Einwilligungen auch selbst über einen
-                  einmaligen Einladungslink erteilen.
+                  {t.done.inviteNote}
                 </p>
                 {invite.status === "done" ? (
                   <div>
@@ -740,7 +741,7 @@ export function AddPatientDialog({
                         type="text"
                         readOnly
                         value={invite.url}
-                        aria-label="Einladungslink"
+                        aria-label={t.done.inviteLink}
                         onFocus={(e) => e.currentTarget.select()}
                         style={{
                           ...inputStyle,
@@ -753,18 +754,20 @@ export function AddPatientDialog({
                         onClick={() => void copyInviteUrl(invite.url)}
                         style={{ ...btnSecondary, flexShrink: 0 }}
                       >
-                        {copied ? "Kopiert" : "Kopieren"}
+                        {copied ? t.done.copied : t.done.copy}
                       </button>
                     </div>
                     <span style={hintStyle}>
-                      Gültig bis{" "}
-                      {new Date(invite.expiresAt).toLocaleString("de-DE", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                        timeZone: CLINIC_TIME_ZONE,
-                      })}{" "}
-                      · wird nur einmal angezeigt — bitte sicher und persönlich
-                      übermitteln.
+                      {fill(t.done.validUntil, {
+                        when: new Date(invite.expiresAt).toLocaleString(
+                          "de-DE",
+                          {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                            timeZone: CLINIC_TIME_ZONE,
+                          },
+                        ),
+                      })}
                     </span>
                   </div>
                 ) : (
@@ -779,8 +782,8 @@ export function AddPatientDialog({
                       }}
                     >
                       {invite.status === "pending"
-                        ? "Wird erstellt …"
-                        : "Einladungslink erstellen"}
+                        ? t.done.creatingLink
+                        : t.done.createLink}
                     </button>
                     {invite.status === "failed" && (
                       <span role="alert" style={fieldErrorStyle}>
@@ -807,7 +810,7 @@ export function AddPatientDialog({
                   }}
                   style={btnSecondary}
                 >
-                  Weitere Person anlegen
+                  {t.done.another}
                 </button>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <button
@@ -815,7 +818,7 @@ export function AddPatientDialog({
                     onClick={hardClose}
                     style={btnSecondary}
                   >
-                    Schließen
+                    {t.close}
                   </button>
                   <button
                     type="button"
@@ -826,7 +829,7 @@ export function AddPatientDialog({
                     }}
                     style={btnPrimary}
                   >
-                    Akte öffnen
+                    {t.openRecord}
                   </button>
                 </div>
               </div>
@@ -844,7 +847,7 @@ export function AddPatientDialog({
                   letterSpacing: "-0.01em",
                 }}
               >
-                Patient hinzufügen
+                {t.open}
               </h2>
               <p
                 id="add-patient-subtitle"
@@ -854,13 +857,13 @@ export function AddPatientDialog({
                   margin: "0 0 16px",
                 }}
               >
-                Synthetische Demodaten · kein realer Patient.
+                {t.subtitle}
               </p>
 
               <StepIndicator step={step} />
 
               {step === 1 && (
-                // noValidate: the wizard owns validation (styled German inline messages);
+                // noValidate: the wizard owns validation (styled inline messages);
                 // the native required/min/max attributes stay for semantics and pickers.
                 <form
                   noValidate
@@ -880,11 +883,11 @@ export function AddPatientDialog({
                       outline: "none",
                     }}
                   >
-                    Identität &amp; Stammdaten
+                    {t.identity.title}
                   </h3>
                   <div style={{ marginBottom: "14px" }}>
                     <label htmlFor="ap-name" style={labelStyle}>
-                      Name{" "}
+                      {t.identity.name}{" "}
                       <span
                         aria-hidden="true"
                         style={{ color: "var(--rose-500)" }}
@@ -908,7 +911,7 @@ export function AddPatientDialog({
                         if (fieldErrors.name)
                           setFieldErrors((f) => ({ ...f, name: undefined }));
                       }}
-                      placeholder="z. B. Maria Beispiel"
+                      placeholder={t.identity.namePlaceholder}
                       style={fieldErrors.name ? invalidInputStyle : inputStyle}
                     />
                     {fieldErrors.name && (
@@ -931,14 +934,14 @@ export function AddPatientDialog({
                   >
                     <div style={{ flex: 1, minWidth: "180px" }}>
                       <label htmlFor="ap-dob" style={labelStyle}>
-                        Geburtsdatum{" "}
+                        {t.identity.dob}{" "}
                         <span
                           style={{
                             color: "var(--text-faint)",
                             fontWeight: 500,
                           }}
                         >
-                          (optional)
+                          {t.optional}
                         </span>
                       </label>
                       <input
@@ -971,14 +974,14 @@ export function AddPatientDialog({
                     </div>
                     <div style={{ flex: 1, minWidth: "180px" }}>
                       <label htmlFor="ap-ref" style={labelStyle}>
-                        Externe ID{" "}
+                        {t.identity.ref}{" "}
                         <span
                           style={{
                             color: "var(--text-faint)",
                             fontWeight: 500,
                           }}
                         >
-                          (optional)
+                          {t.optional}
                         </span>
                       </label>
                       <input
@@ -995,7 +998,7 @@ export function AddPatientDialog({
                           if (fieldErrors.ref)
                             setFieldErrors((f) => ({ ...f, ref: undefined }));
                         }}
-                        placeholder="z. B. SYN-0042"
+                        placeholder={t.identity.refPlaceholder}
                         style={fieldErrors.ref ? invalidInputStyle : inputStyle}
                       />
                       {fieldErrors.ref ? (
@@ -1008,14 +1011,13 @@ export function AddPatientDialog({
                         </span>
                       ) : (
                         <span id="ap-ref-hint" style={hintStyle}>
-                          Referenz Ihres Praxissystems.
+                          {t.identity.refHint}
                         </span>
                       )}
                     </div>
                   </div>
                   <p style={{ ...hintStyle, margin: "0 0 16px" }}>
-                    Vor dem Anlegen wird im Mandanten auf mögliche Duplikate
-                    geprüft.
+                    {t.identity.duplicateNote}
                   </p>
                   <div
                     style={{
@@ -1029,10 +1031,10 @@ export function AddPatientDialog({
                       onClick={requestClose}
                       style={btnSecondary}
                     >
-                      Abbrechen
+                      {t.cancel}
                     </button>
                     <button type="submit" style={btnPrimary}>
-                      Weiter
+                      {t.next}
                     </button>
                   </div>
                 </form>
@@ -1051,11 +1053,11 @@ export function AddPatientDialog({
                       outline: "none",
                     }}
                   >
-                    Einwilligungen{" "}
+                    {t.consent.title}{" "}
                     <span
                       style={{ color: "var(--text-faint)", fontWeight: 500 }}
                     >
-                      (optional)
+                      {t.optional}
                     </span>
                   </h3>
                   <p
@@ -1066,10 +1068,7 @@ export function AddPatientDialog({
                       lineHeight: 1.55,
                     }}
                   >
-                    Vor Ort erteilte Einwilligungen werden mit Zeitstempel,
-                    Zweck und erfassender Person dokumentiert (unveränderliches
-                    Protokoll). Alternativ kann die Person sie später selbst
-                    über den Einladungslink erteilen.
+                    {t.consent.note}
                   </p>
                   <div
                     style={{
@@ -1081,8 +1080,11 @@ export function AddPatientDialog({
                     {CONSENT_OPTIONS.map((o) => {
                       const checked = consents[o.purpose];
                       return (
+                        // The purpose as it is recorded — not interface wording. The mark is
+                        // on the label: its text is the name of the checkbox, too.
                         <label
                           key={o.purpose}
+                          lang="de"
                           style={{
                             display: "flex",
                             gap: "10px",
@@ -1141,8 +1143,7 @@ export function AddPatientDialog({
                     })}
                   </div>
                   <p style={{ ...hintStyle, margin: "0 0 16px" }}>
-                    Erfassung: persönlich vor Ort · Zweckkatalog der
-                    Pilotumgebung (synthetische Daten).
+                    {t.consent.channel}
                   </p>
                   <div
                     style={{
@@ -1152,10 +1153,10 @@ export function AddPatientDialog({
                     }}
                   >
                     <button type="button" onClick={goBack} style={btnSecondary}>
-                      Zurück
+                      {t.back}
                     </button>
                     <button type="button" onClick={goNext} style={btnPrimary}>
-                      Weiter
+                      {t.next}
                     </button>
                   </div>
                 </div>
@@ -1174,19 +1175,19 @@ export function AddPatientDialog({
                       outline: "none",
                     }}
                   >
-                    Prüfen &amp; Bestätigen
+                    {t.review.title}
                   </h3>
                   <div style={{ marginBottom: "16px" }}>
-                    {summaryRow("Name", name.trim())}
+                    {summaryRow(t.review.name, name.trim())}
                     {summaryRow(
-                      "Geburtsdatum",
+                      t.review.dob,
                       dob ? (
                         <>
                           {formatDateDe(dob)}
-                          {ageFrom(dob) !== null && (
+                          {age !== null && (
                             <span style={{ color: "var(--text-muted)" }}>
                               {" "}
-                              · {ageFrom(dob)} Jahre
+                              {byCount(t.review.age, age)}
                             </span>
                           )}
                         </>
@@ -1195,7 +1196,7 @@ export function AddPatientDialog({
                       ),
                     )}
                     {summaryRow(
-                      "Externe ID",
+                      t.review.ref,
                       ref.trim() ? (
                         <span
                           style={{
@@ -1210,7 +1211,7 @@ export function AddPatientDialog({
                       ),
                     )}
                     {summaryRow(
-                      "Einwilligungen",
+                      t.review.consents,
                       selectedConsents.length > 0 ? (
                         <span
                           style={{
@@ -1222,6 +1223,7 @@ export function AddPatientDialog({
                           {selectedConsents.map((o) => (
                             <span
                               key={o.purpose}
+                              lang="de"
                               style={{
                                 display: "inline-flex",
                                 padding: "2px 9px",
@@ -1238,7 +1240,7 @@ export function AddPatientDialog({
                           ))}
                         </span>
                       ) : (
-                        "Keine dokumentiert"
+                        t.review.noConsents
                       ),
                     )}
                   </div>
@@ -1255,7 +1257,7 @@ export function AddPatientDialog({
                         marginBottom: "14px",
                       }}
                     >
-                      Duplikatprüfung läuft …
+                      {t.duplicates.running}
                     </div>
                   ) : dup.status === "failed" ? (
                     <div
@@ -1269,7 +1271,7 @@ export function AddPatientDialog({
                         marginBottom: "14px",
                       }}
                     >
-                      Duplikatprüfung derzeit nicht verfügbar.{" "}
+                      {t.duplicates.unavailable}{" "}
                       <button
                         type="button"
                         onClick={() => runDuplicateCheck(dupSig)}
@@ -1284,7 +1286,7 @@ export function AddPatientDialog({
                           textDecoration: "underline",
                         }}
                       >
-                        Erneut prüfen
+                        {t.duplicates.retry}
                       </button>
                     </div>
                   ) : dupReady && dup.candidates.length > 0 ? (
@@ -1313,8 +1315,8 @@ export function AddPatientDialog({
                         }}
                       >
                         {dup.hasStrongMatch
-                          ? "Möglicherweise bereits vorhanden"
-                          : "Ähnlicher Eintrag im Mandanten"}
+                          ? t.duplicates.strong
+                          : t.duplicates.similar}
                       </div>
                       <div style={{ display: "grid", gap: "6px" }}>
                         {dup.candidates.map((c) => (
@@ -1361,7 +1363,7 @@ export function AddPatientDialog({
                                 border: "1px solid var(--border-default)",
                               }}
                             >
-                              {MATCH_LABEL[c.matchBasis]}
+                              {t.duplicates.match[c.matchBasis]}
                             </span>
                             <button
                               type="button"
@@ -1382,7 +1384,7 @@ export function AddPatientDialog({
                                 textDecoration: "underline",
                               }}
                             >
-                              Akte öffnen
+                              {t.openRecord}
                             </button>
                           </div>
                         ))}
@@ -1410,10 +1412,7 @@ export function AddPatientDialog({
                               accentColor: "var(--rose-500)",
                             }}
                           />
-                          <span>
-                            Trotzdem neu anlegen — es handelt sich um eine
-                            andere Person.
-                          </span>
+                          <span>{t.duplicates.createAnyway}</span>
                         </label>
                       )}
                     </div>
@@ -1428,7 +1427,7 @@ export function AddPatientDialog({
                         marginBottom: "14px",
                       }}
                     >
-                      Keine Übereinstimmungen im Mandanten gefunden.
+                      {t.duplicates.none}
                     </div>
                   ) : null}
 
@@ -1454,7 +1453,7 @@ export function AddPatientDialog({
                         cursor: pending ? "default" : "pointer",
                       }}
                     >
-                      Zurück
+                      {t.back}
                     </button>
                     <button
                       type="button"
@@ -1466,7 +1465,7 @@ export function AddPatientDialog({
                         cursor: submitBlocked ? "default" : "pointer",
                       }}
                     >
-                      {pending ? "Wird angelegt …" : "Patient anlegen"}
+                      {pending ? t.review.creating : t.review.create}
                     </button>
                   </div>
                 </div>

@@ -48,8 +48,9 @@ product do not all read it.
 
 ## What is NOT decided here, and needs its owner before the pages that touch it
 
-- **The English names of the closed vocabularies** — CIS, Actionability, the tri-state cells,
-  rejection reasons, comparability notes, position against a reference interval. They carry
+- **The English names of the closed vocabularies** — the six domain axes, CIS, Actionability,
+  follow-up adequacy, the tri-state cells, rejection reasons, comparability notes, position
+  against a reference interval. They carry
   clinical meaning in any language: the doctrine's own terms (ADR-0003), the catalog's English
   names (ADR-0004) and the pairs that `lageCopy.ts` / `comparabilityCopy.ts` already hold are
   the terms to use, confirmed by the medical director. Not a fresh translation.

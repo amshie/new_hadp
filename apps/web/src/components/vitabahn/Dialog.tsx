@@ -35,7 +35,6 @@ export function Dialog({
   backdropClassName,
   dialogStyle,
   dialogClassName,
-  lang,
   children,
 }: {
   onClose: () => void;
@@ -48,8 +47,6 @@ export function Dialog({
   backdropClassName?: string;
   dialogStyle?: CSSProperties;
   dialogClassName?: string;
-  // The language of the dialog's content, where it is not the language of the page around it.
-  lang?: string;
   children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -118,7 +115,6 @@ export function Dialog({
         aria-modal="true"
         aria-labelledby={labelledBy}
         aria-describedby={describedBy}
-        lang={lang}
         className={dialogClassName}
         style={dialogStyle}
       >

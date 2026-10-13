@@ -6,8 +6,9 @@ import { asStaff, hydrated, watchPageErrors } from "./support/staff";
 // kept on the device (apps/web/src/lib/i18n). German is what a device without a choice gets.
 //
 // The pages are being translated one after another; these tests hold what is done: the two
-// navigation shells, the settings overview, the overview, the patients list, the sign-in page
-// and the not-found page — and that a page which is still German says so. They leave every
+// navigation shells, the settings overview, the overview, the patients list, the dialog to
+// add a patient (opened from the overview), the sign-in page and the not-found page — and
+// that a page which is still German says so. They leave every
 // other test in German: each runs in a browser context of its own, and none of them signs out
 // (the session is shared).
 
@@ -141,14 +142,54 @@ test("a person chooses English under Einstellungen, and goes back to German", as
     await expect(body).toContainText("Report status");
     await expect(body).not.toContainText("Klinische Arbeitsliste");
     await expect(body).not.toContainText("Berichtsstatus");
-    // The one part of it that is not translated yet says so: the button, and the dialog it
-    // opens.
-    const add = page.getByRole("button", { name: "Patient hinzufügen" });
-    expect(await languageOf(add)).toBe("de");
-    await add.click();
+    // The dialog to add a patient follows the choice: the message of a check it makes itself,
+    // its three steps, and what the duplicate check answers from the server.
+    await page.getByRole("button", { name: "Add patient" }).click();
     const dialog = page.getByRole("dialog");
-    await expect(dialog).toHaveAttribute("lang", "de");
-    await page.keyboard.press("Escape");
+    await expect(dialog).toContainText(
+      "Synthetic demo data · no real patient.",
+    );
+    const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+    // The dialog moves focus to its first field a moment after it opens.
+    await expect(name).toBeFocused();
+    await dialog.getByRole("button", { name: "Next" }).click();
+    await expect(dialog.getByRole("alert")).toHaveText("Please enter a name.");
+    await name.fill("Synthetic Language Check");
+    // The reference of the seeded patient: the duplicate check will find it.
+    await dialog.getByRole("textbox", { name: "External ID" }).fill("SYN-0001");
+    await dialog.getByRole("button", { name: "Next" }).click();
+    const step = dialog.getByRole("heading", { level: 3 });
+    await expect(step).toContainText("Consents");
+    expect(await languageOf(step)).toBe("en");
+    // The purposes of consent are no interface wording: they are shown as they are recorded,
+    // and say that they are German — where they are chosen, and where they are summed up.
+    const purpose = dialog.getByRole("checkbox", {
+      name: /^Freigabe geprüfter Berichte/,
+    });
+    expect(await languageOf(purpose)).toBe("de");
+    await purpose.check();
+    await dialog.getByRole("button", { name: "Next" }).click();
+    await expect(step).toHaveText("Review & confirm");
+    const chosen = dialog.getByText("Freigabe geprüfter Berichte", {
+      exact: true,
+    });
+    expect(await languageOf(chosen)).toBe("de");
+    // A record with the same reference exists: the dialog says so, and does not create a
+    // second one without an explicit decision.
+    await expect(dialog.getByRole("alert")).toContainText(
+      "Possibly on record already",
+    );
+    await expect(dialog.getByRole("alert")).toContainText("Same external ID");
+    await expect(
+      dialog.getByRole("button", { name: "Create patient" }),
+    ).toBeDisabled();
+    // No patient is created: what was entered is discarded. (The duplicate check leaves one
+    // entry in the audit trail — a count, no name.)
+    await dialog.getByRole("button", { name: "Back" }).click();
+    await dialog.getByRole("button", { name: "Back" }).click();
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(dialog).toContainText("Discard what you entered?");
+    await dialog.getByRole("button", { name: "Discard" }).click();
     await expect(dialog).toHaveCount(0);
 
     // So is the patients list.
