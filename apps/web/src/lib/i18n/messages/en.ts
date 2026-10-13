@@ -20,6 +20,8 @@ export const en: Messages = {
     toggleTheme: "Switch theme",
     skipLink: "Skip to main content",
     brandAria: "HADP overview",
+    menu: "Menu",
+    closeMenu: "Close menu",
   },
   roles: {
     owner: "Owner",

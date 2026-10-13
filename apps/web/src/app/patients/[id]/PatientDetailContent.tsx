@@ -540,12 +540,14 @@ export function PatientDetailContent({
             paddingBottom: "18px",
           }}
         >
+          {/* On a narrow screen the actions go under the name, which wraps if it must. */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
               gap: "16px",
               flex: "1 1 300px",
+              flexWrap: "wrap",
               minWidth: 0,
             }}
           >
@@ -568,7 +570,7 @@ export function PatientDetailContent({
             >
               {initialsOf(review.patientName)}
             </div>
-            <div style={{ minWidth: 0 }}>
+            <div style={{ flex: "1 1 180px", minWidth: 0 }}>
               <div
                 style={{
                   display: "flex",
@@ -586,7 +588,7 @@ export function PatientDetailContent({
                     letterSpacing: "var(--tracking-tight)",
                     color: "var(--text-strong)",
                     margin: 0,
-                    whiteSpace: "nowrap",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {review.patientName}
@@ -1070,7 +1072,11 @@ export function PatientDetailContent({
             {t.evidence.note}
           </p>
         </div>
-        <div style={{ overflowX: "auto", marginTop: "10px" }}>
+        {/* Relative: the rows' screen-reader sentences (.sr-only, absolute) are held in this
+            scroller — otherwise they reach past a narrow screen and widen the whole page. */}
+        <div
+          style={{ position: "relative", overflowX: "auto", marginTop: "10px" }}
+        >
           <div style={{ minWidth: "760px" }}>
             <div
               style={{
@@ -1271,119 +1277,123 @@ export function PatientDetailContent({
             {t.audit.none}
           </div>
         ) : (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              minWidth: "560px",
-            }}
-          >
-            {review.auditSteps.map((s, i, a) => {
-              // The step's wording in the page's language, by the step and its line.
-              const step: Record<string, string> = t.audit.steps[s.key];
-              const done = s.state === "done";
-              const active = s.state === "active";
-              const dotBg = done
-                ? "var(--vital-500)"
-                : active
-                  ? "var(--amber-400)"
-                  : "var(--surface-sunken)";
-              const dotFg = done || active ? "#fff" : "var(--text-faint)";
-              return (
-                <div
-                  key={s.key}
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    textAlign: "center",
-                  }}
-                >
+          // The steps need 560px: a narrower screen scrolls them sideways, like the table above.
+          <div style={{ overflowX: "auto" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                minWidth: "560px",
+              }}
+            >
+              {review.auditSteps.map((s, i, a) => {
+                // The step's wording in the page's language, by the step and its line.
+                const step: Record<string, string> = t.audit.steps[s.key];
+                const done = s.state === "done";
+                const active = s.state === "active";
+                const dotBg = done
+                  ? "var(--vital-500)"
+                  : active
+                    ? "var(--amber-400)"
+                    : "var(--surface-sunken)";
+                const dotFg = done || active ? "#fff" : "var(--text-faint)";
+                return (
                   <div
+                    key={s.key}
                     style={{
+                      flex: 1,
                       display: "flex",
+                      flexDirection: "column",
                       alignItems: "center",
-                      width: "100%",
+                      textAlign: "center",
                     }}
                   >
                     <div
                       style={{
-                        flex: 1,
-                        height: "2px",
-                        background: i === 0 ? "transparent" : "var(--teal-300)",
-                      }}
-                    />
-                    <div
-                      style={{
-                        width: "26px",
-                        height: "26px",
-                        flexShrink: 0,
-                        borderRadius: "999px",
-                        background: dotBg,
-                        color: dotFg,
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "12px",
-                        fontWeight: 600,
+                        width: "100%",
                       }}
                     >
-                      {done ? (
-                        <svg
-                          aria-hidden="true"
-                          focusable="false"
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#fff"
-                          strokeWidth="2.6"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M20 6L9 17l-5-5" />
-                        </svg>
-                      ) : (
-                        s.dot
-                      )}
+                      <div
+                        style={{
+                          flex: 1,
+                          height: "2px",
+                          background:
+                            i === 0 ? "transparent" : "var(--teal-300)",
+                        }}
+                      />
+                      <div
+                        style={{
+                          width: "26px",
+                          height: "26px",
+                          flexShrink: 0,
+                          borderRadius: "999px",
+                          background: dotBg,
+                          color: dotFg,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {done ? (
+                          <svg
+                            aria-hidden="true"
+                            focusable="false"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#fff"
+                            strokeWidth="2.6"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M20 6L9 17l-5-5" />
+                          </svg>
+                        ) : (
+                          s.dot
+                        )}
+                      </div>
+                      <div
+                        style={{
+                          flex: 1,
+                          height: "2px",
+                          background:
+                            i === a.length - 1
+                              ? "transparent"
+                              : "var(--teal-300)",
+                        }}
+                      />
                     </div>
-                    <div
-                      style={{
-                        flex: 1,
-                        height: "2px",
-                        background:
-                          i === a.length - 1
-                            ? "transparent"
-                            : "var(--teal-300)",
-                      }}
-                    />
+                    <div style={{ marginTop: "9px" }}>
+                      <div
+                        style={{
+                          fontSize: "12.5px",
+                          fontWeight: 600,
+                          color: "var(--text-strong)",
+                        }}
+                      >
+                        {step.label}
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "10.5px",
+                          color: "var(--text-muted)",
+                          marginTop: "2px",
+                        }}
+                      >
+                        {step[s.subKey] ?? ""}
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ marginTop: "9px" }}>
-                    <div
-                      style={{
-                        fontSize: "12.5px",
-                        fontWeight: 600,
-                        color: "var(--text-strong)",
-                      }}
-                    >
-                      {step.label}
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "10.5px",
-                        color: "var(--text-muted)",
-                        marginTop: "2px",
-                      }}
-                    >
-                      {step[s.subKey] ?? ""}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
