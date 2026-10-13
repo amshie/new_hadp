@@ -5,6 +5,20 @@
 // data — no score, no risk, no quality engine (those have no backend; see ADR-0006).
 
 import type { Coverage, Patient, Throughput, WorklistRow } from "@/lib/api";
+import { fill } from "@/lib/i18n/fill";
+import type { Messages } from "@/lib/i18n/messages";
+
+// The wording these presenters need, in the language of the page (lib/i18n).
+export type DashboardWording = Messages["dashboard"];
+
+// Where the latest report stands. What a page filters and counts by — never a label, which
+// differs by language.
+export type StatusGroup =
+  | "review"
+  | "approved"
+  | "released"
+  | "rejected"
+  | "none";
 
 export interface BadgeMeta {
   label: string;
@@ -14,48 +28,47 @@ export interface BadgeMeta {
 }
 
 // Workflow status of the latest report — a closed ReportStatus enum, never a clinical state.
-const STATUS_META: Record<string, BadgeMeta> = {
-  draft_generated: {
-    label: "In Prüfung",
-    fg: "var(--amber-500)",
-    bg: "rgba(201,136,28,0.12)",
-    bd: "rgba(201,136,28,0.30)",
-  },
-  draft_edited: {
-    label: "In Prüfung",
+const STATUS_GROUP: Record<string, StatusGroup> = {
+  draft_generated: "review",
+  draft_edited: "review",
+  approved: "approved",
+  released: "released",
+  rejected: "rejected",
+};
+const GROUP_COLORS: Record<StatusGroup, Omit<BadgeMeta, "label">> = {
+  review: {
     fg: "var(--amber-500)",
     bg: "rgba(201,136,28,0.12)",
     bd: "rgba(201,136,28,0.30)",
   },
   approved: {
-    label: "Genehmigt",
     fg: "var(--brand)",
     bg: "var(--brand-soft)",
     bd: "var(--brand-border)",
   },
   released: {
-    label: "Freigegeben",
     fg: "var(--vital-500)",
     bg: "rgba(20,169,130,0.12)",
     bd: "rgba(20,169,130,0.32)",
   },
   rejected: {
-    label: "Zurückgewiesen",
     fg: "var(--rose-500)",
     bg: "rgba(194,74,74,0.12)",
     bd: "rgba(194,74,74,0.30)",
   },
-};
-const NO_REPORT: BadgeMeta = {
-  label: "Kein Entwurf",
-  fg: "var(--text-muted)",
-  bg: "var(--surface-sunken)",
-  bd: "var(--border-default)",
+  none: {
+    fg: "var(--text-muted)",
+    bg: "var(--surface-sunken)",
+    bd: "var(--border-default)",
+  },
 };
 
-function statusMeta(reportStatus: string | null | undefined): BadgeMeta {
-  if (!reportStatus) return NO_REPORT;
-  return STATUS_META[reportStatus] ?? NO_REPORT;
+function statusGroup(reportStatus: string | null | undefined): StatusGroup {
+  return (reportStatus && STATUS_GROUP[reportStatus]) || "none";
+}
+
+function statusMeta(group: StatusGroup, w: DashboardWording): BadgeMeta {
+  return { label: w.status[group], ...GROUP_COLORS[group] };
 }
 
 function initials(name: string): string {
@@ -75,17 +88,17 @@ function ageYears(dob: string | null | undefined): string {
   return String(age);
 }
 
-function relativeTime(iso: string): string {
+function relativeTime(iso: string, w: DashboardWording["time"]): string {
   const then = new Date(iso).getTime();
   if (!Number.isFinite(then)) return "—";
   const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
-  if (mins < 1) return "gerade eben";
-  if (mins < 60) return `vor ${mins} Min.`;
+  if (mins < 1) return w.now;
+  if (mins < 60) return fill(w.minutes, { n: mins });
   const hours = Math.round(mins / 60);
-  if (hours < 24) return `vor ${hours} Std.`;
+  if (hours < 24) return fill(w.hours, { n: hours });
   const days = Math.round(hours / 24);
-  if (days === 1) return "gestern";
-  return `vor ${days} T`;
+  if (days === 1) return w.yesterday;
+  return fill(w.days, { n: days });
 }
 
 const DRAFT = (s: string | null | undefined) =>
@@ -97,7 +110,7 @@ export interface WorkRowView {
   initials: string;
   ref: string;
   assessment: string;
-  statusLabel: string;
+  group: StatusGroup;
   statusBadge: BadgeMeta;
   updatedLabel: string;
   reviewUrl: string | null;
@@ -118,20 +131,22 @@ export interface OverviewView {
 export function presentOverview(
   rows: WorklistRow[],
   patients: Patient[],
+  w: DashboardWording,
 ): OverviewView {
   const work: WorkRowView[] = rows.map((r) => {
-    const sm = statusMeta(r.report_status);
+    const group = statusGroup(r.report_status);
+    const sm = statusMeta(group, w);
     return {
       patientId: r.patient_id,
       name: r.display_name,
       initials: initials(r.display_name),
       ref: r.external_ref ?? "—",
       assessment: r.report_id
-        ? `Bericht · v${r.version_no ?? 1}`
-        : "Kein Entwurf",
-      statusLabel: sm.label,
+        ? fill(w.reportVersion, { version: r.version_no ?? 1 })
+        : w.status.none,
+      group,
       statusBadge: sm,
-      updatedLabel: relativeTime(r.updated_at),
+      updatedLabel: relativeTime(r.updated_at, w.time),
       reviewUrl: r.report_id
         ? `/patients/${r.patient_id}/assessments/${r.report_id}`
         : null,
@@ -146,7 +161,7 @@ export function presentOverview(
       patients: patients.length,
     },
     rows: work,
-    statusSnapshot: presentStatusSnapshot(rows),
+    statusSnapshot: presentStatusSnapshot(rows, w),
   };
 }
 
@@ -168,37 +183,40 @@ export interface StatusSnapshotView {
   buckets: StatusBucket[];
 }
 
-export function presentStatusSnapshot(rows: WorklistRow[]): StatusSnapshotView {
+export function presentStatusSnapshot(
+  rows: WorklistRow[],
+  w: DashboardWording,
+): StatusSnapshotView {
   const total = rows.length;
   const count = (pred: (r: WorklistRow) => boolean) => rows.filter(pred).length;
   const raw: { key: string; label: string; count: number; color: string }[] = [
     {
       key: "offen",
-      label: "In Prüfung",
+      label: w.status.review,
       count: count((r) => DRAFT(r.report_status)),
       color: "var(--amber-500)",
     },
     {
       key: "genehmigt",
-      label: "Genehmigt",
+      label: w.status.approved,
       count: count((r) => r.report_status === "approved"),
       color: "var(--brand)",
     },
     {
       key: "freigegeben",
-      label: "Freigegeben",
+      label: w.status.released,
       count: count((r) => r.report_status === "released"),
       color: "var(--vital-500)",
     },
     {
       key: "abgelehnt",
-      label: "Zurückgewiesen",
+      label: w.status.rejected,
       count: count((r) => r.report_status === "rejected"),
       color: "var(--rose-500)",
     },
     {
       key: "kein",
-      label: "Kein Entwurf",
+      label: w.status.none,
       count: count((r) => r.report_id == null),
       color: "var(--text-faint)",
     },
@@ -265,7 +283,10 @@ export interface CoverageView {
   latestAgeLabel: string;
 }
 
-export function presentCoverage(c: Coverage): CoverageView {
+export function presentCoverage(
+  c: Coverage,
+  w: DashboardWording,
+): CoverageView {
   const pct = (n: number) =>
     c.total > 0 ? Math.round((n * 100) / c.total) : 0;
   return {
@@ -275,7 +296,7 @@ export function presentCoverage(c: Coverage): CoverageView {
     publishedPct: pct(c.published),
     referencePct: pct(c.with_reference),
     latestAgeLabel: c.latest_observed_at
-      ? relativeTime(c.latest_observed_at)
+      ? relativeTime(c.latest_observed_at, w.time)
       : "—",
   };
 }
@@ -286,7 +307,7 @@ export interface DirectoryRowView {
   initials: string;
   ref: string;
   age: string;
-  statusLabel: string;
+  group: StatusGroup;
   statusBadge: BadgeMeta;
   lastAssessment: string;
 }
@@ -301,21 +322,23 @@ export interface DirectoryView {
 export function presentDirectory(
   patients: Patient[],
   rows: WorklistRow[],
+  w: DashboardWording,
 ): DirectoryView {
   const byPatient = new Map<string, WorklistRow>();
   for (const r of rows) byPatient.set(r.patient_id, r);
   const directory: DirectoryRowView[] = patients.map((p) => {
     const r = byPatient.get(p.id);
-    const sm = statusMeta(r?.report_status);
+    const group = statusGroup(r?.report_status);
+    const sm = statusMeta(group, w);
     return {
       patientId: p.id,
       name: p.display_name,
       initials: initials(p.display_name),
       ref: p.external_ref ?? "—",
       age: ageYears(p.date_of_birth),
-      statusLabel: sm.label,
+      group,
       statusBadge: sm,
-      lastAssessment: r ? relativeTime(r.updated_at) : "—",
+      lastAssessment: r ? relativeTime(r.updated_at, w.time) : "—",
     };
   });
   return {

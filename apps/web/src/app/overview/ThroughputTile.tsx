@@ -2,6 +2,8 @@
 
 import { useState, type CSSProperties } from "react";
 
+import { fill } from "@/lib/i18n/fill";
+import { useI18n } from "@/lib/i18n/I18nProvider";
 import type { ThroughputChartView } from "@/lib/presenters/dashboard";
 
 // VitaBahn "Review-Durchsatz" (ADR-0006 follow-up). Renders the REAL per-day report-version
@@ -26,6 +28,7 @@ const titleStyle: CSSProperties = {
 };
 
 export function ThroughputTile({ view }: { view: ThroughputChartView }) {
+  const t = useI18n().t.overview.throughput;
   const [win, setWin] = useState<14 | 30>(14);
   const pts = view.points.slice(-win);
   const n = pts.length;
@@ -69,7 +72,12 @@ export function ThroughputTile({ view }: { view: ThroughputChartView }) {
           Math.round((k * (n - 1)) / (xLabelCount - 1)),
         );
 
-  const ariaSummary = `Review-Durchsatz über ${win} Tage: ${totalSigned} signiert, ${totalCreated} erstellt, Ø ${avgSigned} signiert pro Tag.`;
+  const ariaSummary = fill(t.summary, {
+    days: win,
+    signed: totalSigned,
+    created: totalCreated,
+    avg: avgSigned,
+  });
 
   const toggleBtn = (active: boolean): CSSProperties => ({
     padding: "4px 11px",
@@ -95,7 +103,7 @@ export function ThroughputTile({ view }: { view: ThroughputChartView }) {
         }}
       >
         <div>
-          <h3 style={titleStyle}>Review-Durchsatz</h3>
+          <h3 style={titleStyle}>{t.title}</h3>
           <p
             style={{
               fontSize: "12.5px",
@@ -103,7 +111,7 @@ export function ThroughputTile({ view }: { view: ThroughputChartView }) {
               margin: 0,
             }}
           >
-            Entwürfe erstellt vs. Reviews signiert · echte Zeitstempel
+            {t.note}
           </p>
         </div>
         <div
@@ -121,14 +129,14 @@ export function ThroughputTile({ view }: { view: ThroughputChartView }) {
             style={toggleBtn(win === 14)}
             onClick={() => setWin(14)}
           >
-            14 T
+            {t.days14}
           </button>
           <button
             type="button"
             style={toggleBtn(win === 30)}
             onClick={() => setWin(30)}
           >
-            30 T
+            {t.days30}
           </button>
         </div>
       </div>
@@ -152,7 +160,7 @@ export function ThroughputTile({ view }: { view: ThroughputChartView }) {
               display: "inline-block",
             }}
           />
-          Signiert
+          {t.signed}
         </span>
         <span
           style={{
@@ -171,7 +179,7 @@ export function ThroughputTile({ view }: { view: ThroughputChartView }) {
               display: "inline-block",
             }}
           />
-          Erstellt
+          {t.created}
         </span>
       </div>
 
@@ -265,17 +273,17 @@ export function ThroughputTile({ view }: { view: ThroughputChartView }) {
       >
         {[
           {
-            label: "Signiert gesamt",
+            label: t.totalSigned,
             value: totalSigned,
             accent: "var(--vital-500)",
           },
           {
-            label: "Erstellt gesamt",
+            label: t.totalCreated,
             value: totalCreated,
             accent: "var(--text-strong)",
           },
           {
-            label: "Ø Signiert / Tag",
+            label: t.avgSigned,
             value: avgSigned,
             accent: "var(--brand)",
           },
@@ -306,7 +314,7 @@ export function ThroughputTile({ view }: { view: ThroughputChartView }) {
             cursor: "pointer",
           }}
         >
-          Datentabelle anzeigen
+          {t.showTable}
         </summary>
         <table
           style={{
@@ -321,17 +329,17 @@ export function ThroughputTile({ view }: { view: ThroughputChartView }) {
               <th
                 style={{ ...colLabel, textAlign: "left", padding: "4px 6px" }}
               >
-                Tag
+                {t.day}
               </th>
               <th
                 style={{ ...colLabel, textAlign: "right", padding: "4px 6px" }}
               >
-                Erstellt
+                {t.created}
               </th>
               <th
                 style={{ ...colLabel, textAlign: "right", padding: "4px 6px" }}
               >
-                Signiert
+                {t.signed}
               </th>
             </tr>
           </thead>

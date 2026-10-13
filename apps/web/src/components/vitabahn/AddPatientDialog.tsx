@@ -256,6 +256,8 @@ export function AddPatientDialog({
   // Optional custom trigger (e.g. the empty-state CTA); defaults to the header button.
   trigger?: (open: () => void) => ReactNode;
 }) {
+  // Not translated yet (lib/i18n): the button and the dialog say that they are German,
+  // whatever the language of the page that holds them. A custom trigger is the page's own.
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>(1);
@@ -535,7 +537,7 @@ export function AddPatientDialog({
       {trigger ? (
         trigger(openWizard)
       ) : (
-        <button type="button" onClick={openWizard} style={btnPrimary}>
+        <button type="button" lang="de" onClick={openWizard} style={btnPrimary}>
           <svg
             aria-hidden="true"
             focusable="false"
@@ -561,6 +563,7 @@ export function AddPatientDialog({
           describedBy="add-patient-subtitle"
           initialFocusRef={nameRef}
           closeOnBackdrop={false}
+          lang="de"
           backdropStyle={{
             position: "fixed",
             inset: 0,

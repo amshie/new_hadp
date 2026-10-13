@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { asStaff, hydrated, watchPageErrors } from "./support/staff";
 
@@ -6,12 +6,63 @@ import { asStaff, hydrated, watchPageErrors } from "./support/staff";
 // kept on the device (apps/web/src/lib/i18n). German is what a device without a choice gets.
 //
 // The pages are being translated one after another; these tests hold what is done: the two
-// navigation shells, the settings overview, the sign-in page and the not-found page — and
-// that a page which is still German says so. They leave every other test in German: each
-// runs in a browser context of its own, and none of them signs out (the session is shared).
+// navigation shells, the settings overview, the overview, the patients list, the sign-in page
+// and the not-found page — and that a page which is still German says so. They leave every
+// other test in German: each runs in a browser context of its own, and none of them signs out
+// (the session is shared).
 
 // The medical director: the one seeded role whose name differs between the two languages.
 const ROLE = { de: "Ärztliche Leitung", en: "Medical director" };
+
+// The four tabs of the patients list, and the five places a report can stand in.
+const PATIENT_TABS = {
+  de: {
+    all: "Alle",
+    open: "Offene Reviews",
+    released: "Freigegeben",
+    none: "Ohne Bericht",
+  },
+  en: {
+    all: "All",
+    open: "Open reviews",
+    released: "Released",
+    none: "No report",
+  },
+};
+const REPORT_STATES = {
+  de: [
+    "In Prüfung",
+    "Genehmigt",
+    "Freigegeben",
+    "Zurückgewiesen",
+    "Kein Entwurf",
+  ],
+  en: ["In review", "Approved", "Released", "Rejected", "No draft"],
+};
+
+// A tab of the patients list: its name, then what it counts.
+const tab = (page: Page, name: string) =>
+  page.getByRole("button", { name: new RegExp(`^${name} \\d+$`) });
+
+async function tabCounts(page: Page, names: typeof PATIENT_TABS.de) {
+  const count = async (name: string) =>
+    Number((await tab(page, name).innerText()).match(/\d+$/)?.[0]);
+  return {
+    all: await count(names.all),
+    open: await count(names.open),
+    released: await count(names.released),
+    none: await count(names.none),
+  };
+}
+
+// The card under a heading of the overview.
+const card = (page: Page, title: string) =>
+  page
+    .locator("div")
+    .filter({
+      has: page.getByRole("heading", { level: 3, name: title, exact: true }),
+    })
+    .last();
 
 async function expectEnglishSettings(page: Page): Promise<void> {
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
@@ -68,23 +119,55 @@ test("a person chooses English under Einstellungen, and goes back to German", as
     expect(days).toBeGreaterThan(360);
     expect(days).toBeLessThan(370);
 
-    // It holds on the next page, reached by a link of the shell (no full page load). That
-    // page is not translated yet: the shell is English, and the page says it is German.
-    await page
-      .getByRole("complementary", { name: "Main navigation" })
-      .getByRole("link", { name: "Overview" })
-      .click();
+    // It holds on the next pages, reached by links of the shell (no full page load).
+    const navigation = page.getByRole("complementary", {
+      name: "Main navigation",
+    });
+    const languageOf = (heading: Locator) =>
+      heading.evaluate((element) =>
+        element.closest("[lang]")?.getAttribute("lang"),
+      );
+
+    // The overview is English: its headings, its work list, its report states.
+    await navigation.getByRole("link", { name: "Overview" }).click();
     await expect(page).toHaveURL(/\/overview$/);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Übersicht" }),
-    ).toBeVisible();
-    expect(
-      await page
-        .getByRole("heading", { level: 1, name: "Übersicht" })
-        .evaluate((heading) => heading.closest("[lang]")?.getAttribute("lang")),
-    ).toBe("de");
+    const overview = page.getByRole("heading", { level: 1, name: "Overview" });
+    await expect(overview).toBeVisible();
+    expect(await languageOf(overview)).toBe("en");
+    const body = page.locator("body");
+    await expect(body).toContainText("Clinical work list");
+    await expect(body).toContainText("Report status");
+    await expect(body).not.toContainText("Klinische Arbeitsliste");
+    await expect(body).not.toContainText("Berichtsstatus");
+    // The one part of it that is not translated yet says so: the button, and the dialog it
+    // opens.
+    const add = page.getByRole("button", { name: "Patient hinzufügen" });
+    expect(await languageOf(add)).toBe("de");
+    await add.click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toHaveAttribute("lang", "de");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+
+    // So is the patients list.
+    await navigation.getByRole("link", { name: "Patients" }).click();
+    await expect(page).toHaveURL(/\/patients$/);
+    const patients = page.getByRole("heading", { level: 1, name: "Patients" });
+    await expect(patients).toBeVisible();
+    expect(await languageOf(patients)).toBe("en");
+    await expect(body).toContainText("Patient directory");
+    await expect(body).toContainText("Last assessment");
+    await expect(body).not.toContainText("Patientenverzeichnis");
+
+    // A page that is not translated yet: the shell is English, and the page says it is German.
+    await navigation.getByRole("link", { name: "Review queue" }).click();
+    await expect(page).toHaveURL(/\/review-queue$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    const queue = page.getByRole("heading", { level: 1 });
+    await expect(queue).toBeVisible();
+    expect(await languageOf(queue)).toBe("de");
 
     // A value that is no offered language changes nothing.
     await page.goto("/einstellungen");
@@ -106,6 +189,71 @@ test("a person chooses English under Einstellungen, and goes back to German", as
     ).toBeVisible();
     await expect(page.getByRole("banner")).toContainText(ROLE.de);
     await expect(page.getByRole("button", { name: "Abmelden" })).toBeVisible();
+  });
+});
+
+test("the overview and the patients list show the same in both languages", async ({
+  browser,
+  baseURL,
+}) => {
+  await asStaff(browser, "medicalDirector", async (page) => {
+    const body = page.locator("body");
+    const rows = page.locator(".vb-row");
+
+    // German, as a device without a choice gets it — the sentences as they were.
+    await page.goto("/patients");
+    await expect(page.locator("html")).toHaveAttribute("lang", "de");
+    const counts = await tabCounts(page, PATIENT_TABS.de);
+    const { all, released, none } = counts;
+    expect(all, "the seeded clinic has patients").toBeGreaterThan(0);
+    await expect(rows).toHaveCount(all);
+    await expect(body).toContainText(`Zeige ${all} von ${all}`);
+    await page.goto("/overview");
+    await expect(body).toContainText(
+      `Aktueller Bestand · Momentaufnahme · ${all} Patient`,
+    );
+    for (const state of REPORT_STATES.de) {
+      await expect(card(page, "Berichtsstatus")).toContainText(state);
+    }
+
+    // The same device chooses English (by the cookie the two buttons set; choosing by a
+    // button is the test above).
+    await page
+      .context()
+      .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
+
+    // The overview names the five places a report can stand in, in English only.
+    await page.goto("/overview");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(body).toContainText(
+      `Current state · snapshot · ${all} patient`,
+    );
+    for (const state of REPORT_STATES.en) {
+      await expect(card(page, "Report status")).toContainText(state);
+    }
+    for (const state of REPORT_STATES.de) {
+      await expect(card(page, "Report status")).not.toContainText(state);
+    }
+
+    // The patients list counts what it counted in German …
+    await page.goto("/patients");
+    expect(await tabCounts(page, PATIENT_TABS.en)).toEqual(counts);
+    await expect(rows).toHaveCount(all);
+
+    // … and a tab shows the rows it counts: by where the report stands, not by its name.
+    const releasedTab = tab(page, PATIENT_TABS.en.released);
+    await hydrated(releasedTab);
+    await releasedTab.click();
+    await expect(rows).toHaveCount(released);
+    for (const row of await rows.all()) {
+      await expect(row).toContainText("Released");
+    }
+    await expect(body).toContainText(`Showing ${released} of ${all}`);
+    await tab(page, PATIENT_TABS.en.none).click();
+    await expect(rows).toHaveCount(none);
+    for (const row of await rows.all()) {
+      await expect(row).toContainText("No draft");
+    }
   });
 });
 

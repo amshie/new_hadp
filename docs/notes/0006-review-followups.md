@@ -382,16 +382,48 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   environment. Open from that review: no lockout on the gate; visitors who arrive over IPv6
   share one limiter budget; the stack is open from the server itself; the role posture of the
   database is checked by the production-shaped smoke only; nothing tells visitors apart.
-- **Interface language, German or English (2026-10-13): PART 1 of several; ADR-0007.** A person
+- **Interface language, German or English (2026-10-13): PARTS 1–2 of several; ADR-0007.** A person
   chooses under Einstellungen or on the sign-in page; the choice is a cookie on the device
   (`hadp_locale`), German without one (`apps/web/src/lib/i18n`: `messages/de.ts` is the source of
   the keys, `messages/en.ts` is typed against it; server components ask `getMessages()`, client
   components `useI18n()`, and only the chosen language reaches the browser).
   Done: both navigation shells (`VitaShell`, `AppShell`), sign-in with its two messages, the
-  settings overview, the not-found page; `apps/web/e2e/language.spec.ts`, and three browserless
+  settings overview, the not-found page; `apps/web/e2e/language.spec.ts`, and browserless
   checks in `scripts/smoke_web.py`.
-  **Still German** (each marks its content `lang="de"`): overview, patients and the dialog to
-  add one, the patient page (laboratory upload, consent, data export), review queue,
+  Part 2: the overview (work list, report status, data coverage, review throughput, the two
+  switched-off tiles and the two notes shown when throughput or coverage cannot be loaded) and
+  the patients list with its loading placeholder. The wording with a value in it goes through
+  `lib/i18n/fill.ts` (`fill`, `byCount`); the presenters of `lib/presenters/dashboard.ts` take
+  the wording of the page's language and hand every row a `group` (review / approved /
+  released / rejected / none) — the tabs and counts read that, no longer the German label.
+  The five English names of where a report stands: "Approved", "Released" and "Rejected" are
+  the words of the `ReportStatus` values; "In review" (the two draft values together) and "No
+  draft" (a patient without a report) render "In Prüfung" and "Kein Entwurf". It is a workflow
+  state; no closed vocabulary of the review is named on either page.
+  **No number or date format changed**, so an English reader sees the German ones on the
+  overview until that is decided (ADR-0007): the day-first dates under the throughput chart
+  ("3.10."), the ISO dates of its table, the one-decimal average, the shares of the coverage.
+  From the independent review of part 2, taken: the web smoke read the raw HTML of a page, and
+  since part 1 the dictionary of the chosen language travels in a script of EVERY page — so
+  "the page says X" could not fail (the synthetic banner and the disclaimer among them), and
+  "a rejected version is not shown as signed" failed in CI the moment the German dictionary
+  held the word. The smoke now reads a page's markup without its scripts (`shown`), and checks
+  the two pages in both directions; the dialog to add a patient says itself that it is German
+  (the wrapper at the call sites missed the dialog opened from the empty list); the browser
+  test holds the five report states in English, the same tab counts in both languages and the
+  rows of a tab; `fill` no longer takes a name every object has (`{constructor}`) for a value;
+  three English entries that said more than the German, or "Ø", were made plain.
+  Known and left: the language of headings and tabs is fixed when the layout renders, the
+  wording from the presenters with each request — after a change of language in another tab, a
+  link of the shell shows the two mixed until the page is loaded again (the tabs and counts do
+  not depend on it). The overview's search also reads the assessment text as shown. And for
+  an owner to read before outside readers do: "real observations", "real-data view" and "real
+  timestamps" stand next to "synthetic sample data" on these pages, as "echte …" does in
+  German (meant: read from the database, not mocked).
+  **Still German** (each marks its content `lang="de"`): the dialog to add a patient (its
+  button on both pages, its three steps, and the messages its server actions return — the
+  component carries the mark itself), the
+  patient page (laboratory upload, consent, data export), review queue,
   interpretation, report review, the four settings sub-pages (members, deletion requests, the
   audit trail with its ~60 event labels, preparation time), the patient-facing pages, the
   colleague's onboarding page (`/team-einladung`), the error page, the disclaimer, the toasts,

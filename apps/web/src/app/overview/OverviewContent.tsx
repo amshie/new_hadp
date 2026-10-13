@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { AddPatientDialog } from "@/components/vitabahn/AddPatientDialog";
 import { clickable } from "@/components/vitabahn/interactive";
+import { byCount, fill } from "@/lib/i18n/fill";
+import { useI18n } from "@/lib/i18n/I18nProvider";
 import type {
   CoverageView,
   OverviewView,
@@ -115,9 +117,10 @@ function GatedPanel({ title, reason }: { title: string; reason: string }) {
 // Real status snapshot (current bestand by latest report status). A momentaufnahme, NOT a
 // throughput time series — the heading says so. Bars are share-of-total over real worklist rows.
 function StatusSnapshotTile({ snapshot }: { snapshot: StatusSnapshotView }) {
+  const t = useI18n().t.overview.snapshot;
   return (
     <div style={{ ...cardStyle, padding: "20px 22px" }}>
-      <h3 style={sectionTitle}>Berichtsstatus</h3>
+      <h3 style={sectionTitle}>{t.title}</h3>
       <p
         style={{
           fontSize: "12.5px",
@@ -125,8 +128,7 @@ function StatusSnapshotTile({ snapshot }: { snapshot: StatusSnapshotView }) {
           margin: "0 0 16px",
         }}
       >
-        Aktueller Bestand · Momentaufnahme · {snapshot.total}{" "}
-        {snapshot.total === 1 ? "Patient" : "Patienten"}
+        {byCount(t.note, snapshot.total)}
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         {snapshot.buckets.map((b) => (
@@ -237,9 +239,10 @@ function CoverageBar({
 }
 
 function CoverageTile({ coverage }: { coverage: CoverageView }) {
+  const t = useI18n().t.overview.coverage;
   return (
     <div style={{ ...cardStyle, padding: "20px 22px" }}>
-      <h3 style={sectionTitle}>Datenlage</h3>
+      <h3 style={sectionTitle}>{t.title}</h3>
       <p
         style={{
           fontSize: "12.5px",
@@ -247,9 +250,7 @@ function CoverageTile({ coverage }: { coverage: CoverageView }) {
           margin: "0 0 16px",
         }}
       >
-        Abdeckung über {coverage.total} reale{" "}
-        {coverage.total === 1 ? "Beobachtung" : "Beobachtungen"} · keine
-        Qualitätsbewertung
+        {byCount(t.note, coverage.total)}
       </p>
       <div
         style={{
@@ -303,7 +304,7 @@ function CoverageTile({ coverage }: { coverage: CoverageView }) {
                 marginTop: "4px",
               }}
             >
-              PUBLIZIERT
+              {t.ring}
             </div>
           </div>
         </div>
@@ -317,13 +318,13 @@ function CoverageTile({ coverage }: { coverage: CoverageView }) {
           }}
         >
           <CoverageBar
-            label="Publiziert"
+            label={t.published}
             pct={coverage.publishedPct}
             detail={`${coverage.published}/${coverage.total}`}
             color="var(--vital-500)"
           />
           <CoverageBar
-            label="Mit Referenzintervall"
+            label={t.withReference}
             pct={coverage.referencePct}
             detail={`${coverage.withReference}/${coverage.total}`}
             color="var(--brand)"
@@ -335,9 +336,7 @@ function CoverageTile({ coverage }: { coverage: CoverageView }) {
               fontSize: "12.5px",
             }}
           >
-            <span style={{ color: "var(--text-body)" }}>
-              Neueste Beobachtung
-            </span>
+            <span style={{ color: "var(--text-body)" }}>{t.latest}</span>
             <span
               style={{
                 fontFamily: "var(--font-mono)",
@@ -354,18 +353,15 @@ function CoverageTile({ coverage }: { coverage: CoverageView }) {
   );
 }
 
-const TABS: { key: string; label: string }[] = [
-  { key: "offen", label: "Offene Reviews" },
-  { key: "genehmigt", label: "Genehmigt" },
-  { key: "freigegeben", label: "Freigegeben" },
-  { key: "alle", label: "Alle" },
-];
+// The tabs of the work list, by the group a row's report is in (never by its label, which
+// differs by language).
+type TabKey = "open" | "approved" | "released" | "all";
+const TABS: TabKey[] = ["open", "approved", "released", "all"];
 
-function rowGroup(r: WorkRowView): string {
-  if (r.statusLabel === "In Prüfung") return "offen";
-  if (r.statusLabel === "Genehmigt") return "genehmigt";
-  if (r.statusLabel === "Freigegeben") return "freigegeben";
-  return "andere";
+function inTab(r: WorkRowView, tab: TabKey): boolean {
+  if (tab === "all") return true;
+  if (tab === "open") return r.group === "review";
+  return r.group === tab;
 }
 
 export function OverviewContent({
@@ -378,15 +374,16 @@ export function OverviewContent({
   throughput: ThroughputChartView | null;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState("alle");
+  const t = useI18n().t.overview;
+  const [tab, setTab] = useState<TabKey>("all");
   const [term, setTerm] = useState("");
 
-  const counts = useMemo(
+  const counts: Record<TabKey, number> = useMemo(
     () => ({
-      offen: view.kpis.openReviews,
-      genehmigt: view.kpis.approved,
-      freigegeben: view.kpis.released,
-      alle: view.rows.length,
+      open: view.kpis.openReviews,
+      approved: view.kpis.approved,
+      released: view.kpis.released,
+      all: view.rows.length,
     }),
     [view],
   );
@@ -394,9 +391,8 @@ export function OverviewContent({
   const visible = useMemo(() => {
     const q = term.toLowerCase();
     return view.rows.filter((r) => {
-      const matchTab = tab === "alle" || rowGroup(r) === tab;
       const hay = `${r.name} ${r.ref} ${r.assessment}`.toLowerCase();
-      return matchTab && hay.includes(q);
+      return inTab(r, tab) && hay.includes(q);
     });
   }, [view.rows, tab, term]);
 
@@ -409,8 +405,8 @@ export function OverviewContent({
   }[] = [
     {
       value: view.kpis.openReviews,
-      label: "Offene Reviews",
-      help: "Klinische Prüfung ausstehend",
+      label: t.kpis.openReviews.label,
+      help: t.kpis.openReviews.help,
       iconBg: "rgba(201,136,28,0.12)",
       icon: (
         <svg
@@ -432,8 +428,8 @@ export function OverviewContent({
     },
     {
       value: view.kpis.approved,
-      label: "Genehmigt",
-      help: "Warten auf ärztliche Freigabe",
+      label: t.kpis.approved.label,
+      help: t.kpis.approved.help,
       iconBg: "rgba(63,164,201,0.12)",
       icon: (
         <svg
@@ -455,8 +451,8 @@ export function OverviewContent({
     },
     {
       value: view.kpis.released,
-      label: "Freigegeben",
-      help: "An die Patientin freigegeben",
+      label: t.kpis.released.label,
+      help: t.kpis.released.help,
       iconBg: "var(--brand-soft)",
       icon: (
         <svg
@@ -477,8 +473,8 @@ export function OverviewContent({
     },
     {
       value: view.kpis.patients,
-      label: "Patienten",
-      help: "Tenant-bezogen · RLS-geschützt",
+      label: t.kpis.patients.label,
+      help: t.kpis.patients.help,
       iconBg: "var(--brand-soft)",
       icon: (
         <svg
@@ -549,7 +545,7 @@ export function OverviewContent({
               marginBottom: "10px",
             }}
           >
-            Klinischer Arbeitsbereich
+            {t.kicker}
           </div>
           <h1
             style={{
@@ -562,7 +558,7 @@ export function OverviewContent({
               lineHeight: 1.05,
             }}
           >
-            Übersicht
+            {t.title}
           </h1>
           <p
             style={{
@@ -574,12 +570,11 @@ export function OverviewContent({
             }}
           >
             <span style={{ color: "var(--text-strong)", fontWeight: 600 }}>
-              {view.kpis.openReviews}{" "}
-              {view.kpis.openReviews === 1 ? "Review" : "Reviews"}
+              {byCount(t.waiting, view.kpis.openReviews)}
             </span>{" "}
-            {view.kpis.openReviews === 1 ? "wartet" : "warten"} auf Ihre
-            Prüfung. Quellengebundene Entwürfe müssen vor jeder Freigabe geprüft
-            werden. Synthetische Beispieldaten.
+            {view.kpis.openReviews === 1
+              ? t.waitingRest.one
+              : t.waitingRest.other}
           </p>
         </div>
         <AddPatientDialog />
@@ -653,7 +648,7 @@ export function OverviewContent({
       {/* WORK LIST (real worklist) */}
       <div style={{ ...cardStyle, marginBottom: "16px", overflow: "hidden" }}>
         <div style={{ padding: "20px 22px 0" }}>
-          <h3 style={sectionTitle}>Klinische Arbeitsliste</h3>
+          <h3 style={sectionTitle}>{t.worklist.title}</h3>
           <p
             style={{
               fontSize: "12.5px",
@@ -661,8 +656,7 @@ export function OverviewContent({
               margin: "0 0 16px",
             }}
           >
-            Nach Berichtsstatus · keine automatische Diagnose oder
-            Therapieempfehlung.
+            {t.worklist.note}
           </p>
           <div
             style={{
@@ -675,20 +669,17 @@ export function OverviewContent({
             }}
           >
             <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-              {TABS.map((t) => {
-                const active = tab === t.key;
-                const c =
-                  t.key === "alle"
-                    ? counts.alle
-                    : (counts[t.key as keyof typeof counts] ?? 0);
+              {TABS.map((key) => {
+                const active = tab === key;
                 return (
                   <button
-                    key={t.key}
+                    key={key}
                     type="button"
-                    onClick={() => setTab(t.key)}
+                    onClick={() => setTab(key)}
                     style={tabBtn(active)}
                   >
-                    {t.label} <span style={tabBadge(active)}>{c}</span>
+                    {t.worklist.tabs[key]}{" "}
+                    <span style={tabBadge(active)}>{counts[key]}</span>
                   </button>
                 );
               })}
@@ -723,10 +714,10 @@ export function OverviewContent({
               <input
                 className="vb-input"
                 type="text"
-                aria-label="Patient oder ID suchen"
+                aria-label={t.worklist.search}
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
-                placeholder="Patient oder ID suchen"
+                placeholder={t.worklist.search}
                 style={{
                   height: "36px",
                   width: "220px",
@@ -756,11 +747,11 @@ export function OverviewContent({
                 marginTop: "14px",
               }}
             >
-              <span style={colLabel}>Patient</span>
-              <span style={colLabel}>Assessment</span>
-              <span style={colLabel}>Status</span>
+              <span style={colLabel}>{t.worklist.columns.patient}</span>
+              <span style={colLabel}>{t.worklist.columns.assessment}</span>
+              <span style={colLabel}>{t.worklist.columns.status}</span>
               <span style={{ ...colLabel, textAlign: "right" }}>
-                Aktualisiert
+                {t.worklist.columns.updated}
               </span>
             </div>
             {visible.map((r) => {
@@ -771,7 +762,7 @@ export function OverviewContent({
                   className="vb-row"
                   {...clickable(
                     () => router.push(`/patients/${r.patientId}`),
-                    `Patient ${r.name}, ${r.ref} öffnen`,
+                    fill(t.worklist.openRow, { name: r.name, ref: r.ref }),
                   )}
                   style={{
                     display: "grid",
@@ -886,10 +877,10 @@ export function OverviewContent({
                     marginBottom: "6px",
                   }}
                 >
-                  Keine passenden Vorgänge
+                  {t.worklist.emptyTitle}
                 </div>
                 <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-                  Ändern Sie den Filter oder den Suchbegriff.
+                  {t.worklist.emptyNote}
                 </div>
               </div>
             )}
@@ -902,18 +893,12 @@ export function OverviewContent({
         {throughput ? (
           <ThroughputTile view={throughput} />
         ) : (
-          <GatedPanel
-            title="Review-Durchsatz"
-            reason="Durchsatz-Zeitreihe ist derzeit nicht abrufbar. Eigener Backend-Slice (report_versions nach Status)."
-          />
+          <GatedPanel {...t.gated.throughput} />
         )}
         {coverage ? (
           <CoverageTile coverage={coverage} />
         ) : (
-          <GatedPanel
-            title="Datenlage"
-            reason="Abdeckung über die Beobachtungen ist derzeit nicht abrufbar. Pro Patient zeigt die Detailansicht die reale Datenlage."
-          />
+          <GatedPanel {...t.gated.coverage} />
         )}
       </div>
 
@@ -926,14 +911,8 @@ export function OverviewContent({
         }}
       >
         <StatusSnapshotTile snapshot={view.statusSnapshot} />
-        <GatedPanel
-          title="Letzte Aktivität"
-          reason="Audit-Feed benötigt einen tenant-scoped Lese-Endpoint über die Append-only-Events. Eigener Backend-Slice."
-        />
-        <GatedPanel
-          title="Importe & Quellen"
-          reason="Import-Status benötigt einen Lese-Endpoint über import_jobs. Eigener Backend-Slice."
-        />
+        <GatedPanel {...t.gated.activity} />
+        <GatedPanel {...t.gated.imports} />
       </div>
     </>
   );
