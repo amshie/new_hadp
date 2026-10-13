@@ -29,6 +29,8 @@ packages/api-client/src/generated/
 # Object storage / local data
 .data/
 postgres-data/
+# A Redis server started outside Docker writes its snapshot where it was started.
+dump.rdb
 
 # Logs
 *.log
