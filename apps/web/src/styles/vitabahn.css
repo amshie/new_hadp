@@ -152,3 +152,129 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---- Shell (VitaShell) ----
+   Beside the page from 901px; below, the sidebar is a drawer the topbar's menu button opens
+   (the width is NARROW in VitaShell.tsx), and the topbar keeps the menu, the crumbs below the
+   workspace (shortened when they must be), the clinic and the theme. Who is signed in, and
+   signing out, are in the drawer. */
+.vb-scope .vb-sidebar {
+  width: 256px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+.vb-scope .vb-topbar {
+  gap: 12px;
+  padding: 0 32px;
+}
+.vb-scope .vb-crumbs {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.vb-scope .vb-crumb-parent,
+.vb-scope .vb-crumb-current {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vb-scope .vb-crumb-parent {
+  max-width: 50%;
+}
+.vb-scope .vb-topbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.vb-scope .vb-clinic {
+  min-width: 0;
+}
+.vb-scope .vb-clinic-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vb-scope .vb-content {
+  padding: 30px 32px 56px;
+}
+.vb-scope .vb-menubtn,
+.vb-scope .vb-menuclose {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.vb-scope .vb-menubtn {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-card);
+  color: var(--text-body);
+}
+.vb-scope .vb-menuclose {
+  width: 36px;
+  height: 36px;
+  margin-left: auto;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: var(--slate-300);
+}
+.vb-scope .vb-backdrop {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .vb-scope .vb-sidebar {
+    position: fixed;
+    left: 0;
+    z-index: 40;
+    width: min(288px, 86vw);
+    height: 100dvh;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform var(--dur-normal) var(--ease-standard),
+      visibility 0s linear var(--dur-normal);
+  }
+  .vb-scope .vb-sidebar[data-open="true"] {
+    transform: none;
+    visibility: visible;
+    transition: transform var(--dur-normal) var(--ease-standard);
+  }
+  .vb-scope .vb-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgba(6, 14, 18, 0.55);
+  }
+  .vb-scope .vb-menubtn,
+  .vb-scope .vb-menuclose {
+    display: flex;
+  }
+  .vb-scope .vb-topbar {
+    gap: 10px;
+    padding: 0 16px;
+  }
+  .vb-scope .vb-crumb-root,
+  .vb-scope .vb-topbar-divider,
+  .vb-scope .vb-topbar-person {
+    display: none !important;
+  }
+  .vb-scope .vb-content {
+    padding: 20px 16px 40px;
+  }
+}
+/* A phone's topbar is the menu, the clinic and the theme: the crumbs would be cut to a few
+   letters there, and every page names itself in its heading. The crumbs keep their place, so
+   the clinic stays at the right. */
+@media (max-width: 560px) {
+  .vb-scope .vb-crumbs {
+    visibility: hidden;
+  }
+}

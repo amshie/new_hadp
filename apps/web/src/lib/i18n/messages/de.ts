@@ -17,6 +17,8 @@ export const de = {
     toggleTheme: "Theme wechseln",
     skipLink: "Zum Hauptinhalt springen",
     brandAria: "HADP Übersicht",
+    menu: "Menü",
+    closeMenu: "Menü schließen",
   },
   roles: {
     owner: "Inhaber",

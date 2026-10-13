@@ -1,19 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 import { signOut } from "@/app/login/actions";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { initialsOf, roleName, type ShellIdentity } from "@/lib/identity";
 
+import { chooseTheme, useDarkTheme } from "./theme";
+
 // VitaBahn dashboard shell (ADR-0005): sidebar + topbar + theme toggle, a faithful
 // port of the Claude Design comp's chrome. Wraps the /overview, /patients and
 // /patients/[id] screens. Synthetic Alpha only.
+//
+// The comp is a desktop layout. On a narrow screen (styles/vitabahn.css, NARROW below) the
+// sidebar leaves the row and becomes a drawer the topbar's menu button opens; the page then
+// has the whole width.
 
 type NavKey = "uebersicht" | "patienten" | "review" | "einstellungen";
 
-const THEME_KEY = "vb-theme";
+// The width at which the sidebar becomes a drawer — the same as in styles/vitabahn.css.
+const NARROW = "(max-width: 900px)";
 
 // A navigation entry is a link to a page that exists — nothing else is listed.
 function NavItem({
@@ -21,11 +34,13 @@ function NavItem({
   href,
   icon,
   label,
+  onNavigate,
 }: {
   active?: boolean;
   href: string;
   icon: ReactNode;
   label: string;
+  onNavigate: () => void;
 }) {
   const style: CSSProperties = {
     position: "relative",
@@ -49,6 +64,7 @@ function NavItem({
       className="vb-nav"
       style={style}
       aria-current={active ? "page" : undefined}
+      onClick={onNavigate}
     >
       {active && (
         <span
@@ -105,29 +121,45 @@ export function VitaShell({
   const contentLang = translated ? undefined : "de";
   const clinicName = identity?.tenantName ?? "—";
   const personInitials = initialsOf(personName);
-  // Lazy-init from localStorage so a returning dark-mode user doesn't get a light flash on
-  // client navigations. SSR has no localStorage and renders light; suppressHydrationWarning on
-  // the root covers the intentional server/client data-theme difference.
-  const [dark, setDark] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return localStorage.getItem(THEME_KEY) === "dark";
-    } catch {
-      return false;
-    }
-  });
+  const dark = useDarkTheme();
 
-  const toggleTheme = () => {
-    setDark((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(THEME_KEY, next ? "dark" : "light");
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
+  // The drawer on a narrow screen. Escape and its close button give the focus back to the
+  // button that opened it — once it is closed, as the page behind is inert until then.
+  // Growing past the narrow width closes it too, so the page behind it is never left inert
+  // beside a sidebar that is back in the row.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const refocusMenuButton = useRef(false);
+  const closeMenu = () => setMenuOpen(false);
+  const dismissMenu = () => {
+    refocusMenuButton.current = true;
+    setMenuOpen(false);
   };
+
+  useEffect(() => {
+    if (!menuOpen) {
+      if (refocusMenuButton.current) menuButton.current?.focus();
+      refocusMenuButton.current = false;
+      return;
+    }
+    closeButton.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") dismissMenu();
+    };
+    const narrow = window.matchMedia(NARROW);
+    const onWidth = () => {
+      if (!narrow.matches) setMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    narrow.addEventListener("change", onWidth);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      narrow.removeEventListener("change", onWidth);
+    };
+  }, [menuOpen]);
+
+  const toggleTheme = () => chooseTheme(!dark);
 
   const stroke = (
     d: ReactNode,
@@ -153,7 +185,6 @@ export function VitaShell({
     <div
       className="vb-scope"
       data-theme={dark ? "dark" : "light"}
-      suppressHydrationWarning
       style={{
         display: "flex",
         minHeight: "100vh",
@@ -166,16 +197,14 @@ export function VitaShell({
     >
       {/* ============ SIDEBAR ============ */}
       <aside
+        id="vb-sidebar"
+        className="vb-sidebar"
+        data-open={menuOpen}
         aria-label={t.shell.navAria}
         style={{
-          width: "256px",
-          flexShrink: 0,
           background: "var(--slate-900)",
           display: "flex",
           flexDirection: "column",
-          position: "sticky",
-          top: 0,
-          height: "100vh",
           borderRight: "1px solid rgba(255,255,255,0.06)",
         }}
       >
@@ -236,6 +265,15 @@ export function VitaShell({
               Health Analytics
             </div>
           </div>
+          <button
+            ref={closeButton}
+            type="button"
+            className="vb-menuclose"
+            onClick={dismissMenu}
+            aria-label={t.shell.closeMenu}
+          >
+            {stroke(<path d="M18 6 6 18M6 6l12 12" />, { size: 18 })}
+          </button>
         </div>
 
         <nav style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
@@ -243,6 +281,7 @@ export function VitaShell({
 
           <NavItem
             active={nav === "uebersicht"}
+            onNavigate={closeMenu}
             href="/overview"
             icon={stroke(
               <>
@@ -257,6 +296,7 @@ export function VitaShell({
           />
           <NavItem
             active={nav === "patienten"}
+            onNavigate={closeMenu}
             href="/patients"
             icon={stroke(
               <>
@@ -270,6 +310,7 @@ export function VitaShell({
           />
           <NavItem
             active={nav === "review"}
+            onNavigate={closeMenu}
             href="/review-queue"
             icon={stroke(
               <>
@@ -283,6 +324,7 @@ export function VitaShell({
           <div style={navLabelStyle("6px")}>{t.shell.administration}</div>
           <NavItem
             active={nav === "einstellungen"}
+            onNavigate={closeMenu}
             href="/einstellungen"
             icon={stroke(
               <>
@@ -405,9 +447,13 @@ export function VitaShell({
           </div>
         </div>
       </aside>
+      {menuOpen && (
+        <div className="vb-backdrop" aria-hidden="true" onClick={closeMenu} />
+      )}
 
       {/* ============ MAIN ============ */}
       <div
+        inert={menuOpen}
         style={{
           flex: 1,
           minWidth: 0,
@@ -416,6 +462,7 @@ export function VitaShell({
         }}
       >
         <header
+          className="vb-topbar"
           style={{
             position: "sticky",
             top: 0,
@@ -425,13 +472,24 @@ export function VitaShell({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "0 32px",
             background: "color-mix(in srgb, var(--bg-page) 86%, transparent)",
             backdropFilter: "blur(10px)",
             borderBottom: "1px solid var(--border-subtle)",
           }}
         >
+          <button
+            ref={menuButton}
+            type="button"
+            className="vb-menubtn vb-iconbtn"
+            onClick={() => setMenuOpen(true)}
+            aria-label={t.shell.menu}
+            aria-controls="vb-sidebar"
+            aria-expanded={menuOpen}
+          >
+            {stroke(<path d="M4 7h16M4 12h16M4 17h16" />, { size: 18 })}
+          </button>
           <div
+            className="vb-crumbs"
             style={{
               display: "flex",
               alignItems: "center",
@@ -442,15 +500,23 @@ export function VitaShell({
               whiteSpace: "nowrap",
             }}
           >
-            <span style={{ color: "var(--text-faint)" }}>
+            <span
+              className="vb-crumb-root"
+              style={{ color: "var(--text-faint)" }}
+            >
               {t.shell.workspace}
             </span>
-            <span style={{ color: "var(--text-faint)" }}>/</span>
+            <span
+              className="vb-crumb-root"
+              style={{ color: "var(--text-faint)" }}
+            >
+              /
+            </span>
             {crumbParent && (
               <>
                 <Link
                   href={crumbParent.href}
-                  className="vb-crumblink"
+                  className="vb-crumblink vb-crumb-parent"
                   lang={contentLang}
                   style={{
                     color: "var(--text-muted)",
@@ -467,14 +533,16 @@ export function VitaShell({
             )}
             <span
               lang={contentLang}
+              className="vb-crumb-current"
               style={{ color: "var(--text-strong)", fontWeight: 600 }}
             >
               {crumb}
             </span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div className="vb-topbar-tools">
             <div
+              className="vb-clinic"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -505,6 +573,7 @@ export function VitaShell({
               </svg>
               <span className="sr-only">{t.shell.clinic}</span>
               <span
+                className="vb-clinic-name"
                 style={{
                   fontSize: "13px",
                   fontWeight: 600,
@@ -564,6 +633,7 @@ export function VitaShell({
             </button>
 
             <div
+              className="vb-topbar-divider"
               style={{
                 width: "1px",
                 height: "26px",
@@ -573,6 +643,7 @@ export function VitaShell({
             />
 
             <div
+              className="vb-topbar-person"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -627,10 +698,10 @@ export function VitaShell({
         <div style={{ flex: 1, overflowY: "auto" }}>
           <div
             lang={contentLang}
+            className="vb-content"
             style={{
               maxWidth: "1340px",
               margin: "0 auto",
-              padding: "30px 32px 56px",
             }}
           >
             {children}
