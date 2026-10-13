@@ -50,7 +50,7 @@ def test_the_ordinary_app_role_is_accepted_and_the_engine_is_kept() -> None:
 def test_a_superuser_role_is_refused_every_time_not_only_the_first(
     run_app_as: Callable[[str], None],
 ) -> None:
-    run_app_as(get_settings().database_url)  # the admin DSN: what an unset APP_DATABASE_URL gives
+    run_app_as(get_settings().database_url)  # the admin DSN
     for _ in range(3):
         with pytest.raises(RuntimeError, match=_REFUSAL):
             get_engine()
@@ -76,6 +76,68 @@ def test_a_role_that_is_not_a_superuser_but_bypasses_rls_is_refused(  # type: ig
         reset_engine()
         with admin_engine.begin() as conn:
             conn.execute(text(f"DROP ROLE {role}"))
+
+
+_OWNER_REFUSAL = "owns tables"
+
+
+@pytest.fixture()
+def scratch_role(admin_engine):  # type: ignore[no-untyped-def]
+    """A login role that is neither a superuser nor BYPASSRLS, and a table to give it.
+
+    The table is a scratch one of its own — no table of the application changes owner.
+    """
+    suffix = uuid.uuid4().hex[:12]
+    role, password, table = f"hadp_test_owner_{suffix}", uuid.uuid4().hex, f"hadp_probe_{suffix}"
+    with admin_engine.begin() as conn:
+        conn.execute(
+            text(f"CREATE ROLE {role} LOGIN PASSWORD '{password}' NOSUPERUSER NOBYPASSRLS")
+        )
+        conn.execute(text(f"CREATE TABLE {table} (id integer)"))
+    url = make_url(get_settings().database_url).set(username=role, password=password)
+    yield role, table, url.render_as_string(hide_password=False)
+    reset_engine()
+    with admin_engine.begin() as conn:
+        conn.execute(text(f"DROP TABLE IF EXISTS {table}"))
+        conn.execute(text(f"DROP ROLE {role}"))
+
+
+def test_a_role_that_owns_a_table_is_refused(  # type: ignore[no-untyped-def]
+    admin_engine, scratch_role, run_app_as: Callable[[str], None]
+) -> None:
+    role, table, url = scratch_role
+    run_app_as(url)
+    # The control: owning nothing, the role is accepted.
+    get_engine()
+    reset_engine()
+
+    with admin_engine.begin() as conn:
+        conn.execute(text(f"ALTER TABLE {table} OWNER TO {role}"))
+    for _ in range(2):
+        with pytest.raises(RuntimeError, match=_OWNER_REFUSAL):
+            get_engine()
+        assert engine_module._engine is None, "a refused engine was kept"
+
+
+def test_a_role_that_is_a_member_of_a_table_owner_is_refused(  # type: ignore[no-untyped-def]
+    admin_engine, scratch_role, run_app_as: Callable[[str], None]
+) -> None:
+    role, table, url = scratch_role
+    owner = f"{role}_grp"
+    with admin_engine.begin() as conn:
+        conn.execute(text(f"CREATE ROLE {owner} NOLOGIN"))
+        conn.execute(text(f"ALTER TABLE {table} OWNER TO {owner}"))
+        conn.execute(text(f"GRANT {owner} TO {role}"))
+    try:
+        run_app_as(url)
+        with pytest.raises(RuntimeError, match=_OWNER_REFUSAL):
+            get_engine()
+        assert engine_module._engine is None
+    finally:
+        reset_engine()
+        with admin_engine.begin() as conn:
+            conn.execute(text(f"DROP TABLE {table}"))
+            conn.execute(text(f"DROP ROLE {owner}"))
 
 
 def test_no_request_is_served_through_a_role_that_bypasses_rls(
