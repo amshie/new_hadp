@@ -41,7 +41,9 @@ x-api-environment: &api-environment
   WEB_BASE_URL: https://${DEMO_HOST:?}
   # The web server is the API's only caller, at a fixed address; the proxy in front of it is
   # the one hop that sets X-Forwarded-For (it writes the address it saw and drops whatever a
-  # client sent). So the limits that count per client address count the visitor.
+  # client sent). So the limits that count per client address count the visitor — over IPv4:
+  # a visitor who arrives over IPv6 reaches the proxy through Docker's own forwarder, and all
+  # of them are seen under one address.
   TRUSTED_PROXIES: ${DEMO_WEB_ADDRESS:-172.30.250.20}
   TRUSTED_PROXY_HOPS: "1"
 
@@ -139,8 +141,8 @@ services:
                 raise
 
   # One-shot, on every start: schema to head, the KPI catalog, then the SYNTHETIC data set
-  # (idempotent — it updates in place and deletes nothing a visitor created). The only
-  # service that holds the admin DSN. The seeder runs because this is development mode; it
+  # (it creates what is missing and deletes nothing — it does not undo what a visitor
+  # changed either). The only service that holds the admin DSN. The seeder runs because this is development mode; it
   # refuses in production mode.
   migrate:
     <<: *hardening
@@ -174,9 +176,12 @@ services:
         - python
         - -c
         - 'import urllib.request as u; u.urlopen("http://127.0.0.1:8000/api/v1/health", timeout=3)'
-      interval: 3s
+      # Quick while it starts, slow afterwards: every check starts a process.
+      interval: 30s
       timeout: 5s
-      retries: 30
+      retries: 3
+      start_period: 120s
+      start_interval: 2s
 
   web:
     <<: *hardening
@@ -198,9 +203,11 @@ services:
         - node
         - -e
         - 'fetch("http://127.0.0.1:3000/login").then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))'
-      interval: 3s
+      interval: 30s
       timeout: 8s
-      retries: 30
+      retries: 3
+      start_period: 120s
+      start_interval: 2s
 
   # The only published service. It terminates TLS (a certificate for DEMO_HOST, obtained and
   # renewed by itself) and asks for the gate's user name and password before anything
@@ -228,6 +235,16 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    healthcheck:
+      # It listens only once it has read its configuration: one it cannot read (a damaged
+      # gate, a wrong host name) makes it stop and start for ever. `demo_stack.sh up` waits
+      # for this.
+      test: ["CMD", "nc", "-z", "127.0.0.1", "443"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
+      start_interval: 2s
     volumes:
       - ./demo/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

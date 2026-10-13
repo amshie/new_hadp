@@ -263,9 +263,10 @@ jobs:
 
       - name: Demo stack smoke
         # The stack a server runs to show the product (infra/docker/compose.demo.yml), with
-        # the images built above: nothing is served without the gate, the development
-        # sign-in works behind it, and a visitor is counted under the address the proxy saw.
-        # Synthetic data only.
+        # the images built above: nothing is served without the gate, the workspace renders
+        # behind it for a seeded account's session, and a visitor is counted under the
+        # address the proxy saw. Not checked here: the sign-in form's own request through
+        # the proxy (it needs a browser) and a public certificate. Synthetic data only.
         run: ./scripts/smoke_demo.sh
 
       - name: Install the image scanner (grype)

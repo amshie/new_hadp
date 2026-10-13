@@ -126,22 +126,25 @@ the smoke names the stack's own network for its run.
 ## The demo stack
 
 `compose.demo.yml` puts HADP on one server so that people who are shown the product can open
-it in a browser: partners, a clinic before it signs, the team at home. **Synthetic data
-only — it is not a deployment, and nothing real may ever be put into it.**
+it in a browser: partners, the team at home. **Synthetic data only — it is not a deployment,
+and nothing real may ever be put into it.**
 
 What runs: the API in **development mode**, the production build of the web app, PostgreSQL
 (a named volume), Redis, the S3 test double — and in front of all of it a proxy (Caddy) that
 terminates TLS with a certificate it obtains itself and asks every visitor for the **gate's**
-user name and password. Only the proxy is published; nothing else is reachable from outside.
+user name and password. Only the proxy is published (80 and 443, TCP).
 
 Why development mode: the development sign-in (an account's e-mail address, no password) is
 the only sign-in that exists. That is also why the gate is not optional and why the data
-must stay synthetic — **behind the gate, anyone can act as any seeded account.**
+must stay synthetic — **behind the gate, anyone can act as any account that exists there**,
+in either seeded clinic. The stack shows the workflow; it is not a demonstration of who may
+see what.
 
 ### On the server
 
-Any Linux server with Docker and a DNS name that points at it; ports 22, 80 and 443 open and
-nothing else. On Ubuntu 24.04, as root:
+A Linux server with Docker and a DNS name that points at it. Let the provider's firewall
+pass 22, 80 and 443 and nothing else — a firewall on the server itself (ufw) does not filter
+the ports Docker publishes. As root, on Ubuntu 26.04 (where this was run):
 
 ```bash
 apt-get update && apt-get install -y docker.io docker-compose-v2 docker-buildx git openssl
@@ -156,40 +159,70 @@ scripts/demo_stack.sh up     # builds the two images, starts, migrates, seeds
 `init` generates the stack's secrets and writes them, with the host name, to
 `/etc/hadp-demo/demo.env`; the gate's user name and the **hash** of its password go to
 `/etc/hadp-demo/gate.env`. Both are readable by root only, neither is in the checkout, and
-the password itself is kept nowhere. `scripts/demo_stack.sh gate` sets a new one.
+the password itself is kept nowhere. Keep `demo.env` as long as the database volume exists:
+the volume was created with the passwords in it. `scripts/demo_stack.sh gate` sets a new gate
+user and password — the way to end someone's access.
 
-To show a newer state: `git pull && scripts/demo_stack.sh up`. To stop:
-`scripts/demo_stack.sh down` — the database volume stays; never add `-v`. After the server
-itself restarted, run `scripts/demo_stack.sh up --no-build` once: the services come back by
-themselves, but the object store starts empty and its bucket is created by `up`.
+- **A newer state:** `git pull && scripts/demo_stack.sh up`.
+- **Stop:** `scripts/demo_stack.sh down` — the database volume stays; the script never
+  removes it.
+- **After the server, or the object store's container, restarted:** run
+  `scripts/demo_stack.sh up --no-build` once. The services come back by themselves, but the
+  object store starts empty, and its bucket is created by `up`.
+- **Start again from the seeded data only** (everything visitors entered is lost — a
+  deliberate step, typed by hand):
+  `scripts/demo_stack.sh down && docker volume rm hadp-demo_pgdata && scripts/demo_stack.sh up --no-build`.
 
 Visitors open `https://<host name>/`, pass the gate, and sign in with one of the seeded
-synthetic accounts (`owner@demo.synthetic`, `clinician@demo.synthetic`,
-`assistant@demo.synthetic`, `medical.director@demo.synthetic`).
+synthetic accounts: `owner@demo.synthetic`, `clinician@demo.synthetic`,
+`assistant@demo.synthetic`, `medical.director@demo.synthetic` in the demo clinic, and
+`clinician2@demo.synthetic` in a second one.
+
+### What to tell every visitor
+
+- Everything in it is made up. **Enter nothing real**: no real name, no real e-mail address,
+  no real laboratory file — also not "just to try the import".
+- All visitors share the same accounts. What one enters, every other holder of the gate
+  password can read and change, and it stays until the data is reset.
+
+### What is checked, and what is not
 
 `make demo-smoke` (and CI, on every pull request) boots this stack with a throw-away
-configuration and checks, as a visitor from another container: nothing is served without
-the gate; behind it the sign-in works and the workspace renders for a seeded account; and a
-visitor is counted under the address the proxy saw — not the web server's, and not an
-`X-Forwarded-For` the visitor sent. This is the first stack in the repository with a real
-proxy in front of the web server, so it is also where `TRUSTED_PROXIES` is set as a
-deployment would set it (the web server's one fixed address).
+configuration and checks, from the API's container as a visitor: nothing is served without
+the gate, on any path or method; nothing starts while the gate file holds no password hash;
+behind the gate the sign-in page is offered and the workspace renders for a session of a
+seeded account; a visitor is counted under the address the proxy saw — not the web server's,
+and not an `X-Forwarded-For` the visitor sent; a new gate password replaces the old one; no
+secret is in the logs.
+
+Not checked by it: signing in through the proxy the way a browser does (the form's own
+request), a public certificate, and what happens after a restart of the server. The first
+two were done by hand on the first server — see `docs/notes/0006-review-followups.md`.
+
+This is the first stack in the repository with a real proxy in front of the web server, so
+it is also where `TRUSTED_PROXIES` is set as a deployment would set it (the web server's one
+fixed address). It holds for visitors who arrive over IPv4: over IPv6 they reach the proxy
+through Docker's own forwarder, and all of them are counted under one address.
 
 ### What the demo stack is not
 
 - **Not for patients, not for a clinic's work.** Synthetic data only. Development mode is
   what makes it usable, and development mode is what must never meet real data.
 - **One shared gate.** Every visitor uses the same user name and password; there is no
-  per-person access and no record of who came. Give it only to people who may see the
-  product, and change it (`gate`) when that group changes.
+  per-person access, no record of who came, and no limit on wrong guesses beyond the cost of
+  checking one. Give it only to people who may see the product, and change it (`gate`) when
+  that group changes.
+- **Open from the server itself.** Whoever has a shell on the server reaches the web app,
+  the API's sign-in and the object store without the gate.
 - **Uploaded files do not survive a restart.** The object store keeps them in memory; what
   was read from a laboratory file stays in the database, the file itself is gone.
 - **No backup, no monitoring, no updates of its own.** The synthetic data can be seeded
   again; what a visitor created is lost with the volume. The server's own upkeep (system
   updates, SSH, the firewall) is its operator's.
-- **Not the production path.** The images are built on the server from the checkout; a
-  deployment pulls scanned images from a registry, runs in production mode behind the
-  production sign-in, and has the list below behind it.
+- **Not the production path.** The images are built on the server from the checkout and the
+  proxy's image is a tag that moves; a deployment pulls scanned, pinned images from a
+  registry, runs in production mode behind the production sign-in, and has the list below
+  behind it.
 
 ## Still missing for a real deployment
 

@@ -2,6 +2,11 @@
 {
 	# No admin endpoint: the configuration is this file, read at start.
 	admin off
+	# Only TCP is published (compose.demo.yml): HTTP/3 would be offered to browsers and never
+	# answer.
+	servers {
+		protocols h1 h2
+	}
 }
 
 {$DEMO_HOST} {
@@ -10,6 +15,8 @@
 
 	# The gate: a user name and the hash of its password, set by `scripts/demo_stack.sh init`.
 	# Everything below is behind it — the sign-in of the demo has no password of its own.
+	# The block is written out here, and not imported from a generated file: with nothing to
+	# fill it, it refuses every visitor — an import that found an empty file would be no gate.
 	basic_auth {
 		{$DEMO_GATE_USER} {$DEMO_GATE_HASH}
 	}
