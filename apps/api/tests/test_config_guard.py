@@ -67,6 +67,14 @@ def test_development_allows_defaults() -> None:
     assert not settings.is_production
 
 
+def test_an_unset_app_database_url_is_an_error_in_every_environment() -> None:
+    """No fallback to the admin DSN — the role that owns the tables, or a superuser."""
+    for env in ("development", "test"):
+        settings = Settings(app_env=env, app_database_url=None)
+        with pytest.raises(RuntimeError, match="APP_DATABASE_URL is not set"):
+            _ = settings.effective_app_database_url
+
+
 def test_a_refused_configuration_does_not_quote_the_values_it_was_given() -> None:
     """The refusal is raised at import and printed by whatever starts the process."""
     secret = "session-secret-" + "s" * 30

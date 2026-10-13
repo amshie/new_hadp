@@ -22,23 +22,44 @@ _SessionLocal: sessionmaker[Session] | None = None
 _init_lock = threading.Lock()
 
 
+# Tables (and other relations) of the application's schemas whose owner the connecting role
+# is, or acts as by membership. The system schemas, and every temporary schema, are not ours.
+_OWNED_RELATIONS = text(
+    "SELECT count(*) FROM pg_class c "
+    "JOIN pg_namespace n ON n.oid = c.relnamespace "
+    "WHERE n.nspname <> 'information_schema' AND left(n.nspname, 3) <> 'pg_' "
+    "AND pg_has_role(current_user, c.relowner, 'MEMBER')"
+)
+
+
 def _assert_rls_enforceable(engine: Engine) -> None:
-    """Refuse to run as a role that bypasses RLS — in every environment.
+    """Refuse to run as a role that bypasses RLS or owns the tables — in every environment.
 
     A superuser or BYPASSRLS role ignores every tenant policy without an error, so nothing
-    else would say that isolation is off (docs/notes/0005). Development and tests are held
-    to the same rule: a setup that runs the app as `postgres` shows cross-tenant behaviour
-    production will never have.
+    else would say that isolation is off (docs/notes/0005). An owner is bound by the
+    policies (every tenant table FORCEs them), but not by the REVOKEs that keep the audit
+    trail and the consent events append-only, and it can switch row-level security off for
+    its tables — so the role that owns them, or is a member of their owner, is refused too.
+    Development and tests are held to the same rule: a setup that runs the app as
+    `postgres` shows cross-tenant behaviour production will never have.
     """
     with engine.connect() as conn:
         is_superuser = conn.execute(text("SELECT current_setting('is_superuser')")).scalar_one()
         bypass = conn.execute(
             text("SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user")
         ).scalar_one()
+        owned = conn.execute(_OWNED_RELATIONS).scalar_one()
     if is_superuser == "on" or bool(bypass):
         raise RuntimeError(
             "Refusing to start: the application DB role bypasses row-level security. "
             "Set APP_DATABASE_URL to a non-superuser role (e.g. hadp_app)."
+        )
+    if owned:
+        raise RuntimeError(
+            "Refusing to start: the application DB role owns tables, or is a member of their "
+            "owner — an owner can switch row-level security off and is not bound by the "
+            "grants that keep the audit trail append-only. Set APP_DATABASE_URL to the "
+            "application role (e.g. hadp_app), which owns nothing."
         )
 
 

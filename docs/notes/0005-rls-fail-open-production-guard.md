@@ -51,6 +51,13 @@ What the guard does **not** establish (independent review, 2026-10-12; open):
   the audit and consent tables append-only do not bind an owner. `APP_DATABASE_URL` unset still
   falls back to the admin DSN, and the production check compares the two DSNs as strings.
   Closing this: make an unset `APP_DATABASE_URL` an error everywhere and refuse a role that
-  owns a table.
+  owns a table. ✅ **Closed 2026-10-13:** the guard also refuses a role that owns a relation
+  in the application's schemas, or is a member of its owner (`pg_has_role(…, 'MEMBER')`) —
+  an owner can switch RLS off and is not bound by the append-only grants; and
+  `effective_app_database_url` has no fallback in any environment: unset is an error that
+  names the setting. Tested in `tests/test_rls_role_guard.py` (an owner, a member of the
+  owner, each on a scratch table; both fail without the check and pass with it) and
+  `tests/test_config_guard.py`. The production check still compares the two DSNs as strings
+  — the role guard is what holds now.
 - A later `ALTER ROLE … BYPASSRLS`, or membership in a bypassing role used through `SET ROLE`,
   is not noticed (no code issues `SET ROLE`).

@@ -118,7 +118,19 @@ class Settings(BaseSettings):
 
     @property
     def effective_app_database_url(self) -> str:
-        return self.app_database_url or self.database_url
+        """The DSN the application connects with: the application role's, never the admin's.
+
+        There is no fallback to DATABASE_URL in any environment — the admin role is a
+        superuser or owns the tables, and the application must not run as it
+        (docs/notes/0005). Scripts that need the admin DSN (migrations, seeding) use
+        DATABASE_URL themselves.
+        """
+        if not self.app_database_url:
+            raise RuntimeError(
+                "APP_DATABASE_URL is not set: the application connects as its own role "
+                "(e.g. hadp_app), never with the admin DSN."
+            )
+        return self.app_database_url
 
     @model_validator(mode="after")
     def _check_trusted_proxies(self) -> Settings:
