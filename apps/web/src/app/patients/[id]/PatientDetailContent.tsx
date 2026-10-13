@@ -27,6 +27,7 @@ import { sourceNoteText, type MarkerView } from "@/lib/presenters/review";
 import { ConsentCard } from "./ConsentCard";
 import { DataExportCard } from "./DataExportCard";
 import { DomainOverviewPanel, SeriesValues } from "./DomainOverviewPanel";
+import { HistoryChart } from "./HistoryChart";
 import { LabDocumentsCard } from "./LabDocumentsCard";
 import { GERMAN, LagePill, ReferenceBar } from "./MarkerParts";
 
@@ -1304,6 +1305,12 @@ export function PatientDetailContent({
                 </>
               )}
             </p>
+            {openMarker.series && view.overview.timeAxis && (
+              <HistoryChart
+                series={openMarker.series}
+                axis={view.overview.timeAxis}
+              />
+            )}
             {openMarker.series && openMarker.series.values.length > 0 && (
               <SeriesValues series={openMarker.series} t={t} />
             )}

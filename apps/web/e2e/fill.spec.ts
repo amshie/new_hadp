@@ -189,6 +189,32 @@ test("the German of the patient page, put together", () => {
   expect(byCount(t.evidence.pending, 1)).toBe("1 Wert in Prüfung");
   expect(byCount(t.evidence.ago.days, 3)).toBe("vor 3 Tagen");
   expect(byCount(t.evidence.ago.months, 1)).toBe("vor 1 Monat");
+  // The history's summary sentence, and what it says besides.
+  expect(
+    fill(t.history.summary.other, {
+      name: "LDL-Cholesterin",
+      n: 4,
+      from: "15.01.2025",
+      to: "02.03.2026",
+      value: "2.5 mmol/L",
+    }),
+  ).toBe(
+    "LDL-Cholesterin: 4 veröffentlichte Werte zwischen dem 15.01.2025 und dem 02.03.2026; der letzte ist 2.5 mmol/L.",
+  );
+  expect(
+    fill(t.history.summary.one, {
+      name: "Lp(a)",
+      to: "15.01.2025",
+      value: "142 nmol/L",
+    }),
+  ).toBe("Lp(a): ein veröffentlichter Wert vom 15.01.2025: 142 nmol/L.");
+  expect(byCount(t.history.pending, 1)).toBe("1 Wert ist in Prüfung.");
+  expect(byCount(t.history.replaced, 2)).toBe(
+    "2 Werte wurden durch eine Laborkorrektur ersetzt.",
+  );
+  expect(fill(t.history.chartLabel, { name: "HbA1c" })).toBe(
+    "Verlauf von HbA1c. Jeder Wert steht auch in der Tabelle darunter.",
+  );
   expect(fill(t.evidence.open, { name: "HbA1c" })).toBe("Marker HbA1c öffnen");
   expect(fill(t.evidence.reference, { range: "0–5.6" })).toBe("Ref 0–5.6");
   const converted = { source: "97 mg/dL", unit: "mmol/L" };
@@ -309,6 +335,20 @@ test("the English of the patient page, put together", () => {
   );
   expect(byCount(t.evidence.ago.days, 1)).toBe("1 day ago");
   expect(byCount(t.evidence.ago.months, 16)).toBe("16 months ago");
+  expect(
+    fill(t.history.summary.other, {
+      name: "LDL cholesterol",
+      n: 2,
+      from: "15.01.2025",
+      to: "10.06.2025",
+      value: "2.8 mmol/L",
+    }),
+  ).toBe(
+    "LDL cholesterol: 2 published values between 15.01.2025 and 10.06.2025; the latest is 2.8 mmol/L.",
+  );
+  expect(byCount(t.history.notDrawn, 1)).toBe(
+    "1 value is not drawn (rejected or not a number) and is listed only in the table.",
+  );
 });
 
 // The report page, as it was in German before it followed the choice: the sentences it puts

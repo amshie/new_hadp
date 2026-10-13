@@ -499,6 +499,19 @@ test("the patient page follows the choice; what is not interface stays German an
     const detail = page.getByRole("dialog");
     await expect(detail).toContainText("Review status");
     await expect(detail).toContainText("published");
+    // Its history: an image named in English, described by an English sentence, with the
+    // English note that nothing is drawn but recorded values.
+    await expect(
+      detail.getByRole("img", {
+        name: /^History of .+\. Every value is also in the table beneath\.$/,
+      }),
+    ).toBeVisible();
+    await expect(detail).toContainText(
+      /(one published value|\d+ published values)/,
+    );
+    await expect(detail).toContainText(
+      "Recorded values only: no trend line, no smoothing, no forecast.",
+    );
     // Every value of the marker beneath, with English column names.
     await expect(detail).toContainText("All values of this marker");
     await expect(

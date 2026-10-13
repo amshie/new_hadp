@@ -18,6 +18,7 @@ import {
   type DomainSection,
   type MarkerSeries,
   type PrepFilter,
+  type TimeAxis,
   type ValueView,
 } from "@/lib/presenters/domainOverview";
 import {
@@ -28,6 +29,7 @@ import {
 } from "@/lib/presenters/review";
 import { referenceBar } from "@/lib/referencePosition";
 
+import { Sparkline } from "./HistoryChart";
 import { GERMAN, LagePill, ReferenceBar } from "./MarkerParts";
 
 // The patient page's domain overview (docs/notes/0006, the domain timelines): the counts
@@ -87,7 +89,7 @@ const warnChip: CSSProperties = {
   border: "1px solid rgba(201,136,28,0.30)",
 };
 const EGRID =
-  "minmax(170px,1.6fr) minmax(110px,0.9fr) minmax(120px,1fr) 150px minmax(110px,0.9fr) 112px";
+  "minmax(160px,1.5fr) 132px minmax(110px,0.9fr) minmax(110px,1fr) 150px minmax(100px,0.8fr) 104px";
 
 function axisLabel(axis: string): string {
   return DOMAIN_AXIS_LABELS[axis] ?? axis;
@@ -585,11 +587,13 @@ function DomainCard({
 
 function SeriesRow({
   series,
+  axis,
   onOpen,
   t,
   showDomain,
 }: {
   series: MarkerSeries;
+  axis: TimeAxis | null;
   onOpen: (s: MarkerSeries) => void;
   t: T;
   showDomain: boolean;
@@ -647,6 +651,7 @@ function SeriesRow({
           {series.corrected && <span style={chip}>{e.corrected}</span>}
         </span>
       </span>
+      <span>{axis && <Sparkline series={series} axis={axis} />}</span>
       <span
         style={{
           fontFamily: "var(--font-mono)",
@@ -773,11 +778,13 @@ function MissingRow({
 
 function DomainSectionCard({
   domain,
+  axis,
   filter,
   onOpen,
   t,
 }: {
   domain: DomainSection;
+  axis: TimeAxis | null;
   filter: PrepFilter | null;
   onOpen: (s: MarkerSeries) => void;
   t: T;
@@ -848,7 +855,7 @@ function DomainSectionCard({
         // Relative: the rows' screen-reader sentences (.sr-only, absolute) are held in this
         // scroller — otherwise they reach past a narrow screen and widen the whole page.
         <div style={{ position: "relative", overflowX: "auto" }}>
-          <div style={{ minWidth: "760px" }}>
+          <div style={{ minWidth: "880px" }}>
             <div
               style={{
                 display: "grid",
@@ -862,6 +869,7 @@ function DomainSectionCard({
               }}
             >
               <span style={colLabel}>{e.columns.marker}</span>
+              <span style={colLabel}>{t.history.column}</span>
               <span style={colLabel}>{e.columns.value}</span>
               <span style={colLabel}>{e.columns.change}</span>
               <span style={colLabel}>{e.columns.position}</span>
@@ -873,6 +881,7 @@ function DomainSectionCard({
                 <SeriesRow
                   key={r.series.kpiCode}
                   series={r.series}
+                  axis={axis}
                   onOpen={onOpen}
                   t={t}
                   showDomain={false}
@@ -909,6 +918,7 @@ function DomainSectionCard({
                   <SeriesRow
                     key={`also-${s.kpiCode}`}
                     series={s}
+                    axis={axis}
                     onOpen={onOpen}
                     t={t}
                     showDomain
@@ -1066,6 +1076,7 @@ export function DomainOverviewPanel({
         <DomainSectionCard
           key={d.axis}
           domain={d}
+          axis={overview.timeAxis}
           filter={filter}
           onOpen={onOpen}
           t={t}

@@ -507,6 +507,42 @@ export const de = {
       noScale: "keine Skala",
       reference: "Ref {range}",
     },
+    // A marker's history: its sparkline in the domain list and its chart in the dialog.
+    history: {
+      column: "Verlauf",
+      title: "Verlauf",
+      chartLabel:
+        "Verlauf von {name}. Jeder Wert steht auch in der Tabelle darunter.",
+      summary: {
+        none: "{name}: noch kein veröffentlichter Wert.",
+        one: "{name}: ein veröffentlichter Wert vom {to}: {value}.",
+        other:
+          "{name}: {n} veröffentlichte Werte zwischen dem {from} und dem {to}; der letzte ist {value}.",
+      },
+      pending: {
+        one: "{n} Wert ist in Prüfung.",
+        other: "{n} Werte sind in Prüfung.",
+      },
+      replaced: {
+        one: "{n} Wert wurde durch eine Laborkorrektur ersetzt.",
+        other: "{n} Werte wurden durch eine Laborkorrektur ersetzt.",
+      },
+      notDrawn: {
+        one: "{n} Wert ist nicht eingezeichnet (abgelehnt oder ohne Zahl) und steht nur in der Tabelle.",
+        other:
+          "{n} Werte sind nicht eingezeichnet (abgelehnt oder ohne Zahl) und stehen nur in der Tabelle.",
+      },
+      legend: {
+        value: "Veröffentlichter Wert",
+        joined: "Linie: Veränderung berechnet",
+        interval: "Quellreferenzintervall, je Wert",
+        outside: "Außerhalb des Quellreferenzintervalls",
+        pending: "In Prüfung",
+        replaced: "Durch Laborkorrektur ersetzt",
+      },
+      today: "heute",
+      foot: "Nur erfasste Werte: keine Trendlinie, keine Glättung, keine Prognose. Eine Linie verbindet zwei Werte nur, wenn die Plattform zwischen ihnen eine Veränderung berechnet hat.",
+    },
     unassigned: {
       title: "Keinem Katalogmarker zugeordnet",
       note: "Werte, die der Import keinem Marker zuordnen konnte. Sie bleiben hier sichtbar und werden in der Review-Queue entschieden; bis dahin gehören sie zu keiner Domäne.",
