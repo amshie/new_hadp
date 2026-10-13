@@ -84,6 +84,39 @@ test("the German of the dialog to add a patient, put together", () => {
   expect(byCount(t.review.age, 34)).toBe("· 34 Jahre");
 });
 
+// The same for the review queue. The sentences that changed: a count of reports is no longer
+// "Bericht(en)" — one report, or reports.
+test("the German of the review queue, put together", () => {
+  const t = de.reviewQueue;
+  const held = "5.4 % · 10.06.2025 (veröffentlicht)";
+  expect(fill(t.replacesOnPublish, { held })).toBe(
+    "Ersetzt bei Veröffentlichung: 5.4 % · 10.06.2025 (veröffentlicht)",
+  );
+  expect(fill(t.alreadyHeld, { held })).toBe(
+    "Bereits vorhanden: 5.4 % · 10.06.2025 (veröffentlicht)",
+  );
+  expect(byCount(t.citedIn, 1)).toBe(" — in 1 Bericht zitiert");
+  expect(byCount(t.citedIn, 2)).toBe(" — in 2 Berichten zitiert");
+  expect(fill(t.reference.line, { bounds: "0–3 mmol/L" })).toBe(
+    "Referenz der Quelle: 0–3 mmol/L",
+  );
+  expect(
+    fill(t.reference.lineConverted, {
+      bounds: fill(t.reference.upper, { high: 5.2 }) + " mmol/L",
+    }),
+  ).toBe("Referenz der Quelle (umgerechnet): obere Grenze 5.2 mmol/L");
+  expect(fill(t.reference.lower, { low: 40 })).toBe("untere Grenze 40");
+  expect(fill(t.dialog.replacesReject, { held })).toBe(
+    "Der frühere Wert 5.4 % · 10.06.2025 (veröffentlicht) bleibt bestehen.",
+  );
+  expect(byCount(t.dialog.citedInReports, 1)).toMatch(
+    /^ Er ist in 1 Bericht zitiert: Dieser kann erst /,
+  );
+  expect(byCount(t.dialog.citedInReports, 3)).toMatch(
+    /^ Er ist in 3 Berichten zitiert: Diese können erst /,
+  );
+});
+
 // The same for the patient page: every sentence that is put together from wording and values.
 test("the German of the patient page, put together", () => {
   const t = de.patientPage;

@@ -679,6 +679,71 @@ export const de = {
       },
     },
   },
+  reviewQueue: {
+    title: "Review-Queue",
+    lead: "Offene Prüfaufgaben aus dem Import — kein Wert wird ohne menschliche Entscheidung veröffentlicht. Angezeigt wird die Quellrepräsentation (Originalname, -wert, -einheit).",
+    readOnly:
+      " Die Entscheidung ist der klinischen Rolle vorbehalten (Nur-Lese-Ansicht).",
+    empty: "Keine offenen Prüfaufgaben.",
+    tableAria: "Offene Prüfaufgaben",
+    columns: {
+      patient: "Patientin/Patient",
+      value: "Wert (Quelle)",
+      reason: "Grund",
+      observed: "Beobachtet",
+      decision: "Entscheidung",
+    },
+    publish: "Veröffentlichen",
+    reject: "Ablehnen",
+    cancel: "Abbrechen",
+    clinicalRoleRequired: "Klinische Rolle erforderlich",
+    reference: {
+      upper: "obere Grenze {high}",
+      lower: "untere Grenze {low}",
+      line: "Referenz der Quelle: {bounds}",
+      lineConverted: "Referenz der Quelle (umgerechnet): {bounds}",
+    },
+    // Where a value the patient already holds stands.
+    heldStatus: {
+      published: "veröffentlicht",
+      pending: "in Prüfung",
+      rejected: "abgelehnt",
+      superseded: "ersetzt",
+    },
+    replacesOnPublish: "Ersetzt bei Veröffentlichung: {held}",
+    citedIn: {
+      one: " — in {n} Bericht zitiert",
+      other: " — in {n} Berichten zitiert",
+    },
+    alreadyHeld: "Bereits vorhanden: {held}",
+    dialog: {
+      publishTitle: "Wert veröffentlichen?",
+      rejectTitle: "Wert ablehnen?",
+      publishBody:
+        "Der Wert wird veröffentlicht und erscheint in der klinischen Zeitleiste. Bleibt eine weitere offene Prüfaufgabe zu diesem Wert bestehen, bleibt er bis zu deren Entscheidung zurückgehalten.",
+      rejectBody:
+        "Der Wert wird abgelehnt und nie veröffentlicht. Die Entscheidung wird Ihnen zugeordnet und auditiert.",
+      replacesPublish:
+        "Mit der Veröffentlichung ersetzt dieser Wert den früheren Wert {held}. Der frühere Wert bleibt unverändert erhalten und wird als ersetzt gekennzeichnet.",
+      replacesReject: "Der frühere Wert {held} bleibt bestehen.",
+      citedInReports: {
+        one: " Er ist in {n} Bericht zitiert: Dieser kann erst mit einem neuen Entwurf genehmigt oder freigegeben werden; ein bereits freigegebener Bericht bleibt für die Patientin sichtbar, bis auf der Berichtsseite ein neuer Entwurf erstellt wird.",
+        other:
+          " Er ist in {n} Berichten zitiert: Diese können erst mit einem neuen Entwurf genehmigt oder freigegeben werden; ein bereits freigegebener Bericht bleibt für die Patientin sichtbar, bis auf der Berichtsseite ein neuer Entwurf erstellt wird.",
+      },
+    },
+    // What the decision's server action answers.
+    errors: {
+      invalidReference: "Ungültige Referenz.",
+      invalidPath: "Ungültiger Pfad.",
+      forbidden: "Diese Aktion ist Ihrer Rolle nicht erlaubt.",
+      supersessionConflict:
+        "Der Wert, den diese Korrektur ersetzen soll, wurde bereits durch eine andere Korrektur ersetzt. Dieser Wert kann nur abgelehnt werden.",
+      conflict:
+        "Bereits entschieden oder nicht mehr offen — Ansicht wird aktualisiert.",
+      failed: "Aktion fehlgeschlagen. Bitte erneut versuchen.",
+    },
+  },
   notFound: {
     title: "Seite nicht gefunden",
     note: "Die angeforderte Seite existiert nicht oder ist nicht verfügbar.",
@@ -711,7 +776,7 @@ export const de = {
     note: "Die Sprache der Oberfläche auf diesem Gerät. Inhalte wie Berichte, Bezeichnungen aus dem Labor und Namen bleiben in der Sprache, in der sie erfasst wurden.",
     // Says exactly what is done. To be widened with every part, and removed with the last page.
     progress:
-      "Englisch wird Seite für Seite ergänzt: die Navigation, die Anmeldung, die Übersicht, die Patientenliste, die Patientenseite und diese Übersicht der Einstellungen sind umgestellt; alle übrigen Seiten erscheinen vorerst auf Deutsch. Der Wortlaut der Einwilligungszwecke und die klinischen Bezeichnungen (Domänen, Follow-up-Adäquanz, Lage zum Referenzintervall, Vergleichbarkeit) bleiben Deutsch.",
+      "Englisch wird Seite für Seite ergänzt: die Navigation, die Anmeldung, die Übersicht, die Patientenliste, die Patientenseite, die Review-Queue und diese Übersicht der Einstellungen sind umgestellt; alle übrigen Seiten erscheinen vorerst auf Deutsch. Der Wortlaut der Einwilligungszwecke, die klinischen Bezeichnungen (Domänen, Follow-up-Adäquanz, Lage zum Referenzintervall, Vergleichbarkeit) und die Gründe der Prüfaufgaben bleiben Deutsch.",
     selected: "ausgewählt",
     choose: "Sprache der Oberfläche",
   },

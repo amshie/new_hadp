@@ -654,6 +654,69 @@ export const en: Messages = {
       },
     },
   },
+  reviewQueue: {
+    title: "Review queue",
+    lead: "Open review tasks from the import — no value is published without a human decision. Shown is the source representation (original name, value, unit).",
+    readOnly:
+      " The decision is reserved for the clinical role (read-only view).",
+    empty: "No open review tasks.",
+    tableAria: "Open review tasks",
+    columns: {
+      patient: "Patient",
+      value: "Value (source)",
+      reason: "Reason",
+      observed: "Observed",
+      decision: "Decision",
+    },
+    publish: "Publish",
+    reject: "Reject",
+    cancel: "Cancel",
+    clinicalRoleRequired: "Clinical role required",
+    reference: {
+      upper: "upper limit {high}",
+      lower: "lower limit {low}",
+      line: "Source reference: {bounds}",
+      lineConverted: "Source reference (converted): {bounds}",
+    },
+    heldStatus: {
+      published: "published",
+      pending: "in review",
+      rejected: "rejected",
+      superseded: "replaced",
+    },
+    replacesOnPublish: "Replaced on publication: {held}",
+    citedIn: {
+      one: " — cited in {n} report",
+      other: " — cited in {n} reports",
+    },
+    alreadyHeld: "Already present: {held}",
+    dialog: {
+      publishTitle: "Publish the value?",
+      rejectTitle: "Reject the value?",
+      publishBody:
+        "The value is published and appears in the clinical timeline. If another open review task remains for this value, it stays held until that task is decided.",
+      rejectBody:
+        "The value is rejected and never published. The decision is attributed to you and audited.",
+      replacesPublish:
+        "On publication this value replaces the earlier value {held}. The earlier value is kept unchanged and marked as replaced.",
+      replacesReject: "The earlier value {held} remains.",
+      citedInReports: {
+        one: " It is cited in {n} report: that report can only be approved or released with a new draft; a report already released stays visible to the patient until a new draft is created on the report page.",
+        other:
+          " It is cited in {n} reports: these can only be approved or released with a new draft; a report already released stays visible to the patient until a new draft is created on the report page.",
+      },
+    },
+    errors: {
+      invalidReference: "Invalid reference.",
+      invalidPath: "Invalid path.",
+      forbidden: "Your role does not allow this action.",
+      supersessionConflict:
+        "The value this correction is meant to replace has already been replaced by another correction. This value can only be rejected.",
+      conflict:
+        "Already decided or no longer open — the view is being refreshed.",
+      failed: "The action failed. Please try again.",
+    },
+  },
   notFound: {
     title: "Page not found",
     note: "The page you asked for does not exist or is not available.",
@@ -685,7 +748,7 @@ export const en: Messages = {
     title: "Language",
     note: "The language of the interface on this device. Content such as reports, laboratory terms and names stays in the language it was recorded in.",
     progress:
-      "English is being added page by page: the navigation, sign-in, the overview, the patients list, the patient page and this settings overview are done; all other pages are shown in German for now. The wording of the consent purposes and the clinical labels (domains, follow-up adequacy, position relative to the reference interval, comparability) stay German.",
+      "English is being added page by page: the navigation, sign-in, the overview, the patients list, the patient page, the review queue and this settings overview are done; all other pages are shown in German for now. The wording of the consent purposes, the clinical labels (domains, follow-up adequacy, position relative to the reference interval, comparability) and the reasons of the review tasks stay German.",
     selected: "selected",
     choose: "Interface language",
   },
