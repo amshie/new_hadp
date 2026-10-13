@@ -13,8 +13,8 @@
 # who is past the gate act as any seeded account, so nothing real may ever be put into it.
 # See infra/docker/README.md ("The demo stack").
 #
-# Secrets and the gate come from ${HADP_DEMO_HOME}, written by `demo_stack.sh init`; none is
-# in this file. `docker compose down` keeps the database volume; never add `-v`.
+# Secrets and the gate come from two files that `demo_stack.sh init` writes outside the
+# checkout (demo.env, gate.env); none is in this file. `docker compose down` keeps the database volume; never add `-v`.
 name: hadp-demo
 
 x-hardening: &hardening
@@ -220,12 +220,16 @@ services:
       DEMO_HOST: ${DEMO_HOST:?}
       # Empty: a public certificate. The smoke sets "tls internal" (no public name there).
       DEMO_TLS: ${DEMO_TLS:-}
+      # The gate: a user name and the HASH of its password (gate.env, written by
+      # `demo_stack.sh init`). Through the environment and not as a mounted file: this
+      # container has no capability to read a file that belongs to another user.
+      DEMO_GATE_USER: ${DEMO_GATE_USER:?}
+      DEMO_GATE_HASH: ${DEMO_GATE_HASH:?}
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./demo/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ${HADP_DEMO_HOME:?}/gate.caddy:/etc/caddy/gate.caddy:ro
       - caddy-data:/data
       - caddy-config:/config
 

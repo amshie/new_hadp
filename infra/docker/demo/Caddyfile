@@ -8,9 +8,11 @@
 	# Empty for a public certificate; "tls internal" in the smoke.
 	{$DEMO_TLS}
 
-	# The gate: user name and password hash, written by `scripts/demo_stack.sh init`.
+	# The gate: a user name and the hash of its password, set by `scripts/demo_stack.sh init`.
 	# Everything below is behind it — the sign-in of the demo has no password of its own.
-	import /etc/caddy/gate.caddy
+	basic_auth {
+		{$DEMO_GATE_USER} {$DEMO_GATE_HASH}
+	}
 
 	encode zstd gzip
 

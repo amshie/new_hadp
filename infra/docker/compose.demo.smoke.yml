@@ -12,7 +12,6 @@ services:
     ports: !reset []
     volumes: !override
       - ./demo/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ${HADP_DEMO_HOME:?}/gate.caddy:/etc/caddy/gate.caddy:ro
     tmpfs:
       - /tmp
       - /data

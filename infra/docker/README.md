@@ -155,7 +155,7 @@ scripts/demo_stack.sh up     # builds the two images, starts, migrates, seeds
 
 `init` generates the stack's secrets and writes them, with the host name, to
 `/etc/hadp-demo/demo.env`; the gate's user name and the **hash** of its password go to
-`/etc/hadp-demo/gate.caddy`. Both are readable by root only, neither is in the checkout, and
+`/etc/hadp-demo/gate.env`. Both are readable by root only, neither is in the checkout, and
 the password itself is kept nowhere. `scripts/demo_stack.sh gate` sets a new one.
 
 To show a newer state: `git pull && scripts/demo_stack.sh up`. To stop:

@@ -10,7 +10,7 @@
 #   scripts/demo_stack.sh down      stop (the database volume is kept — there is no `-v` here)
 #
 # `init` writes two files into HADP_DEMO_HOME (default /etc/hadp-demo), readable by their
-# owner only: demo.env (generated secrets, the host name) and gate.caddy (the gate's user name
+# owner only: demo.env (generated secrets, the host name) and gate.env (the gate's user name
 # and the HASH of its password). The password itself is typed at a hidden prompt, piped to
 # the hashing command and kept nowhere. Nothing is printed, and nothing goes into the checkout.
 #
@@ -21,7 +21,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export HADP_DEMO_HOME="${HADP_DEMO_HOME:-/etc/hadp-demo}"
 ENV_FILE="$HADP_DEMO_HOME/demo.env"
-GATE_FILE="$HADP_DEMO_HOME/gate.caddy"
+GATE_FILE="$HADP_DEMO_HOME/gate.env"
 PROXY_IMAGE="caddy:2-alpine"
 # More compose files (the smoke adds its own), separated by spaces.
 COMPOSE_FILES="$ROOT/infra/docker/compose.demo.yml ${HADP_DEMO_COMPOSE_EXTRA:-}"
@@ -37,7 +37,7 @@ compose() {
   local args=()
   local file
   for file in $COMPOSE_FILES; do args+=(-f "$file"); done
-  docker compose --env-file "$ENV_FILE" "${args[@]}" "$@"
+  docker compose --env-file "$ENV_FILE" --env-file "$GATE_FILE" "${args[@]}" "$@"
 }
 
 # write_gate USER PASSWORD — the password reaches the hashing command on its standard input.
@@ -53,9 +53,10 @@ write_gate() {
     '$2'*) ;;
     *) die "could not hash the gate password (is the image $PROXY_IMAGE available?)" ;;
   esac
+  # Single quotes: the hash is full of "$", which an env file would otherwise read as variables.
   (
     umask 077
-    printf 'basic_auth {\n\t%s %s\n}\n' "$user" "$hash" > "$GATE_FILE.new"
+    printf "DEMO_GATE_USER=%s\nDEMO_GATE_HASH='%s'\n" "$user" "$hash" > "$GATE_FILE.new"
   )
   mv "$GATE_FILE.new" "$GATE_FILE"
 }
@@ -102,14 +103,14 @@ cmd_init() {
       echo "SESSION_SECRET=$(openssl rand -hex 32)"
     } > "$ENV_FILE"
   )
-  echo "initialised: $HADP_DEMO_HOME (demo.env, gate.caddy). Next: scripts/demo_stack.sh up"
+  echo "initialised: $HADP_DEMO_HOME (demo.env, gate.env). Next: scripts/demo_stack.sh up"
 }
 
 cmd_gate() {
   [ -f "$ENV_FILE" ] || die "not initialised — run 'scripts/demo_stack.sh init' first"
   ask_gate
-  # The proxy reads its configuration at start.
-  if [ -n "$(compose ps -q proxy 2> /dev/null)" ]; then compose restart proxy; fi
+  # The proxy takes the gate from its environment: it is created again, not just restarted.
+  if [ -n "$(compose ps -q proxy 2> /dev/null)" ]; then compose up -d --no-deps proxy; fi
   echo "the gate has a new user and password"
 }
 

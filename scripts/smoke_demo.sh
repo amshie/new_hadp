@@ -35,7 +35,7 @@ export DEMO_GATE_USER="smoke" DEMO_GATE_PASSWORD
 DEMO_GATE_PASSWORD="$(openssl rand -hex 16)"
 
 compose() {
-  docker compose --env-file "$HADP_DEMO_HOME/demo.env" \
+  docker compose --env-file "$HADP_DEMO_HOME/demo.env" --env-file "$HADP_DEMO_HOME/gate.env" \
     -f "$ROOT/infra/docker/compose.demo.yml" -f "$HADP_DEMO_COMPOSE_EXTRA" "$@"
 }
 
@@ -57,8 +57,8 @@ trap teardown EXIT
 
 echo "--- the stack publishes the proxy and nothing else ---"
 published="$(
-  HADP_DEMO_HOME=/nonexistent POSTGRES_PASSWORD=x HADP_APP_DB_PASSWORD=x REDIS_PASSWORD=x \
-    S3_ACCESS_KEY_ID=x S3_SECRET_ACCESS_KEY=x SESSION_SECRET=x \
+  POSTGRES_PASSWORD=x HADP_APP_DB_PASSWORD=x REDIS_PASSWORD=x S3_ACCESS_KEY_ID=x \
+    S3_SECRET_ACCESS_KEY=x SESSION_SECRET=x DEMO_GATE_USER=x DEMO_GATE_HASH=x \
     docker compose -f "$ROOT/infra/docker/compose.demo.yml" config --format json |
     python3 -c '
 import json, sys
@@ -72,12 +72,12 @@ echo "  ok    only the proxy has published ports"
 
 echo "--- init and up, as on a server ---"
 "$DEMO" init < /dev/null
-for file in demo.env gate.caddy; do
+for file in demo.env gate.env; do
   mode="$(python3 -c 'import os, sys; print(oct(os.stat(sys.argv[1]).st_mode & 0o777))' "$HADP_DEMO_HOME/$file")"
   [ "$mode" = "0o600" ] || { echo "  FAIL  $file is readable by others ($mode)" >&2; exit 1; }
 done
-echo "  ok    demo.env and gate.caddy are readable by their owner only"
-if grep -q "$DEMO_GATE_PASSWORD" "$HADP_DEMO_HOME/demo.env" "$HADP_DEMO_HOME/gate.caddy"; then
+echo "  ok    demo.env and gate.env are readable by their owner only"
+if grep -q "$DEMO_GATE_PASSWORD" "$HADP_DEMO_HOME/demo.env" "$HADP_DEMO_HOME/gate.env"; then
   echo "  FAIL  the gate password is stored in plain text" >&2
   exit 1
 fi
