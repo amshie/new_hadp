@@ -12,49 +12,48 @@ import {
   releaseReport,
   type ReportStatementInput,
 } from "@/lib/api";
+import { fill } from "@/lib/i18n/fill";
+import { getMessages } from "@/lib/i18n/server";
+import type { Messages } from "@/lib/i18n/messages";
 import { REJECTION_REASONS, type RejectionReason } from "@/lib/rejectionCopy";
 import { isUuid } from "@/lib/uuid";
 
 // Real Freigabe lifecycle (Gate G2 closed): server-side calls into the governed API.
 // The API enforces role, lifecycle, and the consent gate (deny-by-default, audited);
-// these actions only translate outcomes into safe German copy and refresh the page.
+// these actions only translate outcomes into safe copy, in the language of the interface
+// (lib/i18n), and refresh the page.
 
 export type ReportActionResult =
   | { ok: true; patientViewUrl?: string }
   | { ok: false; error: string };
 
-function safeMessage(e: unknown): string {
-  if (e instanceof ApiError) {
-    if (e.status === 403) return "Diese Aktion ist Ihrer Rolle nicht erlaubt.";
-    // Drafting and release are throttled per user; the refusal says so and what to do.
-    if (e.status === 429)
-      return "Zu viele Anfragen in kurzer Zeit. Bitte kurz warten und erneut versuchen.";
-    if (e.status === 409) {
-      const detail = e.message;
-      if (detail.includes("consent")) {
-        return "Keine aktive Einwilligung (report_release) für diese Patientin hinterlegt.";
-      }
-      if (detail.includes("approved before release")) {
-        return "Der Bericht ist noch nicht genehmigt.";
-      }
-      if (detail.includes("already rejected")) {
-        return "Der Bericht wurde bereits zurückgewiesen.";
-      }
-      if (detail.includes("correction has replaced")) {
-        return "Nicht möglich: Ein zitierter Wert wurde vom Labor korrigiert. Bitte einen neuen Entwurf aus den aktuellen Werten erstellen.";
-      }
-      if (detail.includes("cannot approve")) {
-        return "Genehmigung nicht möglich: nicht jeder Beleg ist einsehbar.";
-      }
-      return "Aktion im aktuellen Berichtsstatus nicht möglich.";
-    }
-  }
-  return "Aktion fehlgeschlagen. Bitte erneut versuchen.";
+type Errors = Messages["reportPage"]["errors"];
+
+async function errors(): Promise<Errors> {
+  return (await getMessages()).reportPage.errors;
 }
 
-function guard(reportId: string, path: string): string | null {
-  if (!isUuid(reportId)) return "Ungültige Berichtsreferenz.";
-  if (!path.startsWith("/")) return "Ungültiger Pfad.";
+function safeMessage(e: unknown, t: Errors): string {
+  if (e instanceof ApiError) {
+    if (e.status === 403) return t.forbidden;
+    // Drafting and release are throttled per user; the refusal says so and what to do.
+    if (e.status === 429) return t.tooMany;
+    if (e.status === 409) {
+      const detail = e.message;
+      if (detail.includes("consent")) return t.noConsent;
+      if (detail.includes("approved before release")) return t.notApproved;
+      if (detail.includes("already rejected")) return t.alreadyRejected;
+      if (detail.includes("correction has replaced")) return t.citesReplaced;
+      if (detail.includes("cannot approve")) return t.evidenceHidden;
+      return t.wrongStatus;
+    }
+  }
+  return t.failed;
+}
+
+function guard(reportId: string, path: string, t: Errors): string | null {
+  if (!isUuid(reportId)) return t.invalidReport;
+  if (!path.startsWith("/")) return t.invalidPath;
   return null;
 }
 
@@ -68,15 +67,11 @@ export type GenerateReportResult =
 export async function generateReportAction(
   patientId: string,
 ): Promise<GenerateReportResult> {
-  if (!isUuid(patientId))
-    return { ok: false, error: "Ungültige Patientenreferenz." };
+  const t = await errors();
+  if (!isUuid(patientId)) return { ok: false, error: t.invalidPatient };
   try {
     const report = await generateReport(patientId);
-    if (!isUuid(report.report_id))
-      return {
-        ok: false,
-        error: "Aktion fehlgeschlagen. Bitte erneut versuchen.",
-      };
+    if (!isUuid(report.report_id)) return { ok: false, error: t.failed };
     revalidatePath(`/patients/${patientId}`);
     return {
       ok: true,
@@ -84,27 +79,13 @@ export async function generateReportAction(
     };
   } catch (e) {
     if (e instanceof ApiError) {
-      if (e.status === 403)
-        return {
-          ok: false,
-          error: "Diese Aktion ist Ihrer Rolle nicht erlaubt.",
-        };
-      if (e.status === 422)
-        return {
-          ok: false,
-          error:
-            "Kein Entwurf möglich: Es liegen keine veröffentlichten Beobachtungen vor.",
-        };
-      if (e.status === 409)
-        return {
-          ok: false,
-          error:
-            "Kein Entwurf möglich: Nicht jede Aussage ließ sich mit einer Quelle belegen.",
-        };
+      if (e.status === 403) return { ok: false, error: t.forbidden };
+      if (e.status === 422) return { ok: false, error: t.noPublished };
+      if (e.status === 409) return { ok: false, error: t.unsupported };
     }
     // Everything else — a throttled request among it — is worded where the other report
     // actions word it.
-    return { ok: false, error: safeMessage(e) };
+    return { ok: false, error: safeMessage(e, t) };
   }
 }
 
@@ -116,7 +97,8 @@ export async function editReportAction(
   path: string,
   statements: ReportStatementInput[],
 ): Promise<ReportActionResult> {
-  const invalid = guard(reportId, path);
+  const t = await errors();
+  const invalid = guard(reportId, path, t);
   if (invalid) return { ok: false, error: invalid };
   // Server-action arguments arrive from the client: check the shape before using it.
   const wellFormed =
@@ -132,11 +114,7 @@ export async function editReportAction(
         s.evidence_observation_ids.length > 0 &&
         s.evidence_observation_ids.every(isUuid),
     );
-  if (!wellFormed)
-    return {
-      ok: false,
-      error: "Jede Aussage braucht einen Text und mindestens einen Beleg.",
-    };
+  if (!wellFormed) return { ok: false, error: t.statementShape };
   try {
     await editReport(reportId, statements);
   } catch (e) {
@@ -145,22 +123,14 @@ export async function editReportAction(
       if (restricted)
         return {
           ok: false,
-          error: `Nicht gespeichert: Der Text enthält für Berichte nicht zulässige Begriffe (${restricted[1]}).`,
+          error: fill(t.restricted, { terms: restricted[1] ?? "" }),
         };
       if (e.message.includes("correction has replaced"))
-        return {
-          ok: false,
-          error:
-            "Nicht gespeichert: Ein zitierter Wert wurde vom Labor korrigiert. Bitte die betroffene Aussage entfernen oder einen neuen Entwurf erstellen.",
-        };
+        return { ok: false, error: t.editReplaced };
       if (e.message.includes("evidence"))
-        return {
-          ok: false,
-          error:
-            "Nicht gespeichert: Nicht jeder Beleg ist einsehbar. Bitte die betroffene Aussage entfernen.",
-        };
+        return { ok: false, error: t.editEvidence };
     }
-    return { ok: false, error: safeMessage(e) };
+    return { ok: false, error: safeMessage(e, t) };
   }
   revalidatePath(path);
   return { ok: true };
@@ -173,18 +143,15 @@ export async function redraftReportAction(
   reportId: string,
   path: string,
 ): Promise<ReportActionResult> {
-  const invalid = guard(reportId, path);
+  const t = await errors();
+  const invalid = guard(reportId, path, t);
   if (invalid) return { ok: false, error: invalid };
   try {
     await redraftReport(reportId);
   } catch (e) {
     if (e instanceof ApiError && e.status === 422)
-      return {
-        ok: false,
-        error:
-          "Kein Entwurf möglich: Es liegen keine veröffentlichten Beobachtungen vor.",
-      };
-    return { ok: false, error: safeMessage(e) };
+      return { ok: false, error: t.noPublished };
+    return { ok: false, error: safeMessage(e, t) };
   }
   revalidatePath(path);
   return { ok: true };
@@ -194,12 +161,13 @@ export async function approveReportAction(
   reportId: string,
   path: string,
 ): Promise<ReportActionResult> {
-  const invalid = guard(reportId, path);
+  const t = await errors();
+  const invalid = guard(reportId, path, t);
   if (invalid) return { ok: false, error: invalid };
   try {
     await approveReport(reportId);
   } catch (e) {
-    return { ok: false, error: safeMessage(e) };
+    return { ok: false, error: safeMessage(e, t) };
   }
   revalidatePath(path);
   return { ok: true };
@@ -212,15 +180,16 @@ export async function rejectReportAction(
   path: string,
   reason: RejectionReason,
 ): Promise<ReportActionResult> {
-  const invalid = guard(reportId, path);
+  const t = await errors();
+  const invalid = guard(reportId, path, t);
   if (invalid) return { ok: false, error: invalid };
   // Server-action arguments arrive from the client: only the closed vocabulary passes.
   if (!REJECTION_REASONS.some((r) => r.reason === reason))
-    return { ok: false, error: "Bitte einen Grund wählen." };
+    return { ok: false, error: t.chooseReason };
   try {
     await rejectReport(reportId, reason);
   } catch (e) {
-    return { ok: false, error: safeMessage(e) };
+    return { ok: false, error: safeMessage(e, t) };
   }
   revalidatePath(path);
   return { ok: true };
@@ -230,13 +199,14 @@ export async function releaseReportAction(
   reportId: string,
   path: string,
 ): Promise<ReportActionResult> {
-  const invalid = guard(reportId, path);
+  const t = await errors();
+  const invalid = guard(reportId, path, t);
   if (invalid) return { ok: false, error: invalid };
   try {
     const released = await releaseReport(reportId);
     revalidatePath(path);
     return { ok: true, patientViewUrl: released.patient_view_url };
   } catch (e) {
-    return { ok: false, error: safeMessage(e) };
+    return { ok: false, error: safeMessage(e, t) };
   }
 }

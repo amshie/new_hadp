@@ -7,8 +7,9 @@ import { asStaff, hydrated, watchPageErrors } from "./support/staff";
 //
 // The pages are being translated one after another; these tests hold what is done: the two
 // navigation shells, the settings overview, the overview, the patients list, the dialog to
-// add a patient (opened from the overview), the patient page, the sign-in page and the
-// not-found page — and that a page which is still German says so. They leave every
+// add a patient (opened from the overview), the patient page, the review queue, the
+// interpretation form, the report page, the sign-in page and the not-found page — and that a
+// page which is still German says so. They leave every
 // other test in German: each runs in a browser context of its own, and none of them signs out
 // (the session is shared).
 
@@ -482,17 +483,16 @@ test("the patient page follows the choice; what is not interface stays German an
     await detail.getByRole("button", { name: "Close" }).click();
     await expect(detail).toHaveCount(0);
 
-    // A page that is not translated yet — the report's review page: the shell is English,
-    // and the page says it is German.
-    await page.getByRole("link", { name: "Open report" }).click();
-    await expect(page).toHaveURL(/\/assessments\/[0-9a-f-]{36}$/);
+    // A page that is not translated yet — the deletion requests under settings: the shell is
+    // English, and the page says it is German.
+    await page.goto("/einstellungen/loeschantraege");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(
       page.getByRole("complementary", { name: "Main navigation" }),
     ).toContainText("Review queue");
-    const report = page.getByRole("heading", { level: 1 });
-    await expect(report).toBeVisible();
-    expect(await languageOf(report)).toBe("de");
+    const requests = page.getByRole("heading", { level: 1 });
+    await expect(requests).toBeVisible();
+    expect(await languageOf(requests)).toBe("de");
   });
 
   // What a server action of this page answers follows the choice as well. A file whose name
@@ -593,6 +593,150 @@ test("the interpretation form follows the choice; what is chosen in it stays Ger
     await submit.click();
     await expect(page.getByRole("main").getByRole("alert")).toHaveText(
       "Please give a reason for the run.",
+    );
+  });
+});
+
+test("the report page follows the choice; its closed vocabularies stay German and say so", async ({
+  browser,
+  baseURL,
+}) => {
+  await asStaff(browser, "clinician", async (page) => {
+    await page
+      .context()
+      .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
+    const languageOf = (part: Locator) =>
+      part.evaluate((element) =>
+        element.closest("[lang]")?.getAttribute("lang"),
+      );
+
+    // The seeded patient's latest report, from its page: a draft — the seed's own, or (in CI,
+    // where the web smoke has released that one first) the second report it rejected and
+    // reworked.
+    await page.goto("/patients");
+    const row = page.getByRole("button", {
+      name: /^Open patient .*, SYN-0001$/,
+    });
+    await hydrated(row);
+    await row.click();
+    await expect(page).toHaveURL(/\/patients\/[0-9a-f-]{36}$/);
+    await page.getByRole("link", { name: "Open report" }).click();
+    await expect(page).toHaveURL(/\/assessments\/[0-9a-f-]{36}$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    const main = page.getByRole("main");
+    expect(await languageOf(main)).toBe("en");
+
+    // The page's own wording is English.
+    for (const heading of [
+      "Source-grounded draft",
+      "Domain interpretation",
+      "Observation evidence",
+      "Audit status",
+    ]) {
+      await expect(
+        page.getByRole("heading", { level: 2, name: heading, exact: true }),
+      ).toBeVisible();
+    }
+    await expect(main).toContainText(
+      /(System|Reworked) draft – not released\. Statements must be checked against their sources and signed by the clinical team\./,
+    );
+    await expect(main).toContainText(
+      /Report v\d+ · Status: Clinical review open/,
+    );
+    const filters = page.getByRole("group", {
+      name: "Filter by position relative to the reference interval",
+    });
+    for (const filter of ["All", "Outside reference", "Without reference"]) {
+      await expect(
+        filters.getByRole("button", { name: filter, exact: true }),
+      ).toBeVisible();
+    }
+    for (const column of ["Position vs. reference interval", "Code / status"]) {
+      await expect(
+        page.getByRole("columnheader", { name: column, exact: true }),
+      ).toBeVisible();
+    }
+    for (const german of [
+      "Beobachtungsnachweis",
+      "Domänen-Interpretation",
+      "Audit-Status",
+      "Quellengebundener",
+      "Nicht freigegeben",
+      "Außerhalb Referenz",
+      "Bericht v",
+    ]) {
+      await expect(main).not.toContainText(german);
+    }
+
+    // German whatever the choice, and marked so: the name of each domain, its Actionability
+    // class and the value of its follow-up adequacy; every position against the reference
+    // interval.
+    const domains = page.getByRole("region", { name: "Domain interpretation" });
+    const axis = domains.getByText("Metabolisch", { exact: true });
+    expect(await languageOf(axis)).toBe("de");
+    const classes = domains.getByText(/^[A-E] · /);
+    expect(await classes.count()).toBeGreaterThan(0);
+    for (const value of await classes.all()) {
+      expect(await languageOf(value)).toBe("de");
+    }
+    const adequacy = domains.getByText(/^(adäquat|inadäquat|nicht bewertet)$/);
+    expect(await adequacy.count()).toBeGreaterThan(0);
+    for (const value of await adequacy.all()) {
+      expect(await languageOf(value)).toBe("de");
+    }
+    const pills = page.locator(".lage-pill");
+    expect(await pills.count()).toBeGreaterThan(0);
+    for (const pill of await pills.all()) {
+      expect(await pill.getAttribute("lang")).toBe("de");
+    }
+    await expect(main).not.toContainText(
+      /Above reference|Below reference|Within reference|No reference|Not determinable/,
+    );
+
+    // A chosen domain: English around its German name.
+    const metabolic = domains.getByRole("button", { name: /^Metabolisch/ });
+    await hydrated(metabolic);
+    await metabolic.click();
+    await expect(metabolic).toHaveAttribute("aria-pressed", "true");
+    await expect(main).toContainText(
+      "The domain's own observations: Metabolisch.",
+    );
+    await page.getByRole("button", { name: "Show all", exact: true }).click();
+    await expect(metabolic).toHaveAttribute("aria-pressed", "false");
+
+    // The two decisions this role has here, opened and left: their dialogs are English, the
+    // reasons for a rejection (a closed vocabulary) German. Nothing is recorded.
+    await page.getByRole("button", { name: "Reject", exact: true }).click();
+    const reject = page.getByRole("dialog", { name: "Reject the report?" });
+    await expect(reject).toBeVisible();
+    const reasons = reject.getByRole("group", {
+      name: "Reason for the rejection",
+    });
+    const wording = reasons.getByRole("radio", { name: /^Formulierung — / });
+    await expect(wording).toBeVisible();
+    expect(
+      await languageOf(reasons.getByText("Formulierung", { exact: true })),
+    ).toBe("de");
+    await expect(
+      reject.getByRole("button", { name: "Reject", exact: true }),
+    ).toBeDisabled();
+    await reject.getByRole("button", { name: "Cancel" }).click();
+    await expect(reject).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Approve report" }).click();
+    const approve = page.getByRole("dialog", { name: "Approve the report?" });
+    await expect(
+      approve.getByRole("checkbox", {
+        name: "I have checked the open notes and confirm the clinical documentation.",
+      }),
+    ).toBeVisible();
+    await expect(
+      approve.getByRole("button", { name: "Approve", exact: true }),
+    ).toBeDisabled();
+    await approve.getByRole("button", { name: "Close dialog" }).click();
+    await expect(approve).toHaveCount(0);
+    await expect(main).toContainText(
+      /Report v\d+ · Status: Clinical review open/,
     );
   });
 });

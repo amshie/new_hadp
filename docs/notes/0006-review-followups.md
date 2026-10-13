@@ -388,7 +388,7 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   environment. Open from that review: no lockout on the gate; visitors who arrive over IPv6
   share one limiter budget; the stack is open from the server itself; the role posture of the
   database is checked by the production-shaped smoke only; nothing tells visitors apart.
-- **Interface language, German or English (2026-10-13): PARTS 1–5 of several; ADR-0007.** A person
+- **Interface language, German or English (2026-10-13): PARTS 1–6 of several; ADR-0007.** A person
   chooses under Einstellungen or on the sign-in page; the choice is a cookie on the device
   (`hadp_locale`), German without one (`apps/web/src/lib/i18n`: `messages/de.ts` is the source of
   the keys, `messages/en.ts` is typed against it; server components ask `getMessages()`, client
@@ -539,12 +539,36 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   the form in English as a clinician, checks the field names, the language mark of every value
   to choose and an English check before sending; `scripts/smoke_web.py` reads the form in both
   languages and that its German values read the same in both.
+  Part 6: the report page — where the version stands (above its text), the frame of its
+  statements (a rejection and its reason, a cited value the laboratory corrected, the rework of
+  the wording), the domain cards, the evidence table with its filters, the secondary table, the
+  audit steps, the action bar with the role's status line, the four dialogs, the toasts, and
+  what the report actions answer — the draft action on the patient page among them. **German
+  whatever the choice, marked `lang="de"`:** the names of the domain axes, the Actionability
+  class, the value of follow-up adequacy, the position against the reference interval, the
+  comparability note, and the reasons for a rejection with their descriptions (a closed
+  vocabulary; see the decisions below). The statements of a report stay as they were written —
+  the deterministic provider writes German — and carry no language mark: the language of a
+  report version is not recorded (as for analyte names). The presenter
+  (`lib/presenters/review.ts`) no longer holds German copies of what the dictionary words (the
+  status words, the age, the audit steps, where a value stands in review, how a value relates
+  to the source), and the stage and the role's status line take their words from the
+  dictionary; the test that held the two copies together is replaced by one that pins the
+  German the page puts together. One German sentence changed, for screen readers only: a value
+  without a reference interval was read as "Referenzintervall kein Referenzintervall
+  hinterlegt", now "kein Referenzintervall hinterlegt". Otherwise the German page reads as
+  before: its text was compared before and after the change, as a clinician and as the medical
+  director, with the reject and approve dialogs open. The browser test reads the page in
+  English as a clinician — the language mark of every closed value, a chosen domain, the reject
+  and approve dialogs opened and left (nothing is recorded); `scripts/smoke_web.py` reads it in
+  both languages and checks the English stage in every report status it walks through in CI.
+  The check that an untranslated page says it is German moved to the deletion requests.
   **Still German** (each marks its content `lang="de"`):
-  report review, the four settings sub-pages (members, deletion requests, the
-  audit trail with its ~60 event labels, preparation time), the patient-facing pages, the
-  colleague's onboarding page (`/team-einladung`), the error page, the disclaimer, the toasts,
-  and every message a server action returns except those of sign-in, of the dialog to add a
-  patient, of the patient page, of the review queue and of the interpretation form. All date and number
+  the four settings sub-pages (members, deletion requests, the audit trail with its ~60 event
+  labels, preparation time), the patient-facing pages, the colleague's onboarding page
+  (`/team-einladung`), the error page, the disclaimer, and every message a server action
+  returns except those of sign-in, of the dialog to add a patient, of the patient page, of the
+  review queue, of the interpretation form and of the report pages. All date and number
   formats are `de-DE`, written out in about twenty places. The settings page says what is done
   while that is true — widen that sentence (`language.progress`) with every part and remove it
   with the last page.

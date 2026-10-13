@@ -790,6 +790,251 @@ export const de = {
       failed: "Erfassen fehlgeschlagen. Bitte erneut versuchen.",
     },
   },
+  // One version of a report: its statements, their evidence, and the steps of its release.
+  // What the page shares with the patient page (the report status, the age, the steps, how a
+  // value relates to the source) is worded there, in patientPage.
+  reportPage: {
+    crumb: "Bericht",
+    lead: "Jede Aussage bleibt auf die zugrunde liegenden Beobachtungen zurückführbar.",
+    // Where this version stands, said above its text. Only a version that still awaits a
+    // decision is called a draft.
+    stage: {
+      title: {
+        report: "Quellengebundener Bericht",
+        draft: "Quellengebundener Entwurf",
+        rejected: "Zurückgewiesene Fassung",
+      },
+      badge: {
+        draft: "Nicht freigegeben",
+        approved: "Genehmigt",
+        released: "Freigegeben",
+        rejected: "Zurückgewiesen",
+      },
+      headline: {
+        draftSystem: "Systementwurf – nicht freigegeben.",
+        draftEdited: "Überarbeiteter Entwurf – nicht freigegeben.",
+        approved: "Klinisch genehmigt – noch nicht freigegeben.",
+        released: "Ärztlich freigegeben.",
+        rejected: "Zurückgewiesen – nicht freigegeben.",
+      },
+      detail: {
+        draft:
+          "Aussagen müssen anhand der Quellen geprüft und vom klinischen Team signiert werden.",
+        approved:
+          "Die Freigabe an die Patientin ist der ärztlichen Leitung vorbehalten.",
+        // What a released status proves — and no more: whether the patient can open the
+        // report also depends on a valid link and standing consent.
+        released:
+          "Für die Patientin ist nur diese Version einsehbar – solange ihr Zugriffslink gültig ist und die Einwilligung besteht.",
+        rejected:
+          "Eine Überarbeitung erstellt eine neue Version; diese Fassung bleibt erhalten.",
+        citesReplaced:
+          "Ein zitierter Wert wurde vom Labor korrigiert – siehe Hinweis unten.",
+      },
+    },
+    kicker: {
+      edited: "Klinisch überarbeitete Fassung",
+      deterministic: "Deterministische Zusammenfassung",
+    },
+    noStatements: "Für diesen Bericht liegen keine Aussagen vor.",
+    // The reason itself is a closed vocabulary and stays German (ADR-0007).
+    rejected: {
+      title: "Zurückgewiesen.",
+      reason: "Grund:",
+      noReason: "Für diese Zurückweisung wurde kein Grund erfasst.",
+      reworked: "Überarbeitung nach einer Zurückweisung. Damaliger Grund:",
+    },
+    citesReplaced: {
+      note: "Ein zitierter Wert wurde vom Labor korrigiert. Diese Fassung kann nicht genehmigt oder freigegeben werden.",
+      released:
+        " Der Zugriff der Patientin auf diese Fassung wird erst mit einem neuen Entwurf zurückgezogen.",
+      clinician: " Erstellen Sie einen neuen Entwurf aus den aktuellen Werten.",
+      otherRole: " Ein neuer Entwurf ist der klinischen Rolle vorbehalten.",
+    },
+    statement: {
+      label: "Aussage {n}",
+      removing: " · wird entfernt",
+      remove: "Aussage entfernen",
+      restore: "Aussage wiederherstellen",
+    },
+    // A cited observation, as the source wrote it.
+    chip: {
+      unresolved: "Beleg nicht auflösbar",
+      observation: "Beobachtung",
+      corrected: " · vom Labor korrigiert",
+    },
+    rework: {
+      note: "Die Belege bleiben an die jeweilige Aussage gebunden. Beim Speichern entsteht Version v{next} als Entwurf; die zurückgewiesene Version v{version} bleibt erhalten. Die neue Version muss erneut genehmigt und freigegeben werden.",
+      save: "Als neue Version speichern",
+    },
+    domains: {
+      title: "Domänen-Interpretation",
+      note: "Sechs Domänen-Achsen · Actionability-Verdict je Achse. Kein Score.",
+      run: "Run #{n}",
+      noRun: "Für diese Patientin liegt noch kein Interpretation-Run vor.",
+      reviewed: "✓ reviewt",
+      draft: "Entwurf",
+      // The name of the fact; its value is a closed vocabulary and stays German.
+      adequacy: "Follow-up-Adäquanz:",
+      citesReplaced:
+        "Stützt sich auf einen vom Labor korrigierten Wert — Interpretation prüfen.",
+      shown: "✓ Biomarker im Beobachtungsnachweis",
+      show: "Biomarker ansehen ({n})",
+    },
+    evidence: {
+      title: "Beobachtungsnachweis",
+      noteAll:
+        "Gemessene Werte, Einheiten, Referenzintervalle und Provenienz — mit Lage zum Referenzintervall.",
+      // Followed by the name of the domain, which stays German.
+      noteDomain: "Eigene Beobachtungen der Domäne:",
+      showAll: "Alle anzeigen",
+      filtersAria: "Nach Lage zum Referenzintervall filtern",
+      filters: {
+        all: "Alle",
+        outside: "Außerhalb Referenz",
+        no_ref: "Ohne Referenz",
+      },
+      caption: "Gemessene Beobachtungen dieses Assessments",
+      columns: {
+        marker: "Marker",
+        primaryDomain: "Primärdomäne",
+        current: "Aktuell",
+        position: "Lage zum Referenzintervall",
+        change: "Veränderung",
+        reference: "Referenz",
+        codeStatus: "Code / Status",
+      },
+      empty: {
+        outside: "Keine Marker außerhalb des Referenzintervalls.",
+        no_ref: "Keine Marker ohne hinterlegte Referenz.",
+        domain: "Keine Beobachtungen für diese Domäne.",
+        all: "Keine Beobachtungen vorhanden.",
+      },
+      notPublished: "keine Lage: Der Wert ist nicht veröffentlicht",
+      referenceInterval: "Referenzintervall",
+      noInterval: "kein Referenzintervall hinterlegt",
+      reference: "Referenz {range}",
+      noScale: "keine Skala",
+    },
+    // Around the name of the domain, which stays German.
+    secondary: {
+      title: "Sekundär relevant",
+      noteBefore: "Auch für",
+      noteAfter:
+        " relevant. Zur Übersicht angezeigt – geführt und bewertet wird jeder Wert in seiner Primärdomäne; hieraus wird keine Domänen-Bewertung abgeleitet.",
+      label: "Sekundär relevante Beobachtungen für",
+    },
+    audit: {
+      title: "Audit-Status",
+      note: "Fortschritt von Datenerfassung bis Patientenfreigabe (Live-Status).",
+    },
+    bar: {
+      status: "Bericht v{version} · Status: {status}",
+      // What this role can do here, and why not — the server enforces it; this explains it.
+      hint: {
+        releasedReplaced:
+          "Freigegeben — ein zitierter Wert wurde vom Labor korrigiert; der Zugriff der Patientin wird erst mit einem neuen Entwurf zurückgezogen.",
+        replaced:
+          "Ein zitierter Wert wurde vom Labor korrigiert — diese Fassung kann nicht genehmigt oder freigegeben werden.",
+        released:
+          "Freigegeben — Für die Patientin ist nur diese Version einsehbar – solange ihr Zugriffslink gültig ist und die Einwilligung besteht.",
+        rejectedClinician:
+          "Zurückgewiesen — „Überarbeiten“ erstellt eine neue Version; die zurückgewiesene bleibt erhalten.",
+        rejected:
+          "Zurückgewiesen — eine Überarbeitung erstellt eine neue Version.",
+        approvedDirector:
+          "Bereit zur Freigabe an die Patientin — einwilligungsgebunden, zugeordnet und auditiert.",
+        approved: "Genehmigt — wartet auf die ärztliche Freigabe.",
+        draftClinician:
+          "Genehmigung wird serverseitig geschrieben, ist Ihnen zugeordnet und wird auditiert.",
+        draftDirector: "Wartet auf die klinische Genehmigung.",
+        readOnly: "Nur-Lese-Ansicht für Ihre Rolle.",
+      },
+      rework: "Überarbeiten",
+      redraft: "Neuen Entwurf erstellen",
+      reject: "Zurückweisen",
+      approve: "Bericht genehmigen",
+      release: "An Patientin freigeben",
+    },
+    dialog: {
+      close: "Dialog schließen",
+      title: {
+        approve: "Bericht genehmigen?",
+        reject: "Bericht zurückweisen?",
+        redraft: "Neuen Entwurf erstellen?",
+        release: "An Patientin freigeben?",
+        released: "Freigegeben — Zugriffslink",
+      },
+      body: {
+        approve:
+          "Sie bestätigen, dass Sie die sichtbaren Beobachtungen, Referenzintervalle und Quellen geprüft haben. Die Genehmigung wird serverseitig geschrieben, ist Ihnen zugeordnet und wird auditiert.",
+        reject:
+          "Die aktuelle Version wird als zurückgewiesen festgehalten (zugeordnet und auditiert), zusammen mit dem gewählten Grund. Wer den Bericht überarbeitet, sieht diesen Grund; eine Überarbeitung erstellt eine neue Version.",
+        redraft:
+          "Aus den aktuell gültigen Werten wird eine neue Entwurfsversion erstellt. Die bisherige Version bleibt gespeichert, wird hier aber nicht mehr angezeigt; manuell überarbeitete Formulierungen werden nicht übernommen.",
+        redraftReleased:
+          "Der Zugriff der Patientin auf den freigegebenen Bericht wird damit zurückgezogen, bis die neue Version genehmigt und erneut freigegeben ist.",
+        redraftOther: "Die neue Version muss genehmigt und freigegeben werden.",
+        release:
+          "Die Freigabe ist einwilligungsgebunden (report_release), wird Ihnen zugeordnet und auditiert. Die Patientin sieht ausschließlich die freigegebene Version.",
+        released:
+          "Der Bericht ist freigegeben. Synthetische Demo: Den Link manuell und sicher übermitteln — kein automatischer Versand.",
+      },
+      reason: "Grund der Zurückweisung",
+      confirm:
+        "Ich habe die offenen Hinweise geprüft und bestätige die klinische Dokumentation.",
+      link: "Zugriffslink (einmalig angezeigt)",
+      copyLink: "Link kopieren",
+      done: "Schließen",
+      cancel: "Abbrechen",
+      submit: {
+        approve: "Genehmigen",
+        reject: "Zurückweisen",
+        redraft: "Neuen Entwurf erstellen",
+        release: "Freigeben",
+      },
+    },
+    toast: {
+      saved: "Überarbeitung als neue Version gespeichert.",
+      approved: "Bericht genehmigt.",
+      redrafted: "Neuer Entwurf aus den aktuellen Werten erstellt.",
+      rejected: "Bericht zurückgewiesen.",
+      copied: "Link kopiert.",
+    },
+    // What the report actions answer — the draft action on the patient page among them.
+    errors: {
+      invalidReport: "Ungültige Berichtsreferenz.",
+      invalidPatient: "Ungültige Patientenreferenz.",
+      invalidPath: "Ungültiger Pfad.",
+      forbidden: "Diese Aktion ist Ihrer Rolle nicht erlaubt.",
+      tooMany:
+        "Zu viele Anfragen in kurzer Zeit. Bitte kurz warten und erneut versuchen.",
+      noConsent:
+        "Keine aktive Einwilligung (report_release) für diese Patientin hinterlegt.",
+      notApproved: "Der Bericht ist noch nicht genehmigt.",
+      alreadyRejected: "Der Bericht wurde bereits zurückgewiesen.",
+      citesReplaced:
+        "Nicht möglich: Ein zitierter Wert wurde vom Labor korrigiert. Bitte einen neuen Entwurf aus den aktuellen Werten erstellen.",
+      evidenceHidden:
+        "Genehmigung nicht möglich: nicht jeder Beleg ist einsehbar.",
+      wrongStatus: "Aktion im aktuellen Berichtsstatus nicht möglich.",
+      failed: "Aktion fehlgeschlagen. Bitte erneut versuchen.",
+      noPublished:
+        "Kein Entwurf möglich: Es liegen keine veröffentlichten Beobachtungen vor.",
+      unsupported:
+        "Kein Entwurf möglich: Nicht jede Aussage ließ sich mit einer Quelle belegen.",
+      statementShape:
+        "Jede Aussage braucht einen Text und mindestens einen Beleg.",
+      // {terms}: the words the API refused, as it names them.
+      restricted:
+        "Nicht gespeichert: Der Text enthält für Berichte nicht zulässige Begriffe ({terms}).",
+      editReplaced:
+        "Nicht gespeichert: Ein zitierter Wert wurde vom Labor korrigiert. Bitte die betroffene Aussage entfernen oder einen neuen Entwurf erstellen.",
+      editEvidence:
+        "Nicht gespeichert: Nicht jeder Beleg ist einsehbar. Bitte die betroffene Aussage entfernen.",
+      chooseReason: "Bitte einen Grund wählen.",
+    },
+  },
   notFound: {
     title: "Seite nicht gefunden",
     note: "Die angeforderte Seite existiert nicht oder ist nicht verfügbar.",
@@ -822,7 +1067,7 @@ export const de = {
     note: "Die Sprache der Oberfläche auf diesem Gerät. Inhalte wie Berichte, Bezeichnungen aus dem Labor und Namen bleiben in der Sprache, in der sie erfasst wurden.",
     // Says exactly what is done. To be widened with every part, and removed with the last page.
     progress:
-      "Englisch wird Seite für Seite ergänzt: die Navigation, die Anmeldung, die Übersicht, die Patientenliste, die Patientenseite, die Review-Queue, die Erfassung einer Interpretation und diese Übersicht der Einstellungen sind umgestellt; alle übrigen Seiten erscheinen vorerst auf Deutsch. Der Wortlaut der Einwilligungszwecke, die klinischen Bezeichnungen (Domänen, CIS, Actionability, Follow-up- und Endpunkt-Adäquanz, Tri-State-Achsen und ihre Zustände, Lage zum Referenzintervall, Vergleichbarkeit) und die Gründe der Prüfaufgaben bleiben Deutsch.",
+      "Englisch wird Seite für Seite ergänzt: die Navigation, die Anmeldung, die Übersicht, die Patientenliste, die Patientenseite, die Review-Queue, die Erfassung einer Interpretation, die Berichtsseite und diese Übersicht der Einstellungen sind umgestellt; alle übrigen Seiten erscheinen vorerst auf Deutsch. Der Wortlaut der Einwilligungszwecke, die klinischen Bezeichnungen (Domänen, CIS, Actionability, Follow-up- und Endpunkt-Adäquanz, Tri-State-Achsen und ihre Zustände, Lage zum Referenzintervall, Vergleichbarkeit), die Gründe der Prüfaufgaben und die Gründe einer Zurückweisung bleiben Deutsch.",
     selected: "ausgewählt",
     choose: "Sprache der Oberfläche",
   },

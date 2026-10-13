@@ -48,6 +48,14 @@ STAGE_HEADLINE = {
     "released": "Ärztlich freigegeben.",
     "rejected": "Zurückgewiesen – nicht freigegeben.",
 }
+# The same, with English chosen as the interface language.
+STAGE_HEADLINE_EN = {
+    "draft_generated": "System draft – not released.",
+    "draft_edited": "Reworked draft – not released.",
+    "approved": "Clinically approved – not released yet.",
+    "released": "Released by a physician.",
+    "rejected": "Rejected – not released.",
+}
 
 
 # German "Prototyp / Prototyps / Prototypen / Prototyp-…" wording only: a dev-mode page also
@@ -112,6 +120,27 @@ def assert_stage(path: str, html: str, report: dict) -> None:
     if status == "rejected":
         # Rejected before or after the clinical approval — the status does not say which.
         assert "Signiert" not in html, f"{path}: a rejected version is shown as signed"
+
+
+def assert_stage_en(path: str, html: str, report: dict) -> None:
+    """assert_stage, with English chosen: the same statements in the other language."""
+    status = report["status"]
+    key = "draft_edited" if status == "draft_generated" and report.get("edited") else status
+    headline = STAGE_HEADLINE_EN[key]
+    assert headline in html, (path, status, "English status headline missing")
+    for other in set(STAGE_HEADLINE_EN.values()) - {headline}:
+        assert other not in html, (path, status, f"also shows {other!r}")
+    for german in STAGE_HEADLINE.values():
+        assert german not in html, (path, status, f"shows the German {german!r}")
+    if not status.startswith("draft"):
+        assert "draft – not released" not in html, f"{path}: a {status} version is called a draft"
+    if status == "released":
+        assert "not released" not in html.lower(), (
+            f"{path}: a released report is labelled as not released"
+        )
+        assert "sees only" not in html, f"{path}: claims the patient sees the report"
+    if status == "rejected":
+        assert "Signed" not in html, f"{path}: a rejected version is shown as signed"
 
 
 def staff_session(email: str) -> httpx.Client:
@@ -313,7 +342,10 @@ def main() -> int:
             f"/patients/{pid}": ("Freigabe geprüfter Berichte", "Metabolisch"),
             f"/patients/{pid}/interpretation/neu": ("Metabolisch", "Biologisch", "adäquat"),
         }
-        for path, words in wording.items():
+
+        def assert_wording(
+            path: str, words: dict[str, tuple[str, ...]], recorded: tuple[str, ...]
+        ) -> None:
             for language, other in (("de", "en"), ("en", "de")):
                 cookie = f"hadp_session={session}"
                 if language == "en":
@@ -323,8 +355,16 @@ def main() -> int:
                     assert word in page, f"{path} ({language}) does not say {word!r}"
                 for word in words[other]:
                     assert word not in page, f"{path} ({language}) says {word!r}"
-                for word in as_recorded.get(path, ()):
+                for word in recorded:
                     assert word in page, f"{path} ({language}) lost {word!r}"
+
+        for path, words in wording.items():
+            assert_wording(path, words, as_recorded.get(path, ()))
+
+        def english(path: str) -> str:
+            return shown(
+                web.get(path, headers={"cookie": f"hadp_session={session}; hadp_locale=en"})
+            )
 
         r = web.get(f"/patients/{pid}")
         assert r.status_code == 200, ("/patients/[id] authed", r.status_code)
@@ -356,6 +396,16 @@ def main() -> int:
         )
         report = api.get(f"/reports/{report_id}").json()
         assert_stage("review page", shown(r), report)
+        assert_stage_en("review page (en)", english(review_path), report)
+        # The report page follows the language as well; the name of a domain axis does not.
+        assert_wording(
+            review_path,
+            {
+                "de": ("Domänen-Interpretation", "Beobachtungsnachweis", "Audit-Status"),
+                "en": ("Domain interpretation", "Observation evidence", "Audit status"),
+            },
+            ("Metabolisch",),
+        )
         checked = [report["status"]]
 
         if EXERCISE_RELEASE:
@@ -368,6 +418,7 @@ def main() -> int:
                 approved = api.get(f"/reports/{report_id}").json()
                 assert approved["status"] == "approved", approved["status"]
                 assert_stage("review page (approved)", page, approved)
+                assert_stage_en("review page (approved, en)", english(review_path), approved)
                 checked.append("approved")
             if api.get(f"/reports/{report_id}").json()["status"] == "approved":
                 director = staff_session("medical.director@demo.synthetic")
@@ -400,6 +451,7 @@ def main() -> int:
                 released["status"],
             )
             assert_stage("review page (released)", shown(web.get(review_path)), released)
+            assert_stage_en("review page (released, en)", english(review_path), released)
             checked.append("released")
 
             # A value entered now is not one of the six names the import acts on by itself: it
@@ -443,6 +495,7 @@ def main() -> int:
             rejected = api.get(f"/reports/{second['report_id']}").json()
             assert rejected["status"] == "rejected", rejected["status"]
             assert_stage("review page (rejected)", shown(web.get(second_path)), rejected)
+            assert_stage_en("review page (rejected, en)", english(second_path), rejected)
             checked.append("rejected")
             statements = [
                 {
@@ -458,6 +511,7 @@ def main() -> int:
             reworked = api.get(f"/reports/{second['report_id']}").json()
             assert reworked["status"] == "draft_edited", reworked["status"]
             assert_stage("review page (reworked)", shown(web.get(second_path)), reworked)
+            assert_stage_en("review page (reworked, en)", english(second_path), reworked)
             checked.append("draft_edited")
 
         r = web.get("/review-queue")
@@ -607,7 +661,8 @@ def main() -> int:
     print(f"  client address passed on to the API: {forwarding}")
     print(
         "  interface language: German by default, English by choice, on /login, the 404 page,"
-        " /overview, /patients, the patient page, the review queue and the interpretation form"
+        " /overview, /patients, the patient page, the review queue, the interpretation form and"
+        " the report page (in every report status checked above)"
     )
     return 0
 

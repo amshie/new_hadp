@@ -87,6 +87,7 @@ product do not all read it.
 - Role names still have a second German source (`MitgliederContent.tsx`) until that page is
   translated.
 - A presenter shared with a page that is not translated yet keeps its German wording and
-  hands out KEYS and values besides; the translated page words them from the dictionary
-  (`lib/presenters/review.ts` for the patient page). Those few strings have two German
-  sources until the other page follows.
+  hands out KEYS and values besides; the translated page words them from the dictionary. Those
+  strings have two German sources until the other page follows — and then the presenter's
+  copies go (`lib/presenters/review.ts`: gone with part 6, the report page; it hands out keys
+  and values only, and the closed vocabularies' German names).

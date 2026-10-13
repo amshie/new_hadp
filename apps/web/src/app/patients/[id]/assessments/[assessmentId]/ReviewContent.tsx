@@ -17,13 +17,28 @@ import {
   rejectionCopy,
   type RejectionReason,
 } from "@/lib/rejectionCopy";
+import { byCount, fill } from "@/lib/i18n/fill";
+import { useI18n } from "@/lib/i18n/I18nProvider";
+import type { Messages } from "@/lib/i18n/messages";
 import { lageLabel } from "@/lib/lageCopy";
 import {
   reportStage,
+  reportStatusLabel,
+  sourceNoteText,
   statusHint,
   type MarkerView,
   type ReviewView,
 } from "@/lib/presenters/review";
+
+// The page follows the interface language (lib/i18n). The VALUES of closed vocabularies on it
+// do not, and are marked lang="de" wherever they show: the names of the domain axes, the
+// Actionability class, the value of follow-up adequacy, the position against the reference
+// interval, the comparability notes and the reasons for a rejection (ADR-0007: their English
+// needs the medical director). What NAMES a kind of fact (a column heading, "Follow-up
+// adequacy:") is interface. The statements of a report stay as they were written, and so do
+// the names and values the source wrote. Numbers and dates keep their form.
+const GERMAN = "de";
+type T = Messages["reportPage"];
 
 // "Veränderung" cell: the withheld-delta comparability note (text-carried, no color-alone) when the
 // comparison was suppressed (§9), else the normal delta. Shared by both observation tables.
@@ -33,6 +48,7 @@ function ChangeCell({ marker }: { marker: MarkerView }) {
   return (
     <span
       className="comparability-note"
+      lang={GERMAN}
       title={marker.comparabilityFull ?? undefined}
       style={{
         display: "inline-flex",
@@ -63,26 +79,25 @@ function fmtNum(n: number): string {
 // amber dot is a palette choice, never a verdict — meaning is still carried by the pill + the
 // sr-only sentence (never colour alone). A marker with no lab interval renders "keine Skala" — no
 // dot, never a guessed position (doctrine: never read as normal/stable).
-function LageCell({ marker }: { marker: MarkerView }) {
+function LageCell({ marker, t }: { marker: MarkerView; t: T["evidence"] }) {
   // No position is stated for a value nobody has reviewed.
   if (marker.reviewRequired)
     return (
       <span className="pos-bar-noscale">
         <span aria-hidden="true">—</span>
-        <span className="sr-only">
-          keine Lage: Der Wert ist nicht veröffentlicht
-        </span>
+        <span className="sr-only">{t.notPublished}</span>
       </span>
     );
   const l = lageLabel(marker.lagePosition);
   const bar = marker.lageBar;
+  // "Reference interval 3.9–5.6 mmol/L", or that there is none.
   const intervalText =
     marker.reference === "—"
-      ? "kein Referenzintervall hinterlegt"
-      : marker.reference;
+      ? t.noInterval
+      : `${t.referenceInterval} ${marker.reference}`;
   return (
     <div className="lage-cell">
-      <span className={`badge ${l.badge} no-dot lage-pill`}>
+      <span className={`badge ${l.badge} no-dot lage-pill`} lang={GERMAN}>
         <span aria-hidden="true">{l.glyph}</span>
         <span>{l.label}</span>
       </span>
@@ -103,7 +118,7 @@ function LageCell({ marker }: { marker: MarkerView }) {
               className="pos-bar-refrange"
               style={{ left: `${bar.midPct}%` }}
             >
-              Referenz {marker.referenceRange}
+              {fill(t.reference, { range: marker.referenceRange })}
             </div>
           )}
           {bar.dotPct != null && (
@@ -114,23 +129,54 @@ function LageCell({ marker }: { marker: MarkerView }) {
         </div>
       ) : (
         <span className="pos-bar-noscale" aria-hidden="true">
-          keine Skala
+          {t.noScale}
         </span>
       )}
       <span className="sr-only">
-        {`${marker.name} ${marker.current}; Referenzintervall ${intervalText}; ${l.sentence}.`}
+        {`${marker.name} ${marker.current}; ${intervalText}; `}
+        <span lang={GERMAN}>{l.sentence}</span>.
       </span>
     </div>
   );
 }
 
+// "Code / Status" cell: the code, where a value stands in the review of imported values when
+// it is not published, a laboratory correction, and how the value relates to what the source
+// wrote. Shared by both observation tables; worded as on the patient page.
+function CodeStatusCell({
+  marker,
+  t,
+}: {
+  marker: MarkerView;
+  t: Messages["patientPage"];
+}) {
+  const valueStatus: Record<string, string> = t.valueStatus;
+  const note = marker.sourceNote
+    ? sourceNoteText(marker.sourceNote, t.sourceNote)
+    : null;
+  return (
+    <td className="source">
+      {marker.code}
+      {marker.reviewRequired && (
+        <span className="marker-status">
+          {valueStatus[marker.status] ?? marker.status}
+        </span>
+      )}
+      {marker.superseded ? ` · ${t.evidence.superseded}` : ""}
+      {marker.inputReplaced ? ` · ${t.evidence.inputReplaced}` : ""}
+      {note && (
+        <span className="marker-meta" title={note.full}>
+          {note.short}
+          <span className="sr-only"> — {note.full}</span>
+        </span>
+      )}
+    </td>
+  );
+}
+
 type RefFilter = "all" | "outside" | "no_ref";
 
-const REF_FILTERS: { key: RefFilter; label: string }[] = [
-  { key: "all", label: "Alle" },
-  { key: "outside", label: "Außerhalb Referenz" },
-  { key: "no_ref", label: "Ohne Referenz" },
-];
+const REF_FILTERS: RefFilter[] = ["all", "outside", "no_ref"];
 
 function matchesRefFilter(marker: MarkerView, filter: RefFilter): boolean {
   // A value that is not published has no position: it is listed under "Alle" only — not
@@ -166,6 +212,10 @@ export function ReviewContent({
   path: string;
 }) {
   const toast = useToast();
+  const messages = useI18n().t;
+  const t = messages.reportPage;
+  const p = messages.patientPage;
+  const statusLabel = reportStatusLabel(view.status, p.reportStatus);
   const [dialog, setDialog] = useState<
     "approve" | "reject" | "release" | "redraft" | null
   >(null);
@@ -199,7 +249,12 @@ export function ReviewContent({
   // A cited value was corrected by the laboratory: this version can be neither approved nor
   // released. The clinician opens a new draft from the values that stand.
   const canRedraft = sessionRole === "clinician" && view.citesReplaced;
-  const stage = reportStage(view.status, view.edited, view.citesReplaced);
+  const stage = reportStage(
+    view.status,
+    view.edited,
+    view.citesReplaced,
+    t.stage,
+  );
   const rejection = rejectionCopy(view.rejectionReason);
   const reworked = rejectionCopy(view.reworksRejectionReason);
   const [editRows, setEditRows] = useState<
@@ -259,7 +314,7 @@ export function ReviewContent({
         return;
       }
       cancelRework();
-      toast("Überarbeitung als neue Version gespeichert.");
+      toast(t.toast.saved);
     });
   };
 
@@ -278,7 +333,7 @@ export function ReviewContent({
           : kind === "reject"
             ? rejectReason
               ? await rejectReportAction(view.reportId, path, rejectReason)
-              : { ok: false as const, error: "Bitte einen Grund wählen." }
+              : { ok: false as const, error: t.errors.chooseReason }
             : kind === "redraft"
               ? await redraftReportAction(view.reportId, path)
               : await releaseReportAction(view.reportId, path);
@@ -295,10 +350,10 @@ export function ReviewContent({
       closeDialog();
       toast(
         kind === "approve"
-          ? "Bericht genehmigt."
+          ? t.toast.approved
           : kind === "redraft"
-            ? "Neuer Entwurf aus den aktuellen Werten erstellt."
-            : "Bericht zurückgewiesen.",
+            ? t.toast.redrafted
+            : t.toast.rejected,
       );
     });
   };
@@ -340,13 +395,15 @@ export function ReviewContent({
             <h1>{view.patientName}</h1>
             <div className="patient-details">
               <span className="num">{view.ref}</span>
-              <span>{view.ageProfile}</span>
-              <span>Bericht · v{view.versionNo}</span>
+              <span>
+                {view.ageYears === null
+                  ? p.ageUnknown
+                  : byCount(p.age, view.ageYears)}
+              </span>
+              <span>{fill(p.reportVersion, { version: view.versionNo })}</span>
             </div>
           </div>
-          <span className={`badge ${view.statusBadge}`}>
-            {view.statusLabel}
-          </span>
+          <span className={`badge ${view.statusBadge}`}>{statusLabel}</span>
         </div>
       </header>
 
@@ -370,24 +427,17 @@ export function ReviewContent({
       <div className="section-header">
         <div>
           <h2>{stage.title}</h2>
-          <p>
-            Jede Aussage bleibt auf die zugrunde liegenden Beobachtungen
-            zurückführbar.
-          </p>
+          <p>{t.lead}</p>
         </div>
         <span className="badge badge-brand no-dot">{stage.badge}</span>
       </div>
 
       <section className="card summary-card" aria-label={stage.title}>
         <span className="kicker">
-          {view.edited
-            ? "Klinisch überarbeitete Fassung"
-            : "Deterministische Zusammenfassung"}
+          {view.edited ? t.kicker.edited : t.kicker.deterministic}
         </span>
         {view.statements.length === 0 && (
-          <p style={{ marginTop: "12px" }}>
-            Für diesen Bericht liegen keine Aussagen vor.
-          </p>
+          <p style={{ marginTop: "12px" }}>{t.noStatements}</p>
         )}
         {view.status === "rejected" && (
           <p
@@ -401,10 +451,17 @@ export function ReviewContent({
               lineHeight: 1.5,
             }}
           >
-            <strong>Zurückgewiesen.</strong>{" "}
-            {rejection
-              ? `Grund: ${rejection.label}. ${rejection.desc}`
-              : "Für diese Zurückweisung wurde kein Grund erfasst."}
+            <strong>{t.rejected.title}</strong>{" "}
+            {rejection ? (
+              <>
+                {t.rejected.reason}{" "}
+                <span lang={GERMAN}>
+                  {rejection.label}. {rejection.desc}
+                </span>
+              </>
+            ) : (
+              t.rejected.noReason
+            )}
           </p>
         )}
         {reworked && (
@@ -419,8 +476,10 @@ export function ReviewContent({
               lineHeight: 1.5,
             }}
           >
-            Überarbeitung nach einer Zurückweisung. Damaliger Grund:{" "}
-            <strong>{reworked.label}</strong>. {reworked.desc}
+            {t.rejected.reworked}{" "}
+            <span lang={GERMAN}>
+              <strong>{reworked.label}</strong>. {reworked.desc}
+            </span>
           </p>
         )}
         {view.citesReplaced && (
@@ -435,13 +494,11 @@ export function ReviewContent({
               lineHeight: 1.5,
             }}
           >
-            Ein zitierter Wert wurde vom Labor korrigiert. Diese Fassung kann
-            nicht genehmigt oder freigegeben werden.
-            {view.status === "released" &&
-              " Der Zugriff der Patientin auf diese Fassung wird erst mit einem neuen Entwurf zurückgezogen."}
+            {t.citesReplaced.note}
+            {view.status === "released" && t.citesReplaced.released}
             {sessionRole === "clinician"
-              ? " Erstellen Sie einen neuen Entwurf aus den aktuellen Werten."
-              : " Ein neuer Entwurf ist der klinischen Rolle vorbehalten."}
+              ? t.citesReplaced.clinician
+              : t.citesReplaced.otherRole}
           </p>
         )}
         {view.statements.map((s, index) => {
@@ -455,8 +512,8 @@ export function ReviewContent({
               {row ? (
                 <label className="field">
                   <span className="field-label">
-                    Aussage {index + 1}
-                    {row.removed ? " · wird entfernt" : ""}
+                    {fill(t.statement.label, { n: index + 1 })}
+                    {row.removed ? t.statement.removing : ""}
                   </span>
                   <textarea
                     ref={index === 0 ? firstEditRef : undefined}
@@ -490,11 +547,13 @@ export function ReviewContent({
                         : undefined
                     }
                   >
-                    {e.label}
+                    {e.missing
+                      ? t.chip.unresolved
+                      : `${e.name ?? t.chip.observation}: ${e.value}`}
                     {e.status && e.status !== "published"
                       ? ` · ${e.status}`
                       : ""}
-                    {e.superseded ? " · vom Labor korrigiert" : ""}
+                    {e.superseded ? t.chip.corrected : ""}
                   </span>
                 ))}
               </div>
@@ -506,9 +565,7 @@ export function ReviewContent({
                   onClick={() => updateRow(index, { removed: !row.removed })}
                   style={{ marginTop: "8px" }}
                 >
-                  {row.removed
-                    ? "Aussage wiederherstellen"
-                    : "Aussage entfernen"}
+                  {row.removed ? t.statement.restore : t.statement.remove}
                 </button>
               )}
             </div>
@@ -517,10 +574,10 @@ export function ReviewContent({
         {editing && (
           <div style={{ marginTop: "16px" }}>
             <p>
-              Die Belege bleiben an die jeweilige Aussage gebunden. Beim
-              Speichern entsteht Version v{view.versionNo + 1} als Entwurf; die
-              zurückgewiesene Version v{view.versionNo} bleibt erhalten. Die
-              neue Version muss erneut genehmigt und freigegeben werden.
+              {fill(t.rework.note, {
+                next: view.versionNo + 1,
+                version: view.versionNo,
+              })}
             </p>
             {editError && (
               <p role="alert" style={{ color: "var(--danger)" }}>
@@ -537,7 +594,7 @@ export function ReviewContent({
                 disabled={pending || !reworkDirty || !reworkValid}
                 onClick={saveRework}
               >
-                Als neue Version speichern
+                {t.rework.save}
               </button>
               <button
                 className="btn btn-secondary"
@@ -545,7 +602,7 @@ export function ReviewContent({
                 disabled={pending}
                 onClick={cancelRework}
               >
-                Abbrechen
+                {t.dialog.cancel}
               </button>
             </div>
           </div>
@@ -554,14 +611,12 @@ export function ReviewContent({
 
       <div className="section-header">
         <div>
-          <h2>Domänen-Interpretation</h2>
-          <p>
-            Sechs Domänen-Achsen · Actionability-Verdict je Achse. Kein Score.
-          </p>
+          <h2>{t.domains.title}</h2>
+          <p>{t.domains.note}</p>
         </div>
         {view.runNumber != null && (
           <span className="badge badge-brand no-dot">
-            Run #{view.runNumber}
+            {fill(t.domains.run, { n: view.runNumber })}
           </span>
         )}
       </div>
@@ -569,18 +624,16 @@ export function ReviewContent({
         <section
           className="card"
           style={{ padding: "20px" }}
-          aria-label="Domänen-Interpretation"
+          aria-label={t.domains.title}
         >
           <div className="notice notice-brand">
             <Icon name="shieldInfo" />
-            <span>
-              Für diese Patientin liegt noch kein Interpretation-Run vor.
-            </span>
+            <span>{t.domains.noRun}</span>
           </div>
         </section>
       ) : (
         <section
-          aria-label="Domänen-Interpretation"
+          aria-label={t.domains.title}
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
@@ -620,9 +673,9 @@ export function ReviewContent({
                       marginBottom: "10px",
                     }}
                   >
-                    <strong>{d.axisLabel}</strong>
+                    <strong lang={GERMAN}>{d.axisLabel}</strong>
                     <span style={{ fontSize: "12px", color: "var(--muted)" }}>
-                      {d.reviewed ? "✓ reviewt" : "Entwurf"}
+                      {d.reviewed ? t.domains.reviewed : t.domains.draft}
                     </span>
                   </div>
                   <div
@@ -633,7 +686,9 @@ export function ReviewContent({
                       marginBottom: "10px",
                     }}
                   >
-                    <span className="source-link">{d.actionabilityLabel}</span>
+                    <span className="source-link" lang={GERMAN}>
+                      {d.actionabilityLabel}
+                    </span>
                   </div>
                   <p
                     style={{
@@ -642,7 +697,8 @@ export function ReviewContent({
                       color: "var(--muted)",
                     }}
                   >
-                    Follow-up-Adäquanz: {d.adequacyLabel}
+                    {t.domains.adequacy}{" "}
+                    <span lang={GERMAN}>{d.adequacyLabel}</span>
                   </p>
                   {d.citesReplaced && (
                     <p
@@ -652,8 +708,7 @@ export function ReviewContent({
                         color: "var(--danger)",
                       }}
                     >
-                      Stützt sich auf einen vom Labor korrigierten Wert —
-                      Interpretation prüfen.
+                      {t.domains.citesReplaced}
                     </p>
                   )}
                   <span
@@ -666,8 +721,8 @@ export function ReviewContent({
                     }}
                   >
                     {isSelected
-                      ? "✓ Biomarker im Beobachtungsnachweis"
-                      : `Biomarker ansehen (${d.markerCodes.length})`}
+                      ? t.domains.shown
+                      : fill(t.domains.show, { n: d.markerCodes.length })}
                   </span>
                 </button>
               </article>
@@ -678,11 +733,16 @@ export function ReviewContent({
 
       <div className="section-header">
         <div>
-          <h2>Beobachtungsnachweis</h2>
+          <h2>{t.evidence.title}</h2>
           <p>
-            {selected
-              ? `Eigene Beobachtungen der Domäne: ${selected.axisLabel}.`
-              : "Gemessene Werte, Einheiten, Referenzintervalle und Provenienz — mit Lage zum Referenzintervall."}
+            {selected ? (
+              <>
+                {t.evidence.noteDomain}{" "}
+                <span lang={GERMAN}>{selected.axisLabel}</span>.
+              </>
+            ) : (
+              t.evidence.noteAll
+            )}
           </p>
         </div>
         {selected && (
@@ -691,24 +751,24 @@ export function ReviewContent({
             type="button"
             onClick={() => setSelectedDomain(null)}
           >
-            Alle anzeigen
+            {t.evidence.showAll}
           </button>
         )}
       </div>
       <div
         className="lage-filters"
         role="group"
-        aria-label="Nach Lage zum Referenzintervall filtern"
+        aria-label={t.evidence.filtersAria}
       >
         {REF_FILTERS.map((f) => (
           <button
-            key={f.key}
+            key={f}
             type="button"
             className="tab"
-            aria-pressed={refFilter === f.key}
-            onClick={() => setRefFilter(f.key)}
+            aria-pressed={refFilter === f}
+            onClick={() => setRefFilter(f)}
           >
-            {f.label}
+            {t.evidence.filters[f]}
           </button>
         ))}
       </div>
@@ -717,21 +777,19 @@ export function ReviewContent({
         aria-labelledby="evidence-heading"
       >
         <h3 className="sr-only" id="evidence-heading">
-          Beobachtungsnachweis
+          {t.evidence.title}
         </h3>
         <div className="table-wrap">
           <table className="marker-table">
-            <caption className="sr-only">
-              Gemessene Beobachtungen dieses Assessments
-            </caption>
+            <caption className="sr-only">{t.evidence.caption}</caption>
             <thead>
               <tr>
-                <th>Marker</th>
-                <th>Aktuell</th>
-                <th>Lage zum Referenzintervall</th>
-                <th>Veränderung</th>
-                <th>Referenz</th>
-                <th>Code / Status</th>
+                <th>{t.evidence.columns.marker}</th>
+                <th>{t.evidence.columns.current}</th>
+                <th>{t.evidence.columns.position}</th>
+                <th>{t.evidence.columns.change}</th>
+                <th>{t.evidence.columns.reference}</th>
+                <th>{t.evidence.columns.codeStatus}</th>
               </tr>
             </thead>
             <tbody>
@@ -748,28 +806,13 @@ export function ReviewContent({
                     {m.current}
                   </td>
                   <td>
-                    <LageCell marker={m} />
+                    <LageCell marker={m} t={t.evidence} />
                   </td>
                   <td>
                     <ChangeCell marker={m} />
                   </td>
                   <td>{m.reference}</td>
-                  <td className="source">
-                    {m.code}
-                    {m.statusLabel && (
-                      <span className="marker-status">{m.statusLabel}</span>
-                    )}
-                    {m.superseded ? " · durch Laborkorrektur ersetzt" : ""}
-                    {m.inputReplaced
-                      ? " · Eingangswert durch Laborkorrektur ersetzt"
-                      : ""}
-                    {m.sourceNote && (
-                      <span className="marker-meta" title={m.sourceNote.full}>
-                        {m.sourceNote.short}
-                        <span className="sr-only"> — {m.sourceNote.full}</span>
-                      </span>
-                    )}
-                  </td>
+                  <CodeStatusCell marker={m} t={messages.patientPage} />
                 </tr>
               ))}
               {visiblePrimary.length === 0 && (
@@ -779,12 +822,12 @@ export function ReviewContent({
                     style={{ color: "var(--muted)", padding: "18px" }}
                   >
                     {refFilter === "outside"
-                      ? "Keine Marker außerhalb des Referenzintervalls."
+                      ? t.evidence.empty.outside
                       : refFilter === "no_ref"
-                        ? "Keine Marker ohne hinterlegte Referenz."
+                        ? t.evidence.empty.no_ref
                         : selected
-                          ? "Keine Beobachtungen für diese Domäne."
-                          : "Keine Beobachtungen vorhanden."}
+                          ? t.evidence.empty.domain
+                          : t.evidence.empty.all}
                   </td>
                 </tr>
               )}
@@ -797,32 +840,33 @@ export function ReviewContent({
         <>
           <div className="section-header">
             <div>
-              <h2>Sekundär relevant</h2>
+              <h2>{t.secondary.title}</h2>
               <p>
-                Auch für {selected.axisLabel} relevant. Zur Übersicht angezeigt
-                – geführt und bewertet wird jeder Wert in seiner Primärdomäne;
-                hieraus wird keine Domänen-Bewertung abgeleitet.
+                {t.secondary.noteBefore}{" "}
+                <span lang={GERMAN}>{selected.axisLabel}</span>
+                {t.secondary.noteAfter}
               </p>
             </div>
           </div>
           <section
             className="card evidence-table-card"
-            aria-label={`Sekundär relevante Beobachtungen für ${selected.axisLabel}`}
+            aria-label={`${t.secondary.label} ${selected.axisLabel}`}
           >
             <div className="table-wrap">
               <table className="marker-table">
                 <caption className="sr-only">
-                  Sekundär relevante Beobachtungen für {selected.axisLabel}
+                  {t.secondary.label}{" "}
+                  <span lang={GERMAN}>{selected.axisLabel}</span>
                 </caption>
                 <thead>
                   <tr>
-                    <th>Marker</th>
-                    <th>Primärdomäne</th>
-                    <th>Aktuell</th>
-                    <th>Lage zum Referenzintervall</th>
-                    <th>Veränderung</th>
-                    <th>Referenz</th>
-                    <th>Code / Status</th>
+                    <th>{t.evidence.columns.marker}</th>
+                    <th>{t.evidence.columns.primaryDomain}</th>
+                    <th>{t.evidence.columns.current}</th>
+                    <th>{t.evidence.columns.position}</th>
+                    <th>{t.evidence.columns.change}</th>
+                    <th>{t.evidence.columns.reference}</th>
+                    <th>{t.evidence.columns.codeStatus}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -831,7 +875,9 @@ export function ReviewContent({
                       <td>
                         <span className="marker-name">{m.name}</span>
                       </td>
-                      <td>{m.primaryDomainLabel ?? "—"}</td>
+                      <td lang={m.primaryDomainLabel ? GERMAN : undefined}>
+                        {m.primaryDomainLabel ?? "—"}
+                      </td>
                       <td
                         className={
                           m.sourceNote?.kind === "text" ? "source-text" : "num"
@@ -840,34 +886,13 @@ export function ReviewContent({
                         {m.current}
                       </td>
                       <td>
-                        <LageCell marker={m} />
+                        <LageCell marker={m} t={t.evidence} />
                       </td>
                       <td>
                         <ChangeCell marker={m} />
                       </td>
                       <td>{m.reference}</td>
-                      <td className="source">
-                        {m.code}
-                        {m.statusLabel && (
-                          <span className="marker-status">{m.statusLabel}</span>
-                        )}
-                        {m.superseded ? " · durch Laborkorrektur ersetzt" : ""}
-                        {m.inputReplaced
-                          ? " · Eingangswert durch Laborkorrektur ersetzt"
-                          : ""}
-                        {m.sourceNote && (
-                          <span
-                            className="marker-meta"
-                            title={m.sourceNote.full}
-                          >
-                            {m.sourceNote.short}
-                            <span className="sr-only">
-                              {" "}
-                              — {m.sourceNote.full}
-                            </span>
-                          </span>
-                        )}
-                      </td>
+                      <CodeStatusCell marker={m} t={messages.patientPage} />
                     </tr>
                   ))}
                 </tbody>
@@ -879,38 +904,48 @@ export function ReviewContent({
 
       <div className="section-header">
         <div>
-          <h2>Audit-Status</h2>
-          <p>
-            Fortschritt von Datenerfassung bis Patientenfreigabe (Live-Status).
-          </p>
+          <h2>{t.audit.title}</h2>
+          <p>{t.audit.note}</p>
         </div>
       </div>
-      <section className="card audit-card" aria-label="Audit-Status">
+      <section className="card audit-card" aria-label={t.audit.title}>
         <div className="audit-steps">
-          {view.auditSteps.map((s, i) => (
-            <Fragment key={s.label}>
-              <div className={`audit-step ${s.state}`.trim()}>
-                <span className="audit-step-dot">{s.dot}</span>
-                <span className="audit-step-copy">
-                  <strong>{s.label}</strong>
-                  <span>{s.sub}</span>
-                </span>
-              </div>
-              {i < view.auditSteps.length - 1 && (
-                <span className="audit-line" aria-hidden="true" />
-              )}
-            </Fragment>
-          ))}
+          {view.auditSteps.map((s, i) => {
+            // The step's wording in the page's language, by the step and its line.
+            const step: Record<string, string> = p.audit.steps[s.key];
+            return (
+              <Fragment key={s.key}>
+                <div className={`audit-step ${s.state}`.trim()}>
+                  <span className="audit-step-dot">{s.dot}</span>
+                  <span className="audit-step-copy">
+                    <strong>{step.label}</strong>
+                    <span>{step[s.subKey] ?? ""}</span>
+                  </span>
+                </div>
+                {i < view.auditSteps.length - 1 && (
+                  <span className="audit-line" aria-hidden="true" />
+                )}
+              </Fragment>
+            );
+          })}
         </div>
       </section>
 
       <div className="action-bar">
         <div className="action-bar-copy">
           <strong>
-            Bericht v{view.versionNo} · Status: {view.statusLabel}
+            {fill(t.bar.status, {
+              version: view.versionNo,
+              status: statusLabel,
+            })}
           </strong>
           <span>
-            {statusHint(view.status, sessionRole, view.citesReplaced)}
+            {statusHint(
+              view.status,
+              sessionRole,
+              view.citesReplaced,
+              t.bar.hint,
+            )}
           </span>
         </div>
         <div className="action-bar-buttons">
@@ -921,7 +956,7 @@ export function ReviewContent({
               disabled={pending}
               onClick={startRework}
             >
-              Überarbeiten
+              {t.bar.rework}
             </button>
           )}
           {canRedraft && !editing && (
@@ -931,7 +966,7 @@ export function ReviewContent({
               disabled={pending}
               onClick={() => setDialog("redraft")}
             >
-              Neuen Entwurf erstellen
+              {t.bar.redraft}
             </button>
           )}
           {canReject && (
@@ -941,7 +976,7 @@ export function ReviewContent({
               disabled={pending}
               onClick={() => setDialog("reject")}
             >
-              Zurückweisen
+              {t.bar.reject}
             </button>
           )}
           {canApprove && (
@@ -952,7 +987,7 @@ export function ReviewContent({
               onClick={() => setDialog("approve")}
             >
               <Icon name="check" />
-              Bericht genehmigen
+              {t.bar.approve}
             </button>
           )}
           {canRelease && (
@@ -963,7 +998,7 @@ export function ReviewContent({
               onClick={() => setDialog("release")}
             >
               <Icon name="check" />
-              An Patientin freigeben
+              {t.bar.release}
             </button>
           )}
         </div>
@@ -982,35 +1017,29 @@ export function ReviewContent({
           <div className="dialog-head">
             <div>
               <h2 id="review-dialog-title">
-                {dialog === "approve" && "Bericht genehmigen?"}
-                {dialog === "reject" && "Bericht zurückweisen?"}
-                {dialog === "redraft" && "Neuen Entwurf erstellen?"}
-                {dialog === "release" &&
-                  (releasedUrl
-                    ? "Freigegeben — Zugriffslink"
-                    : "An Patientin freigeben?")}
+                {dialog === "release" && releasedUrl
+                  ? t.dialog.title.released
+                  : t.dialog.title[dialog]}
               </h2>
               <p id="review-dialog-copy">
-                {dialog === "approve" &&
-                  "Sie bestätigen, dass Sie die sichtbaren Beobachtungen, Referenzintervalle und Quellen geprüft haben. Die Genehmigung wird serverseitig geschrieben, ist Ihnen zugeordnet und wird auditiert."}
-                {dialog === "reject" &&
-                  "Die aktuelle Version wird als zurückgewiesen festgehalten (zugeordnet und auditiert), zusammen mit dem gewählten Grund. Wer den Bericht überarbeitet, sieht diesen Grund; eine Überarbeitung erstellt eine neue Version."}
+                {dialog === "approve" && t.dialog.body.approve}
+                {dialog === "reject" && t.dialog.body.reject}
                 {dialog === "redraft" &&
-                  `Aus den aktuell gültigen Werten wird eine neue Entwurfsversion erstellt. Die bisherige Version bleibt gespeichert, wird hier aber nicht mehr angezeigt; manuell überarbeitete Formulierungen werden nicht übernommen. ${
+                  `${t.dialog.body.redraft} ${
                     view.status === "released"
-                      ? "Der Zugriff der Patientin auf den freigegebenen Bericht wird damit zurückgezogen, bis die neue Version genehmigt und erneut freigegeben ist."
-                      : "Die neue Version muss genehmigt und freigegeben werden."
+                      ? t.dialog.body.redraftReleased
+                      : t.dialog.body.redraftOther
                   }`}
                 {dialog === "release" &&
                   (releasedUrl
-                    ? "Der Bericht ist freigegeben. Synthetische Demo: Den Link manuell und sicher übermitteln — kein automatischer Versand."
-                    : "Die Freigabe ist einwilligungsgebunden (report_release), wird Ihnen zugeordnet und auditiert. Die Patientin sieht ausschließlich die freigegebene Version.")}
+                    ? t.dialog.body.released
+                    : t.dialog.body.release)}
               </p>
             </div>
             <button
               className="icon-btn"
               type="button"
-              aria-label="Dialog schließen"
+              aria-label={t.dialog.close}
               onClick={closeDialog}
             >
               <Icon name="close" />
@@ -1028,7 +1057,7 @@ export function ReviewContent({
                   fontWeight: 600,
                 }}
               >
-                Grund der Zurückweisung
+                {t.dialog.reason}
               </legend>
               {REJECTION_REASONS.map((option) => (
                 <label
@@ -1052,7 +1081,7 @@ export function ReviewContent({
                     disabled={pending}
                     style={{ marginTop: "3px" }}
                   />
-                  <span>
+                  <span lang={GERMAN}>
                     <strong>{option.label}</strong> — {option.desc}
                   </span>
                 </label>
@@ -1067,18 +1096,13 @@ export function ReviewContent({
                 checked={confirmChecked}
                 onChange={(e) => setConfirmChecked(e.target.checked)}
               />
-              <span>
-                Ich habe die offenen Hinweise geprüft und bestätige die
-                klinische Dokumentation.
-              </span>
+              <span>{t.dialog.confirm}</span>
             </label>
           )}
           {dialog === "release" && releasedUrl && (
             <div style={{ marginTop: "17px" }}>
               <label className="field">
-                <span className="field-label">
-                  Zugriffslink (einmalig angezeigt)
-                </span>
+                <span className="field-label">{t.dialog.link}</span>
                 <input
                   className="input"
                   readOnly
@@ -1097,17 +1121,17 @@ export function ReviewContent({
                   onClick={() => {
                     void navigator.clipboard
                       .writeText(releasedUrl)
-                      .then(() => toast("Link kopiert."));
+                      .then(() => toast(t.toast.copied));
                   }}
                 >
-                  Link kopieren
+                  {t.dialog.copyLink}
                 </button>
                 <button
                   className="btn btn-primary"
                   type="button"
                   onClick={closeDialog}
                 >
-                  Schließen
+                  {t.dialog.done}
                 </button>
               </>
             ) : (
@@ -1118,7 +1142,7 @@ export function ReviewContent({
                   disabled={pending}
                   onClick={closeDialog}
                 >
-                  Abbrechen
+                  {t.dialog.cancel}
                 </button>
                 <button
                   className="btn btn-primary"
@@ -1130,10 +1154,7 @@ export function ReviewContent({
                   }
                   onClick={() => runAction(dialog)}
                 >
-                  {dialog === "approve" && "Genehmigen"}
-                  {dialog === "reject" && "Zurückweisen"}
-                  {dialog === "redraft" && "Neuen Entwurf erstellen"}
-                  {dialog === "release" && "Freigeben"}
+                  {t.dialog.submit[dialog]}
                 </button>
               </>
             )}
