@@ -1,0 +1,264 @@
+# DEMO stack: HADP on one server, for people who are shown the product — never for patients.
+#
+#   scripts/demo_stack.sh init     # once: host name, gate user and password, generated secrets
+#   scripts/demo_stack.sh up       # build the images, start, migrate, seed the synthetic data
+#
+# What it is: the API in DEVELOPMENT mode (the password-less development sign-in is what lets
+# a visitor in — the production sign-in does not exist yet), the production build of the web
+# app, and in front of both a proxy that terminates TLS and asks every visitor for the gate's
+# user name and password. Only the proxy is published; the API, the database, Redis and the
+# object store are reachable from inside this network alone.
+#
+# What it is not: a deployment. SYNTHETIC DATA ONLY — the development sign-in lets anyone
+# who is past the gate act as any seeded account, so nothing real may ever be put into it.
+# See infra/docker/README.md ("The demo stack").
+#
+# Secrets and the gate come from two files that `demo_stack.sh init` writes outside the
+# checkout (demo.env, gate.env); none is in this file. `docker compose down` keeps the database volume; never add `-v`.
+name: hadp-demo
+
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs: [/tmp]
+
+x-api-environment: &api-environment
+  # Development mode: the development sign-in exists, cookies carry the plain names the web
+  # app uses. Everything else is configured as a deployment would be.
+  APP_ENV: development
+  # The non-superuser role: row-level security is enforced for everything the API does.
+  APP_DATABASE_URL: postgresql+psycopg://hadp_app:${HADP_APP_DB_PASSWORD:?}@postgres:5432/hadp
+  REDIS_URL: redis://:${REDIS_PASSWORD:?}@redis:6379/0
+  S3_ENDPOINT_URL: http://s3:5000
+  S3_REGION: eu-central-1
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?}
+  S3_BUCKET_SOURCE_DOCUMENTS: hadp-source-documents
+  SESSION_SECRET: ${SESSION_SECRET:?}
+  API_BASE_URL: http://api:8000
+  # The address visitors use: patient and invitation links are built from it.
+  WEB_BASE_URL: https://${DEMO_HOST:?}
+  # The web server is the API's only caller, at a fixed address; the proxy in front of it is
+  # the one hop that sets X-Forwarded-For (it writes the address it saw and drops whatever a
+  # client sent). So the limits that count per client address count the visitor — over IPv4:
+  # a visitor who arrives over IPv6 reaches the proxy through Docker's own forwarder, and all
+  # of them are seen under one address.
+  TRUSTED_PROXIES: ${DEMO_WEB_ADDRESS:-172.30.250.20}
+  TRUSTED_PROXY_HOPS: "1"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: hadp
+      # Read by postgres-init/10-app-role.sh, which creates the application role.
+      HADP_APP_DB_PASSWORD: ${HADP_APP_DB_PASSWORD:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Over TCP: while the init scripts run, the server listens on its socket only, and a
+      # socket check would report "ready" before the application role exists.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d hadp"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+    command:
+      - sh
+      - -c
+      - exec redis-server --save "" --appendonly no --requirepass "$$REDIS_PASSWORD"
+    tmpfs:
+      - /data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG',
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Object storage: an S3 TEST DOUBLE (moto), as in the production-shaped stack. It keeps
+  # objects in memory — an uploaded laboratory file is gone when this container restarts,
+  # while what was read from it stays in the database. Which store a deployment uses is an
+  # open decision (go-live plan §9.4, decision 14).
+  s3:
+    image: motoserver/moto:5.2.3
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - 'import urllib.request as u; u.urlopen("http://127.0.0.1:5000/moto-api/", timeout=3)'
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  # One-shot, on every start: the object store forgets its bucket when it restarts.
+  s3-init:
+    <<: *hardening
+    image: ${HADP_API_IMAGE:-hadp-api:local}
+    depends_on:
+      s3:
+        condition: service_healthy
+    environment: *api-environment
+    command:
+      - python
+      - -c
+      - |
+        import boto3
+        from botocore.exceptions import ClientError
+
+        from hadp_api.config import get_settings
+
+        s = get_settings()
+        client = boto3.client(
+            "s3",
+            endpoint_url=s.s3_endpoint_url,
+            region_name=s.s3_region,
+            aws_access_key_id=s.s3_access_key_id,
+            aws_secret_access_key=s.s3_secret_access_key,
+        )
+        try:
+            client.create_bucket(
+                Bucket=s.s3_bucket_source_documents,
+                CreateBucketConfiguration={"LocationConstraint": s.s3_region},
+            )
+        except ClientError as exc:
+            if exc.response["Error"]["Code"] != "BucketAlreadyOwnedByYou":
+                raise
+
+  # One-shot, on every start: schema to head, the KPI catalog, then the SYNTHETIC data set
+  # (it creates what is missing and deletes nothing — it does not undo what a visitor
+  # changed either). The only service that holds the admin DSN. The seeder runs because this is development mode; it
+  # refuses in production mode.
+  migrate:
+    <<: *hardening
+    image: ${HADP_API_IMAGE:-hadp-api:local}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *api-environment
+      DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:?}@postgres:5432/hadp
+    command:
+      - sh
+      - -ec
+      - alembic upgrade head && python -m hadp_api.scripts.seed_catalog && python -m hadp_api.scripts.seed
+
+  api:
+    <<: *hardening
+    image: ${HADP_API_IMAGE:-hadp-api:local}
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      s3-init:
+        condition: service_completed_successfully
+    environment: *api-environment
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - 'import urllib.request as u; u.urlopen("http://127.0.0.1:8000/api/v1/health", timeout=3)'
+      # Quick while it starts, slow afterwards: every check starts a process.
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+      start_interval: 2s
+
+  web:
+    <<: *hardening
+    image: ${HADP_WEB_IMAGE:-hadp-web:local}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      # The browser never talks to the API; the web server does, inside the network.
+      API_BASE_URL: http://api:8000
+    networks:
+      default:
+        # Fixed, so that the API can name its one caller (TRUSTED_PROXIES above).
+        ipv4_address: ${DEMO_WEB_ADDRESS:-172.30.250.20}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - 'fetch("http://127.0.0.1:3000/login").then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))'
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 120s
+      start_interval: 2s
+
+  # The only published service. It terminates TLS (a certificate for DEMO_HOST, obtained and
+  # renewed by itself) and asks for the gate's user name and password before anything
+  # reaches the web app — the sign-in behind it has no password of its own.
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: [/tmp]
+    environment:
+      DEMO_HOST: ${DEMO_HOST:?}
+      # Empty: a public certificate. The smoke sets "tls internal" (no public name there).
+      DEMO_TLS: ${DEMO_TLS:-}
+      # The gate: a user name and the HASH of its password (gate.env, written by
+      # `demo_stack.sh init`). Through the environment and not as a mounted file: this
+      # container has no capability to read a file that belongs to another user.
+      DEMO_GATE_USER: ${DEMO_GATE_USER:?}
+      DEMO_GATE_HASH: ${DEMO_GATE_HASH:?}
+    ports:
+      - "80:80"
+      - "443:443"
+    healthcheck:
+      # It listens only once it has read its configuration: one it cannot read (a damaged
+      # gate, a wrong host name) makes it stop and start for ever. `demo_stack.sh up` waits
+      # for this.
+      test: ["CMD", "nc", "-z", "127.0.0.1", "443"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
+      start_interval: 2s
+    volumes:
+      - ./demo/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+networks:
+  default:
+    ipam:
+      config:
+        # Addresses are handed out from the lower half; the web server's fixed one is above it.
+        - subnet: ${DEMO_SUBNET:-172.30.250.0/27}
+          ip_range: ${DEMO_DYNAMIC_RANGE:-172.30.250.0/28}
+
+volumes:
+  pgdata:
+  caddy-data:
+  caddy-config:

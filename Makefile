@@ -141,6 +141,10 @@ stack-smoke: images ## Build the images, boot the production-shaped stack, asser
 	HADP_API_IMAGE=hadp-api:$(IMAGE_TAG) HADP_WORKER_IMAGE=hadp-worker:$(IMAGE_TAG) \
 	  HADP_WEB_IMAGE=hadp-web:$(IMAGE_TAG) ./scripts/smoke_stack.sh
 
+.PHONY: demo-smoke
+demo-smoke: images ## Build the images, boot the demo stack, check its gate, sign-in and client address, take it down
+	HADP_API_IMAGE=hadp-api:$(IMAGE_TAG) HADP_WEB_IMAGE=hadp-web:$(IMAGE_TAG) ./scripts/smoke_demo.sh
+
 # ---- Dev servers -------------------------------------------------------------
 
 .PHONY: api-dev
