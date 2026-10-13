@@ -294,6 +294,13 @@ def main() -> int:
                 "en": ("Patient directory", "No report", "Add patient"),
             },
         }
+        # The patient page as well. What is not interface on it reads the same in both: the
+        # wording of a consent purpose, the name of a domain axis.
+        wording[f"/patients/{pid}"] = {
+            "de": ("Datenlage", "Labordaten", "Audit-Status", "Zurück zu Patienten"),
+            "en": ("Data coverage", "Laboratory data", "Audit status", "Back to patients"),
+        }
+        as_recorded = ("Freigabe geprüfter Berichte", "Metabolisch")
         for path, words in wording.items():
             for language, other in (("de", "en"), ("en", "de")):
                 cookie = f"hadp_session={session}"
@@ -304,6 +311,9 @@ def main() -> int:
                     assert word in page, f"{path} ({language}) does not say {word!r}"
                 for word in words[other]:
                     assert word not in page, f"{path} ({language}) says {word!r}"
+                if path == f"/patients/{pid}":
+                    for word in as_recorded:
+                        assert word in page, f"{path} ({language}) lost {word!r}"
 
         r = web.get(f"/patients/{pid}")
         assert r.status_code == 200, ("/patients/[id] authed", r.status_code)
@@ -481,6 +491,17 @@ def main() -> int:
                 assert "<tbody" in shown(r), f"{path} shows no audit entries"
                 return shown(r).split("<tbody", 1)[1].split("</tbody>", 1)[0]
 
+            # The owner's part of the patient page — the data-export card — in the language
+            # of the device (the card is shown to no other role, see above).
+            session_cookie = f"hadp_session={owner_cookie['hadp_session']}"
+            for cookie, says, not_says in (
+                (session_cookie, "Datenauskunft erstellen", "Create data export"),
+                (f"{session_cookie}; hadp_locale=en", "Create data export", "Datenauskunft"),
+            ):
+                page = shown(web.get(f"/patients/{pid}", headers={"cookie": cookie}))
+                assert says in page, f"the owner's patient page does not say {says!r}"
+                assert not_says not in page, f"the owner's patient page says {not_says!r}"
+
             r = web.get("/einstellungen")
             assert 'href="/einstellungen/audit"' in shown(r), "settings do not list the audit trail"
             # The preparation-time metric: what the clinic states and what the platform
@@ -571,7 +592,7 @@ def main() -> int:
     print(f"  client address passed on to the API: {forwarding}")
     print(
         "  interface language: German by default, English by choice, on /login, the 404 page,"
-        " /overview and /patients"
+        " /overview, /patients and the patient page"
     )
     return 0
 

@@ -146,7 +146,6 @@ const DELETION_REASONS = new Set<DeletionReason>([
 
 export type RequestDeletionResult = { ok: true } | { ok: false; error: string };
 
-// Not translated yet: this action is used by the patient page only, which is still German.
 // Owner-only: open a patient-erasure request (the medical director then decides it on the
 // Löschanträge queue). Server-side authorization is the control — the API gates
 // PRIVACY_REQUEST_CREATE to owners. No data is deleted here; this only files the request.
@@ -154,10 +153,10 @@ export async function requestPatientDeletion(
   patientId: string,
   reason: DeletionReason,
 ): Promise<RequestDeletionResult> {
-  if (!isUuid(patientId))
-    return { ok: false, error: "Ungültige Patientenreferenz." };
+  const t = (await getMessages()).patientPage;
+  if (!isUuid(patientId)) return { ok: false, error: t.invalidPatient };
   if (!DELETION_REASONS.has(reason))
-    return { ok: false, error: "Ungültiger Grund." };
+    return { ok: false, error: t.deletion.errors.invalidReason };
   try {
     await createDeletionRequest(patientId, reason);
     revalidatePath("/einstellungen/loeschantraege");
@@ -166,21 +165,11 @@ export async function requestPatientDeletion(
   } catch (e) {
     if (e instanceof ApiError) {
       if (e.status === 401 || e.status === 403)
-        return {
-          ok: false,
-          error: "Diese Aktion ist Ihrer Rolle nicht erlaubt.",
-        };
+        return { ok: false, error: t.notAllowed };
       if (e.status === 409)
-        return {
-          ok: false,
-          error:
-            "Für diesen Patienten besteht bereits ein offener Löschantrag.",
-        };
+        return { ok: false, error: t.deletion.errors.alreadyOpen };
     }
-    return {
-      ok: false,
-      error: "Löschantrag fehlgeschlagen. Bitte erneut versuchen.",
-    };
+    return { ok: false, error: t.deletion.errors.failed };
   }
 }
 

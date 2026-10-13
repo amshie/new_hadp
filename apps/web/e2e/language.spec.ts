@@ -7,8 +7,8 @@ import { asStaff, hydrated, watchPageErrors } from "./support/staff";
 //
 // The pages are being translated one after another; these tests hold what is done: the two
 // navigation shells, the settings overview, the overview, the patients list, the dialog to
-// add a patient (opened from the overview), the sign-in page and the not-found page — and
-// that a page which is still German says so. They leave every
+// add a patient (opened from the overview), the patient page, the sign-in page and the
+// not-found page — and that a page which is still German says so. They leave every
 // other test in German: each runs in a browser context of its own, and none of them signs out
 // (the session is shared).
 
@@ -295,6 +295,198 @@ test("the overview and the patients list show the same in both languages", async
     for (const row of await rows.all()) {
       await expect(row).toContainText("No draft");
     }
+  });
+});
+
+test("the patient page follows the choice; what is not interface stays German and says so", async ({
+  browser,
+  baseURL,
+}) => {
+  await asStaff(browser, "medicalDirector", async (page) => {
+    await page
+      .context()
+      .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
+    const languageOf = (part: Locator) =>
+      part.evaluate((element) =>
+        element.closest("[lang]")?.getAttribute("lang"),
+      );
+
+    // The seeded patient, opened from the list by its row.
+    await page.goto("/patients");
+    const row = page.getByRole("button", {
+      name: /^Open patient .*, SYN-0001$/,
+    });
+    await hydrated(row);
+    await row.click();
+    await expect(page).toHaveURL(/\/patients\/[0-9a-f-]{36}$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    const body = page.locator("body");
+
+    // The page's own wording is English: the way back, its cards, the audit steps.
+    const back = page.getByRole("button", { name: "Back to patients" });
+    await expect(back).toBeVisible();
+    expect(await languageOf(back)).toBe("en");
+    for (const heading of [
+      "Data coverage",
+      "Consents",
+      "Laboratory data",
+      "Audit status",
+    ]) {
+      await expect(
+        page.getByRole("heading", { level: 3, name: heading, exact: true }),
+      ).toBeVisible();
+    }
+    for (const german of [
+      "Datenlage",
+      "Labordaten",
+      "Audit-Status",
+      "Zurück zu Patienten",
+    ]) {
+      await expect(body).not.toContainText(german);
+    }
+    // This role reads and does not record: the two cards say so, each in one sentence.
+    await expect(body).toContainText(
+      "earlier entries are never changed. Documenting is reserved for the practice team (read-only view).",
+    );
+    await expect(body).toContainText(
+      "Uploading and reading is reserved for the practice team (read-only view).",
+    );
+
+    // Not interface, and German whatever the choice — each says that it is German.
+    // The wording of a consent purpose, in its row and in the note under the list:
+    const purposes = page.getByText("Freigabe geprüfter Berichte", {
+      exact: true,
+    });
+    await expect(purposes).toHaveCount(2);
+    for (const purpose of await purposes.all()) {
+      expect(await languageOf(purpose)).toBe("de");
+    }
+    await expect(body).toContainText(
+      "At present only the purpose Freigabe geprüfter Berichte is enforced technically",
+    );
+
+    // The names of the six domain axes (a closed vocabulary — ADR-0007), and on each card
+    // the VALUE of follow-up adequacy; the name of that fact is interface, and so is the
+    // state of the card's run.
+    const cards = page.locator(".vb-domaincard");
+    await expect(cards).toHaveCount(6);
+    for (const axis of [
+      "Metabolisch",
+      "Immun / Entzündung",
+      "Kardiovaskulär",
+      "Neurokognitiv",
+      "Muskuloskelettal",
+      "Regenerationskapazität",
+    ]) {
+      const name = cards.getByText(axis, { exact: true });
+      await expect(name).toBeVisible();
+      expect(await languageOf(name)).toBe("de");
+    }
+    const run = cards.getByText(/^(Reviewed|Draft|No run)$/);
+    await expect(run).toHaveCount(6);
+    for (const state of await run.all()) {
+      expect(await languageOf(state)).toBe("en");
+    }
+    await expect(cards.getByText(/^(Geprüft|Entwurf|Kein Lauf)$/)).toHaveCount(
+      0,
+    );
+    // The seeded patient has an interpretation run: adequacy is stated.
+    const adequacy = cards.getByText(/^(adäquat|inadäquat|nicht bewertet)$/);
+    expect(await adequacy.count()).toBeGreaterThan(0);
+    for (const value of await adequacy.all()) {
+      expect(await languageOf(value)).toBe("de");
+    }
+    await expect(cards.first()).toContainText("Follow-up adequacy:");
+    for (const english of ["adequate", "not assessed"]) {
+      await expect(cards.filter({ hasText: english })).toHaveCount(0);
+    }
+
+    // The observation evidence of the first axis: its heading names the axis in German, and
+    // every value's position against its reference interval is one of the German names —
+    // none of the English ones lib/lageCopy.ts holds, nor an English comparability note.
+    const evidence = page.getByRole("heading", {
+      level: 3,
+      name: /^Observation evidence · /,
+    });
+    expect(await languageOf(evidence.locator("span"))).toBe("de");
+    const rows = page.locator(".vb-erow");
+    expect(await rows.count(), "the seeded patient has values").toBeGreaterThan(
+      0,
+    );
+    const pills = rows
+      .locator("span[lang=de]")
+      .filter({ has: page.locator(".sr-only") });
+    expect(await pills.count()).toBeGreaterThan(0);
+    for (const pill of await pills.all()) {
+      await expect(pill).toContainText(
+        /Über Referenz|Unter Referenz|Im Intervall|Keine Referenz|Nicht bestimmbar/,
+      );
+    }
+    const category = rows.first().getByText("Metabolisch", { exact: true });
+    expect(await languageOf(category)).toBe("de");
+    const englishVocabulary = [
+      "Above reference",
+      "Below reference",
+      "Within reference",
+      "No reference",
+      "Not determinable",
+      "Not directly comparable",
+      "Longitudinal comparison not available",
+      "Not longitudinally comparable",
+    ];
+    for (const english of englishVocabulary) {
+      await expect(body).not.toContainText(english);
+    }
+
+    // The detail of a value: English around a German sentence about its position.
+    await rows.first().click();
+    const detail = page.getByRole("dialog");
+    await expect(detail).toContainText("Review status");
+    await expect(detail).toContainText("published");
+    await expect(detail).toContainText(
+      "Position relative to the source reference interval · not a diagnosis or treatment advice.",
+    );
+    const sentence = detail.getByText(
+      /Quellreferenzintervall|Referenzintervall/,
+      {
+        exact: false,
+      },
+    );
+    expect(await sentence.count()).toBeGreaterThan(0);
+    for (const german of await sentence.all()) {
+      expect(await languageOf(german)).toBe("de");
+    }
+    for (const english of englishVocabulary) {
+      await expect(detail).not.toContainText(english);
+    }
+    await detail.getByRole("button", { name: "Close" }).click();
+    await expect(detail).toHaveCount(0);
+  });
+
+  // What a server action of this page answers follows the choice as well. A file whose name
+  // is too long is refused before anything is stored: nothing is written, nothing recorded.
+  await asStaff(browser, "clinician", async (page) => {
+    await page
+      .context()
+      .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
+    await page.goto("/patients");
+    const row = page.getByRole("button", {
+      name: /^Open patient .*, SYN-0001$/,
+    });
+    await hydrated(row);
+    await row.click();
+    await expect(page).toHaveURL(/\/patients\/[0-9a-f-]{36}$/);
+    const upload = page.getByRole("button", { name: "Upload and read" });
+    await hydrated(upload);
+    await page.getByLabel("Choose laboratory file").setInputFiles({
+      name: `${"synthetic-".repeat(20)}x.csv`,
+      mimeType: "text/csv",
+      buffer: Buffer.from("analyte;value;date\n"),
+    });
+    await upload.click();
+    await expect(
+      page.getByRole("region", { name: "Laboratory data" }).getByRole("alert"),
+    ).toHaveText("The file name is too long (200 characters at most).");
   });
 });
 

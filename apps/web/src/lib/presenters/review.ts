@@ -96,6 +96,10 @@ export interface MarkerView {
     kind: "text" | "converted" | "source_unit";
     short: string;
     full: string;
+    // For a page that words the note itself (lib/i18n): what the source wrote, and the unit
+    // the value was converted to (null: the metric's own, not named) — "converted" only.
+    source?: string;
+    unit?: string | null;
   } | null;
   status: string;
   // Not published: still in the review queue, or rejected there. Such a value is shown as
@@ -121,6 +125,9 @@ export interface MarkerView {
   comparabilityFull: string | null;
 }
 export interface AuditStepView {
+  // Which step, and which of its lines applies — for a page that words them itself.
+  key: "capture" | "draft" | "clinical" | "release" | "patient";
+  subKey: "done" | "active" | "pending" | "rejected";
   label: string;
   sub: string;
   state: "done" | "active" | "";
@@ -149,6 +156,8 @@ export interface ReviewView {
   patientName: string;
   ref: string;
   ageProfile: string;
+  // The age in full years, null without a date of birth — for a page that words it itself.
+  ageYears: number | null;
   reportId: string;
   status: string;
   statusBadge: string;
@@ -169,14 +178,18 @@ export interface ReviewView {
   domains: DomainView[];
 }
 
-function ageProfile(dob: string | null | undefined): string {
-  if (!dob) return "Alter unbekannt";
+function ageYears(dob: string | null | undefined): number | null {
+  if (!dob) return null;
   const birth = new Date(dob);
   const now = new Date();
   let age = now.getFullYear() - birth.getFullYear();
   const m = now.getMonth() - birth.getMonth();
   if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
-  return `${age} Jahre`;
+  return age;
+}
+
+function ageProfile(age: number | null): string {
+  return age === null ? "Alter unbekannt" : `${age} Jahre`;
 }
 
 function unitJoin(
@@ -202,6 +215,8 @@ function sourceNote(p: TimelinePoint): MarkerView["sourceNote"] {
   if (p.converted)
     return {
       kind: "converted",
+      source: unitJoin(p.original_value, p.original_unit),
+      unit: p.unit ?? null,
       short: `umgerechnet aus ${unitJoin(p.original_value, p.original_unit)}`,
       full: `Die Quelle nennt ${unitJoin(p.original_value, p.original_unit)}; der Wert – und das Referenzintervall, soweit eines angezeigt ist – wurde in ${p.unit ?? "die Einheit der Kennzahl"} umgerechnet.`,
     };
@@ -226,6 +241,7 @@ function auditSteps(status: string): AuditStepView[] {
   const approved = status === "approved";
   const rejected = status === "rejected";
   const step = (
+    key: AuditStepView["key"],
     label: string,
     state: "done" | "active" | "",
     dot: string,
@@ -233,6 +249,15 @@ function auditSteps(status: string): AuditStepView[] {
     subActive: string,
     subPending: string,
   ): AuditStepView => ({
+    key,
+    subKey:
+      state === "done"
+        ? "done"
+        : state === "active"
+          ? "active"
+          : rejected
+            ? "rejected"
+            : "pending",
     label,
     state,
     dot: state === "done" ? "✓" : dot,
@@ -244,9 +269,18 @@ function auditSteps(status: string): AuditStepView[] {
   // rejected version may have been rejected before or after the clinical approval — the
   // status does not say which — so it is never shown as signed.
   return [
-    step("Datenerfassung", "done", "1", "Werte veröffentlicht", "", ""),
-    step("Entwurf erstellt", "done", "2", "Quellengebunden", "", ""),
     step(
+      "capture",
+      "Datenerfassung",
+      "done",
+      "1",
+      "Werte veröffentlicht",
+      "",
+      "",
+    ),
+    step("draft", "Entwurf erstellt", "done", "2", "Quellengebunden", "", ""),
+    step(
+      "clinical",
       "Klinischer Review",
       draft ? "active" : approved || released ? "done" : "",
       "3",
@@ -255,6 +289,7 @@ function auditSteps(status: string): AuditStepView[] {
       rejected ? "Version zurückgewiesen" : "Ausstehend",
     ),
     step(
+      "release",
       "Ärztliche Freigabe",
       approved ? "active" : released ? "done" : "",
       "4",
@@ -263,6 +298,7 @@ function auditSteps(status: string): AuditStepView[] {
       rejected ? "Nicht erfolgt" : "Ausstehend",
     ),
     step(
+      "patient",
       "Patientenfreigabe",
       released ? "done" : "",
       "5",
@@ -381,6 +417,7 @@ export function presentReview(
   timeline: TimelinePoint[],
   matrix: DomainMatrixView | null,
 ): ReviewView {
+  const age = ageYears(patient.date_of_birth);
   const statusInfo = REPORT_STATUS[report.status] ?? {
     badge: "badge-neutral",
     label: report.status,
@@ -422,7 +459,8 @@ export function presentReview(
     domains,
     patientName: patient.display_name,
     ref: patient.external_ref ?? "—",
-    ageProfile: ageProfile(patient.date_of_birth),
+    ageProfile: ageProfile(age),
+    ageYears: age,
     reportId: report.report_id,
     status: report.status,
     statusBadge: statusInfo.badge,

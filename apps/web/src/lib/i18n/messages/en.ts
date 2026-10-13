@@ -327,6 +327,331 @@ export const en: Messages = {
       failed: "The invitation was not created. Please try again.",
     },
   },
+  patientPage: {
+    back: "Back to patients",
+    cancel: "Cancel",
+    close: "Close",
+    notAllowed: "Your role does not allow this action.",
+    invalidPatient: "Invalid patient reference.",
+    recordUnavailable: "This record is not available.",
+    erased: {
+      title: "This record has been deleted",
+      note: "This person's data has been anonymised and irrevocably removed (observations, documents and reports). The entry remains only as evidence in the audit trail.",
+    },
+    reportStatus: {
+      draft: "Clinical review open",
+      approved: "Passed on for release by a physician",
+      released: "Released",
+      rejected: "Rejected",
+      none: "No draft",
+    },
+    age: { one: "{n} year", other: "{n} years" },
+    ageUnknown: "Age unknown",
+    noReport: "No report",
+    reportVersion: "Report · v{version}",
+    actions: {
+      openReport: "Open report",
+      createDraft: "Create report draft",
+      creatingDraft: "Creating the draft …",
+      recordInterpretation: "Record interpretation",
+      invite: "Invite patient",
+      requestDeletion: "Request deletion",
+    },
+    coverage: {
+      title: "Data coverage",
+      note: "Deterministic, from the observations · not a clinical quality rating.",
+      observations: "Observations",
+      published: "published",
+      withReference: "with reference",
+      latest: "latest measurement",
+      today: "today",
+      days: "{n} d",
+    },
+    domains: {
+      noRun:
+        "No interpretation run yet — the six domain axes are shown as a draft.",
+      select: "Select domain {axis}",
+      reviewed: "Reviewed",
+      draft: "Draft",
+      none: "No run",
+      adequacy: "Follow-up adequacy:",
+      citesReplaced:
+        "Relies on a value the laboratory has corrected — check the interpretation.",
+      shown: "Biomarkers in the observation evidence",
+      show: "View biomarkers ({n})",
+      notInterpreted: "Not interpreted yet",
+    },
+    evidence: {
+      title: "Observation evidence",
+      note: "Source-grounded observations · position relative to the source reference interval · not a diagnosis or treatment advice.",
+      columns: {
+        marker: "Marker",
+        category: "Category",
+        value: "Value",
+        change: "Δ",
+        position: "Position vs. reference",
+        bar: "Reference position",
+      },
+      open: "Open marker {name}",
+      superseded: "replaced by a laboratory correction",
+      inputReplaced: "input value replaced by a laboratory correction",
+      empty: "No observations in this domain.",
+      noScale: "no scale",
+      reference: "Ref {range}",
+    },
+    valueStatus: {
+      published: "published",
+      pending: "in review – not published",
+      rejected: "rejected in review",
+    },
+    sourceNote: {
+      text: {
+        short: "As written by the source",
+        full: "The platform reads no number from what the source wrote here – for instance a text result, an addition to the value, or a way of writing a number that it cannot read unambiguously. What the source wrote is shown as written.",
+      },
+      converted: {
+        short: "converted from {source}",
+        full: "The source states {source}; the value – and the reference interval, where one is shown – was converted to {unit}.",
+        unitOfMetric: "the unit of the metric",
+      },
+      source_unit: {
+        short: "Unit of the source",
+        full: "The value stands as the source states it, in the source's unit – and so does a reference interval that is shown. The value is not normalised; a change from the previous value is therefore not calculated.",
+      },
+    },
+    marker: {
+      kicker: "Marker detail ·",
+      reference: "Reference",
+      change: "Change",
+      source: "Source / code",
+      status: "Review status",
+      noPosition:
+        "No position relative to the reference interval is stated for a value that is not published.",
+      positionNote:
+        "Position relative to the source reference interval · not a diagnosis or treatment advice.",
+    },
+    audit: {
+      title: "Audit status",
+      note: "Progress from data capture to release to the patient (derived from the report status).",
+      none: "No report draft yet — the audit lifecycle begins when a draft is created.",
+      steps: {
+        capture: { label: "Data capture", done: "Values published" },
+        draft: { label: "Draft created", done: "Source-grounded" },
+        clinical: {
+          label: "Clinical review",
+          done: "Signed",
+          active: "In progress",
+          pending: "Pending",
+          rejected: "Version rejected",
+        },
+        release: {
+          label: "Release by a physician",
+          done: "Completed",
+          active: "In review",
+          pending: "Pending",
+          rejected: "Did not take place",
+        },
+        patient: {
+          label: "Release to the patient",
+          done: "Released",
+          pending: "Not possible",
+          rejected: "Rejected — rework needed",
+        },
+      },
+    },
+    invite: {
+      title: "Invite patient?",
+      note: "Creates a single-use, time-limited invitation link through which the consent (report release) is recorded. The link is shown exactly once. Synthetic demo: no real patient.",
+      doneTitle: "Invitation created — single-use link",
+      doneNote:
+        "Share the link by hand and safely outside the system — nothing is sent automatically. It can be used once, is time-limited and is shown only now. Synthetic demo: no real patient.",
+      link: "Invitation link (shown once)",
+      copy: "Copy link",
+      copied: "Link copied",
+      create: "Create invitation",
+    },
+    deletion: {
+      title: "Request deletion",
+      noteBefore: "This files a request for the final deletion of the data of",
+      noteAfter:
+        ". Nothing is deleted at once — the medical director has to approve the request (two-person approval); it is carried out separately and cannot be undone.",
+      reason: "Reason",
+      reasons: {
+        patient_request: "Data subject request (Art. 17)",
+        withdrawn_consent: "Consent withdrawn",
+        data_minimization: "Data minimisation",
+      },
+      submit: "Request deletion",
+      submitting: "Filing the request …",
+      doneTitle: "Deletion request filed",
+      doneNote:
+        "The medical director reviews the request (two-person approval). Until it is approved and carried out separately, the record stays unchanged. You find the request under Settings → Deletion requests.",
+      errors: {
+        invalidReason: "Invalid reason.",
+        alreadyOpen:
+          "There is already an open deletion request for this patient.",
+        failed: "The deletion request was not filed. Please try again.",
+      },
+    },
+    consent: {
+      title: "Consents",
+      note: "State per purpose. Every entry is a new, attributed and audited record — earlier entries are never changed.",
+      readOnly:
+        " Documenting is reserved for the practice team (read-only view).",
+      active: "Active",
+      inactive: "Not active",
+      notDocumented: "Not documented",
+      granted: "Given on {day} ({how}) · text version {version}",
+      withdrawn: "Withdrawn on {day} ({how}) · text version {version}",
+      channels: { in_person: "declared in person" },
+      recordGrant: "Document consent",
+      recordWithdrawal: "Document withdrawal",
+      footnoteBefore:
+        "Synthetic demo: the purposes and the consent text are placeholders. At present only the purpose",
+      footnoteAfter:
+        "is enforced technically (no release without an active consent; a withdrawal revokes existing access links). The other purposes are documented, but not yet enforced technically.",
+      grantTitle: "Document consent?",
+      withdrawTitle: "Document withdrawal?",
+      grantNote:
+        "You document that the person agreed to this purpose in person. The record is attributed to you and audited; it cannot be changed, only added to by a withdrawal.",
+      withdrawNote:
+        "You document that the person withdrew their consent in person. The record is attributed to you and audited; the earlier consent stays as an entry.",
+      withdrawReleaseNote:
+        " The person's existing access links become invalid at once; a new release is possible only after a new consent.",
+      confirmGrant: "Document",
+      errors: {
+        unknownPurpose: "Unknown consent purpose.",
+        unknownAction: "Unknown action.",
+        notSaved: "Not saved. Please try again.",
+      },
+    },
+    lab: {
+      title: "Laboratory data",
+      note: "A structured laboratory file (CSV in the HADP layout, LDT 2 or LDT 3) for exactly this record. The original file is stored and then read; the values are taken over unchanged. Values that are not unambiguous go to the review queue — they are published only after a clinical decision.",
+      choose: "Choose laboratory file",
+      upload: "Upload and read",
+      uploading: "Reading …",
+      readOnly:
+        "Uploading and reading is reserved for the practice team (read-only view).",
+      read: "Read ({parser} v{version}): ",
+      readBefore:
+        "This file has been read before — result of the first reading: ",
+      counts: {
+        published: "{n} published",
+        review: "{n} for review",
+        duplicate: "{n} already on record",
+        notImported: "{n} not taken over",
+      },
+      toQueue: "To the review queue",
+      stored: " The original file is stored and listed below.",
+      none: "No laboratory file is stored for this record yet.",
+      table: "Stored laboratory files",
+      columns: {
+        file: "File",
+        uploaded: "Uploaded",
+        reader: "Reader",
+        result: "Result",
+      },
+      storedNotRead: "Stored, not read",
+      readNow: "Read",
+      legend:
+        "“Already on record”: the value is already held, identical, for this analysis and collection time and was not taken over twice. “Not taken over”: a result without a numeric value or without a collection date (for example a text finding, or still pending). The figures show the state at the time of reading.",
+      errors: {
+        invalidReference: "Invalid reference.",
+        chooseFile: "Please choose a file.",
+        tooLarge5: "The file is too large (5 MB at most).",
+        nameTooLong: "The file name is too long (200 characters at most).",
+        uploadFailed: "The upload failed. Please try again.",
+        tooManyUploads:
+          "Too many uploads in a short time. Please wait a moment.",
+        otherPatient:
+          "This file is already stored with another record of this clinic and is not accepted here a second time.",
+        empty: "The file is empty.",
+        tooLarge: "The file is too large.",
+        notText: "The file is not a readable text file (UTF-8 expected).",
+        wrongType: "This file type is not accepted (CSV, LDT or text).",
+        importNotAllowed: "Your role does not allow reading a file.",
+        tooManyImports:
+          "Too many imports in a short time. Please wait a moment.",
+        importFailed: "Reading failed. Please try again.",
+        line: " (line {line})",
+        nothingTaken: "{reason}{where} Nothing was taken over.",
+        unreadableCode:
+          "The file could not be read (reason: {code}){where}. Nothing was taken over.",
+        unreadable: "The file could not be read. Nothing was taken over.",
+      },
+      refusals: {
+        unsupported_format:
+          "There is no reader for this file format (supported: CSV in the HADP layout, LDT 2, LDT 3).",
+        multiple_patients:
+          "The file holds findings for more than one person. A file must concern exactly one person.",
+        unidentified_patient:
+          "The file does not name exactly one person. A file must concern exactly one person.",
+        patient_mismatch:
+          "The file states a date of birth other than this record's.",
+        checksum_mismatch:
+          "The checksum of the LDT file does not match — the file is damaged or incomplete.",
+        malformed_record:
+          "The LDT file is incomplete or does not follow the format.",
+        malformed_object:
+          "The LDT file is incomplete or does not follow the format.",
+        unsupported_ldt_version: "This LDT version is not read.",
+        unsupported_record_type:
+          "The LDT file holds a record type that is not read (laboratory findings only).",
+        unsupported_report_kind:
+          "The LDT file holds a record type that is not read (laboratory findings only).",
+        unsupported_layout:
+          "The table header does not hold the expected columns (analyte, value, date).",
+        ambiguous_header: "The table header names a column twice.",
+        malformed_table:
+          "A row does not have as many fields as the table header (often: a decimal comma in a comma-separated file).",
+        missing_field: "A row lacks the analyte, the value or the date.",
+        unsupported_date:
+          "A date cannot be read unambiguously (expected: DD.MM.YYYY or YYYY-MM-DD).",
+        implausible_date: "A date lies outside the plausible span.",
+        unsupported_time: "A time cannot be read (expected: HH:MM).",
+        empty_document: "The file holds no laboratory values.",
+        too_many_values:
+          "The file holds more values than a single set of laboratory findings has.",
+        document_unavailable:
+          "The stored original file cannot be read. Please upload it again.",
+      },
+    },
+    dataExport: {
+      title: "Data export",
+      noteBefore:
+        "A file with the data stored about this person, for an access request (Art. 15 GDPR) or data portability (Art. 20 GDPR): master data, consent records, all values, the original files read into this record and the released report versions.",
+      notIncluded: "Not included",
+      noteAfter:
+        "are, among other things, report versions that were not released, the working documentation of the interpretation, review decisions, the audit trail, details about staff and stored files that were never read into this record — the complete list is in the file itself. Whether these parts belong to a complete response to an access request is still to be settled legally.",
+      create: "Create data export",
+      done: "File created and downloaded.",
+      none: "No data export has been created for this record yet.",
+      history: "Created so far (from the audit trail)",
+      values: { one: "{n} value", other: "{n} values" },
+      files: { one: "{n} original file", other: "{n} original files" },
+      filesChanged: " ({n} no longer unchanged in storage)",
+      filesNeverRead: " ({n} never read, not included)",
+      versions: { one: "{n} report version", other: "{n} report versions" },
+      confirmTitle: "Create data export?",
+      confirmNote:
+        "The file holds personal health data of this person and is downloaded to this device. Keep it protected and hand it only to the person concerned. Creating it is attributed to you and audited; the platform keeps no copy of the file.",
+      confirm: "Create and download",
+      creating: "Creating …",
+      errors: {
+        patient_erased:
+          "This record has been deleted; there is nothing to export.",
+        export_too_large:
+          "The stored original files are too large for a single file.",
+        storage_unavailable:
+          "A stored original file could not be read just now. No file was created — please try again later.",
+        cross_origin: "The request was refused. Please reload the page.",
+        tooMany:
+          "Too many data exports in a short time. Please try again later.",
+        failed: "The data export could not be created. Please try again.",
+      },
+    },
+  },
   notFound: {
     title: "Page not found",
     note: "The page you asked for does not exist or is not available.",
@@ -358,7 +683,7 @@ export const en: Messages = {
     title: "Language",
     note: "The language of the interface on this device. Content such as reports, laboratory terms and names stays in the language it was recorded in.",
     progress:
-      "English is being added page by page: the navigation, sign-in, the overview, the patients list and this settings overview are done; all other pages are shown in German for now. The wording of the consent purposes stays German.",
+      "English is being added page by page: the navigation, sign-in, the overview, the patients list, the patient page and this settings overview are done; all other pages are shown in German for now. The wording of the consent purposes and the clinical labels (domains, follow-up adequacy, position relative to the reference interval, comparability) stay German.",
     selected: "selected",
     choose: "Interface language",
   },

@@ -5,6 +5,9 @@ import { useRef, useState, useTransition, type CSSProperties } from "react";
 
 import type { SourceDocument } from "@/lib/api";
 import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
+import { fill } from "@/lib/i18n/fill";
+import { useI18n } from "@/lib/i18n/I18nProvider";
+import type { Messages } from "@/lib/i18n/messages";
 import { useHydrated } from "@/lib/useHydrated";
 
 import {
@@ -17,6 +20,9 @@ import {
 // into the import pipeline, and see what each stored file became. Counts and metadata only —
 // values appear on the timeline and in the review queue, never here. Nothing is published
 // without the pipeline's rules and, where they say so, a human decision.
+//
+// The card follows the interface language (lib/i18n); dates and sizes keep their German form
+// (ADR-0007: formats are decided on their own).
 
 const cardStyle: CSSProperties = {
   background: "var(--surface-card)",
@@ -74,12 +80,15 @@ interface Counts {
   not_imported_count: number;
 }
 
-function countsLine(c: Counts): string {
+function countsLine(
+  c: Counts,
+  t: Messages["patientPage"]["lab"]["counts"],
+): string {
   return [
-    `${c.published_count} veröffentlicht`,
-    `${c.review_count} zur Prüfung`,
-    `${c.duplicate_count} bereits vorhanden`,
-    `${c.not_imported_count} nicht übernommen`,
+    fill(t.published, { n: c.published_count }),
+    fill(t.review, { n: c.review_count }),
+    fill(t.duplicate, { n: c.duplicate_count }),
+    fill(t.notImported, { n: c.not_imported_count }),
   ].join(" · ");
 }
 
@@ -116,6 +125,7 @@ export function LabDocumentsCard({
   documents: SourceDocument[];
   canImport: boolean;
 }) {
+  const t = useI18n().t.patientPage.lab;
   const formRef = useRef<HTMLFormElement>(null);
   const [outcome, setOutcome] = useState<LabImportResult | null>(null);
   // Until the page is hydrated the form would submit natively: a reload that drops the chosen
@@ -155,7 +165,7 @@ export function LabDocumentsCard({
             margin: 0,
           }}
         >
-          Labordaten
+          {t.title}
         </h3>
         <p
           style={{
@@ -166,11 +176,7 @@ export function LabDocumentsCard({
             maxWidth: "88ch",
           }}
         >
-          Strukturierte Labordatei (CSV im HADP-Layout, LDT 2 oder LDT 3) für
-          genau diese Akte. Die Originaldatei wird gespeichert und dann
-          eingelesen; die Werte werden unverändert übernommen. Nicht eindeutige
-          Werte gehen in die Review-Queue — sie werden erst nach einer
-          klinischen Entscheidung veröffentlicht.
+          {t.note}
         </p>
 
         {canImport ? (
@@ -193,7 +199,7 @@ export function LabDocumentsCard({
               name="file"
               required
               accept=".csv,.ldt,.txt"
-              aria-label="Labordatei wählen"
+              aria-label={t.choose}
               disabled={pending}
               style={{ fontSize: "12.5px", color: "var(--text-body)" }}
             />
@@ -202,7 +208,7 @@ export function LabDocumentsCard({
               style={btnPri}
               disabled={pending || !hydrated}
             >
-              {pending ? "Wird eingelesen …" : "Hochladen und einlesen"}
+              {pending ? t.uploading : t.upload}
             </button>
           </form>
         ) : (
@@ -213,8 +219,7 @@ export function LabDocumentsCard({
               color: "var(--text-faint)",
             }}
           >
-            Hochladen und Einlesen ist dem Praxisteam vorbehalten
-            (Nur-Lese-Ansicht).
+            {t.readOnly}
           </p>
         )}
 
@@ -233,13 +238,16 @@ export function LabDocumentsCard({
             }}
           >
             {outcome.result.created
-              ? `Eingelesen (${outcome.result.parser_name} v${outcome.result.parser_version}): `
-              : "Diese Datei wurde bereits eingelesen — Ergebnis des ersten Einlesens: "}
-            {countsLine(outcome.result)}.
+              ? fill(t.read, {
+                  parser: outcome.result.parser_name,
+                  version: outcome.result.parser_version,
+                })
+              : t.readBefore}
+            {countsLine(outcome.result, t.counts)}.
             {outcome.result.review_count > 0 && (
               <>
                 {" "}
-                <Link href="/review-queue">Zur Review-Queue</Link>
+                <Link href="/review-queue">{t.toQueue}</Link>
               </>
             )}
           </div>
@@ -258,8 +266,7 @@ export function LabDocumentsCard({
             }}
           >
             {outcome.error}
-            {outcome.stored &&
-              " Die Originaldatei ist gespeichert und unten aufgeführt."}
+            {outcome.stored && t.stored}
           </div>
         )}
       </div>
@@ -273,20 +280,24 @@ export function LabDocumentsCard({
             borderTop: "1px solid var(--border-subtle)",
           }}
         >
-          Für diese Akte ist noch keine Labordatei gespeichert.
+          {t.none}
         </div>
       ) : (
         <>
           <table
             style={{ width: "100%", borderCollapse: "collapse" }}
-            aria-label="Gespeicherte Labordateien"
+            aria-label={t.table}
           >
             <thead>
               <tr>
-                <th style={{ ...thStyle, paddingLeft: "22px" }}>Datei</th>
-                <th style={thStyle}>Hochgeladen</th>
-                <th style={thStyle}>Einleseprogramm</th>
-                <th style={{ ...thStyle, paddingRight: "22px" }}>Ergebnis</th>
+                <th style={{ ...thStyle, paddingLeft: "22px" }}>
+                  {t.columns.file}
+                </th>
+                <th style={thStyle}>{t.columns.uploaded}</th>
+                <th style={thStyle}>{t.columns.reader}</th>
+                <th style={{ ...thStyle, paddingRight: "22px" }}>
+                  {t.columns.result}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -320,7 +331,7 @@ export function LabDocumentsCard({
                   </td>
                   <td style={{ ...tdStyle, paddingRight: "22px" }}>
                     {doc.imported ? (
-                      countsLine(doc.imported)
+                      countsLine(doc.imported, t.counts)
                     ) : (
                       <div
                         style={{
@@ -330,7 +341,7 @@ export function LabDocumentsCard({
                           flexWrap: "wrap",
                         }}
                       >
-                        <span>Gespeichert, nicht eingelesen</span>
+                        <span>{t.storedNotRead}</span>
                         {canImport && (
                           <button
                             type="button"
@@ -338,7 +349,7 @@ export function LabDocumentsCard({
                             disabled={pending}
                             onClick={() => readStored(doc.id)}
                           >
-                            Einlesen
+                            {t.readNow}
                           </button>
                         )}
                       </div>
@@ -357,11 +368,7 @@ export function LabDocumentsCard({
               color: "var(--text-faint)",
             }}
           >
-            „Bereits vorhanden“: Der Wert liegt für diese Analyse und
-            Abnahmezeit schon identisch vor und wurde nicht doppelt übernommen.
-            „Nicht übernommen“: Ergebnis ohne Zahlenwert oder ohne Abnahmedatum
-            (zum Beispiel Textbefund, noch ausstehend). Die Zahlen zeigen den
-            Stand beim Einlesen.
+            {t.legend}
           </p>
         </>
       )}

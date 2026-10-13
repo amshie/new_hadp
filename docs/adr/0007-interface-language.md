@@ -40,8 +40,11 @@ product do not all read it.
    report statements, the names a laboratory wrote, the names of people. A report approved in
    German is a German report whatever the reader's interface shows.
 6. **A page says which language it is in.** `<html lang>` follows the choice. A page that is not
-   translated yet marks its content `lang="de"` (the shells do it unless told `translated`), and
-   recorded content will keep its own `lang` when the page around it is translated.
+   translated yet marks its content `lang="de"` (the shells do it unless told `translated`). On
+   a translated page, what stays German by a rule of this record is marked `lang="de"`: the
+   wording of the consent purposes, the values of the closed vocabularies. What was recorded
+   in a language nobody recorded — a laboratory's names, the names of people — carries no
+   mark of its own.
 7. **The same intended-use rules for both languages.** The web copy scan
    (`apps/api/tests/test_web_copy_language.py`) reads the dictionaries; English uses the
    project's own English terms where they exist ("source-grounded", "two-person approval").
@@ -54,6 +57,11 @@ product do not all read it.
   clinical meaning in any language: the doctrine's own terms (ADR-0003), the catalog's English
   names (ADR-0004) and the pairs that `lageCopy.ts` / `comparabilityCopy.ts` already hold are
   the terms to use, confirmed by the medical director. Not a fresh translation.
+  Until then their VALUES stay German on a translated page. What NAMES the kind of fact — a
+  column heading, a field label, a sentence that says what a column holds — is interface, in
+  the doctrine's and the register's own English ("Follow-up adequacy", "Reference position",
+  "position relative to the source reference interval"). Approved by the founder on
+  2026-10-13; the medical director may overrule that line, too.
 - **Numbers and dates.** A decimal comma against a decimal point is on the project's list of
   high-risk cases. Whether a value's FORMAT follows the reader's interface is a decision of its
   own, with a register line — until then every number and date stays as it is shown today.
@@ -78,3 +86,7 @@ product do not all read it.
   pages are translated, and the English needs the same guard.
 - Role names still have a second German source (`MitgliederContent.tsx`) until that page is
   translated.
+- A presenter shared with a page that is not translated yet keeps its German wording and
+  hands out KEYS and values besides; the translated page words them from the dictionary
+  (`lib/presenters/review.ts` for the patient page). Those few strings have two German
+  sources until the other page follows.
