@@ -437,11 +437,15 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   part 2; an action that returned a code, with the wording chosen on the page, could not
   differ — to weigh for part 3b).
   **Found while reading the patient page for part 3b, and decisive for it:** that page shows
-  CIS, Actionability, the tri-state axes, the position against the reference interval and the
-  comparability notes — closed vocabularies ADR-0007 named as German until the medical
-  director has confirmed their English terms — and two more that ADR-0003 closes and ADR-0007
-  had not named: the six domain axes and follow-up adequacy (added to ADR-0007 and the
-  register with this part). Closed sets on that page whose English has no named owner yet:
+  the position against the reference interval and the comparability notes — closed
+  vocabularies ADR-0007 named as German until the medical director has confirmed their
+  English terms — and two more that ADR-0003 closes and ADR-0007 had not named: the six domain
+  axes and follow-up adequacy (added to ADR-0007 and the register with this part). CIS,
+  Actionability and the tri-state cells are NOT shown there (they are in the page's view, and
+  rendered on the report review page only) — corrected: the first writing of this note, and
+  of the pull request, said they were. The notes on how a shown value relates to the source's
+  writing (converted, in the source's unit, as written) are sentences about the data, to be
+  translated with the same care. Closed sets on that page whose English has no named owner yet:
   the reasons of a deletion request, and the state of a run on a domain card (reviewed /
   draft / no run). Part 3b therefore translates the page AROUND them (header and actions, data
   coverage, laboratory files, consent, data export, the invitation and deletion dialogs) and
