@@ -369,37 +369,141 @@ export const en: Messages = {
       today: "today",
       days: "{n} d",
     },
+    // Before a visit: counts of recorded values, each a filter of the domain lists.
+    prep: {
+      title: "Before the visit",
+      note: "Counted from the recorded values. Each count filters the domain lists below; none is a rating.",
+      lastRun: "Last interpretation: run {n} · {date}",
+      noRun: "No interpretation recorded yet",
+      facts: {
+        since_run: {
+          label: {
+            one: "value since the last interpretation",
+            other: "values since the last interpretation",
+          },
+          note: "Received after {date}",
+          noRun: "Without an interpretation there is no “since”",
+        },
+        outside: {
+          label: {
+            one: "marker outside the source reference interval",
+            other: "markers outside the source reference interval",
+          },
+          note: "By the latest published value",
+        },
+        pending: {
+          label: {
+            one: "value awaiting review",
+            other: "values awaiting review",
+          },
+          note: "Not published, used in no change",
+        },
+        missing: {
+          label: {
+            one: "core marker without a published value",
+            other: "core markers without a published value",
+          },
+          note: "Of the catalog's {n} core markers",
+        },
+      },
+      filtered: {
+        since_run:
+          "Showing only markers with a value received after the last interpretation.",
+        outside:
+          "Showing only markers whose latest published value lies outside the source reference interval.",
+        pending: "Showing only markers with a value awaiting review.",
+        missing: "Showing only core markers without a published value.",
+      },
+      showAll: "Show all markers",
+    },
     domains: {
-      noRun:
-        "No interpretation run yet — the six domain axes are shown as a draft.",
-      select: "Select domain {axis}",
+      title: "Domains",
+      note: "The six domains of the interpretation model. Values belong to a domain through the KPI catalog – also before any interpretation is recorded.",
+      go: "{axis}: go to the marker list",
+      coreMarkers: { one: "{n} core marker", other: "{n} core markers" },
+      coverage: "{x} of {n} with a published value",
+      noCore: "No core markers in the catalog",
+      noValue: "No published value yet",
+      outside: {
+        one: "{n} marker outside the source reference interval",
+        other: "{n} markers outside the source reference interval",
+      },
+      outsideNone: "No latest value outside the source reference interval",
+      pending: {
+        one: "{n} value awaiting review",
+        other: "{n} values awaiting review",
+      },
+      pendingNone: "Nothing awaiting review",
+      latest: "Latest published value from {date}",
+      interpretation: "Clinician's interpretation",
       reviewed: "Reviewed",
       draft: "Draft",
       none: "No run",
+      run: "Run {n} · recorded on {date}",
       adequacy: "Follow-up adequacy:",
+      sinceRun: {
+        one: "{n} value received after this interpretation",
+        other: "{n} values received after this interpretation",
+      },
       citesReplaced:
         "Relies on a value the laboratory has corrected — check the interpretation.",
-      shown: "Biomarkers in the observation evidence",
-      show: "View biomarkers ({n})",
       notInterpreted: "Not interpreted yet",
     },
     evidence: {
-      title: "Observation evidence",
+      eyebrow: "Domain",
       note: "Source-grounded observations · position relative to the source reference interval · not a diagnosis or treatment advice.",
+      counts: "{x} of {n} core markers with a published value",
+      filteredCount: {
+        one: "{n} row in the filter",
+        other: "{n} rows in the filter",
+      },
       columns: {
         marker: "Marker",
-        category: "Category",
-        value: "Value",
-        change: "Δ",
+        value: "Latest value",
+        change: "Change",
         position: "Position vs. reference",
         bar: "Reference position",
+        measured: "Measured",
       },
       open: "Open marker {name}",
+      catalogName: "Name in the catalog",
+      measurementClass: {
+        laboratory: "Laboratory",
+        vital_sign: "Vital sign",
+        anthropometric: "Anthropometry",
+        body_composition: "Body composition",
+        functional_test: "Functional test",
+        wearable: "Wearable",
+        imaging: "Imaging",
+        derived: "Derived",
+        omics: "Omics",
+      },
+      missing: "No value recorded",
+      pending: {
+        one: "{n} value awaiting review",
+        other: "{n} values awaiting review",
+      },
+      corrected: "corrected by the laboratory",
+      noChange: "—",
+      ago: {
+        today: "today",
+        days: { one: "{n} day ago", other: "{n} days ago" },
+        months: { one: "{n} month ago", other: "{n} months ago" },
+      },
+      alsoRelevant: "Also relevant here",
+      alsoRelevantNote:
+        "Kept and counted in their own domain; shown here for an overview.",
       superseded: "replaced by a laboratory correction",
       inputReplaced: "input value replaced by a laboratory correction",
       empty: "No observations in this domain.",
+      emptyFilter: "No marker of this domain matches the filter.",
       noScale: "no scale",
       reference: "Ref {range}",
+    },
+    unassigned: {
+      title: "Not assigned to a catalog marker",
+      note: "Values the import could not link to a marker. They stay visible here and are decided in the review queue; until then they belong to no domain.",
+      openQueue: "Open the review queue",
     },
     valueStatus: {
       published: "published",
@@ -431,6 +535,15 @@ export const en: Messages = {
         "No position relative to the reference interval is stated for a value that is not published.",
       positionNote:
         "Position relative to the source reference interval · not a diagnosis or treatment advice.",
+      values: "All values of this marker",
+      valueColumns: {
+        measured: "Measured",
+        value: "Value",
+        asReported: "As reported",
+        reference: "Source interval",
+        status: "Status",
+        change: "Change",
+      },
     },
     audit: {
       title: "Audit status",

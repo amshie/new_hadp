@@ -83,6 +83,7 @@ export interface StatementView {
   evidenceIds: string[];
 }
 export interface MarkerView {
+  id: string;
   name: string;
   // The value the platform holds: normalized where it could be, otherwise the source's own
   // number in the source's unit — or, for a result that is no number, the source's writing.
@@ -438,6 +439,7 @@ export function presentReview(
       // A position against the reference interval is stated for a published value only.
       const published = p.review_status === "published";
       return {
+        id: p.observation_id,
         name: p.original_name,
         current:
           p.value != null

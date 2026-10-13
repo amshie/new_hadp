@@ -530,6 +530,12 @@ def seed_all(engine: Engine) -> dict[str, object]:
         # review screens have real data to read.
         _ensure_draft_report(db, clinic.id, patient.id)
 
+        # The values are committed before the run is recorded, as they are in the clinic: a run
+        # is authored after the values it reads arrived. In one transaction the run's
+        # created_at (the database's now(), the transaction's start) would precede every value
+        # received in it, and the patient page would count them all as arrived after the run.
+        db.commit()
+
         # One synthetic interpretation run (the six-axis matrix) for the demo patient.
         _ensure_interpretation_run(db, clinic.id, patient.id)
 

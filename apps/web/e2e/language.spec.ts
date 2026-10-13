@@ -348,6 +348,8 @@ test("the patient page follows the choice; what is not interface stays German an
     expect(await languageOf(back)).toBe("en");
     for (const heading of [
       "Data coverage",
+      "Before the visit",
+      "Domains",
       "Consents",
       "Laboratory data",
       "Audit status",
@@ -358,12 +360,24 @@ test("the patient page follows the choice; what is not interface stays German an
     }
     for (const german of [
       "Datenlage",
+      "Vor dem Termin",
+      "Kernmarker",
       "Labordaten",
       "Audit-Status",
       "Zurück zu Patienten",
     ]) {
       await expect(body).not.toContainText(german);
     }
+    // The counts before a visit are English and filter the lists; each is a button.
+    const prep = page.getByRole("region", { name: "Before the visit" });
+    await expect(prep).toContainText(
+      /Last interpretation: run \d+ · \d{2}\.\d{2}\.\d{4}/,
+    );
+    await expect(
+      prep.getByRole("button", {
+        name: /core markers? without a published value/,
+      }),
+    ).toBeVisible();
     // This role reads and does not record: the two cards say so, each in one sentence.
     await expect(body).toContainText(
       "earlier entries are never changed. Documenting is reserved for the practice team (read-only view).",
@@ -417,19 +431,35 @@ test("the patient page follows the choice; what is not interface stays German an
       expect(await languageOf(value)).toBe("de");
     }
     await expect(cards.first()).toContainText("Follow-up adequacy:");
+    // The clinician's own CIS and Actionability, quoted: German, and marked so.
+    const verdicts = cards.getByText(/^(CIS-\d|[A-E]) · /);
+    await expect(verdicts).toHaveCount(12);
+    for (const value of await verdicts.all()) {
+      expect(await languageOf(value)).toBe("de");
+    }
+    await expect(cards.first()).toContainText(
+      /Run \d+ · recorded on \d{2}\.\d{2}\.\d{4}/,
+    );
     for (const english of ["adequate", "not assessed"]) {
       await expect(cards.filter({ hasText: english })).toHaveCount(0);
     }
 
-    // The observation evidence of the first axis: its heading names the axis in German, and
-    // every value's position against its reference interval is one of the German names —
-    // none of the English ones lib/lageCopy.ts holds, nor an English comparability note.
-    const evidence = page.getByRole("heading", {
-      level: 3,
-      name: /^Observation evidence · /,
+    // The marker list of each domain: its heading names the domain in German, and every
+    // value's position against its reference interval is one of the German names — none of
+    // the English ones lib/lageCopy.ts holds, nor an English comparability note.
+    const metabolic = page.getByRole("region", {
+      name: "Metabolisch",
+      exact: true,
     });
-    expect(await languageOf(evidence.locator("span"))).toBe("de");
-    const rows = page.locator(".vb-erow");
+    expect(
+      await languageOf(
+        metabolic.getByRole("heading", { level: 3 }).locator("span"),
+      ),
+    ).toBe("de");
+    await expect(metabolic).toContainText(
+      /\d+ of \d+ core markers with a published value/,
+    );
+    const rows = page.locator(".vb-erow[role=button]");
     expect(await rows.count(), "the seeded patient has values").toBeGreaterThan(
       0,
     );
@@ -442,8 +472,14 @@ test("the patient page follows the choice; what is not interface stays German an
         /Über Referenz|Unter Referenz|Im Intervall|Keine Referenz|Nicht bestimmbar/,
       );
     }
-    const category = rows.first().getByText("Metabolisch", { exact: true });
-    expect(await languageOf(category)).toBe("de");
+    // A marker the catalog links here from another domain names that domain — in German.
+    const cardio = page.getByRole("region", {
+      name: "Kardiovaskulär",
+      exact: true,
+    });
+    await expect(cardio).toContainText("Also relevant here");
+    const home = cardio.getByText("Metabolisch", { exact: true });
+    expect(await languageOf(home.first())).toBe("de");
     const englishVocabulary = [
       "Above reference",
       "Below reference",
@@ -463,6 +499,11 @@ test("the patient page follows the choice; what is not interface stays German an
     const detail = page.getByRole("dialog");
     await expect(detail).toContainText("Review status");
     await expect(detail).toContainText("published");
+    // Every value of the marker beneath, with English column names.
+    await expect(detail).toContainText("All values of this marker");
+    await expect(
+      detail.getByRole("columnheader", { name: "As reported", exact: true }),
+    ).toBeVisible();
     await expect(detail).toContainText(
       "Position relative to the source reference interval · not a diagnosis or treatment advice.",
     );

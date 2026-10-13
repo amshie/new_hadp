@@ -54,6 +54,8 @@ class TimelinePoint:
     reference_high: Decimal | None
     observed_at: datetime
     observed_at_is_date_only: bool
+    # When the platform received the value — what a clinician could have seen by a given date.
+    received_at: datetime
     review_status: ReviewStatus
     delta_vs_previous: Decimal | None
     previous_observation_id: uuid.UUID | None
@@ -282,6 +284,7 @@ def build_timeline(db: Session, patient_id: uuid.UUID) -> list[TimelinePoint]:
                 reference_high=obs.reference_high,
                 observed_at=obs.observed_at,
                 observed_at_is_date_only=obs.observed_at_is_date_only,
+                received_at=obs.received_at,
                 review_status=obs.review_status,
                 delta_vs_previous=delta,
                 previous_observation_id=prev_id,

@@ -160,6 +160,44 @@ def kpi_codes_for_domain(db: Session, domain: DomainAxis) -> set[str]:
     return set(primary) | set(secondary)
 
 
+@dataclass(frozen=True)
+class CoreKpi:
+    """A core marker of the catalog: what a domain view expects to find in a record."""
+
+    code: str
+    display_name: str
+    primary_domain_axis: DomainAxis
+    measurement_class: KpiMeasurementClass
+
+
+def core_kpis(db: Session) -> list[CoreKpi]:
+    """The catalog's core markers — active and enabled by default — ordered by code.
+
+    Definitions only (ADR-0004): no reference or optimal range, no score. A domain view uses
+    them to say which expected markers a record carries and which it does not; that is a
+    count of what was measured, never a verdict.
+    """
+    rows = db.execute(
+        select(
+            KpiCatalog.code,
+            KpiCatalog.display_name,
+            KpiCatalog.primary_domain_axis,
+            KpiCatalog.measurement_class,
+        )
+        .where(KpiCatalog.default_enabled.is_(True), KpiCatalog.status == KpiStatus.ACTIVE)
+        .order_by(KpiCatalog.code)
+    ).all()
+    return [
+        CoreKpi(
+            code=code,
+            display_name=name,
+            primary_domain_axis=axis,
+            measurement_class=measurement_class,
+        )
+        for code, name, axis, measurement_class in rows
+    ]
+
+
 def domain_membership(
     db: Session, kpi_codes: set[str]
 ) -> dict[str, tuple[DomainAxis, list[DomainAxis]]]:

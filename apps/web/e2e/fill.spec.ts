@@ -146,10 +146,49 @@ test("the German of the patient page, put together", () => {
   expect(byCount(t.age, 0)).toBe("0 Jahre");
   expect(fill(t.reportVersion, { version: 2 })).toBe("Bericht · v2");
   expect(fill(t.coverage.days, { n: 489 })).toBe("489 T");
-  expect(fill(t.domains.select, { axis: "Metabolisch" })).toBe(
-    "Domäne Metabolisch auswählen",
+  // The counts before a visit, the domain cards and the domain lists.
+  expect(fill(t.prep.lastRun, { n: 2, date: "12.03.2026" })).toBe(
+    "Letzte Interpretation: Lauf 2 · 12.03.2026",
   );
-  expect(fill(t.domains.show, { n: 2 })).toBe("Biomarker ansehen (2)");
+  expect(byCount(t.prep.facts.since_run.label, 1)).toBe(
+    "Wert seit der letzten Interpretation",
+  );
+  expect(byCount(t.prep.facts.since_run.label, 3)).toBe(
+    "Werte seit der letzten Interpretation",
+  );
+  expect(fill(t.prep.facts.since_run.note, { date: "12.03.2026" })).toBe(
+    "Empfangen nach dem 12.03.2026",
+  );
+  expect(fill(t.prep.facts.missing.note, { n: 43 })).toBe(
+    "Von 43 Kernmarkern des Katalogs",
+  );
+  expect(fill(t.domains.go, { axis: "Metabolisch" })).toBe(
+    "Metabolisch: zur Markerliste",
+  );
+  expect(byCount(t.domains.coreMarkers, 9)).toBe("9 Kernmarker");
+  expect(fill(t.domains.coverage, { x: 2, n: 9 })).toBe(
+    "2 von 9 mit veröffentlichtem Wert",
+  );
+  expect(byCount(t.domains.outside, 1)).toBe(
+    "1 Marker außerhalb des Quellreferenzintervalls",
+  );
+  expect(byCount(t.domains.pending, 2)).toBe("2 Werte in Prüfung");
+  expect(fill(t.domains.latest, { date: "02.03.2026" })).toBe(
+    "Letzter veröffentlichter Wert vom 02.03.2026",
+  );
+  expect(fill(t.domains.run, { n: 2, date: "12.03.2026" })).toBe(
+    "Lauf 2 · erfasst am 12.03.2026",
+  );
+  expect(byCount(t.domains.sinceRun, 1)).toBe(
+    "1 Wert nach dieser Interpretation empfangen",
+  );
+  expect(fill(t.evidence.counts, { x: 7, n: 9 })).toBe(
+    "7 von 9 Kernmarkern mit veröffentlichtem Wert",
+  );
+  expect(byCount(t.evidence.filteredCount, 1)).toBe("1 Zeile im Filter");
+  expect(byCount(t.evidence.pending, 1)).toBe("1 Wert in Prüfung");
+  expect(byCount(t.evidence.ago.days, 3)).toBe("vor 3 Tagen");
+  expect(byCount(t.evidence.ago.months, 1)).toBe("vor 1 Monat");
   expect(fill(t.evidence.open, { name: "HbA1c" })).toBe("Marker HbA1c öffnen");
   expect(fill(t.evidence.reference, { range: "0–5.6" })).toBe("Ref 0–5.6");
   const converted = { source: "97 mg/dL", unit: "mmol/L" };
@@ -250,6 +289,26 @@ test("the English of the patient page, put together", () => {
   expect(
     `${byCount(t.dataExport.values, 1)} · ${byCount(t.dataExport.files, 1)} · ${byCount(t.dataExport.versions, 1)}`,
   ).toBe("1 value · 1 original file · 1 report version");
+  // The counts before a visit and the domain cards: one wording for a count of one.
+  expect(byCount(t.prep.facts.outside.label, 1)).toBe(
+    "marker outside the source reference interval",
+  );
+  expect(byCount(t.prep.facts.outside.label, 2)).toBe(
+    "markers outside the source reference interval",
+  );
+  expect(byCount(t.prep.facts.missing.label, 9)).toBe(
+    "core markers without a published value",
+  );
+  expect(byCount(t.domains.coreMarkers, 1)).toBe("1 core marker");
+  expect(byCount(t.domains.pending, 1)).toBe("1 value awaiting review");
+  expect(byCount(t.domains.sinceRun, 10)).toBe(
+    "10 values received after this interpretation",
+  );
+  expect(fill(t.domains.run, { n: 1, date: "13.10.2026" })).toBe(
+    "Run 1 · recorded on 13.10.2026",
+  );
+  expect(byCount(t.evidence.ago.days, 1)).toBe("1 day ago");
+  expect(byCount(t.evidence.ago.months, 16)).toBe("16 months ago");
 });
 
 // The report page, as it was in German before it followed the choice: the sentences it puts

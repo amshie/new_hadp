@@ -330,8 +330,22 @@ def main() -> int:
         # The patient page as well. What is not interface on it reads the same in both: the
         # wording of a consent purpose, the name of a domain axis.
         wording[f"/patients/{pid}"] = {
-            "de": ("Datenlage", "Labordaten", "Audit-Status", "Zurück zu Patienten"),
-            "en": ("Data coverage", "Laboratory data", "Audit status", "Back to patients"),
+            "de": (
+                "Datenlage",
+                "Vor dem Termin",
+                "Kernmarker ohne veröffentlichten Wert",
+                "Labordaten",
+                "Audit-Status",
+                "Zurück zu Patienten",
+            ),
+            "en": (
+                "Data coverage",
+                "Before the visit",
+                "core markers without a published value",
+                "Laboratory data",
+                "Audit status",
+                "Back to patients",
+            ),
         }
         # Members and deletion requests: this session's role is told, in its language, that
         # they are not for it.

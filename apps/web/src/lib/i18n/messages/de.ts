@@ -381,39 +381,136 @@ export const de = {
       today: "heute",
       days: "{n} T",
     },
+    // Before a visit: counts of recorded values, each a filter of the domain lists.
+    prep: {
+      title: "Vor dem Termin",
+      note: "Gezählt aus den erfassten Werten. Jede Zahl filtert die Domänenlisten darunter; keine ist eine Bewertung.",
+      lastRun: "Letzte Interpretation: Lauf {n} · {date}",
+      noRun: "Noch keine Interpretation erfasst",
+      facts: {
+        since_run: {
+          label: {
+            one: "Wert seit der letzten Interpretation",
+            other: "Werte seit der letzten Interpretation",
+          },
+          note: "Empfangen nach dem {date}",
+          noRun: "Ohne Interpretation gibt es kein „seit“",
+        },
+        outside: {
+          label: {
+            one: "Marker außerhalb des Quellreferenzintervalls",
+            other: "Marker außerhalb des Quellreferenzintervalls",
+          },
+          note: "Nach dem letzten veröffentlichten Wert",
+        },
+        pending: {
+          label: { one: "Wert in Prüfung", other: "Werte in Prüfung" },
+          note: "Nicht veröffentlicht, in keiner Veränderung berechnet",
+        },
+        missing: {
+          label: {
+            one: "Kernmarker ohne veröffentlichten Wert",
+            other: "Kernmarker ohne veröffentlichten Wert",
+          },
+          note: "Von {n} Kernmarkern des Katalogs",
+        },
+      },
+      filtered: {
+        since_run:
+          "Angezeigt werden nur Marker mit einem Wert, der nach der letzten Interpretation empfangen wurde.",
+        outside:
+          "Angezeigt werden nur Marker, deren letzter veröffentlichter Wert außerhalb des Quellreferenzintervalls liegt.",
+        pending: "Angezeigt werden nur Marker mit einem Wert in Prüfung.",
+        missing: "Angezeigt werden nur Kernmarker ohne veröffentlichten Wert.",
+      },
+      showAll: "Alle Marker anzeigen",
+    },
     domains: {
-      noRun:
-        "Noch kein Interpretationslauf — die sechs Domänen-Achsen werden als Entwurf angezeigt.",
-      select: "Domäne {axis} auswählen",
+      title: "Domänen",
+      note: "Die sechs Domänen des Interpretationsmodells. Werte gehören über den KPI-Katalog zu einer Domäne – auch bevor eine Interpretation erfasst ist.",
+      go: "{axis}: zur Markerliste",
+      coreMarkers: { one: "{n} Kernmarker", other: "{n} Kernmarker" },
+      coverage: "{x} von {n} mit veröffentlichtem Wert",
+      noCore: "Keine Kernmarker im Katalog",
+      noValue: "Noch kein veröffentlichter Wert",
+      outside: {
+        one: "{n} Marker außerhalb des Quellreferenzintervalls",
+        other: "{n} Marker außerhalb des Quellreferenzintervalls",
+      },
+      outsideNone: "Kein letzter Wert außerhalb des Quellreferenzintervalls",
+      pending: { one: "{n} Wert in Prüfung", other: "{n} Werte in Prüfung" },
+      pendingNone: "Nichts in Prüfung",
+      latest: "Letzter veröffentlichter Wert vom {date}",
+      // The clinician's own verdict, quoted — never derived here.
+      interpretation: "Ärztliche Interpretation",
       // The state of a run on a domain's card — workflow, not a verdict.
       reviewed: "Geprüft",
       draft: "Entwurf",
       none: "Kein Lauf",
+      run: "Lauf {n} · erfasst am {date}",
       // The name of the fact; its value is a closed vocabulary and stays German.
       adequacy: "Follow-up-Adäquanz:",
+      sinceRun: {
+        one: "{n} Wert nach dieser Interpretation empfangen",
+        other: "{n} Werte nach dieser Interpretation empfangen",
+      },
       citesReplaced:
         "Stützt sich auf einen vom Labor korrigierten Wert — Interpretation prüfen.",
-      shown: "Biomarker im Beobachtungsnachweis",
-      show: "Biomarker ansehen ({n})",
       notInterpreted: "Noch nicht interpretiert",
     },
     evidence: {
-      title: "Beobachtungsnachweis",
+      eyebrow: "Domäne",
       note: "Quellengebundene Beobachtungen · Lage relativ zum Quellreferenzintervall · keine automatische Diagnose oder Therapieempfehlung.",
+      counts: "{x} von {n} Kernmarkern mit veröffentlichtem Wert",
+      filteredCount: {
+        one: "{n} Zeile im Filter",
+        other: "{n} Zeilen im Filter",
+      },
       columns: {
         marker: "Marker",
-        category: "Kategorie",
-        value: "Wert",
-        change: "Δ",
+        value: "Letzter Wert",
+        change: "Veränderung",
         position: "Lage z. Referenz",
         bar: "Referenzlage",
+        measured: "Gemessen",
       },
       open: "Marker {name} öffnen",
+      // The catalog's name for a marker no source has named for this record.
+      catalogName: "Name im Katalog",
+      measurementClass: {
+        laboratory: "Labor",
+        vital_sign: "Vitalparameter",
+        anthropometric: "Anthropometrie",
+        body_composition: "Körperzusammensetzung",
+        functional_test: "Funktionstest",
+        wearable: "Wearable",
+        imaging: "Bildgebung",
+        derived: "Abgeleitet",
+        omics: "Omics",
+      },
+      missing: "Kein Wert erfasst",
+      pending: { one: "{n} Wert in Prüfung", other: "{n} Werte in Prüfung" },
+      corrected: "vom Labor korrigiert",
+      noChange: "—",
+      ago: {
+        today: "heute",
+        days: { one: "vor {n} Tag", other: "vor {n} Tagen" },
+        months: { one: "vor {n} Monat", other: "vor {n} Monaten" },
+      },
+      alsoRelevant: "Auch hier relevant",
+      alsoRelevantNote:
+        "Geführt und gezählt in ihrer eigenen Domäne; hier zur Übersicht.",
       superseded: "durch Laborkorrektur ersetzt",
       inputReplaced: "Eingangswert durch Laborkorrektur ersetzt",
       empty: "Keine Beobachtungen in dieser Domäne.",
+      emptyFilter: "Kein Marker dieser Domäne passt zum Filter.",
       noScale: "keine Skala",
       reference: "Ref {range}",
+    },
+    unassigned: {
+      title: "Keinem Katalogmarker zugeordnet",
+      note: "Werte, die der Import keinem Marker zuordnen konnte. Sie bleiben hier sichtbar und werden in der Review-Queue entschieden; bis dahin gehören sie zu keiner Domäne.",
+      openQueue: "Review-Queue öffnen",
     },
     // Where a value stands in the review of imported values.
     valueStatus: {
@@ -447,6 +544,16 @@ export const de = {
         "Für einen nicht veröffentlichten Wert wird keine Lage zum Referenzintervall angegeben.",
       positionNote:
         "Lage relativ zum Quellreferenzintervall · keine automatische Diagnose oder Therapieempfehlung.",
+      // Every value of the marker, oldest last: what the latest one stands on.
+      values: "Alle Werte dieses Markers",
+      valueColumns: {
+        measured: "Gemessen",
+        value: "Wert",
+        asReported: "Laut Quelle",
+        reference: "Referenz der Quelle",
+        status: "Status",
+        change: "Veränderung",
+      },
     },
     audit: {
       title: "Audit-Status",

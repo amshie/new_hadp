@@ -103,9 +103,12 @@ const queueRow = (page: Page, analyte: string): Locator =>
     .filter({ hasText: patient.name })
     .filter({ has: page.getByText(analyte, { exact: true }) });
 
-// The row of one value in the patient page's "Beobachtungsnachweis".
-const markerRow = (page: Page, analyte: string): Locator =>
-  page.getByRole("button", { name: `Marker ${analyte} öffnen` });
+// The row of one marker in a domain list of the patient page. A marker the catalog links to
+// several domains is listed in each; it is looked for in the one named.
+const markerRow = (page: Page, domain: string, analyte: string): Locator =>
+  page
+    .getByRole("region", { name: domain, exact: true })
+    .getByRole("button", { name: `Marker ${analyte} öffnen` });
 
 // A select of the interpretation form, by the name its label gives it. (The labels were not
 // connected to their controls when this suite was written; the selects are found by name
@@ -256,13 +259,20 @@ test("the assistant imports a laboratory file: one value is published, two wait 
     await expect(figure(page, "veröffentlicht")).toHaveText("1/3");
 
     // A value that waits says so, and no position against its reference interval is stated
-    // for it (88 lies within 59–104). The page lists a value under a domain its catalog KPI
-    // is linked to — for creatinine that is, among others, "Metabolisch".
-    await page
-      .getByRole("button", { name: "Domäne Metabolisch auswählen" })
-      .click();
-    const creatinine = markerRow(page, "Creatinine");
+    // for it (88 lies within 59–104). The catalog places creatinine in
+    // "Regenerationskapazität"; it is also listed, and not counted, under "Metabolisch".
+    const creatinine = markerRow(page, "Regenerationskapazität", "Creatinine");
     await expect(creatinine).toContainText("in Prüfung – nicht veröffentlicht");
+    await expect(creatinine).toContainText("1 Wert in Prüfung");
+    await expect(markerRow(page, "Metabolisch", "Creatinine")).toContainText(
+      "Regenerationskapazität",
+    );
+    // A name the catalog does not know belongs to no domain: it waits in its own list.
+    const unassigned = page.getByRole("region", {
+      name: "Keinem Katalogmarker zugeordnet",
+    });
+    await expect(unassigned).toContainText("Zink");
+    await expect(unassigned).toContainText("65 µg/dL");
     await expect(creatinine).toContainText("88 µmol/L");
     await expect(creatinine).not.toContainText("Im Intervall");
 
@@ -310,12 +320,7 @@ test("the clinician publishes the held values", async ({ browser }) => {
     // On the patient page the value no longer waits, and its position is now stated.
     await page.goto(patientPath);
     await expect(figure(page, "veröffentlicht")).toHaveText("3/3");
-    const metabolic = page.getByRole("button", {
-      name: "Domäne Metabolisch auswählen",
-    });
-    await hydrated(metabolic);
-    await metabolic.click();
-    const creatinine = markerRow(page, "Creatinine");
+    const creatinine = markerRow(page, "Regenerationskapazität", "Creatinine");
     await expect(creatinine).toContainText("Im Intervall");
     await expect(creatinine).not.toContainText("in Prüfung");
   });
@@ -383,19 +388,20 @@ test("the clinician authors the interpretation run", async ({ browser }) => {
     // under its domain.
     await page.waitForURL(`**${patientPath}`);
     for (const axis of DOMAIN_AXES) {
-      await expect(
-        page.getByRole("button", { name: `Domäne ${axis} auswählen` }),
-      ).toContainText("Follow-up-Adäquanz: nicht bewertet");
+      const card = page.locator(".vb-domaincard").filter({
+        has: page.getByRole("link", { name: `${axis}: zur Markerliste` }),
+      });
+      await expect(card).toContainText("Follow-up-Adäquanz: nicht bewertet");
+      await expect(card).toContainText(
+        /Lauf 1 · erfasst am \d{2}\.\d{2}\.\d{4}/,
+      );
     }
-    await expect(page.getByText("Noch kein Interpretationslauf")).toHaveCount(
-      0,
-    );
-    await page
-      .getByRole("button", { name: "Domäne Kardiovaskulär auswählen" })
-      .click();
-    await expect(markerRow(page, PUBLISHED_BY_IMPORT.name)).toContainText(
-      "Über Referenz",
-    );
+    await expect(
+      page.getByRole("region", { name: "Vor dem Termin" }),
+    ).toContainText(/Letzte Interpretation: Lauf 1 · \d{2}\.\d{2}\.\d{4}/);
+    await expect(
+      markerRow(page, "Kardiovaskulär", PUBLISHED_BY_IMPORT.name),
+    ).toContainText("Über Referenz");
   });
 });
 

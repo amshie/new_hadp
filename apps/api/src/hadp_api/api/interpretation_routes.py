@@ -7,6 +7,7 @@ fields) plus their three verdict-free tri-state cells. No unified score, no deri
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -70,6 +71,8 @@ class DomainVerdictOut(BaseModel):
 class DomainMatrixOut(BaseModel):
     run_id: str | None
     run_number: int | None
+    # When the run was recorded: values received after it were not before its author.
+    recorded_at: datetime | None = None
     domains: list[DomainVerdictOut]
 
 

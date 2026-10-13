@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { VitaShell } from "@/components/vitabahn/VitaShell";
 import {
   ApiError,
+  coreCatalog,
   getPatient,
   getReport,
   interpretation,
@@ -37,11 +38,12 @@ async function loadView(patientId: string): Promise<{
     const rows = await worklist();
     const row = rows.find((r) => r.patient_id === patientId);
     const reportId = row?.report_id ?? null;
-    const [patient, points, matrix, documents, consents, report] =
+    const [patient, points, matrix, catalog, documents, consents, report] =
       await Promise.all([
         getPatient(patientId),
         timeline(patientId),
         interpretation(patientId),
+        coreCatalog(),
         listDocuments(patientId),
         listConsents(patientId),
         // A stale/RLS-filtered report id must not 404 the whole patient — fall through to the
@@ -63,7 +65,7 @@ async function loadView(patientId: string): Promise<{
       statements: [],
     };
     return {
-      view: presentDetail(patient, resolved, points, matrix),
+      view: presentDetail(patient, resolved, points, matrix, catalog),
       documents,
       consents,
     };
