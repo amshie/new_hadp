@@ -340,6 +340,10 @@ def _said_at_start(
 ) -> list[logging.LogRecord]:
     """Start the application as configured by `settings`; what it logged about the limits."""
     monkeypatch.setattr(main_module, "get_settings", lambda: settings)
+    # Pin the logger's state: the test session migrates the database through Alembic, which
+    # configures logging from alembic.ini and switches every logger that already exists off —
+    # this one among them. In a running API nothing does that (migrating is its own process).
+    monkeypatch.setattr(logging.getLogger("hadp_api.main"), "disabled", False)
 
     async def start() -> None:
         async with main_module._lifespan(main_module.app):
