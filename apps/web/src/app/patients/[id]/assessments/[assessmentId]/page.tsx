@@ -10,6 +10,7 @@ import {
   me,
   timeline,
 } from "@/lib/api";
+import { getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
 import { presentReview, type ReviewView } from "@/lib/presenters/review";
 import { isUuid } from "@/lib/uuid";
@@ -46,20 +47,22 @@ export default async function AssessmentReviewPage({
   if (!isUuid(id) || !isUuid(assessmentId)) notFound();
 
   // The session role drives which Freigabe actions render (the API enforces them).
-  const [view, session] = await Promise.all([
+  const [view, session, messages] = await Promise.all([
     loadView(id, assessmentId),
     me().catch(() => null),
+    getMessages(),
   ]);
 
-  // The dashboard shell, as every other workspace page. The page inside is not translated
-  // yet (ADR-0007): its crumbs and content stay German, and say so. The page reports what
-  // its actions answer — an error among them — through the toast provider.
+  // The dashboard shell, as every other workspace page, in the interface language (ADR-0007);
+  // the closed vocabularies on the page stay German and say so. The page reports what its
+  // actions answer — an error among them — through the toast provider.
   return (
     <VitaShell
       nav="patienten"
-      crumb="Bericht"
+      crumb={messages.reportPage.crumb}
       crumbParent={{ label: view.patientName, href: `/patients/${id}` }}
       identity={shellIdentity(session)}
+      translated
     >
       <ToastProvider>
         <ReviewContent

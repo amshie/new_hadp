@@ -759,6 +759,234 @@ export const en: Messages = {
       failed: "Recording failed. Please try again.",
     },
   },
+  reportPage: {
+    crumb: "Report",
+    lead: "Every statement remains traceable to the observations it rests on.",
+    stage: {
+      title: {
+        report: "Source-grounded report",
+        draft: "Source-grounded draft",
+        rejected: "Rejected version",
+      },
+      badge: {
+        draft: "Not released",
+        approved: "Approved",
+        released: "Released",
+        rejected: "Rejected",
+      },
+      headline: {
+        draftSystem: "System draft – not released.",
+        draftEdited: "Reworked draft – not released.",
+        approved: "Clinically approved – not released yet.",
+        released: "Released by a physician.",
+        rejected: "Rejected – not released.",
+      },
+      detail: {
+        draft:
+          "Statements must be checked against their sources and signed by the clinical team.",
+        approved:
+          "Release to the patient is reserved for the medical director.",
+        released:
+          "Only this version can be viewed by the patient – as long as their access link is valid and their consent stands.",
+        rejected: "A rework creates a new version; this version is kept.",
+        citesReplaced:
+          "A cited value has been corrected by the laboratory – see the note below.",
+      },
+    },
+    kicker: {
+      edited: "Clinically reworked version",
+      deterministic: "Deterministic summary",
+    },
+    noStatements: "This report has no statements.",
+    rejected: {
+      title: "Rejected.",
+      reason: "Reason:",
+      noReason: "No reason was recorded for this rejection.",
+      reworked: "Rework after a rejection. Reason given then:",
+    },
+    citesReplaced: {
+      note: "A cited value has been corrected by the laboratory. This version cannot be approved or released.",
+      released:
+        " The patient's access to this version is withdrawn only when a new draft is created.",
+      clinician: " Create a new draft from the current values.",
+      otherRole: " A new draft is reserved for the clinical role.",
+    },
+    statement: {
+      label: "Statement {n}",
+      removing: " · will be removed",
+      remove: "Remove statement",
+      restore: "Restore statement",
+    },
+    chip: {
+      unresolved: "Evidence cannot be resolved",
+      observation: "Observation",
+      corrected: " · corrected by the laboratory",
+    },
+    rework: {
+      note: "The evidence stays bound to its statement. Saving creates version v{next} as a draft; the rejected version v{version} is kept. The new version has to be approved and released again.",
+      save: "Save as a new version",
+    },
+    domains: {
+      title: "Domain interpretation",
+      note: "Six domain axes · an Actionability verdict per axis. No score.",
+      run: "Run #{n}",
+      noRun: "There is no interpretation run for this patient yet.",
+      reviewed: "✓ reviewed",
+      draft: "Draft",
+      adequacy: "Follow-up adequacy:",
+      citesReplaced:
+        "Relies on a value the laboratory has corrected — check the interpretation.",
+      shown: "✓ Biomarkers in the observation evidence",
+      show: "View biomarkers ({n})",
+    },
+    evidence: {
+      title: "Observation evidence",
+      noteAll:
+        "Measured values, units, reference intervals and provenance — with the position relative to the reference interval.",
+      noteDomain: "The domain's own observations:",
+      showAll: "Show all",
+      filtersAria: "Filter by position relative to the reference interval",
+      filters: {
+        all: "All",
+        outside: "Outside reference",
+        no_ref: "Without reference",
+      },
+      caption: "Measured observations of this assessment",
+      columns: {
+        marker: "Marker",
+        primaryDomain: "Primary domain",
+        current: "Current",
+        position: "Position vs. reference interval",
+        change: "Change",
+        reference: "Reference",
+        codeStatus: "Code / status",
+      },
+      empty: {
+        outside: "No markers outside the reference interval.",
+        no_ref: "No markers without a reference on file.",
+        domain: "No observations for this domain.",
+        all: "No observations available.",
+      },
+      notPublished: "no position: the value is not published",
+      referenceInterval: "reference interval",
+      noInterval: "no reference interval on file",
+      reference: "Reference {range}",
+      noScale: "no scale",
+    },
+    secondary: {
+      title: "Secondarily relevant",
+      noteBefore: "Also relevant to",
+      noteAfter:
+        ". Shown for an overview – each value is kept and assessed in its primary domain; no domain assessment is derived from this.",
+      label: "Secondarily relevant observations for",
+    },
+    audit: {
+      title: "Audit status",
+      note: "Progress from data capture to release to the patient (live status).",
+    },
+    bar: {
+      status: "Report v{version} · Status: {status}",
+      hint: {
+        releasedReplaced:
+          "Released — a cited value has been corrected by the laboratory; the patient's access is withdrawn only when a new draft is created.",
+        replaced:
+          "A cited value has been corrected by the laboratory — this version cannot be approved or released.",
+        released:
+          "Released — Only this version can be viewed by the patient – as long as their access link is valid and their consent stands.",
+        rejectedClinician:
+          "Rejected — “Rework” creates a new version; the rejected one is kept.",
+        rejected: "Rejected — a rework creates a new version.",
+        approvedDirector:
+          "Ready for release to the patient — bound to consent, attributed and audited.",
+        approved: "Approved — waiting for release by a physician.",
+        draftClinician:
+          "The approval is written on the server, attributed to you and audited.",
+        draftDirector: "Waiting for the clinical approval.",
+        readOnly: "Read-only view for your role.",
+      },
+      rework: "Rework",
+      redraft: "Create a new draft",
+      reject: "Reject",
+      approve: "Approve report",
+      release: "Release to patient",
+    },
+    dialog: {
+      close: "Close dialog",
+      title: {
+        approve: "Approve the report?",
+        reject: "Reject the report?",
+        redraft: "Create a new draft?",
+        release: "Release to the patient?",
+        released: "Released — access link",
+      },
+      body: {
+        approve:
+          "You confirm that you have checked the visible observations, reference intervals and sources. The approval is written on the server, attributed to you and audited.",
+        reject:
+          "The current version is recorded as rejected (attributed and audited), together with the reason you choose. Whoever reworks the report sees this reason; a rework creates a new version.",
+        redraft:
+          "A new draft version is created from the values that currently stand. The previous version stays stored but is no longer shown here; wording that was reworked by hand is not carried over.",
+        redraftReleased:
+          "This withdraws the patient's access to the released report until the new version is approved and released again.",
+        redraftOther: "The new version has to be approved and released.",
+        release:
+          "The release is bound to consent (report_release), attributed to you and audited. The patient sees only the released version.",
+        released:
+          "The report is released. Synthetic demo: pass the link on by hand and safely — nothing is sent automatically.",
+      },
+      reason: "Reason for the rejection",
+      confirm:
+        "I have checked the open notes and confirm the clinical documentation.",
+      link: "Access link (shown once)",
+      copyLink: "Copy link",
+      done: "Close",
+      cancel: "Cancel",
+      submit: {
+        approve: "Approve",
+        reject: "Reject",
+        redraft: "Create a new draft",
+        release: "Release",
+      },
+    },
+    toast: {
+      saved: "Rework saved as a new version.",
+      approved: "Report approved.",
+      redrafted: "New draft created from the current values.",
+      rejected: "Report rejected.",
+      copied: "Link copied.",
+    },
+    errors: {
+      invalidReport: "Invalid report reference.",
+      invalidPatient: "Invalid patient reference.",
+      invalidPath: "Invalid path.",
+      forbidden: "Your role does not allow this action.",
+      tooMany:
+        "Too many requests in a short time. Please wait a moment and try again.",
+      noConsent:
+        "There is no active consent (report_release) on file for this patient.",
+      notApproved: "The report has not been approved yet.",
+      alreadyRejected: "The report has already been rejected.",
+      citesReplaced:
+        "Not possible: a cited value has been corrected by the laboratory. Please create a new draft from the current values.",
+      evidenceHidden:
+        "Approval not possible: not every piece of evidence can be viewed.",
+      wrongStatus:
+        "This action is not possible in the report's current status.",
+      failed: "The action failed. Please try again.",
+      noPublished: "No draft possible: there are no published observations.",
+      unsupported:
+        "No draft possible: not every statement could be backed by a source.",
+      statementShape:
+        "Every statement needs a text and at least one piece of evidence.",
+      restricted:
+        "Not saved: the text contains terms that are not permitted in reports ({terms}).",
+      editReplaced:
+        "Not saved: a cited value has been corrected by the laboratory. Please remove the statement concerned or create a new draft.",
+      editEvidence:
+        "Not saved: not every piece of evidence can be viewed. Please remove the statement concerned.",
+      chooseReason: "Please choose a reason.",
+    },
+  },
   notFound: {
     title: "Page not found",
     note: "The page you asked for does not exist or is not available.",
@@ -790,7 +1018,7 @@ export const en: Messages = {
     title: "Language",
     note: "The language of the interface on this device. Content such as reports, laboratory terms and names stays in the language it was recorded in.",
     progress:
-      "English is being added page by page: the navigation, sign-in, the overview, the patients list, the patient page, the review queue, recording an interpretation and this settings overview are done; all other pages are shown in German for now. The wording of the consent purposes, the clinical labels (domains, CIS, Actionability, follow-up and endpoint adequacy, the tri-state axes and their states, position relative to the reference interval, comparability) and the reasons of the review tasks stay German.",
+      "English is being added page by page: the navigation, sign-in, the overview, the patients list, the patient page, the review queue, recording an interpretation, the report page and this settings overview are done; all other pages are shown in German for now. The wording of the consent purposes, the clinical labels (domains, CIS, Actionability, follow-up and endpoint adequacy, the tri-state axes and their states, position relative to the reference interval, comparability), the reasons of the review tasks and the reasons for a rejection stay German.",
     selected: "selected",
     choose: "Interface language",
   },

@@ -29,7 +29,11 @@ import type { Messages } from "@/lib/i18n/messages";
 import { lageLabel } from "@/lib/lageCopy";
 import type { ReferencePosition } from "@/lib/referencePosition";
 import type { DetailView } from "@/lib/presenters/patientDetail";
-import { DOMAIN_AXIS_LABELS, type MarkerView } from "@/lib/presenters/review";
+import {
+  DOMAIN_AXIS_LABELS,
+  sourceNoteText,
+  type MarkerView,
+} from "@/lib/presenters/review";
 
 import { ConsentCard } from "./ConsentCard";
 import { DataExportCard } from "./DataExportCard";
@@ -45,26 +49,9 @@ import { LabDocumentsCard } from "./LabDocumentsCard";
 // do not, and are marked lang="de" wherever they show: the names of the domain axes, the
 // value of follow-up adequacy, the position against the reference interval, the
 // comparability notes (ADR-0007: their English needs the medical director). What NAMES a kind
-// of fact (a column heading, "Follow-up adequacy:") is interface. German as well: a message
-// of the report draft action, which belongs to the report pages. Numbers and dates keep
+// of fact (a column heading, "Follow-up adequacy:") is interface. Numbers and dates keep
 // their form.
 const GERMAN = "de";
-
-// How a shown value relates to what the source wrote, in the page's language.
-function sourceNoteText(
-  note: NonNullable<MarkerView["sourceNote"]>,
-  t: Messages["patientPage"]["sourceNote"],
-): { short: string; full: string } {
-  if (note.kind !== "converted") return t[note.kind];
-  const values = {
-    source: note.source ?? "",
-    unit: note.unit ?? t.converted.unitOfMetric,
-  };
-  return {
-    short: fill(t.converted.short, values),
-    full: fill(t.converted.full, values),
-  };
-}
 
 const cardStyle: CSSProperties = {
   background: "var(--surface-card)",

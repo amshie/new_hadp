@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { expect, test } from "@playwright/test";
 
 import { byCount, fill } from "../src/lib/i18n/fill";
@@ -255,35 +252,67 @@ test("the English of the patient page, put together", () => {
   ).toBe("1 value · 1 original file · 1 report version");
 });
 
-// The report review page is not translated yet, and its presenter is shared with the patient
-// page: it keeps its own German wording, and the patient page words the same things from the
-// dictionary. Two sources of one German sentence — this holds them together until the review
-// page follows. (Sentences with a value in them are pinned above instead.)
-test("the German the patient page words itself is the German of the shared presenter", () => {
-  const presenter = readFileSync(
-    join(__dirname, "../src/lib/presenters/review.ts"),
-    "utf8",
+// The report page, as it was in German before it followed the choice: the sentences it puts
+// together from pieces and values.
+test("the German of the report page, put together", () => {
+  const t = de.reportPage;
+  expect(
+    fill(t.bar.status, {
+      version: 2,
+      status: de.patientPage.reportStatus.draft,
+    }),
+  ).toBe("Bericht v2 · Status: Klinische Prüfung offen");
+  expect(fill(t.rework.note, { next: 3, version: 2 })).toBe(
+    "Die Belege bleiben an die jeweilige Aussage gebunden. Beim Speichern entsteht Version v3 als Entwurf; die zurückgewiesene Version v2 bleibt erhalten. Die neue Version muss erneut genehmigt und freigegeben werden.",
   );
-  const t = de.patientPage;
-  const steps = t.audit.steps;
-  const shared = [
-    ...Object.values(t.reportStatus).filter(
-      (name) => name !== t.reportStatus.none,
-    ),
-    t.ageUnknown,
-    t.valueStatus.pending,
-    t.valueStatus.rejected,
-    ...Object.values(t.sourceNote.text),
-    ...Object.values(t.sourceNote.source_unit),
-    t.sourceNote.converted.unitOfMetric,
-    ...Object.values(steps.capture),
-    ...Object.values(steps.draft),
-    ...Object.values(steps.clinical),
-    ...Object.values(steps.release),
-    ...Object.values(steps.patient),
-  ];
-  expect(shared.length).toBeGreaterThan(25);
-  for (const wording of shared) {
-    expect(presenter, wording).toContain(JSON.stringify(wording));
-  }
+  expect(`${t.dialog.body.redraft} ${t.dialog.body.redraftReleased}`).toBe(
+    "Aus den aktuell gültigen Werten wird eine neue Entwurfsversion erstellt. Die bisherige Version bleibt gespeichert, wird hier aber nicht mehr angezeigt; manuell überarbeitete Formulierungen werden nicht übernommen. Der Zugriff der Patientin auf den freigegebenen Bericht wird damit zurückgezogen, bis die neue Version genehmigt und erneut freigegeben ist.",
+  );
+  expect(
+    `${t.citesReplaced.note}${t.citesReplaced.released}${t.citesReplaced.clinician}`,
+  ).toBe(
+    "Ein zitierter Wert wurde vom Labor korrigiert. Diese Fassung kann nicht genehmigt oder freigegeben werden. Der Zugriff der Patientin auf diese Fassung wird erst mit einem neuen Entwurf zurückgezogen. Erstellen Sie einen neuen Entwurf aus den aktuellen Werten.",
+  );
+  // Around a name shown as it is recorded.
+  expect(`${t.secondary.noteBefore} Metabolisch${t.secondary.noteAfter}`).toBe(
+    "Auch für Metabolisch relevant. Zur Übersicht angezeigt – geführt und bewertet wird jeder Wert in seiner Primärdomäne; hieraus wird keine Domänen-Bewertung abgeleitet.",
+  );
+  expect(`${t.evidence.noteDomain} Metabolisch.`).toBe(
+    "Eigene Beobachtungen der Domäne: Metabolisch.",
+  );
+  expect(`${t.domains.adequacy} adäquat`).toBe("Follow-up-Adäquanz: adäquat");
+  expect(
+    `${t.rejected.title} ${t.rejected.reason} Formulierung. Die Formulierung muss geändert werden.`,
+  ).toBe(
+    "Zurückgewiesen. Grund: Formulierung. Die Formulierung muss geändert werden.",
+  );
+  expect(fill(t.statement.label, { n: 1 }) + t.statement.removing).toBe(
+    "Aussage 1 · wird entfernt",
+  );
+  expect(fill(t.errors.restricted, { terms: "x" })).toBe(
+    "Nicht gespeichert: Der Text enthält für Berichte nicht zulässige Begriffe (x).",
+  );
+  // A released status says what it proves, the same way above the text and under it.
+  expect(t.bar.hint.released).toBe(
+    `${t.stage.badge.released} — ${t.stage.detail.released}`,
+  );
+});
+
+test("the English of the report page, put together", () => {
+  const t = en.reportPage;
+  expect(
+    fill(t.bar.status, {
+      version: 2,
+      status: en.patientPage.reportStatus.draft,
+    }),
+  ).toBe("Report v2 · Status: Clinical review open");
+  expect(`${t.secondary.noteBefore} Metabolisch${t.secondary.noteAfter}`).toBe(
+    "Also relevant to Metabolisch. Shown for an overview – each value is kept and assessed in its primary domain; no domain assessment is derived from this.",
+  );
+  expect(`${t.dialog.body.redraft} ${t.dialog.body.redraftOther}`).toBe(
+    "A new draft version is created from the values that currently stand. The previous version stays stored but is no longer shown here; wording that was reworked by hand is not carried over. The new version has to be approved and released.",
+  );
+  expect(t.bar.hint.released).toBe(
+    `${t.stage.badge.released} — ${t.stage.detail.released}`,
+  );
 });

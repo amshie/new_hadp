@@ -4,6 +4,8 @@
 // Domain rollup / data-quality coverage are intentionally absent (Gate G1, ADR-0002 §6).
 
 import { comparabilityNote } from "@/lib/comparabilityCopy";
+import { fill } from "@/lib/i18n/fill";
+import type { Messages } from "@/lib/i18n/messages";
 import {
   referenceBar,
   referencePosition,
@@ -53,19 +55,20 @@ export const ADEQUACY_LABELS: Record<string, string> = {
   not_assessed: "nicht bewertet",
 };
 
-const REPORT_STATUS: Record<string, { badge: string; label: string }> = {
-  draft_generated: { badge: "badge-warning", label: "Klinische Prüfung offen" },
-  draft_edited: { badge: "badge-warning", label: "Klinische Prüfung offen" },
-  approved: {
-    badge: "badge-info",
-    label: "An ärztliche Freigabe weitergeleitet",
-  },
-  released: { badge: "badge-success", label: "Freigegeben" },
-  rejected: { badge: "badge-danger", label: "Zurückgewiesen" },
+// The badge of a report status; its words are the page's (reportStatusLabel below).
+const REPORT_STATUS_BADGE: Record<string, string> = {
+  draft_generated: "badge-warning",
+  draft_edited: "badge-warning",
+  approved: "badge-info",
+  released: "badge-success",
+  rejected: "badge-danger",
 };
 
 export interface EvidenceChip {
-  label: string;
+  // What the source called the cited observation (null: not stated) and the value it wrote —
+  // the page words the chip. Empty for evidence that cannot be resolved.
+  name: string | null;
+  value: string;
   status?: string;
   missing: boolean;
   // A published laboratory correction has replaced the cited value: the statement can no
@@ -91,21 +94,17 @@ export interface MarkerView {
   // What ties a value to the same analyte elsewhere (catalog code first, like the timeline).
   identity: string | null;
   // How `current` relates to what the source wrote — null when the value is normalized in
-  // the unit the source itself used. Provenance, never a verdict.
-  sourceNote: {
-    kind: "text" | "converted" | "source_unit";
-    short: string;
-    full: string;
-    // For a page that words the note itself (lib/i18n): what the source wrote, and the unit
-    // the value was converted to (null: the metric's own, not named) — "converted" only.
-    source?: string;
-    unit?: string | null;
-  } | null;
+  // the unit the source itself used. Provenance, never a verdict. The page words it
+  // (sourceNoteText below); for a conversion: what the source wrote, and the unit the value
+  // was converted to (null: the metric's own, not named).
+  sourceNote:
+    | { kind: "text" | "source_unit" }
+    | { kind: "converted"; source: string; unit: string | null }
+    | null;
   status: string;
   // Not published: still in the review queue, or rejected there. Such a value is shown as
   // what it is — with its status, and without a position against its reference interval.
   reviewRequired: boolean;
-  statusLabel: string | null;
   // A published laboratory correction has replaced this value; it stays as a preserved record.
   superseded: boolean;
   // A derived value computed from an input that a laboratory correction has replaced.
@@ -125,11 +124,9 @@ export interface MarkerView {
   comparabilityFull: string | null;
 }
 export interface AuditStepView {
-  // Which step, and which of its lines applies — for a page that words them itself.
+  // Which step, and which of its lines applies — the page words them.
   key: "capture" | "draft" | "clinical" | "release" | "patient";
   subKey: "done" | "active" | "pending" | "rejected";
-  label: string;
-  sub: string;
   state: "done" | "active" | "";
   dot: string;
 }
@@ -155,13 +152,11 @@ export interface DomainView {
 export interface ReviewView {
   patientName: string;
   ref: string;
-  ageProfile: string;
-  // The age in full years, null without a date of birth — for a page that words it itself.
+  // The age in full years, null without a date of birth — the page words it.
   ageYears: number | null;
   reportId: string;
   status: string;
   statusBadge: string;
-  statusLabel: string;
   versionNo: number;
   // True once the current version carries a human edit (no longer the provider's output).
   edited: boolean;
@@ -188,10 +183,6 @@ function ageYears(dob: string | null | undefined): number | null {
   return age;
 }
 
-function ageProfile(age: number | null): string {
-  return age === null ? "Alter unbekannt" : `${age} Jahre`;
-}
-
 function unitJoin(
   value: string | null | undefined,
   unit: string | null | undefined,
@@ -206,34 +197,16 @@ function unitJoin(
 // an addition ("<0,5", "12,4 H"), or a way of writing a number the platform does not read
 // one way ("4.000", "1.234,5").
 function sourceNote(p: TimelinePoint): MarkerView["sourceNote"] {
-  if (p.value == null)
-    return {
-      kind: "text",
-      short: "Angabe im Wortlaut",
-      full: "Aus der Angabe der Quelle liest die Plattform hier keine Zahl – etwa bei einem Textergebnis, einem Zusatz am Wert oder einer Schreibweise, die sie nicht eindeutig lesen kann. Angezeigt wird die Angabe im Wortlaut.",
-    };
+  if (p.value == null) return { kind: "text" };
   if (p.converted)
     return {
       kind: "converted",
       source: unitJoin(p.original_value, p.original_unit),
       unit: p.unit ?? null,
-      short: `umgerechnet aus ${unitJoin(p.original_value, p.original_unit)}`,
-      full: `Die Quelle nennt ${unitJoin(p.original_value, p.original_unit)}; der Wert – und das Referenzintervall, soweit eines angezeigt ist – wurde in ${p.unit ?? "die Einheit der Kennzahl"} umgerechnet.`,
     };
-  if (!p.normalized)
-    return {
-      kind: "source_unit",
-      short: "Einheit der Quelle",
-      full: "Der Wert steht so, wie die Quelle ihn nennt, in ihrer Einheit – ein angezeigtes Referenzintervall ebenso. Der Wert ist nicht normalisiert; eine Veränderung zum Vorwert wird deshalb nicht berechnet.",
-    };
+  if (!p.normalized) return { kind: "source_unit" };
   return null;
 }
-
-// Where a value stands in the review of imported values, when it is not published.
-const REVIEW_STATUS_LABELS: Record<string, string> = {
-  pending: "in Prüfung – nicht veröffentlicht",
-  rejected: "im Review abgelehnt",
-};
 
 function auditSteps(status: string): AuditStepView[] {
   const draft = status === "draft_generated" || status === "draft_edited";
@@ -242,12 +215,8 @@ function auditSteps(status: string): AuditStepView[] {
   const rejected = status === "rejected";
   const step = (
     key: AuditStepView["key"],
-    label: string,
     state: "done" | "active" | "",
     dot: string,
-    subDone: string,
-    subActive: string,
-    subPending: string,
   ): AuditStepView => ({
     key,
     subKey:
@@ -258,71 +227,30 @@ function auditSteps(status: string): AuditStepView[] {
           : rejected
             ? "rejected"
             : "pending",
-    label,
     state,
     dot: state === "done" ? "✓" : dot,
-    sub:
-      state === "done" ? subDone : state === "active" ? subActive : subPending,
   });
   // Each step says only what the status proves. A draft exists only from published values,
   // so step 1 says that and no more ("complete" is not something the status knows). A
   // rejected version may have been rejected before or after the clinical approval — the
   // status does not say which — so it is never shown as signed.
   return [
-    step(
-      "capture",
-      "Datenerfassung",
-      "done",
-      "1",
-      "Werte veröffentlicht",
-      "",
-      "",
-    ),
-    step("draft", "Entwurf erstellt", "done", "2", "Quellengebunden", "", ""),
+    step("capture", "done", "1"),
+    step("draft", "done", "2"),
     step(
       "clinical",
-      "Klinischer Review",
       draft ? "active" : approved || released ? "done" : "",
       "3",
-      "Signiert",
-      "In Bearbeitung",
-      rejected ? "Version zurückgewiesen" : "Ausstehend",
     ),
-    step(
-      "release",
-      "Ärztliche Freigabe",
-      approved ? "active" : released ? "done" : "",
-      "4",
-      "Abgeschlossen",
-      "In Prüfung",
-      rejected ? "Nicht erfolgt" : "Ausstehend",
-    ),
-    step(
-      "patient",
-      "Patientenfreigabe",
-      released ? "done" : "",
-      "5",
-      "Freigegeben",
-      "",
-      rejected ? "Zurückgewiesen — Überarbeitung nötig" : "Nicht möglich",
-    ),
+    step("release", approved ? "active" : released ? "done" : "", "4"),
+    step("patient", released ? "done" : "", "5"),
   ];
 }
 
-// What a released status proves — and no more. Whether the patient can open the report also
-// depends on a valid access link and standing consent, which the status does not carry (a
-// withdrawn consent or an expired link leaves the status "released").
-const RELEASED_ACCESS =
-  "Für die Patientin ist nur diese Version einsehbar – solange ihr Zugriffslink gültig ist und die Einwilligung besteht.";
-
-// A cited value was replaced by a laboratory correction: the version can be neither approved
-// nor released as it stands, whatever its status says.
-const CITES_REPLACED =
-  "Ein zitierter Wert wurde vom Labor korrigiert – siehe Hinweis unten.";
-
 // Where this report version stands, said above its text. Only a version that still awaits a
-// decision is called a draft; an approved or released version is never labelled "nicht
-// freigegeben". An unknown status is treated as not released (fail-safe).
+// decision is called a draft; an approved or released version is never labelled "not
+// released". An unknown status is treated as not released (fail-safe). The wording comes in
+// the page's language (lib/i18n).
 export interface ReportStageView {
   key: "draft" | "approved" | "released" | "rejected";
   // Draws attention instead of confirming: the version rests on a replaced value.
@@ -337,78 +265,98 @@ export function reportStage(
   status: string,
   edited: boolean,
   citesReplaced: boolean,
+  t: Messages["reportPage"]["stage"],
 ): ReportStageView {
+  // A cited value was replaced by a laboratory correction: the version can be neither
+  // approved nor released as it stands, whatever its status says.
   if (status === "released")
     return {
       key: "released",
       attention: citesReplaced,
-      title: "Quellengebundener Bericht",
-      badge: "Freigegeben",
-      headline: "Ärztlich freigegeben.",
-      detail: citesReplaced ? CITES_REPLACED : RELEASED_ACCESS,
+      title: t.title.report,
+      badge: t.badge.released,
+      headline: t.headline.released,
+      detail: citesReplaced ? t.detail.citesReplaced : t.detail.released,
     };
   if (status === "approved")
     return {
       key: "approved",
       attention: citesReplaced,
-      title: "Quellengebundener Bericht",
-      badge: "Genehmigt",
-      headline: "Klinisch genehmigt – noch nicht freigegeben.",
-      detail: citesReplaced
-        ? CITES_REPLACED
-        : "Die Freigabe an die Patientin ist der ärztlichen Leitung vorbehalten.",
+      title: t.title.report,
+      badge: t.badge.approved,
+      headline: t.headline.approved,
+      detail: citesReplaced ? t.detail.citesReplaced : t.detail.approved,
     };
   if (status === "rejected")
     return {
       key: "rejected",
       attention: false,
-      title: "Zurückgewiesene Fassung",
-      badge: "Zurückgewiesen",
-      headline: "Zurückgewiesen – nicht freigegeben.",
-      detail:
-        "Eine Überarbeitung erstellt eine neue Version; diese Fassung bleibt erhalten.",
+      title: t.title.rejected,
+      badge: t.badge.rejected,
+      headline: t.headline.rejected,
+      detail: t.detail.rejected,
     };
   return {
     key: "draft",
     attention: false,
-    title: "Quellengebundener Entwurf",
-    badge: "Nicht freigegeben",
+    title: t.title.draft,
+    badge: t.badge.draft,
     headline:
       status === "draft_edited" || edited
-        ? "Überarbeiteter Entwurf – nicht freigegeben."
-        : "Systementwurf – nicht freigegeben.",
-    detail: citesReplaced
-      ? CITES_REPLACED
-      : "Aussagen müssen anhand der Quellen geprüft und vom klinischen Team signiert werden.",
+        ? t.headline.draftEdited
+        : t.headline.draftSystem,
+    detail: citesReplaced ? t.detail.citesReplaced : t.detail.draft,
   };
 }
 
-// Honest, role-aware status line under the Freigabe action bar (shared by the review
-// and detail surfaces; the server enforces the actions — this only explains them).
+// Honest, role-aware status line under the release action bar (the server enforces the
+// actions — this only explains them). What a released status proves — and no more: whether
+// the patient can open the report also depends on a valid access link and standing consent,
+// which the status does not carry.
 export function statusHint(
   status: string,
   role: string | null,
-  citesReplaced = false,
+  citesReplaced: boolean,
+  t: Messages["reportPage"]["bar"]["hint"],
 ): string {
-  if (citesReplaced && status === "released")
-    return "Freigegeben — ein zitierter Wert wurde vom Labor korrigiert; der Zugriff der Patientin wird erst mit einem neuen Entwurf zurückgezogen.";
-  if (citesReplaced && status !== "rejected")
-    return "Ein zitierter Wert wurde vom Labor korrigiert — diese Fassung kann nicht genehmigt oder freigegeben werden.";
-  if (status === "released") return `Freigegeben — ${RELEASED_ACCESS}`;
+  if (citesReplaced && status === "released") return t.releasedReplaced;
+  if (citesReplaced && status !== "rejected") return t.replaced;
+  if (status === "released") return t.released;
   if (status === "rejected")
-    return role === "clinician"
-      ? "Zurückgewiesen — „Überarbeiten“ erstellt eine neue Version; die zurückgewiesene bleibt erhalten."
-      : "Zurückgewiesen — eine Überarbeitung erstellt eine neue Version.";
-  if (status === "approved") {
-    return role === "medical_director"
-      ? "Bereit zur Freigabe an die Patientin — einwilligungsgebunden, zugeordnet und auditiert."
-      : "Genehmigt — wartet auf die ärztliche Freigabe.";
-  }
-  if (role === "clinician")
-    return "Genehmigung wird serverseitig geschrieben, ist Ihnen zugeordnet und wird auditiert.";
-  if (role === "medical_director")
-    return "Wartet auf die klinische Genehmigung.";
-  return "Nur-Lese-Ansicht für Ihre Rolle.";
+    return role === "clinician" ? t.rejectedClinician : t.rejected;
+  if (status === "approved")
+    return role === "medical_director" ? t.approvedDirector : t.approved;
+  if (role === "clinician") return t.draftClinician;
+  if (role === "medical_director") return t.draftDirector;
+  return t.readOnly;
+}
+
+// How a shown value relates to what the source wrote, in the page's language.
+export function sourceNoteText(
+  note: NonNullable<MarkerView["sourceNote"]>,
+  t: Messages["patientPage"]["sourceNote"],
+): { short: string; full: string } {
+  if (note.kind !== "converted") return t[note.kind];
+  const values = {
+    source: note.source ?? "",
+    unit: note.unit ?? t.converted.unitOfMetric,
+  };
+  return {
+    short: fill(t.converted.short, values),
+    full: fill(t.converted.full, values),
+  };
+}
+
+// The words for a report status (the badge in the header, the action bar).
+export function reportStatusLabel(
+  status: string,
+  t: Messages["patientPage"]["reportStatus"],
+): string {
+  if (status === "draft_generated" || status === "draft_edited") return t.draft;
+  if (status === "approved") return t.approved;
+  if (status === "released") return t.released;
+  if (status === "rejected") return t.rejected;
+  return status;
 }
 
 export function presentReview(
@@ -418,10 +366,6 @@ export function presentReview(
   matrix: DomainMatrixView | null,
 ): ReviewView {
   const age = ageYears(patient.date_of_birth);
-  const statusInfo = REPORT_STATUS[report.status] ?? {
-    badge: "badge-neutral",
-    label: report.status,
-  };
   const domains: DomainView[] = (matrix?.domains ?? []).map((d) => {
     const markerCodes = Array.from(
       new Set(
@@ -459,12 +403,10 @@ export function presentReview(
     domains,
     patientName: patient.display_name,
     ref: patient.external_ref ?? "—",
-    ageProfile: ageProfile(age),
     ageYears: age,
     reportId: report.report_id,
     status: report.status,
-    statusBadge: statusInfo.badge,
-    statusLabel: statusInfo.label,
+    statusBadge: REPORT_STATUS_BADGE[report.status] ?? "badge-neutral",
     versionNo: report.version_no,
     edited: report.edited === true,
     citesReplaced: report.cites_replaced_evidence === true,
@@ -476,16 +418,16 @@ export function presentReview(
       evidenceIds: s.evidence.map((e) => e.observation_id),
       evidence: s.evidence.map((e) =>
         e.missing
-          ? { label: "Beleg nicht auflösbar", missing: true }
+          ? { name: null, value: "", missing: true }
           : {
               // The cited evidence as the source wrote it — what the reviewer has to judge,
               // including a result the statement does not quote. (An API answer without the
               // source fields falls back to the normalized value.)
-              label: `${e.original_name ?? "Beobachtung"}: ${
+              name: e.original_name ?? null,
+              value:
                 e.original_value != null
                   ? unitJoin(e.original_value, e.original_unit)
-                  : unitJoin(e.value, e.unit)
-              }`,
+                  : unitJoin(e.value, e.unit),
               status: e.review_status,
               missing: false,
               superseded: e.superseded === true,
@@ -511,9 +453,6 @@ export function presentReview(
         sourceNote: sourceNote(p),
         status: p.review_status,
         reviewRequired: !published,
-        statusLabel: published
-          ? null
-          : (REVIEW_STATUS_LABELS[p.review_status] ?? p.review_status),
         superseded: p.superseded_by_observation_id != null,
         inputReplaced: p.input_replaced === true,
         lagePosition: published
