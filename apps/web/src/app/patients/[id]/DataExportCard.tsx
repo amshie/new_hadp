@@ -6,7 +6,7 @@ import { useState, useTransition, type CSSProperties } from "react";
 import { Dialog } from "@/components/vitabahn/Dialog";
 import type { DataExport } from "@/lib/api";
 import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
-import { fill } from "@/lib/i18n/fill";
+import { byCount, fill } from "@/lib/i18n/fill";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import type { Messages } from "@/lib/i18n/messages";
 
@@ -263,8 +263,8 @@ export function DataExportCard({
                   style={{ padding: "4px 0", lineHeight: 1.5 }}
                 >
                   {fmtWhen(entry.exported_at)} · {fmtSize(entry.byte_size)} ·{" "}
-                  {fill(t.values, { n: entry.observations })} ·{" "}
-                  {fill(t.files, { n: entry.source_files })}
+                  {byCount(t.values, entry.observations)} ·{" "}
+                  {byCount(t.files, entry.source_files)}
                   {entry.source_files_missing + entry.source_files_changed >
                     0 &&
                     fill(t.filesChanged, {
@@ -275,7 +275,7 @@ export function DataExportCard({
                     fill(t.filesNeverRead, {
                       n: entry.source_documents_not_imported,
                     })}{" "}
-                  · {fill(t.versions, { n: entry.released_report_versions })} ·{" "}
+                  · {byCount(t.versions, entry.released_report_versions)} ·{" "}
                   <span
                     title={entry.checksum_sha256}
                     style={{

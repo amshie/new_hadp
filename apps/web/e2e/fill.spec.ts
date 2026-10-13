@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { expect, test } from "@playwright/test";
 
 import { byCount, fill } from "../src/lib/i18n/fill";
@@ -85,6 +88,9 @@ test("the German of the dialog to add a patient, put together", () => {
 test("the German of the patient page, put together", () => {
   const t = de.patientPage;
   expect(byCount(t.age, 46)).toBe("46 Jahre");
+  // The one sentence of this page that changed: an age of one.
+  expect(byCount(t.age, 1)).toBe("1 Jahr");
+  expect(byCount(t.age, 0)).toBe("0 Jahre");
   expect(fill(t.reportVersion, { version: 2 })).toBe("Bericht · v2");
   expect(fill(t.coverage.days, { n: 489 })).toBe("489 T");
   expect(fill(t.domains.select, { axis: "Metabolisch" })).toBe(
@@ -99,6 +105,15 @@ test("the German of the patient page, put together", () => {
   );
   expect(fill(t.sourceNote.converted.full, converted)).toBe(
     "Die Quelle nennt 97 mg/dL; der Wert – und das Referenzintervall, soweit eines angezeigt ist – wurde in mmol/L umgerechnet.",
+  );
+  // Where the metric's unit is not named.
+  expect(
+    fill(t.sourceNote.converted.full, {
+      source: "97 mg/dL",
+      unit: t.sourceNote.converted.unitOfMetric,
+    }),
+  ).toBe(
+    "Die Quelle nennt 97 mg/dL; der Wert – und das Referenzintervall, soweit eines angezeigt ist – wurde in die Einheit der Kennzahl umgerechnet.",
   );
   const event = {
     day: "12.10.2026",
@@ -150,8 +165,69 @@ test("the German of the patient page, put together", () => {
 
   const file = t.dataExport;
   expect(
-    `${fill(file.values, { n: 12 })} · ${fill(file.files, { n: 3 })}${fill(file.filesChanged, { n: 1 })}${fill(file.filesNeverRead, { n: 2 })} · ${fill(file.versions, { n: 2 })}`,
+    `${byCount(file.values, 12)} · ${byCount(file.files, 3)}${fill(file.filesChanged, { n: 1 })}${fill(file.filesNeverRead, { n: 2 })} · ${byCount(file.versions, 2)}`,
   ).toBe(
     "12 Werte · 3 Originaldateien (1 nicht mehr unverändert im Speicher) (2 nie eingelesen, nicht enthalten) · 2 Berichtsfassungen",
   );
+  // German as it was for a count of one, too (main forms no singular here).
+  expect(
+    `${byCount(file.values, 1)} · ${byCount(file.files, 1)} · ${byCount(file.versions, 1)}`,
+  ).toBe("1 Werte · 1 Originaldateien · 1 Berichtsfassungen");
+
+  // Sentences the page joins from two pieces around a name shown as it is recorded.
+  expect(`${t.domains.adequacy} adäquat`).toBe("Follow-up-Adäquanz: adäquat");
+  expect(
+    `${t.consent.footnoteBefore} Freigabe geprüfter Berichte ${t.consent.footnoteAfter}`,
+  ).toBe(
+    "Synthetische Demo: Zwecke und Einwilligungstext sind Platzhalter. Technisch durchgesetzt wird derzeit nur die Freigabe geprüfter Berichte (ohne aktive Einwilligung keine Freigabe; ein Widerruf entzieht bestehende Zugriffslinks). Die übrigen Zwecke werden dokumentiert, aber noch nicht technisch durchgesetzt.",
+  );
+});
+
+test("the English of the patient page, put together", () => {
+  const t = en.patientPage;
+  expect(byCount(t.age, 1)).toBe("1 year");
+  expect(
+    fill(t.lab.errors.nothingTaken, {
+      reason: t.lab.refusals.ambiguous_header,
+      where: fill(t.lab.errors.line, { line: 4 }),
+    }),
+  ).toBe(
+    "The table header names a column twice. (line 4) Nothing was taken over.",
+  );
+  expect(
+    `${byCount(t.dataExport.values, 1)} · ${byCount(t.dataExport.files, 1)} · ${byCount(t.dataExport.versions, 1)}`,
+  ).toBe("1 value · 1 original file · 1 report version");
+});
+
+// The report review page is not translated yet, and its presenter is shared with the patient
+// page: it keeps its own German wording, and the patient page words the same things from the
+// dictionary. Two sources of one German sentence — this holds them together until the review
+// page follows. (Sentences with a value in them are pinned above instead.)
+test("the German the patient page words itself is the German of the shared presenter", () => {
+  const presenter = readFileSync(
+    join(__dirname, "../src/lib/presenters/review.ts"),
+    "utf8",
+  );
+  const t = de.patientPage;
+  const steps = t.audit.steps;
+  const shared = [
+    ...Object.values(t.reportStatus).filter(
+      (name) => name !== t.reportStatus.none,
+    ),
+    t.ageUnknown,
+    t.valueStatus.pending,
+    t.valueStatus.rejected,
+    ...Object.values(t.sourceNote.text),
+    ...Object.values(t.sourceNote.source_unit),
+    t.sourceNote.converted.unitOfMetric,
+    ...Object.values(steps.capture),
+    ...Object.values(steps.draft),
+    ...Object.values(steps.clinical),
+    ...Object.values(steps.release),
+    ...Object.values(steps.patient),
+  ];
+  expect(shared.length).toBeGreaterThan(25);
+  for (const wording of shared) {
+    expect(presenter, wording).toContain(JSON.stringify(wording));
+  }
 });

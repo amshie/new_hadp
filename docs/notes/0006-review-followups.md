@@ -459,12 +459,18 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   (deletion request, consent, laboratory upload and import with its twenty reasons for not
   reading a file).
   **German on that page whatever the choice, each marked `lang="de"`:** the names of the six
-  domain axes, the line "Follow-up-Adäquanz: …", the position against the reference interval
+  domain axes, the VALUE of follow-up adequacy, the position against the reference interval
   (pill, screen-reader sentence, the sentence in the marker dialog), the comparability note,
-  the wording of the consent purposes — and a message of the report-draft action
-  (`app/reports/actions.ts` belongs to the report pages, not translated yet). The headings of
-  the two position columns and the sentence "position relative to the source reference
-  interval" are English, in the words `lageCopy.ts` already holds; the VALUES are not.
+  the wording of the consent purposes (rows, confirmation dialog, and the purpose the note
+  under the list names) — and a message of the report-draft action (`app/reports/actions.ts`
+  belongs to the report pages, not translated yet). Also German and marked, as the note of
+  part 3a said they would be until somebody decides their English: **the state of a run on a
+  domain card** (Geprüft / Entwurf / Kein Lauf) **and the three reasons of a deletion
+  request** — a founder's decision, asked for with this part.
+  The rule applied (now in ADR-0007): what NAMES a kind of fact is interface — a column
+  heading ("Position vs. reference", "Reference position"), the label "Follow-up adequacy:",
+  the sentence "position relative to the source reference interval" — in the doctrine's and
+  the register's own English; the VALUES of a closed vocabulary are not.
   How it is built: `lib/presenters/review.ts` keeps its German wording for the report review
   page and additionally hands out keys and values (`ageYears`, an audit step's `key` and
   `subKey`, a source note's `source` and `unit`); the patient page words the report's state,
@@ -472,19 +478,29 @@ test_web_copy_language.py` scans every `.ts/.tsx` under `apps/web/src` for restr
   to the source's writing from the dictionary. So these few German strings have two sources
   until the review page is translated.
   English names given here to sets with a fixed list behind them, none clinical, none with a
-  named owner yet: the report's state on this page (five), the state of a run on a domain
-  card (reviewed / draft / no run), a value's review state (published / in review / rejected
-  in review), the three reasons of a deletion request (GDPR's own English: data subject
-  request, consent withdrawn, data minimisation), the twenty reasons a laboratory file is
-  not read.
-  One German sentence changed, as in the dialog: an age of one is "1 Jahr". Number and date
-  formats are unchanged — the consent day, upload times, file sizes and "489 T" keep the
-  German form inside English sentences. `scripts/smoke_web.py` checks the page in both
-  directions and that a consent purpose and a domain name read the same in both;
-  `e2e/fill.spec.ts` pins every German sentence that is put together.
+  named owner yet: the report's state on this page (five), a value's review state (published
+  / in review / rejected in review), the twenty reasons a laboratory file is not read.
+  One German sentence changed, as in the dialog: an age of one is "1 Jahr" (the report review
+  page still says "1 Jahre"). In the export history a count of one keeps the German it had
+  ("1 Werte"); only the English forms a singular. Number and date formats are unchanged —
+  the consent day, upload times and file sizes keep the German form inside English
+  sentences; a unit letter that is wording follows the language ("489 T" / "489 d", as on
+  the overview). `scripts/smoke_web.py` checks the page in both directions and that a
+  consent purpose and a domain name read the same in both. `e2e/fill.spec.ts` pins the German
+  sentences that are put together from a template and values, and binds the German the page
+  words itself to the German of the shared presenter (a text comparison); the browser test
+  holds that the values of the closed vocabularies are the German ones (checked: it fails
+  when a position's name turns English) and one server answer in English that writes nothing.
+  Weighed and not done (the question left by part 3a): server actions that return a code
+  instead of a sentence. They keep answering in the language of the request — so, after a
+  change of language in another tab, a refusal can arrive in the new language and stand next
+  to a sentence the page words in the old one, until the page is loaded again.
+  Not covered by a test: the owner's parts (data-export card, deletion dialog), the
+  comparability note's mark, a laboratory refusal that names a line.
   Known and left: an `aria-label` that names a domain ("Select domain Metabolisch") cannot
   mark the German word inside it; what a laboratory wrote (analyte names) and people's names
-  carry no language mark of their own — the language of recorded content is not recorded.
+  carry no language mark of their own — the language of recorded content is not recorded
+  (ADR-0007 now says so).
   **Still German** (each marks its content `lang="de"`): review queue,
   interpretation, report review, the four settings sub-pages (members, deletion requests, the
   audit trail with its ~60 event labels, preparation time), the patient-facing pages, the

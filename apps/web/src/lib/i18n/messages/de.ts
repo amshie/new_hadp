@@ -383,10 +383,8 @@ export const de = {
       noRun:
         "Noch kein Interpretationslauf — die sechs Domänen-Achsen werden als Entwurf angezeigt.",
       select: "Domäne {axis} auswählen",
-      // The state of a run on a domain's card — workflow, not a verdict.
-      reviewed: "Geprüft",
-      draft: "Entwurf",
-      none: "Kein Lauf",
+      // The name of the fact; its value is a closed vocabulary and stays German.
+      adequacy: "Follow-up-Adäquanz:",
       citesReplaced:
         "Stützt sich auf einen vom Labor korrigierten Wert — Interpretation prüfen.",
       shown: "Biomarker im Beobachtungsnachweis",
@@ -491,11 +489,6 @@ export const de = {
       noteAfter:
         ". Es wird nichts sofort gelöscht — die Ärztliche Leitung muss den Antrag freigeben (Vier-Augen-Prinzip), die Ausführung erfolgt gesondert und ist unwiderruflich.",
       reason: "Grund",
-      reasons: {
-        patient_request: "Betroffenenanfrage (Art. 17)",
-        withdrawn_consent: "Einwilligung widerrufen",
-        data_minimization: "Datenminimierung",
-      },
       submit: "Löschung beantragen",
       submitting: "Wird beantragt …",
       doneTitle: "Löschantrag gestellt",
@@ -521,8 +514,11 @@ export const de = {
       channels: { in_person: "vor Ort erklärt" },
       recordGrant: "Einwilligung dokumentieren",
       recordWithdrawal: "Widerruf dokumentieren",
-      footnote:
-        "Synthetische Demo: Zwecke und Einwilligungstext sind Platzhalter. Technisch durchgesetzt wird derzeit nur die Freigabe geprüfter Berichte (ohne aktive Einwilligung keine Freigabe; ein Widerruf entzieht bestehende Zugriffslinks). Die übrigen Zwecke werden dokumentiert, aber noch nicht technisch durchgesetzt.",
+      // Around the name of the one purpose that is enforced, shown as it is recorded.
+      footnoteBefore:
+        "Synthetische Demo: Zwecke und Einwilligungstext sind Platzhalter. Technisch durchgesetzt wird derzeit nur die",
+      footnoteAfter:
+        "(ohne aktive Einwilligung keine Freigabe; ein Widerruf entzieht bestehende Zugriffslinks). Die übrigen Zwecke werden dokumentiert, aber noch nicht technisch durchgesetzt.",
       grantTitle: "Einwilligung dokumentieren?",
       withdrawTitle: "Widerruf dokumentieren?",
       grantNote:
@@ -642,11 +638,15 @@ export const de = {
       done: "Datei erstellt und heruntergeladen.",
       none: "Für diese Akte wurde noch keine Datenauskunft erstellt.",
       history: "Bisher erstellt (aus dem Audit-Protokoll)",
-      values: "{n} Werte",
-      files: "{n} Originaldateien",
+      // German as it was: a count of one is not given a singular of its own here.
+      values: { one: "{n} Werte", other: "{n} Werte" },
+      files: { one: "{n} Originaldateien", other: "{n} Originaldateien" },
       filesChanged: " ({n} nicht mehr unverändert im Speicher)",
       filesNeverRead: " ({n} nie eingelesen, nicht enthalten)",
-      versions: "{n} Berichtsfassungen",
+      versions: {
+        one: "{n} Berichtsfassungen",
+        other: "{n} Berichtsfassungen",
+      },
       confirmTitle: "Datenauskunft erstellen?",
       confirmNote:
         "Die Datei enthält personenbezogene Gesundheitsdaten dieser Person und wird auf dieses Gerät heruntergeladen. Bewahren Sie sie geschützt auf und geben Sie sie nur an die betroffene Person weiter. Die Erstellung wird Ihnen zugeordnet und auditiert; in der Plattform wird keine Kopie der Datei gespeichert.",

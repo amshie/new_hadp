@@ -41,11 +41,14 @@ import { LabDocumentsCard } from "./LabDocumentsCard";
 // NOT a Normal/Grenzwertig/Auffällig verdict — that has no real source and crosses the MDR
 // boundary. The marker modal uses the lab-only reference bar, not a heuristic severity gauge.
 //
-// The page follows the interface language (lib/i18n). Four things on it do not, and are
-// marked lang="de" wherever they show: the names of the domain axes, follow-up adequacy, the
-// position against the reference interval, and the comparability notes — closed vocabularies
-// whose English terms need the medical director (ADR-0007). So is a message of the report
-// draft action, which belongs to the report pages. Numbers and dates keep their form.
+// The page follows the interface language (lib/i18n). The VALUES of closed vocabularies on it
+// do not, and are marked lang="de" wherever they show: the names of the domain axes, the
+// value of follow-up adequacy, the position against the reference interval, the
+// comparability notes (ADR-0007: their English needs the medical director) — and two sets
+// whose English nobody has decided: the state of a run on a domain card and the reasons of a
+// deletion request. What NAMES a kind of fact (a column heading, "Follow-up adequacy:") is
+// interface. German as well: a message of the report draft action, which belongs to the
+// report pages. Numbers and dates keep their form.
 const GERMAN = "de";
 
 // How a shown value relates to what the source wrote, in the page's language.
@@ -960,22 +963,20 @@ export function PatientDetailContent({
                     flexShrink: 0,
                     marginTop: "4px",
                   }}
+                  lang={GERMAN}
                 >
                   {d.assessed
                     ? d.reviewed
-                      ? t.domains.reviewed
-                      : t.domains.draft
-                    : t.domains.none}
+                      ? "Geprüft"
+                      : "Entwurf"
+                    : "Kein Lauf"}
                 </span>
               </div>
               {d.assessed ? (
                 <>
-                  {/* A closed vocabulary: its name and its value stay German. */}
-                  <div
-                    lang={GERMAN}
-                    style={{ fontSize: "12px", color: "var(--text-muted)" }}
-                  >
-                    Follow-up-Adäquanz: {d.adequacyLabel}
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                    {t.domains.adequacy}{" "}
+                    <span lang={GERMAN}>{d.adequacyLabel}</span>
                   </div>
                   {d.citesReplaced && (
                     <div
@@ -1977,14 +1978,15 @@ export function PatientDetailContent({
                   marginBottom: "16px",
                 }}
               >
-                <option value="patient_request">
-                  {t.deletion.reasons.patient_request}
+                {/* No decision on their English yet: German, and marked. */}
+                <option value="patient_request" lang={GERMAN}>
+                  Betroffenenanfrage (Art. 17)
                 </option>
-                <option value="withdrawn_consent">
-                  {t.deletion.reasons.withdrawn_consent}
+                <option value="withdrawn_consent" lang={GERMAN}>
+                  Einwilligung widerrufen
                 </option>
-                <option value="data_minimization">
-                  {t.deletion.reasons.data_minimization}
+                <option value="data_minimization" lang={GERMAN}>
+                  Datenminimierung
                 </option>
               </select>
 

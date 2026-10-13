@@ -226,7 +226,11 @@ export function ConsentCard({
           color: "var(--text-faint)",
         }}
       >
-        {t.footnote}
+        {t.footnoteBefore}{" "}
+        <span lang="de">
+          {CONSENT_OPTIONS.find((o) => o.purpose === "report_release")?.label}
+        </span>{" "}
+        {t.footnoteAfter}
       </p>
 
       {confirm && (

@@ -188,8 +188,7 @@ function ageYears(dob: string | null | undefined): number | null {
   return age;
 }
 
-function ageProfile(dob: string | null | undefined): string {
-  const age = ageYears(dob);
+function ageProfile(age: number | null): string {
   return age === null ? "Alter unbekannt" : `${age} Jahre`;
 }
 
@@ -418,6 +417,7 @@ export function presentReview(
   timeline: TimelinePoint[],
   matrix: DomainMatrixView | null,
 ): ReviewView {
+  const age = ageYears(patient.date_of_birth);
   const statusInfo = REPORT_STATUS[report.status] ?? {
     badge: "badge-neutral",
     label: report.status,
@@ -459,8 +459,8 @@ export function presentReview(
     domains,
     patientName: patient.display_name,
     ref: patient.external_ref ?? "—",
-    ageProfile: ageProfile(patient.date_of_birth),
-    ageYears: ageYears(patient.date_of_birth),
+    ageProfile: ageProfile(age),
+    ageYears: age,
     reportId: report.report_id,
     status: report.status,
     statusBadge: statusInfo.badge,

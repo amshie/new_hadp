@@ -371,9 +371,7 @@ export const en: Messages = {
       noRun:
         "No interpretation run yet — the six domain axes are shown as a draft.",
       select: "Select domain {axis}",
-      reviewed: "Reviewed",
-      draft: "Draft",
-      none: "No run",
+      adequacy: "Follow-up adequacy:",
       citesReplaced:
         "Relies on a value the laboratory has corrected — check the interpretation.",
       shown: "Biomarkers in the observation evidence",
@@ -406,7 +404,7 @@ export const en: Messages = {
     sourceNote: {
       text: {
         short: "As written by the source",
-        full: "The platform reads no number from what the source wrote here – for instance a text result, an addition to the value, or a way of writing a number it cannot read one way. What the source wrote is shown as written.",
+        full: "The platform reads no number from what the source wrote here – for instance a text result, an addition to the value, or a way of writing a number that it cannot read unambiguously. What the source wrote is shown as written.",
       },
       converted: {
         short: "converted from {source}",
@@ -475,11 +473,6 @@ export const en: Messages = {
       noteAfter:
         ". Nothing is deleted at once — the medical director has to approve the request (two-person approval); it is carried out separately and cannot be undone.",
       reason: "Reason",
-      reasons: {
-        patient_request: "Data subject request (Art. 17)",
-        withdrawn_consent: "Consent withdrawn",
-        data_minimization: "Data minimisation",
-      },
       submit: "Request deletion",
       submitting: "Filing the request …",
       doneTitle: "Deletion request filed",
@@ -505,8 +498,10 @@ export const en: Messages = {
       channels: { in_person: "declared in person" },
       recordGrant: "Document consent",
       recordWithdrawal: "Document withdrawal",
-      footnote:
-        "Synthetic demo: the purposes and the consent text are placeholders. At present only the release of reviewed reports is enforced technically (no release without an active consent; a withdrawal revokes existing access links). The other purposes are documented, but not yet enforced technically.",
+      footnoteBefore:
+        "Synthetic demo: the purposes and the consent text are placeholders. At present only the purpose",
+      footnoteAfter:
+        "is enforced technically (no release without an active consent; a withdrawal revokes existing access links). The other purposes are documented, but not yet enforced technically.",
       grantTitle: "Document consent?",
       withdrawTitle: "Document withdrawal?",
       grantNote:
@@ -588,25 +583,28 @@ export const en: Messages = {
           "The file states a date of birth other than this record's.",
         checksum_mismatch:
           "The checksum of the LDT file does not match — the file is damaged or incomplete.",
-        malformed_record: "The LDT file is incomplete or not in the format.",
-        malformed_object: "The LDT file is incomplete or not in the format.",
+        malformed_record:
+          "The LDT file is incomplete or does not follow the format.",
+        malformed_object:
+          "The LDT file is incomplete or does not follow the format.",
         unsupported_ldt_version: "This LDT version is not read.",
         unsupported_record_type:
           "The LDT file holds a record type that is not read (laboratory findings only).",
         unsupported_report_kind:
           "The LDT file holds a record type that is not read (laboratory findings only).",
         unsupported_layout:
-          "The table header does not hold the expected columns (analyte, value, collection date).",
+          "The table header does not hold the expected columns (analyte, value, date).",
         ambiguous_header: "The table header names a column twice.",
         malformed_table:
           "A row does not have as many fields as the table header (often: a decimal comma in a comma-separated file).",
         missing_field: "A row lacks the analyte, the value or the date.",
         unsupported_date:
-          "A date cannot be read one way (expected: DD.MM.YYYY or YYYY-MM-DD).",
+          "A date cannot be read unambiguously (expected: DD.MM.YYYY or YYYY-MM-DD).",
         implausible_date: "A date lies outside the plausible span.",
         unsupported_time: "A time cannot be read (expected: HH:MM).",
         empty_document: "The file holds no laboratory values.",
-        too_many_values: "The file holds more values than a single report has.",
+        too_many_values:
+          "The file holds more values than a single set of laboratory findings has.",
         document_unavailable:
           "The stored original file cannot be read. Please upload it again.",
       },
@@ -617,16 +615,16 @@ export const en: Messages = {
         "A file with the data stored about this person, for an access request (Art. 15 GDPR) or data portability (Art. 20 GDPR): master data, consent records, all values, the original files read into this record and the released report versions.",
       notIncluded: "Not included",
       noteAfter:
-        "are, among other things, report versions that were not released, the working documentation of the interpretation, review decisions, the audit trail, details about staff and stored files that were never read into this record — the complete list is in the file itself. Whether these parts belong to a complete answer is still to be settled legally.",
+        "are, among other things, report versions that were not released, the working documentation of the interpretation, review decisions, the audit trail, details about staff and stored files that were never read into this record — the complete list is in the file itself. Whether these parts belong to a complete response to an access request is still to be settled legally.",
       create: "Create data export",
       done: "File created and downloaded.",
       none: "No data export has been created for this record yet.",
       history: "Created so far (from the audit trail)",
-      values: "{n} values",
-      files: "{n} original files",
+      values: { one: "{n} value", other: "{n} values" },
+      files: { one: "{n} original file", other: "{n} original files" },
       filesChanged: " ({n} no longer unchanged in storage)",
       filesNeverRead: " ({n} never read, not included)",
-      versions: "{n} report versions",
+      versions: { one: "{n} report version", other: "{n} report versions" },
       confirmTitle: "Create data export?",
       confirmNote:
         "The file holds personal health data of this person and is downloaded to this device. Keep it protected and hand it only to the person concerned. Creating it is attributed to you and audited; the platform keeps no copy of the file.",
@@ -677,7 +675,7 @@ export const en: Messages = {
     title: "Language",
     note: "The language of the interface on this device. Content such as reports, laboratory terms and names stays in the language it was recorded in.",
     progress:
-      "English is being added page by page: the navigation, sign-in, the overview, the patients list, the patient page and this settings overview are done; all other pages are shown in German for now. The wording of the consent purposes and the clinical labels (domains, follow-up adequacy, position against the reference interval, comparability) stay German.",
+      "English is being added page by page: the navigation, sign-in, the overview, the patients list, the patient page and this settings overview are done; all other pages are shown in German for now. The wording of the consent purposes and the clinical labels (domains, follow-up adequacy, position relative to the reference interval, comparability) stay German.",
     selected: "selected",
     choose: "Interface language",
   },
