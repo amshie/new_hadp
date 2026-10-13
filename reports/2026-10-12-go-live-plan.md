@@ -181,3 +181,60 @@ In parallel and not engineering: §6.1 (the Regulatory Lead), §6.4 (vendors) an
 ## 8. Go-live readiness review (unchanged)
 
 All gates in §2 green and recorded in the register; exit criteria A–F met; AVV/TOMs/§203 signed with **this** clinic; counsel's consent texts live; penetration-test report accepted; restore protocol on file; runbooks and support reachable; the register contains no claim the evidence contradicts. Only then: provision the tenant and lift synthetic-only for that tenant.
+
+---
+
+## 9. Status after §7 (2026-10-13)
+
+The four decision-free steps of §7 were carried out on 2026-10-12/13, each as its own pull request with an independent review (#66, #67, #68, #69), and the errors those reviews and the new browser test found were fixed in the same run. The fixes that followed (#70–#73) were verified by CI and by the browser test; they were not reviewed independently. From the moment the development machine's Docker failed (a full disk), nothing could be run locally: CI was the only test environment for most of this work. This section records what that changed in the plan above; the sections above are left as they were written.
+
+### 9.1 What §7 delivered
+
+| §7 step                                   | Pull requests | State                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 — Playwright end-to-end                 | #68, #72      | **Done for the primary workflow.** One synthetic patient is walked through the clinic in a browser, each step as the role the API allows; CI runs it against the production build. Open: verdicts are not told apart per axis, nothing crosses a clinic boundary, rejection/rework and LDT have no browser test (`docs/notes/0006`).                      |
+| 2 — Images and a production-shaped stack  | #65, #69      | **Done as far as no vendor is needed.** Three images (non-root; the API image is in production mode unless told otherwise), a migrate step that seeds the KPI catalog, a stack smoke of 37 checks and an image scan in CI; the web build needs no network. Open: everything in workstream C that needs a vendor. **Nobody can sign in to a production-mode stack** — it proves boot and posture. |
+| 3 — Preparation-time metric (A6)          | #67           | **Part 1 only — A6 stays open.** The clinic's baseline and follow-ups, and one measured interval (first draft to the first approval that stood). **No measure exists that can be set against the baseline**: the product records no start of preparation (decision 12 below).                                                                         |
+| 4 — Security items that need no vendor    | #66, #71      | **Done, and more than planned** — see 9.2.                                                                                                                                                                                                                                                                                                              |
+| 5 — Fixtures of the pilot laboratory (A1) | —             | Not started: it waits for the laboratory's answer.                                                                                                                                                                                                                                                                                                       |
+
+### 9.2 Defects found on the way, and fixed
+
+None of these was in the plan; each was found by a review or by the browser test.
+
+- **The RLS role guard did not hold** (#66): it ran in production only, once, after the engine had been stored — a misprovisioned application role was refused on the first request and served with RLS bypassed on every later one. It now runs before the engine is kept, in every environment, and at startup.
+- **A path from the application role to superuser rights** (#71): the erasure function runs as its owner and resolved its table names on the caller's search path; a temporary table could stand in for a real one.
+- **Sign-out removed one of two cookies, and in production none** (#66).
+- **A throttled client still wrote one audit row per refused request; a counter could lose its expiry and refuse a user for good** (#66).
+- **A refused production configuration printed the tail of a secret** (#66).
+- **Times depended on the server's zone and the reader's device** (#70) — a hydration error on the patient page and a date-only laboratory value that could read as the day before.
+- **The interpretation form's 61 fields had no accessible names** (#72).
+- **The sign-in form and the upload form put what was entered into the URL** when used before the page was hydrated (#72).
+- **The API image would have started in development mode** — password-less sign-in live — if one variable was forgotten; **the catalog seeding reported success on a stale catalog** (#69).
+- The open Dependabot alert (Mako) is closed (#73).
+
+### 9.3 What this changes in the lists above
+
+- **§3 B:** closed — sign-out, the drafting rate limit, the role guard in every environment. Still open — the OIDC provider and MFA, a nonce-based CSP, a malware-scan step, signed URLs. **New:** the role guard does not refuse a table _owner_ and an unset `APP_DATABASE_URL` still falls back to the admin DSN; **the public rate limits count the web server's address, not the client's** (all patients share one budget of 30 link checks a minute); report edits are unbounded; throttling events carry neither user nor clinic.
+- **§3 C:** done — Dockerfiles, catalog seeding as a deploy step, self-hosted fonts, a container scan. **New:** the MinIO images `docker-compose.yml` names can no longer be pulled (Docker Hub answers 404), so a new machine cannot start local object storage; the seeding command seeds and does not upgrade — replacing a catalog release has no path yet; base images are pinned by tag, not by digest.
+- **§3 F:** done — Playwright for the primary workflow, `make test-e2e`, a container scan. Still open — ESLint, `apps/worker` in CI, property-based tests, a load test, the browser test's blind spots.
+- **§2 (gates):** unchanged. The register row for the metric adds an eleventh "In review" entry with no Regulatory Lead to sign it.
+
+### 9.4 Decisions added to §6
+
+12. **What starts and what ends the preparation interval** (today: the first draft, and the first approval that stood) — without a recorded start of preparation there is no measured value to hold against the baseline, and the ≥ 50 % criterion can only be read from the clinic's own two statements.
+13. **With the DPO:** the metric shows how fast the clinic's clinicians work through reports; with one approving clinician every figure describes that person, whatever the minimum of five. Owner-only access, the minimum, retention, the works-council position.
+14. **Which S3-compatible store replaces MinIO for local development** — a tooling choice that changes a fact `CLAUDE.md` states.
+
+### 9.5 Recommended next engineering steps
+
+In this order; none needs a decision of §6 except where said.
+
+1. **The rate limits on the real client** — the one finding above that gets worse with every user: forward the client's address through a trusted hop, and key the public token surfaces on it.
+2. **The role guard: refuse a table owner, and make an unset `APP_DATABASE_URL` an error** — closes the remaining way to run without the guarantees of the application role.
+3. **Local object storage** (decision 14) — until then a new developer machine cannot run the upload path.
+4. **The browser test's blind spots** — distinct verdicts per axis, a second clinic, the rejection and rework path.
+5. **CI gaps** — ESLint, `apps/worker`, property-based tests for the conversions.
+6. **A recorded start of preparation** once decision 12 is taken — the part of A6 that makes the metric comparable.
+
+The critical path of §5 has not moved: the Regulatory Lead, the determination, and the OIDC and cloud vendors are what the first real patient waits for.

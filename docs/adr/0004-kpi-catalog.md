@@ -767,6 +767,12 @@ and, for specimen-bound analytes, a specimen on the observation. Neither exists 
   `seed_kpi_catalog` is called by the tests and by the synthetic seed script, which refuses to run
   in production, and it never updates an existing release. A deployment needs a seeding step and a
   start-up check — workstream C of the go-live plan.
+  _(2026-10-13: the seeding step exists — `python -m hadp_api.scripts.seed_catalog`, part of the
+  migrate step of the container stack (`infra/docker/README.md`). It loads the catalog and nothing
+  else, fails where the database does not resolve names as the build's catalog does, and refuses to
+  write where the database holds **another** release: it seeds, it does not upgrade. Still missing:
+  a way to replace a catalog release — the first change of `CATALOG_VERSION` has no path into a
+  seeded database — and the start-up check: the API does not look at the catalog when it starts.)_
 
 **Departures from earlier sections, recorded:**
 
