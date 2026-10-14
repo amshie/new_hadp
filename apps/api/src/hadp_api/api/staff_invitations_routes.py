@@ -15,6 +15,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from hadp_api.auth.authz import Action
@@ -25,6 +26,7 @@ from hadp_api.db.session import RequestSession
 from hadp_api.errors import NotFound
 from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.enums import Role
+from hadp_api.modules.identity.models import User
 from hadp_api.modules.staff_invitations import service as staff_invitations_service
 from hadp_api.security.client_address import client_address
 from hadp_api.security.rate_limit import (
@@ -40,6 +42,9 @@ router = APIRouter(tags=["staff-invitations"])
 class StaffInviteCreateIn(BaseModel):
     # Closed role vocabulary: an invented value is rejected at the boundary (422).
     role: Role
+    # Optional: whom the link is meant for (e.g. an e-mail address), for the owner's list.
+    # Nothing is sent to it.
+    label: str | None = Field(default=None, max_length=200)
 
 
 class StaffInvitationOut(BaseModel):
@@ -52,12 +57,20 @@ class StaffInvitationOut(BaseModel):
     invitation_url: str
 
 
+class InvitationCreatorOut(BaseModel):
+    user_id: uuid.UUID
+    display_name: str
+
+
 class StaffInvitationListItem(BaseModel):
     invitation_id: uuid.UUID
     role: Role
     status: str
     expires_at: str
     created_at: str
+    label: str | None = None
+    # Who created the link; null when that account no longer exists.
+    created_by: InvitationCreatorOut | None = None
 
 
 class StaffRedeemIn(BaseModel):
@@ -91,6 +104,7 @@ def create_staff_invitation(
         tenant_id=ctx.tenant_id,
         role=body.role,
         created_by_user_id=ctx.user.id,
+        label=body.label,
     )
     record_audit(
         ctx.db,
@@ -119,6 +133,16 @@ def list_staff_invitations(
     ctx: TenantContext = Depends(require(Action.STAFF_INVITE_CREATE)),
 ) -> list[StaffInvitationListItem]:
     invitations = staff_invitations_service.list_staff_invitations(ctx.db, tenant_id=ctx.tenant_id)
+    creator_ids = {inv.created_by_user_id for inv in invitations if inv.created_by_user_id}
+    names: dict[uuid.UUID, str] = (
+        dict(
+            ctx.db.execute(select(User.id, User.display_name).where(User.id.in_(creator_ids)))
+            .tuples()
+            .all()
+        )
+        if creator_ids
+        else {}
+    )
     return [
         StaffInvitationListItem(
             invitation_id=inv.id,
@@ -126,6 +150,14 @@ def list_staff_invitations(
             status=inv.status.value,
             expires_at=inv.expires_at.isoformat(),
             created_at=inv.created_at.isoformat(),
+            label=inv.label,
+            created_by=(
+                InvitationCreatorOut(
+                    user_id=inv.created_by_user_id, display_name=names[inv.created_by_user_id]
+                )
+                if inv.created_by_user_id in names and inv.created_by_user_id is not None
+                else None
+            ),
         )
         for inv in invitations
     ]

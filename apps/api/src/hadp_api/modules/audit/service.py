@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import literal, not_, or_, select, tuple_
+from sqlalchemy import func, literal, not_, or_, select, tuple_
 from sqlalchemy.orm import Session
 
 from hadp_api.errors import ValidationFailed
@@ -146,6 +146,16 @@ def is_read_action() -> Any:
         AuditEvent.action.endswith(".read", autoescape=True),
         AuditEvent.action.endswith(".list", autoescape=True),
     )
+
+
+def last_activity_by_actor(db: Session, *, tenant_id: uuid.UUID) -> dict[uuid.UUID, datetime]:
+    """When each account last left an event in this clinic's trail (any event, reads too)."""
+    rows = db.execute(
+        select(AuditEvent.actor_user_id, func.max(AuditEvent.created_at))
+        .where(AuditEvent.tenant_id == tenant_id, AuditEvent.actor_user_id.is_not(None))
+        .group_by(AuditEvent.actor_user_id)
+    ).all()
+    return {actor: at for actor, at in rows if actor is not None}
 
 
 def list_tenant_events(

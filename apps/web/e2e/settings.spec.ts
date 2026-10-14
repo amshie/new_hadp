@@ -24,7 +24,7 @@ test("a section the role may not open is named and locked, not hidden", async ({
     // The four others are listed, locked, and say for whom they are.
     const locked = sections.locator('[aria-disabled="true"]');
     await expect(locked).toHaveCount(4);
-    await expect(locked.filter({ hasText: "Mitglieder" })).toContainText(
+    await expect(locked.filter({ hasText: "Team & Rollen" })).toContainText(
       "Nur für Inhaber",
     );
     await expect(locked.filter({ hasText: "Löschanträge" })).toContainText(
@@ -44,9 +44,9 @@ test("the sub-navigation stays on every settings page, and each card says what i
     await page.goto("/einstellungen");
     const all = page.getByRole("region", { name: "Alle Bereiche" });
     await expect(all.getByRole("link")).toHaveCount(4);
-    await expect(all.getByRole("link", { name: /^Mitglieder/ })).toContainText(
-      /\d+ Mitglieder · /,
-    );
+    await expect(
+      all.getByRole("link", { name: /^Team & Rollen/ }),
+    ).toContainText(/\d+ Mitglieder · /);
     await expect(
       all.getByRole("link", { name: /^Löschanträge/ }),
     ).toContainText(/Kein Antrag offen|\d+ Anträ?ge? offen/);
@@ -99,5 +99,36 @@ test("the appearance is light, dark, or as the device's system is set", async ({
 
     await choice.getByRole("button", { name: "Hell" }).click();
     await expect(theme).toHaveAttribute("data-theme", "light");
+  });
+});
+
+test("a colleague's row leads to their entries in the audit trail", async ({
+  browser,
+}) => {
+  await asStaff(browser, "owner", async (page) => {
+    await page.goto("/einstellungen/mitglieder");
+    const team = page.getByRole("region", { name: /^Mitglieder/ });
+    const more = team.getByRole("button", {
+      name: "Weitere Aktionen für Synthetic Clinician",
+    });
+    await hydrated(more);
+    await more.click();
+    await team.getByRole("link", { name: "Im Protokoll anzeigen" }).click();
+    await expect(page).toHaveURL(
+      /\/einstellungen\/audit\?actor=[0-9a-f-]{36}$/,
+    );
+    const main = page.getByRole("main");
+    await expect(main).toContainText("Nur Einträge von Synthetic Clinician.");
+    // Every entry shown is theirs.
+    const table = page.getByRole("table", {
+      name: "Audit-Protokoll, neueste Einträge zuerst",
+    });
+    const rows = table.locator("tbody tr");
+    expect(await rows.count()).toBeGreaterThan(0);
+    for (const row of await rows.all()) {
+      await expect(row).toContainText("Synthetic Clinician");
+    }
+    await main.getByRole("link", { name: "Alle Personen anzeigen" }).click();
+    await expect(page).toHaveURL(/\/einstellungen\/audit$/);
   });
 });

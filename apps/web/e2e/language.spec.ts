@@ -815,17 +815,20 @@ test("members and deletion requests follow the choice; names are shown as record
     await page.goto("/einstellungen");
     await page
       .getByRole("navigation", { name: "Settings sections" })
-      .getByRole("link", { name: "Members" })
+      .getByRole("link", { name: "Team & roles" })
       .click();
     await expect(page).toHaveURL(/\/einstellungen\/mitglieder$/);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const main = page.getByRole("main");
     await expect(
-      page.getByRole("heading", { level: 1, name: "Members" }),
+      page.getByRole("heading", { level: 1, name: "Team & roles" }),
     ).toBeVisible();
-    await expect(main).toContainText("Invite a colleague to your clinic team.");
-    const team = page.getByRole("region", { name: "Team" });
-    await expect(team).toContainText("owner@demo.synthetic · you");
+    await expect(main).toContainText(
+      "Who works in this clinic and what their role allows.",
+    );
+    const team = page.getByRole("region", { name: /^Members/ });
+    await expect(team).toContainText("owner@demo.synthetic");
+    await expect(team).toContainText("· you");
     const role = team.getByRole("combobox", {
       name: "Role of Synthetic Clinician",
     });
@@ -836,21 +839,50 @@ test("members and deletion requests follow the choice; names are shown as record
       "Medical director",
       "Owner",
     ]);
+    // What else can be done with a colleague: behind their row's button.
+    const more = team.getByRole("button", {
+      name: "More actions for Synthetic Clinician",
+    });
+    await hydrated(more);
+    await more.click();
     await expect(
-      team.getByRole("button", { name: "Remove" }).first(),
-    ).toBeVisible();
-    const invite = page.getByRole("region", { name: "Invite a colleague" });
-    await expect(
-      invite.getByRole("button", { name: "Create invitation" }),
+      team.getByRole("button", { name: "Remove from the team …" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("region", { name: "Pending invitations" }),
+      team.getByRole("link", { name: "Show in the audit trail" }),
+    ).toHaveAttribute("href", /\/einstellungen\/audit\?actor=[0-9a-f-]{36}$/);
+    await page.keyboard.press("Escape");
+    await expect(more).toBeFocused();
+    // Inviting opens a dialog; nothing is created until it is asked for.
+    await page.getByRole("button", { name: "Invite a colleague" }).click();
+    const dialog = page.getByRole("dialog", { name: "Invite a colleague" });
+    await expect(
+      dialog.getByRole("textbox", { name: "Who it is for (optional)" }),
+    ).toBeFocused();
+    await expect(
+      dialog.getByRole("button", { name: "Create invitation link" }),
     ).toBeVisible();
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: /^Open invitations/ }),
+    ).toBeVisible();
+    const matrix = page.getByRole("table", { name: "What each role may do" });
+    await expect(matrix.getByRole("columnheader")).toHaveText([
+      "May",
+      "Assistant",
+      "Clinician",
+      "Medical director",
+      "Owner",
+    ]);
+    await expect(
+      matrix.getByRole("row", { name: /^Release reports/ }),
+    ).toHaveText(/Release reports\s*–\s*no\s*–\s*no\s*✓\s*yes\s*–\s*no/);
     for (const german of [
       "Mitglieder",
       "Entfernen",
       "Kolleg:in einladen",
-      "Ausstehende Einladungen",
+      "Offene Einladungen",
       "Ärztliche Leitung",
       "Inhaber",
     ]) {

@@ -779,6 +779,32 @@
         }
       }
     },
+    "/api/v1/roles": {
+      "get": {
+        "tags": [
+          "members"
+        ],
+        "summary": "List Role Permissions",
+        "description": "What each role may do \u2014 the authorization matrix itself, for the page that assigns\nroles. Reference data, the same for every clinic.",
+        "operationId": "list_role_permissions_api_v1_roles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RolePermissionsOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Role Permissions Api V1 Roles Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/members/{membership_id}": {
       "patch": {
         "tags": [
@@ -3930,6 +3956,25 @@
         ],
         "title": "ImportValueIn"
       },
+      "InvitationCreatorOut": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "display_name"
+        ],
+        "title": "InvitationCreatorOut"
+      },
       "InvitationOut": {
         "properties": {
           "invitation_id": {
@@ -4064,6 +4109,17 @@
           "member_since": {
             "type": "string",
             "title": "Member Since"
+          },
+          "last_active_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Active At"
           }
         },
         "type": "object",
@@ -4720,6 +4776,26 @@
         ],
         "title": "RoleChangeIn"
       },
+      "RolePermissionsOut": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Actions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "actions"
+        ],
+        "title": "RolePermissionsOut"
+      },
       "RunAuthorIn": {
         "properties": {
           "reason": {
@@ -4887,6 +4963,27 @@
           "created_at": {
             "type": "string",
             "title": "Created At"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvitationCreatorOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -4941,6 +5038,18 @@
         "properties": {
           "role": {
             "$ref": "#/components/schemas/Role"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
           }
         },
         "type": "object",

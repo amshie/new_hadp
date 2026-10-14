@@ -1113,3 +1113,224 @@
   line-height: 1.5;
   color: var(--text-muted);
 }
+
+/* ---- Team & Rollen ---- */
+.vb-scope .vb-team {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.vb-scope .vb-team-invite {
+  height: 36px;
+  font-size: 13px;
+}
+.vb-scope .vb-team-error {
+  margin: 0;
+  color: var(--rose-500);
+  font-size: 13px;
+}
+.vb-scope .vb-team-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.vb-scope .vb-team-table,
+.vb-scope .vb-team-matrix {
+  width: 100%;
+  border-collapse: collapse;
+}
+.vb-scope .vb-team-table th {
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--surface-sunken);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.vb-scope .vb-team-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+  font-size: 13px;
+}
+.vb-scope .vb-team-table th:first-child,
+.vb-scope .vb-team-table td:first-child {
+  padding-left: 22px;
+}
+.vb-scope .vb-team-table th:last-child,
+.vb-scope .vb-team-table td:last-child {
+  padding-right: 22px;
+}
+.vb-scope .vb-team-me {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+.vb-scope .vb-team-role {
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  padding: 5px 8px;
+  font-family: var(--font-text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.vb-scope .vb-team-actions {
+  width: 52px;
+  text-align: right;
+}
+.vb-scope .vb-team-note {
+  padding: 10px 22px 16px;
+  margin: 0;
+}
+.vb-scope .vb-team-menuwrap {
+  position: relative;
+  display: inline-block;
+}
+.vb-scope .vb-team-kebab {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+.vb-scope .vb-team-menu {
+  position: absolute;
+  right: 0;
+  top: 34px;
+  z-index: 5;
+  min-width: 220px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  text-align: left;
+}
+.vb-scope .vb-team-menu a,
+.vb-scope .vb-team-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-strong);
+  font-family: var(--font-text);
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.vb-scope .vb-team-menu a:hover,
+.vb-scope .vb-team-menu button:hover {
+  background: var(--surface-sunken);
+}
+.vb-scope .vb-team-menu .danger {
+  color: var(--rose-500);
+}
+.vb-scope .vb-team-matrix th,
+.vb-scope .vb-team-matrix td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12.5px;
+  text-align: center;
+}
+.vb-scope .vb-team-matrix thead th {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  font-weight: 500;
+  vertical-align: bottom;
+}
+.vb-scope .vb-team-matrix th[scope="row"],
+.vb-scope .vb-team-matrix thead th:first-child {
+  text-align: left;
+  font-family: var(--font-text);
+  font-size: 12.5px;
+  letter-spacing: 0;
+  color: var(--text-body);
+  font-weight: 500;
+}
+.vb-scope .vb-team-matrix td[data-allowed="true"] {
+  color: var(--brand);
+  font-weight: 700;
+}
+.vb-scope .vb-team-matrix td[data-allowed="false"] {
+  color: var(--text-faint);
+}
+.vb-scope .vb-team-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 28, 0.45);
+}
+.vb-scope .vb-team-dialog {
+  width: 100%;
+  max-width: 480px;
+  padding: 20px 22px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl, 0 16px 40px rgba(12, 18, 20, 0.2));
+}
+.vb-scope .vb-team-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+}
+.vb-scope .vb-team-field label {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.vb-scope .vb-team-field small {
+  color: var(--text-muted);
+}
+.vb-scope .vb-team-field input,
+.vb-scope .vb-team-field select,
+.vb-scope .vb-team-link input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-family: var(--font-text);
+  font-size: 13px;
+}
+.vb-scope .vb-team-link p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.vb-scope .vb-team-link input {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.vb-scope .vb-team-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}

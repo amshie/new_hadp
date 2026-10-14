@@ -11,12 +11,14 @@ the two-tier Physician Gate (enforced at action time by the assigned role).
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from hadp_api.auth.authz import Action
+from hadp_api.auth.authz import Action, permissions_by_role
 from hadp_api.auth.dependencies import TenantContext, require
+from hadp_api.modules.audit import service as audit_service
 from hadp_api.modules.audit.service import record_audit
 from hadp_api.modules.enums import Role
 from hadp_api.modules.tenancy import service as tenancy_service
@@ -31,6 +33,15 @@ class MemberOut(BaseModel):
     display_name: str
     role: Role
     member_since: str
+    # When this colleague last left an event in the clinic's trail (any event, reads too);
+    # null if never. The owner reads the trail itself; this is its latest date per person.
+    last_active_at: str | None = None
+
+
+class RolePermissionsOut(BaseModel):
+    role: Role
+    # Action codes of the authorization matrix (auth/authz.py), in declaration order.
+    actions: list[str]
 
 
 class RoleChangeIn(BaseModel):
@@ -43,7 +54,28 @@ def list_members(
     ctx: TenantContext = Depends(require(Action.MEMBER_LIST)),
 ) -> list[MemberOut]:
     members = tenancy_service.list_tenant_members(ctx.db, tenant_id=ctx.tenant_id)
-    return [MemberOut(**m.__dict__) for m in members]
+    activity = audit_service.last_activity_by_actor(ctx.db, tenant_id=ctx.tenant_id)
+    return [_out(m, activity) for m in members]
+
+
+def _out(member: tenancy_service.TenantMember, activity: dict[uuid.UUID, datetime]) -> MemberOut:
+    last = activity.get(member.user_id)
+    return MemberOut(
+        **member.__dict__,
+        last_active_at=last.astimezone(UTC).isoformat() if last else None,
+    )
+
+
+@router.get("/roles", response_model=list[RolePermissionsOut])
+def list_role_permissions(
+    ctx: TenantContext = Depends(require(Action.MEMBER_LIST)),
+) -> list[RolePermissionsOut]:
+    """What each role may do — the authorization matrix itself, for the page that assigns
+    roles. Reference data, the same for every clinic."""
+    return [
+        RolePermissionsOut(role=role, actions=actions)
+        for role, actions in permissions_by_role().items()
+    ]
 
 
 @router.patch("/members/{membership_id}", response_model=MemberOut)
@@ -74,7 +106,7 @@ def change_member_role(
     # Re-read through the list projection so the response shape stays single-sourced.
     members = tenancy_service.list_tenant_members(ctx.db, tenant_id=ctx.tenant_id)
     updated = next(m for m in members if m.membership_id == membership.id)
-    return MemberOut(**updated.__dict__)
+    return _out(updated, audit_service.last_activity_by_actor(ctx.db, tenant_id=ctx.tenant_id))
 
 
 @router.delete("/members/{membership_id}")

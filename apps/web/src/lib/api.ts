@@ -454,10 +454,10 @@ export const patientView = (tenant: string, token: string) =>
 
 // Staff administration (owner-only server-side): invite a colleague, list pending invites,
 // revoke. Redeem is the colleague-side self-onboarding (no staff session).
-export const createStaffInvitation = (role: StaffRole) =>
+export const createStaffInvitation = (role: StaffRole, label?: string) =>
   request<StaffInvitationOut>("/api/v1/staff-invitations", {
     method: "POST",
-    body: JSON.stringify({ role }),
+    body: JSON.stringify(label ? { role, label } : { role }),
   });
 export const listStaffInvitations = () =>
   request<StaffInvitationListItem[]>("/api/v1/staff-invitations");
@@ -473,6 +473,7 @@ export type AuditCategory = Schemas["AuditCategory"];
 export interface AuditFilters {
   category?: AuditCategory;
   target_id?: string;
+  actor_user_id?: string;
   since?: string;
   until?: string;
   exclude_reads?: boolean;
@@ -484,6 +485,7 @@ export const listAuditEvents = (filters: AuditFilters) => {
   if (filters.limit) qs.set("limit", String(filters.limit));
   if (filters.category) qs.set("category", filters.category);
   if (filters.target_id) qs.set("target_id", filters.target_id);
+  if (filters.actor_user_id) qs.set("actor_user_id", filters.actor_user_id);
   if (filters.since) qs.set("since", filters.since);
   if (filters.until) qs.set("until", filters.until);
   if (filters.exclude_reads) qs.set("exclude_reads", "true");
@@ -496,6 +498,10 @@ export const ownActivity = (limit = 5) =>
 
 // Member administration (owner-only server-side): list the team, change a role, remove.
 export const listMembers = () => request<MemberOut[]>("/api/v1/members");
+// The authorization matrix: what each role may do (owner-only server-side).
+export type RolePermissions = Schemas["RolePermissionsOut"];
+export const rolePermissions = () =>
+  request<RolePermissions[]>("/api/v1/roles");
 export const changeMemberRole = (membershipId: string, role: StaffRole) =>
   request<MemberOut>(`/api/v1/members/${membershipId}`, {
     method: "PATCH",

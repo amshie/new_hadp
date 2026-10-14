@@ -125,3 +125,14 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
 
 def can(role: Role, action: Action) -> bool:
     return role in _PERMISSIONS.get(action, frozenset())
+
+
+def permissions_by_role() -> dict[Role, list[str]]:
+    """Every role and the actions the matrix grants it, in the order the actions are declared.
+
+    What a clinic page shows as "what a role may do" — read from this matrix, never restated.
+    """
+    return {
+        role: [action.value for action in Action if role in _PERMISSIONS.get(action, frozenset())]
+        for role in Role
+    }
