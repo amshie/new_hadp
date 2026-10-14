@@ -32,6 +32,7 @@ import { DomainOverviewPanel, SeriesValues } from "./DomainOverviewPanel";
 import { HistoryChart } from "./HistoryChart";
 import { LabDocumentsCard } from "./LabDocumentsCard";
 import { GERMAN, LagePill, ReferenceBar } from "./MarkerParts";
+import { VisitPrepCard } from "./VisitPrepCard";
 
 // VitaBahn patient Detail (ADR-0006, real-data path). Consumes the governed DetailView
 // (presentReview + a real data-completeness stat). NO A–E grade (doctrine). Observation Status
@@ -570,6 +571,17 @@ export function PatientDetailContent({
           </p>
         )}
       </div>
+
+      {/* The facts since the latest interpretation run, one line each, before everything
+          else (docs/notes/0022). A tombstoned record has nothing to prepare. */}
+      {!erased && (
+        <VisitPrepCard
+          prep={view.prep}
+          overview={view.overview}
+          patientId={view.patientId}
+          onOpen={openSeries}
+        />
+      )}
 
       {/* data completeness (real, deterministic — the compliant replacement for the comp's quality gauge) */}
       <div

@@ -346,6 +346,8 @@ def main() -> int:
         wording[f"/patients/{pid}"] = {
             "de": (
                 "Datenlage",
+                "jede Zeile führt zum Wert",
+                "Als Seite öffnen",
                 "Vor dem Termin",
                 "Kernmarker ohne veröffentlichten Wert",
                 "Labordaten",
@@ -354,6 +356,8 @@ def main() -> int:
             ),
             "en": (
                 "Data coverage",
+                "every line leads to the value",
+                "Open as a page",
                 "Before the visit",
                 "core markers without a published value",
                 "Laboratory data",
@@ -379,6 +383,12 @@ def main() -> int:
             "de": ("Die Vorbereitungszeit ist nur für Inhaber verfügbar.",),
             "en": ("Preparation time is available to owners only.",),
         }
+        # The page before a visit (docs/notes/0022): its wording follows the choice, its
+        # domain names stay German.
+        wording[f"/patients/{pid}/vorbereitung"] = {
+            "de": ("Vorbereitung ·", "Seit Lauf", "Drucken", "Zur Akte"),
+            "en": ("Preparation ·", "Since run", "Print", "To the record"),
+        }
         # The interpretation form: its fields are interface, what is chosen in them is not.
         wording[f"/patients/{pid}/interpretation/neu"] = {
             "de": ("Grund (Pflicht)", "Endpunkt-Adäquanz", "Bitte wählen"),
@@ -387,6 +397,7 @@ def main() -> int:
         as_recorded = {
             f"/patients/{pid}": ("Freigabe geprüfter Berichte", "Metabolisch"),
             f"/patients/{pid}/interpretation/neu": ("Metabolisch", "Biologisch", "adäquat"),
+            f"/patients/{pid}/vorbereitung": ("Metabolisch",),
         }
 
         def assert_wording(

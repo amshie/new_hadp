@@ -355,6 +355,7 @@ test("the patient page follows the choice; what is not interface stays German an
     await expect(back).toBeVisible();
     expect(await languageOf(back)).toBe("en");
     for (const heading of [
+      "Preparation",
       "Data coverage",
       "Before the visit",
       "Domains",
@@ -367,6 +368,7 @@ test("the patient page follows the choice; what is not interface stays German an
       ).toBeVisible();
     }
     for (const german of [
+      "jede Zeile führt zum Wert",
       "Datenlage",
       "Vor dem Termin",
       "Kernmarker",

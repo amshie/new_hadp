@@ -2054,3 +2054,117 @@
   color: var(--text-faint);
   font-weight: 500;
 }
+
+/* ---- Vorbereitung: the facts since the latest run, one line each (docs/notes/0022) ---- */
+.vb-scope .vb-prep-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px 16px;
+  padding: 18px 22px 10px;
+}
+.vb-scope .vb-prep-head .vb-ov-eyebrow {
+  display: block;
+  margin-bottom: 6px;
+}
+.vb-scope .vb-prep-tools {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.vb-scope .vb-prep-group {
+  padding: 4px 22px 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+.vb-scope .vb-prep-group h4 {
+  margin: 10px 0 4px;
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.vb-scope .vb-prep-group h4 small {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.vb-scope .vb-prep-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.vb-scope .vb-prep-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--text-body);
+  border-top: 1px solid var(--border-subtle);
+}
+.vb-scope .vb-prep-list li:first-child {
+  border-top: 0;
+}
+.vb-scope .vb-prep-marker {
+  font-weight: 600;
+  color: var(--text-strong);
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+.vb-scope .vb-prep-marker:hover,
+.vb-scope .vb-prep-marker:focus-visible {
+  text-decoration: underline;
+}
+.vb-scope .vb-prep-value {
+  font-family: var(--font-mono);
+  color: var(--text-strong);
+}
+.vb-scope .vb-prep-meta {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+.vb-scope .vb-prep-domain {
+  min-width: 150px;
+  color: var(--text-muted);
+}
+.vb-scope .vb-prep-domain::after {
+  content: ":";
+}
+.vb-scope .vb-prep-item {
+  white-space: nowrap;
+}
+.vb-scope .vb-prep-axes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 0 6px;
+}
+.vb-scope .vb-prep-quiet {
+  padding: 2px 22px 18px;
+}
+
+/* On paper: the page's content only, every line in full. */
+@media print {
+  .vb-scope .vb-sidebar,
+  .vb-scope .vb-topbar,
+  .vb-scope .vb-backdrop,
+  .vb-scope .vb-noprint {
+    display: none !important;
+  }
+  .vb-scope .vb-content {
+    padding: 0;
+  }
+  .vb-scope .vb-ov-card {
+    box-shadow: none;
+    border-color: #999;
+  }
+  .vb-scope .vb-prep-marker {
+    text-decoration: none;
+  }
+}

@@ -533,6 +533,73 @@ export const de = {
       today: "heute",
       days: "{n} T",
     },
+    // The page before a visit: facts since the latest interpretation run, each a line that
+    // leads to its value (docs/notes/0022). Counted and copied, never rated.
+    visitPrep: {
+      title: "Vorbereitung",
+      sinceRun: "Seit Lauf {n} · erfasst am {date}",
+      noRun:
+        "Noch keine Interpretation erfasst – es gibt kein „seit“, nur den heutigen Stand",
+      note: "Zusammengestellt aus den erfassten Werten; jede Zeile führt zum Wert. Keine automatische Diagnose oder Therapieempfehlung.",
+      open: "Als Seite öffnen",
+      print: "Drucken",
+      backToRecord: "Zur Akte",
+      pageTitle: "Vorbereitung · {name}",
+      quiet: "Nichts hinzugekommen, nichts gewechselt, nichts offen.",
+      quietNoRun: "Keine Werte erfasst.",
+      groups: {
+        newValues: {
+          one: "{n} neuer Wert seit Lauf {run}",
+          other: "{n} neue Werte seit Lauf {run}",
+        },
+        newOutside: {
+          one: "davon {n} außerhalb des Quellreferenzintervalls",
+          other: "davon {n} außerhalb des Quellreferenzintervalls",
+        },
+        moved: {
+          one: "{n} Marker mit gewechselter Lage",
+          other: "{n} Marker mit gewechselter Lage",
+        },
+        stale: {
+          one: "{n} Kernmarker mit letztem Wert älter als {days} Tage",
+          other: "{n} Kernmarker mit letztem Wert älter als {days} Tage",
+        },
+        missing: {
+          one: "{n} Kernmarker ohne veröffentlichten Wert",
+          other: "{n} Kernmarker ohne veröffentlichten Wert",
+        },
+        pending: { one: "{n} Wert in Prüfung", other: "{n} Werte in Prüfung" },
+        unassigned: {
+          one: "{n} Wert ohne Katalogmarker",
+          other: "{n} Werte ohne Katalogmarker",
+        },
+        noVerdict: {
+          one: "{n} Domäne ohne Urteil in Lauf {run}",
+          other: "{n} Domänen ohne Urteil in Lauf {run}",
+        },
+        citesReplaced: {
+          one: "{n} Domäne stützt sich auf einen vom Labor korrigierten Wert",
+          other:
+            "{n} Domänen stützen sich auf einen vom Labor korrigierten Wert",
+        },
+      },
+      line: {
+        // "LDL-Cholesterin 142 mg/dL · Referenz der Quelle 0–115 · gemessen am 02.09.2026"
+        reference: "Referenz der Quelle {range}",
+        noReference: "ohne Referenz der Quelle",
+        measured: "gemessen am {date}",
+        moved: "{from} → {to}",
+        movedDays: "vorher {previous}, jetzt {latest}",
+        lastValue: "letzter Wert vom {date}",
+        unassigned: "ohne Katalogmarker",
+        pendingNote:
+          "In der Review-Queue – erst nach einer Entscheidung veröffentlicht.",
+        unassignedNote: "In der Domänenübersicht unter „Ohne Katalogmarker“.",
+        open: "Marker {name} öffnen",
+        toDomain: "Zur Domäne {axis}",
+        toQueue: "Zur Review-Queue",
+      },
+    },
     // Before a visit: counts of recorded values, each a filter of the domain lists.
     prep: {
       title: "Vor dem Termin",
