@@ -561,7 +561,7 @@ export function HistoryChart({
             <div
               style={{
                 fontFamily: MONO,
-                fontSize: "10.5px",
+                fontSize: "11px",
                 color: "var(--text-muted)",
                 marginBottom: "4px",
               }}

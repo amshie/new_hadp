@@ -48,7 +48,7 @@ const cardStyle: CSSProperties = {
 };
 const colLabel: CSSProperties = {
   fontFamily: "var(--font-mono)",
-  fontSize: "9.5px",
+  fontSize: "11px",
   letterSpacing: "0.1em",
   textTransform: "uppercase",
   color: "var(--text-faint)",
@@ -84,7 +84,7 @@ const chip: CSSProperties = {
 };
 const warnChip: CSSProperties = {
   ...chip,
-  color: "var(--amber-500)",
+  color: "var(--status-warning-text)",
   background: "rgba(201,136,28,0.12)",
   border: "1px solid rgba(201,136,28,0.30)",
 };
@@ -187,7 +187,7 @@ function PrepCard({
         <span
           style={{
             fontFamily: "var(--font-mono)",
-            fontSize: "10.5px",
+            fontSize: "11px",
             letterSpacing: "0.08em",
             textTransform: "uppercase",
             color: "var(--text-faint)",
@@ -402,7 +402,7 @@ function DomainCard({
         <span
           style={{
             fontFamily: "var(--font-mono)",
-            fontSize: "10.5px",
+            fontSize: "11px",
             color: "var(--text-faint)",
             whiteSpace: "nowrap",
           }}
@@ -497,7 +497,7 @@ function DomainCard({
           <span
             style={{
               fontFamily: "var(--font-mono)",
-              fontSize: "10px",
+              fontSize: "11px",
               letterSpacing: "0.12em",
               textTransform: "uppercase",
               color: "var(--text-faint)",
@@ -508,7 +508,7 @@ function DomainCard({
           <span
             style={{
               fontFamily: "var(--font-mono)",
-              fontSize: "10px",
+              fontSize: "11px",
               letterSpacing: "0.06em",
               textTransform: "uppercase",
               color: "var(--text-faint)",
@@ -562,7 +562,7 @@ function DomainCard({
                 style={{
                   fontSize: "11.5px",
                   fontWeight: 600,
-                  color: "var(--amber-500)",
+                  color: "var(--status-warning-text)",
                 }}
               >
                 <span aria-hidden="true">◷ </span>
@@ -820,7 +820,7 @@ function DomainSectionCard({
           <div
             style={{
               fontFamily: "var(--font-mono)",
-              fontSize: "10px",
+              fontSize: "11px",
               letterSpacing: "0.14em",
               textTransform: "uppercase",
               color: "var(--text-faint)",

@@ -106,7 +106,7 @@ const thStyle: CSSProperties = {
   textAlign: "left",
   padding: "11px 14px",
   fontFamily: "var(--font-mono)",
-  fontSize: "10.5px",
+  fontSize: "11px",
   letterSpacing: "0.08em",
   textTransform: "uppercase",
   color: "var(--text-faint)",

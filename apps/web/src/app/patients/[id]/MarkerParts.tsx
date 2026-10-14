@@ -50,7 +50,7 @@ export function ReferenceBar({
       <span
         style={{
           fontFamily: "var(--font-mono)",
-          fontSize: "10.5px",
+          fontSize: "11px",
           color: "var(--text-faint)",
         }}
       >
@@ -112,7 +112,7 @@ export function ReferenceBar({
         <div
           style={{
             fontFamily: "var(--font-mono)",
-            fontSize: "9px",
+            fontSize: "11px",
             color: "var(--text-faint)",
             marginTop: "3px",
           }}

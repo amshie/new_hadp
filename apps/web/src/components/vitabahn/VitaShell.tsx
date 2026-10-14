@@ -89,7 +89,7 @@ function NavItem({
 function navLabelStyle(marginTop?: string): CSSProperties {
   return {
     fontFamily: "var(--font-mono)",
-    fontSize: "10px",
+    fontSize: "11px",
     letterSpacing: "0.16em",
     textTransform: "uppercase",
     color: "var(--slate-500)",
@@ -320,7 +320,7 @@ export function VitaShell({
               <span
                 style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: "10px",
+                  fontSize: "11px",
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
                   color: "var(--amber-400)",
@@ -374,7 +374,7 @@ export function VitaShell({
               <div
                 style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: "10px",
+                  fontSize: "11px",
                   color: "var(--slate-500)",
                   letterSpacing: "0.04em",
                 }}
@@ -635,7 +635,7 @@ export function VitaShell({
                 <div
                   style={{
                     fontFamily: "var(--font-mono)",
-                    fontSize: "10px",
+                    fontSize: "11px",
                     color: "var(--text-faint)",
                     letterSpacing: "0.04em",
                   }}
