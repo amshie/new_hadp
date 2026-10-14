@@ -65,17 +65,6 @@ const tdStyle: CSSProperties = {
   verticalAlign: "top",
 };
 
-const fieldStyle: CSSProperties = {
-  height: "36px",
-  padding: "0 10px",
-  borderRadius: "var(--radius-sm)",
-  border: "1px solid var(--border-default)",
-  background: "var(--surface-card)",
-  color: "var(--text-strong)",
-  fontFamily: "var(--font-text)",
-  fontSize: "12.5px",
-};
-
 const labelStyle: CSSProperties = {
   display: "grid",
   gap: "5px",
@@ -311,7 +300,7 @@ export function PreparationTimeContent({
         >
           <label style={labelStyle}>
             {t.form.kind}
-            <select name="kind" defaultValue="baseline" style={fieldStyle}>
+            <select name="kind" defaultValue="baseline" className="vb-control">
               <option value="baseline">{t.kind.baseline}</option>
               <option value="follow_up">{t.kind.follow_up}</option>
             </select>
@@ -326,12 +315,13 @@ export function PreparationTimeContent({
               max={600}
               step={1}
               required
-              style={{ ...fieldStyle, width: "150px" }}
+              className="vb-control"
+              style={{ width: "150px" }}
             />
           </label>
           <label style={labelStyle}>
             {t.form.basis}
-            <select name="basis" defaultValue="estimate" style={fieldStyle}>
+            <select name="basis" defaultValue="estimate" className="vb-control">
               <option value="estimate">{t.basis.estimate}</option>
               <option value="timed_sample">{t.basis.timed_sample}</option>
             </select>
@@ -345,17 +335,14 @@ export function PreparationTimeContent({
               min={1}
               max={100000}
               step={1}
-              style={{ ...fieldStyle, width: "150px" }}
+              className="vb-control"
+              style={{ width: "150px" }}
             />
           </label>
           <button
             type="submit"
-            style={{
-              ...fieldStyle,
-              cursor: "pointer",
-              fontWeight: 600,
-              padding: "0 16px",
-            }}
+            className="vb-ov-btn primary"
+            style={{ height: "36px", padding: "0 16px" }}
           >
             {t.form.save}
           </button>

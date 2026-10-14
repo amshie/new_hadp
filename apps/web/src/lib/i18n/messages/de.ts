@@ -112,7 +112,7 @@ export const de = {
         help: "Review-Queue, noch nicht veröffentlicht",
       },
       released: {
-        label: "Freigegeben · {days} T",
+        label: "Freigegeben · {days}\u00a0T",
         help: "Je Tag, der älteste links",
         unavailable: "Derzeit nicht abrufbar",
       },
@@ -845,6 +845,7 @@ export const de = {
       title: "Labordaten",
       note: "Strukturierte Labordatei (CSV im HADP-Layout, LDT 2 oder LDT 3) für genau diese Akte. Die Originaldatei wird gespeichert und dann eingelesen; die Werte werden unverändert übernommen. Nicht eindeutige Werte gehen in die Review-Queue — sie werden erst nach einer klinischen Entscheidung veröffentlicht.",
       choose: "Labordatei wählen",
+      noFile: "Keine Datei gewählt",
       upload: "Hochladen und einlesen",
       uploading: "Wird eingelesen …",
       readOnly:

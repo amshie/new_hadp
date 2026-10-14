@@ -73,17 +73,6 @@ const mono: CSSProperties = {
   color: "var(--text-faint)",
 };
 
-const fieldStyle: CSSProperties = {
-  height: "36px",
-  padding: "0 10px",
-  borderRadius: "var(--radius-sm)",
-  border: "1px solid var(--border-default)",
-  background: "var(--surface-card)",
-  color: "var(--text-strong)",
-  fontFamily: "var(--font-text)",
-  fontSize: "12.5px",
-};
-
 const labelStyle: CSSProperties = {
   display: "grid",
   gap: "5px",
@@ -283,7 +272,7 @@ export function AuditContent({
           <select
             name="category"
             defaultValue={query.category ?? ""}
-            style={fieldStyle}
+            className="vb-control"
           >
             <option value="">{t.filter.allCategories}</option>
             {auditCategories(locale).map((c) => (
@@ -299,7 +288,7 @@ export function AuditContent({
             type="date"
             name="from"
             defaultValue={query.from ?? ""}
-            style={fieldStyle}
+            className="vb-control"
           />
         </label>
         <label style={labelStyle}>
@@ -308,7 +297,7 @@ export function AuditContent({
             type="date"
             name="to"
             defaultValue={query.to ?? ""}
-            style={fieldStyle}
+            className="vb-control"
           />
         </label>
         <label
@@ -337,15 +326,8 @@ export function AuditContent({
         )}
         <button
           type="submit"
-          style={{
-            ...fieldStyle,
-            padding: "0 14px",
-            border: "1px solid var(--brand)",
-            background: "var(--brand)",
-            color: "var(--text-on-brand)",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          className="vb-ov-btn primary"
+          style={{ height: "36px", padding: "0 14px" }}
         >
           {t.filter.apply}
         </button>

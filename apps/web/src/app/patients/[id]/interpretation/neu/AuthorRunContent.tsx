@@ -166,16 +166,6 @@ const labelStyle: CSSProperties = {
   color: "var(--text-faint)",
   marginBottom: "4px",
 };
-const selectStyle: CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  borderRadius: "var(--radius-sm)",
-  border: "1px solid var(--border-default)",
-  background: "var(--surface-card)",
-  color: "var(--text-body)",
-  fontSize: "13px",
-};
-const inputStyle: CSSProperties = { ...selectStyle };
 
 export function AuthorRunContent({
   patientId,
@@ -316,7 +306,7 @@ export function AuthorRunContent({
         </label>
         <input
           id="run-reason"
-          style={inputStyle}
+          className="vb-control is-wide"
           value={reason}
           maxLength={200}
           onChange={(e) => setReason(e.target.value)}
@@ -361,7 +351,7 @@ export function AuthorRunContent({
                 </label>
                 <select
                   id={`${axis}-cis`}
-                  style={selectStyle}
+                  className="vb-control is-wide"
                   value={d.cis_status}
                   onChange={(e) =>
                     setDomain(axis, { cis_status: e.target.value })
@@ -381,7 +371,7 @@ export function AuthorRunContent({
                 </label>
                 <select
                   id={`${axis}-actionability`}
-                  style={selectStyle}
+                  className="vb-control is-wide"
                   value={d.actionability_class}
                   onChange={(e) =>
                     setDomain(axis, { actionability_class: e.target.value })
@@ -401,7 +391,7 @@ export function AuthorRunContent({
                 </label>
                 <select
                   id={`${axis}-followup`}
-                  style={selectStyle}
+                  className="vb-control is-wide"
                   value={d.followup_adequacy}
                   onChange={(e) =>
                     setDomain(axis, { followup_adequacy: e.target.value })
@@ -422,7 +412,7 @@ export function AuthorRunContent({
               </label>
               <input
                 id={`${axis}-rationale`}
-                style={inputStyle}
+                className="vb-control is-wide"
                 value={d.rationale}
                 maxLength={2000}
                 onChange={(e) => setDomain(axis, { rationale: e.target.value })}
@@ -467,7 +457,7 @@ export function AuthorRunContent({
                     </label>
                     <select
                       id={`${axis}-${tri}-state`}
-                      style={selectStyle}
+                      className="vb-control is-wide"
                       value={c.state}
                       onChange={(e) =>
                         setCell(axis, tri, { state: e.target.value })
@@ -488,7 +478,7 @@ export function AuthorRunContent({
                     </label>
                     <select
                       id={`${axis}-${tri}-endpoint`}
-                      style={selectStyle}
+                      className="vb-control is-wide"
                       value={c.endpoint_adequacy}
                       onChange={(e) =>
                         setCell(axis, tri, {

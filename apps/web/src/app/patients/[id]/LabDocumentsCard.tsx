@@ -128,6 +128,9 @@ export function LabDocumentsCard({
   const t = useI18n().t.patientPage.lab;
   const formRef = useRef<HTMLFormElement>(null);
   const [outcome, setOutcome] = useState<LabImportResult | null>(null);
+  // The name of the chosen file, shown beside the button (the native control's own wording
+  // follows the browser, not the page).
+  const [fileName, setFileName] = useState<string | null>(null);
   // Until the page is hydrated the form would submit natively: a reload that drops the chosen
   // file and puts its name into the URL.
   const hydrated = useHydrated();
@@ -139,6 +142,7 @@ export function LabDocumentsCard({
       setOutcome(null);
       setOutcome(await uploadLabFileAction(patientId, data));
       formRef.current?.reset();
+      setFileName(null);
     });
   };
 
@@ -194,15 +198,29 @@ export function LabDocumentsCard({
               marginTop: "14px",
             }}
           >
-            <input
-              type="file"
-              name="file"
-              required
-              accept=".csv,.ldt,.txt"
-              aria-label={t.choose}
-              disabled={pending}
-              style={{ fontSize: "12.5px", color: "var(--text-body)" }}
-            />
+            <span className="vb-file">
+              <input
+                id="lab-file"
+                type="file"
+                name="file"
+                required
+                accept=".csv,.ldt,.txt"
+                aria-label={t.choose}
+                disabled={pending}
+                onChange={(e) =>
+                  setFileName(e.currentTarget.files?.[0]?.name ?? null)
+                }
+              />
+              <label className="vb-ov-btn" htmlFor="lab-file">
+                {t.choose}
+              </label>
+              <span
+                className={`vb-file-name${fileName ? " is-chosen" : ""}`}
+                aria-live="polite"
+              >
+                {fileName ?? t.noFile}
+              </span>
+            </span>
             <button
               type="submit"
               style={btnPri}
