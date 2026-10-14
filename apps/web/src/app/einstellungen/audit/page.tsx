@@ -15,6 +15,7 @@ import { shellIdentity } from "@/lib/identity";
 import { isUuid } from "@/lib/uuid";
 
 import { AuditContent, type AuditQuery } from "./AuditContent";
+import { SettingsFrame } from "../SettingsFrame";
 
 // The clinic's audit trail (owner-only): who did what, and when. The API authorizes the read
 // (AUDIT_READ) and returns exactly this clinic's events; this page mirrors the role check with
@@ -53,7 +54,13 @@ export default async function AuditPageRoute({
       crumbParent={{ label: messages.settings.title, href: "/einstellungen" }}
       identity={identity}
     >
-      {children}
+      <SettingsFrame
+        role={session.role}
+        current="auditTrail"
+        messages={messages}
+      >
+        {children}
+      </SettingsFrame>
     </VitaShell>
   );
   const notice = (text: string) =>

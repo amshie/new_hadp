@@ -11,6 +11,7 @@ import { getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
 
 import { PreparationTimeContent, type Outcome } from "./PreparationTimeContent";
+import { SettingsFrame } from "../SettingsFrame";
 
 // The preparation-time metric (owner only): what the clinic states about its own preparation
 // time, and what the platform measures from the report lifecycle. The API authorizes the read
@@ -55,7 +56,13 @@ export default async function PreparationTimePage({
       crumbParent={{ label: messages.settings.title, href: "/einstellungen" }}
       identity={identity}
     >
-      {children}
+      <SettingsFrame
+        role={session.role}
+        current="preparationTime"
+        messages={messages}
+      >
+        {children}
+      </SettingsFrame>
     </VitaShell>
   );
   const notice = (text: string) =>

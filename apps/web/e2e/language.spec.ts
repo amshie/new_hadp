@@ -85,7 +85,9 @@ async function expectEnglishSettings(page: Page): Promise<void> {
   ).toBeVisible();
   // A section this role may open, by its English name.
   await expect(
-    page.getByRole("link", { name: /Deletion requests/ }),
+    page
+      .getByRole("navigation", { name: "Settings sections" })
+      .getByRole("link", { name: "Deletion requests" }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "English" })).toHaveAttribute(
     "aria-pressed",
@@ -811,7 +813,10 @@ test("members and deletion requests follow the choice; names are shown as record
       .context()
       .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
     await page.goto("/einstellungen");
-    await page.getByRole("link", { name: /Members/ }).click();
+    await page
+      .getByRole("navigation", { name: "Settings sections" })
+      .getByRole("link", { name: "Members" })
+      .click();
     await expect(page).toHaveURL(/\/einstellungen\/mitglieder$/);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const main = page.getByRole("main");
@@ -860,7 +865,10 @@ test("members and deletion requests follow the choice; names are shown as record
       .context()
       .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
     await page.goto("/einstellungen");
-    await page.getByRole("link", { name: /Deletion requests/ }).click();
+    await page
+      .getByRole("navigation", { name: "Settings sections" })
+      .getByRole("link", { name: "Deletion requests" })
+      .click();
     await expect(page).toHaveURL(/\/einstellungen\/loeschantraege$/);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const main = page.getByRole("main");
@@ -905,7 +913,10 @@ test("the audit trail and preparation time follow the choice; codes and names st
     // every event — next to the code the API wrote, which stays as it is. The owner's own entry
     // into the clinic is always there.
     await page.goto("/einstellungen");
-    await page.getByRole("link", { name: /Audit trail/ }).click();
+    await page
+      .getByRole("navigation", { name: "Settings sections" })
+      .getByRole("link", { name: "Audit trail" })
+      .click();
     await expect(page).toHaveURL(/\/einstellungen\/audit$/);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(

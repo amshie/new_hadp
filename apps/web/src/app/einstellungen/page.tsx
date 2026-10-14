@@ -2,40 +2,107 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { VitaShell } from "@/components/vitabahn/VitaShell";
-import { me } from "@/lib/api";
-import { LOCALES } from "@/lib/i18n/locales";
+import {
+  getPreparationTime,
+  listAuditEvents,
+  listDeletionRequests,
+  listMembers,
+  listStaffInvitations,
+  me,
+} from "@/lib/api";
+import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
+import { byCount, fill } from "@/lib/i18n/fill";
+import { LOCALES, type Locale } from "@/lib/i18n/locales";
 import { LANGUAGE_NAMES, type Messages } from "@/lib/i18n/messages";
 import { getLocale, getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
+import {
+  mayOpen,
+  SETTINGS_SECTIONS,
+  type SettingsKey,
+} from "@/lib/settingsSections";
+
+import { duration, intlLocale } from "@/lib/format";
 
 import { setLocale } from "./actions";
+import { LockIcon, lockedLabel, SettingsFrame } from "./SettingsFrame";
+import { ThemeChoice } from "./ThemeChoice";
 
-// Einstellungen landing page: a role-gated index of the settings sections. The sidebar
-// "Einstellungen" item points here (not straight to Mitglieder, which is owner-only), so every
-// role sees the sections it may actually open — e.g. the medical director reaches Löschanträge.
-// Server-side authorization on each sub-page remains the control; this is navigation only.
-// The language choice is for everyone who is signed in, whatever their role.
+// Einstellungen: language and appearance for the reader, then every section with what it
+// holds right now. Each section's state is read only for a role that may open it — a read
+// the role may not make would be refused and recorded as a denied access. Server-side
+// authorization on each sub-page and route remains the control; this is navigation only.
 export const dynamic = "force-dynamic";
 
-type SectionKey = keyof Pick<
-  Messages["settings"],
-  "members" | "deletionRequests" | "auditTrail" | "preparationTime"
->;
+const soft = <T,>(load: Promise<T>): Promise<T | null> =>
+  load.catch(() => null);
 
-const SECTIONS: { href: string; key: SectionKey; roles: string[] }[] = [
-  { href: "/einstellungen/mitglieder", key: "members", roles: ["owner"] },
-  {
-    href: "/einstellungen/loeschantraege",
-    key: "deletionRequests",
-    roles: ["owner", "medical_director"],
-  },
-  { href: "/einstellungen/audit", key: "auditTrail", roles: ["owner"] },
-  {
-    href: "/einstellungen/vorbereitungszeit",
-    key: "preparationTime",
-    roles: ["owner"],
-  },
-];
+const DAY_MS = 86_400_000;
+
+// One line per section: what is in it now. Null: it could not be read.
+async function sectionStates(
+  role: string,
+  locale: Locale,
+  messages: Messages,
+): Promise<Partial<Record<SettingsKey, string | null>>> {
+  const s = messages.settings.state;
+  const may = (key: SettingsKey) =>
+    mayOpen(SETTINGS_SECTIONS.find((x) => x.key === key)!, role);
+  const now = Date.now();
+  const [members, invitations, prep, deletions, denials] = await Promise.all([
+    may("members") ? soft(listMembers()) : null,
+    may("members") ? soft(listStaffInvitations()) : null,
+    may("preparationTime") ? soft(getPreparationTime()) : null,
+    may("deletionRequests") ? soft(listDeletionRequests()) : null,
+    may("auditTrail")
+      ? soft(
+          listAuditEvents({
+            category: "authz",
+            since: new Date(now - 7 * DAY_MS).toISOString(),
+            limit: 100,
+          }),
+        )
+      : null,
+  ]);
+  const out: Partial<Record<SettingsKey, string | null>> = {};
+  if (may("members")) {
+    if (members && invitations) {
+      const open = invitations.filter(
+        (i) => i.status === "pending" && Date.parse(i.expires_at) > now,
+      ).length;
+      out.members = `${byCount(s.members, members.length)} · ${
+        open === 0 ? s.noInvitations : byCount(s.invitations, open)
+      }`;
+    } else out.members = null;
+  }
+  if (may("preparationTime")) {
+    if (prep) {
+      const median = prep.measured_last_30_days.median_seconds;
+      out.preparationTime = `${
+        prep.baseline ? s.baselineSet : s.baselineMissing
+      } · ${
+        median != null
+          ? fill(s.median, {
+              value: duration(median, locale, messages.overview.duration),
+            })
+          : s.noMedian
+      }`;
+    } else out.preparationTime = null;
+  }
+  if (may("deletionRequests")) {
+    if (deletions) {
+      const open = deletions.filter(
+        (d) => d.status === "pending" || d.status === "approved",
+      ).length;
+      out.deletionRequests =
+        open === 0 ? s.noDeletions : byCount(s.deletions, open);
+    } else out.deletionRequests = null;
+  }
+  if (may("auditTrail")) {
+    out.auditTrail = denials ? byCount(s.denials, denials.items.length) : null;
+  }
+  return out;
+}
 
 export default async function EinstellungenPage() {
   const session = await me().catch(() => null);
@@ -45,182 +112,140 @@ export default async function EinstellungenPage() {
   const locale = await getLocale();
   const messages = await getMessages();
   const t = messages.settings;
-  const sections = SECTIONS.filter((s) => s.roles.includes(role)).map((s) => ({
-    href: s.href,
-    title: t[s.key].title,
-    desc: t[s.key].desc,
-  }));
+  const a = messages.appearance;
+  const states = await sectionStates(role, locale, messages);
+  const now = Date.now();
+  const formats = [
+    new Intl.NumberFormat(intlLocale(locale)).format(1234.5),
+    new Intl.DateTimeFormat(intlLocale(locale), {
+      timeZone: CLINIC_TIME_ZONE,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(now),
+    CLINIC_TIME_ZONE,
+  ].join(" · ");
+  const cards = SETTINGS_SECTIONS.filter((s) => s.key !== "appearance");
 
   return (
     <VitaShell nav="einstellungen" crumb={t.title} identity={identity}>
-      <div style={{ maxWidth: "820px" }}>
-        <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>{t.title}</h1>
-        <p
-          style={{
-            color: "var(--text-muted, #5b6b70)",
-            fontSize: "13px",
-            marginBottom: "22px",
-            lineHeight: 1.55,
-          }}
-        >
-          {t.intro}
-        </p>
-
+      <div className="vb-set-head">
+        <span className="vb-ov-eyebrow">{t.eyebrow}</span>
+        <h1 className="vb-ov-h1">{t.title}</h1>
+        <p className="vb-ov-lead">{t.intro}</p>
+      </div>
+      <SettingsFrame role={role} current="appearance" messages={messages}>
         <section
-          aria-labelledby="language-title"
-          style={{
-            padding: "18px 20px",
-            borderRadius: "12px",
-            border: "1px solid var(--border-subtle, #dfe5e7)",
-            background: "var(--surface-card, #fff)",
-            marginBottom: "22px",
-          }}
+          className="vb-ov-card"
+          aria-labelledby="appearance-title"
+          id="sprache"
         >
-          <h2
-            id="language-title"
-            style={{
-              fontSize: "15px",
-              margin: "0 0 4px",
-              color: "var(--text-strong, #17292f)",
-            }}
-          >
-            {messages.language.title}
-          </h2>
-          <p
-            style={{
-              fontSize: "12.5px",
-              color: "var(--text-muted, #5b6b70)",
-              lineHeight: 1.5,
-              margin: "0 0 12px",
-            }}
-          >
-            {messages.language.note}
-          </p>
-          <form
-            action={setLocale}
-            role="group"
-            aria-label={messages.language.choose}
-            style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}
-          >
-            {LOCALES.map((option) => {
-              const current = option === locale;
-              return (
-                <button
-                  key={option}
-                  type="submit"
-                  name="locale"
-                  value={option}
-                  lang={option}
-                  aria-pressed={current}
-                  style={{
-                    padding: "8px 14px",
-                    borderRadius: "8px",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    border: current
-                      ? "1.5px solid var(--brand, #0f6b5f)"
-                      : "1px solid var(--border-default, #c9d3d6)",
-                    background: current
-                      ? "var(--brand-soft, #e3f1ee)"
-                      : "var(--surface-card, #fff)",
-                    color: "var(--text-strong, #17292f)",
-                  }}
-                >
-                  {LANGUAGE_NAMES[option]}
-                  {current && (
-                    <span style={{ fontWeight: 400 }}>
-                      {" "}
-                      · {messages.language.selected}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </form>
-          <p
-            style={{
-              fontSize: "12px",
-              color: "var(--text-muted, #5b6b70)",
-              lineHeight: 1.5,
-              margin: "12px 0 0",
-            }}
-          >
-            {messages.language.progress}
-          </p>
+          <div className="vb-ov-head">
+            <div>
+              <h2 id="appearance-title" className="vb-ov-h2">
+                {a.title}
+              </h2>
+              <p className="vb-ov-note">{a.note}</p>
+            </div>
+          </div>
+          <div className="vb-ov-body">
+            <div className="vb-set-row">
+              <div className="vb-set-k">
+                <b id="language-label">{a.language.label}</b>
+                <span>{a.language.help}</span>
+              </div>
+              <form
+                action={setLocale}
+                className="vb-set-seg"
+                role="group"
+                aria-labelledby="language-label"
+              >
+                {LOCALES.map((option) => (
+                  <button
+                    key={option}
+                    type="submit"
+                    name="locale"
+                    value={option}
+                    lang={option}
+                    aria-pressed={option === locale}
+                  >
+                    {LANGUAGE_NAMES[option]}
+                  </button>
+                ))}
+              </form>
+            </div>
+            <div className="vb-set-row">
+              <div className="vb-set-k">
+                <b>{a.theme.label}</b>
+                <span>{a.theme.help}</span>
+              </div>
+              <ThemeChoice />
+            </div>
+            <div className="vb-set-row">
+              <div className="vb-set-k">
+                <b>{a.formats.label}</b>
+                <span>{a.formats.help}</span>
+              </div>
+              <span className="vb-ov-mono">{formats}</span>
+            </div>
+            <div className="vb-set-row">
+              <div className="vb-set-k">
+                <b>{a.progress.label}</b>
+              </div>
+              <details className="vb-ov-details" style={{ marginTop: 0 }}>
+                <summary>{a.progress.summary}</summary>
+                <p className="vb-ov-note" style={{ marginTop: "8px" }}>
+                  {messages.language.progress}
+                </p>
+              </details>
+            </div>
+          </div>
         </section>
 
-        {sections.length === 0 ? (
-          <p style={{ color: "var(--text-muted, #5b6b70)", fontSize: "13px" }}>
-            {t.noSections}
+        <section aria-labelledby="all-sections" style={{ marginTop: "18px" }}>
+          <h2 id="all-sections" className="vb-ov-h2">
+            {t.all.title}
+          </h2>
+          <p className="vb-ov-note" style={{ marginBottom: "12px" }}>
+            {t.all.note}
           </p>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-              gap: "14px",
-            }}
-          >
-            {sections.map((s) => (
-              <Link
-                key={s.href}
-                href={s.href}
-                style={{
-                  display: "block",
-                  padding: "18px 20px",
-                  borderRadius: "12px",
-                  border: "1px solid var(--border-subtle, #dfe5e7)",
-                  background: "var(--surface-card, #fff)",
-                  textDecoration: "none",
-                  color: "inherit",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "10px",
-                    marginBottom: "6px",
-                  }}
-                >
-                  <strong
-                    style={{
-                      fontSize: "15px",
-                      color: "var(--text-strong, #17292f)",
-                    }}
-                  >
-                    {s.title}
-                  </strong>
-                  <svg
-                    aria-hidden="true"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="var(--text-muted, #5b6b70)"
-                    strokeWidth="1.9"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M5 12h14M13 6l6 6-6 6" />
-                  </svg>
-                </div>
-                <span
-                  style={{
-                    fontSize: "12.5px",
-                    color: "var(--text-muted, #5b6b70)",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {s.desc}
-                </span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
+          <ul className="vb-set-cards">
+            {cards.map((s) => {
+              const title = t[s.key].title;
+              const group = t.nav.groups[s.group];
+              if (!mayOpen(s, role)) {
+                return (
+                  <li key={s.key} className="vb-set-card locked">
+                    <div className="vb-set-card-t">
+                      <b>{title}</b>
+                      <span className="vb-set-lock">
+                        <LockIcon />
+                        {lockedLabel(s, messages)}
+                      </span>
+                    </div>
+                    <span className="vb-set-card-d">{t[s.key].desc}</span>
+                  </li>
+                );
+              }
+              const state = states[s.key];
+              return (
+                <li key={s.key}>
+                  <Link href={s.href} className="vb-set-card">
+                    <div className="vb-set-card-t">
+                      <b>{title}</b>
+                      <span className="vb-ov-eyebrow">{group}</span>
+                    </div>
+                    <span className="vb-set-card-s">
+                      {state ?? t.state.unavailable}
+                    </span>
+                    <span className="vb-set-card-d">{t[s.key].desc}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      </SettingsFrame>
     </VitaShell>
   );
 }

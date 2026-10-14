@@ -3,7 +3,7 @@ import { fill } from "@/lib/i18n/fill";
 import type { Locale } from "@/lib/i18n/locales";
 import type { Messages } from "@/lib/i18n/messages";
 
-// Formatting for the overview. Every time is measured from the moment the server put the
+// Formatting for the overview and the settings. Every time is measured from the moment the server put the
 // page together (`now`), never from the browser's clock: the server's and the browser's
 // rendering then read the same, and "waiting since" means the same on every screen.
 

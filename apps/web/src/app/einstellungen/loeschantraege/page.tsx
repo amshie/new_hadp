@@ -6,6 +6,7 @@ import { getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
 
 import { LoeschantraegeContent } from "./LoeschantraegeContent";
+import { SettingsFrame } from "../SettingsFrame";
 
 // Owner + medical-director erasure-request queue (real-data path). The API gates the list
 // endpoint to those two roles server-side (PRIVACY_REQUEST_LIST); this page mirrors that with
@@ -34,12 +35,20 @@ export default async function LoeschantraegePage() {
         crumbParent={parent}
         identity={identity}
       >
-        <div style={{ maxWidth: "620px" }}>
-          <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>{title}</h1>
-          <p style={{ lineHeight: 1.55, color: "var(--text-muted, #5b6b70)" }}>
-            {messages.deletionRequestsPage.reserved}
-          </p>
-        </div>
+        <SettingsFrame
+          role={session.role}
+          current="deletionRequests"
+          messages={messages}
+        >
+          <div style={{ maxWidth: "620px" }}>
+            <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>{title}</h1>
+            <p
+              style={{ lineHeight: 1.55, color: "var(--text-muted, #5b6b70)" }}
+            >
+              {messages.deletionRequestsPage.reserved}
+            </p>
+          </div>
+        </SettingsFrame>
       </VitaShell>
     );
   }
@@ -60,11 +69,17 @@ export default async function LoeschantraegePage() {
       crumbParent={parent}
       identity={identity}
     >
-      <LoeschantraegeContent
-        requests={requests}
-        role={role}
-        selfUserId={session.user.id}
-      />
+      <SettingsFrame
+        role={session.role}
+        current="deletionRequests"
+        messages={messages}
+      >
+        <LoeschantraegeContent
+          requests={requests}
+          role={role}
+          selfUserId={session.user.id}
+        />
+      </SettingsFrame>
     </VitaShell>
   );
 }

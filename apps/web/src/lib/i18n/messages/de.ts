@@ -1600,9 +1600,27 @@ export const de = {
   },
   settings: {
     title: "Einstellungen",
+    eyebrow: "Verwaltung",
     intro:
-      "Verwaltung des Mandanten. Die verfügbaren Bereiche richten sich nach Ihrer Rolle.",
-    noSections: "Für Ihre Rolle sind keine weiteren Bereiche verfügbar.",
+      "Persönliches, die Praxis und die Governance, getrennt. Was Ihre Rolle nicht öffnen darf, ist gesperrt, nicht versteckt.",
+    nav: {
+      label: "Bereiche der Einstellungen",
+      groups: {
+        personal: "Persönlich",
+        clinic: "Praxis",
+        governance: "Governance",
+      },
+      locked: "Nur für {roles}",
+      and: " und ",
+    },
+    all: {
+      title: "Alle Bereiche",
+      note: "Jede Karte sagt, was darin gerade steht.",
+    },
+    appearance: {
+      title: "Sprache & Darstellung",
+      desc: "Die Sprache der Oberfläche und das Erscheinungsbild auf diesem Gerät.",
+    },
     members: {
       title: "Mitglieder",
       desc: "Team verwalten, Rollen ändern und Kolleg:innen einladen.",
@@ -1618,6 +1636,50 @@ export const de = {
     preparationTime: {
       title: "Vorbereitungszeit",
       desc: "Ausgangswert und Folgeangaben der Praxis erfassen und die gemessene Durchlaufzeit der Berichte einsehen.",
+    },
+    // What each card says is in the section right now.
+    state: {
+      members: { one: "{n} Mitglied", other: "{n} Mitglieder" },
+      invitations: {
+        one: "{n} offene Einladung",
+        other: "{n} offene Einladungen",
+      },
+      noInvitations: "keine offene Einladung",
+      baselineSet: "Ausgangswert erfasst",
+      baselineMissing: "Ausgangswert fehlt",
+      median: "Median {value}",
+      noMedian: "noch kein Median",
+      deletions: { one: "{n} Antrag offen", other: "{n} Anträge offen" },
+      noDeletions: "Kein Antrag offen",
+      denials: {
+        one: "{n} abgewiesener Zugriff in 7 Tagen",
+        other: "{n} abgewiesene Zugriffe in 7 Tagen",
+      },
+      unavailable: "Stand derzeit nicht abrufbar",
+    },
+  },
+  // Language and appearance, under Einstellungen.
+  appearance: {
+    title: "Sprache & Darstellung",
+    note: "Gilt für Sie auf diesem Gerät. Klinische Bezeichnungen, Laborangaben und Namen bleiben in der Sprache, in der sie erfasst wurden.",
+    language: {
+      label: "Sprache der Oberfläche",
+      help: "Deutsch ist die Standardsprache der Pilotphase.",
+    },
+    theme: {
+      label: "Erscheinungsbild",
+      help: "Hell, dunkel oder wie das System dieses Geräts eingestellt ist.",
+      light: "Hell",
+      dark: "Dunkel",
+      system: "System",
+    },
+    formats: {
+      label: "Zahlen und Daten",
+      help: "Die Schreibweise folgt der Sprache; Datum und Uhrzeit stehen auf der Uhr der Praxis.",
+    },
+    progress: {
+      label: "Stand der Übersetzung",
+      summary: "Was auf Englisch verfügbar ist",
     },
   },
   language: {

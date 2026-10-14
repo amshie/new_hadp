@@ -24,7 +24,7 @@ import {
   type TodayItem,
 } from "@/lib/presenters/today";
 
-import { ago, clock, day, longDay } from "./format";
+import { ago, clock, day, longDay } from "@/lib/format";
 import type { OverviewData } from "./page";
 import { Card, CardHead, KeyValue, Pill } from "./parts";
 import { PracticeCard } from "./PracticeCard";
