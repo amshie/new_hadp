@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
@@ -32,6 +32,7 @@ from hadp_api.modules.imports.normalize import unit_was_converted
 from hadp_api.modules.kpi.service import domain_membership, resolve_comparison_policies
 from hadp_api.modules.observations.comparability import is_comparable
 from hadp_api.modules.observations.models import Observation
+from hadp_api.modules.observations.reference_position import position_vs_source_interval
 from hadp_api.modules.observations.sampling import same_sampling_time
 
 
@@ -143,6 +144,116 @@ def value_counts_by_patient(
         cutoff = cutoffs.get(patient_id)
         if cutoff is not None and status != ReviewStatus.REJECTED and received_at > cutoff:
             counts.received_after_cutoff += 1
+    return out
+
+
+# After this many days a core marker's latest value counts as old on the practice view and
+# the page before a visit. A stated constant, printed beside the count (the web's
+# STALE_AFTER_DAYS is its twin); a clinic's own setting is a later step.
+STALE_AFTER_DAYS = 180
+
+
+@dataclass
+class PatientPreparationFacts:
+    """What the practice view says about one record (docs/notes/0023): counts of what stands
+    in it, against the catalog and the latest interpretation run. Workflow and provenance
+    facts only — a position is the laboratory interval's side, nothing is rated or summed."""
+
+    # Published, standing values received after the patient's latest run (0 without a run).
+    new_since_run: int = 0
+    # Of those, how many lie outside their laboratory's interval.
+    new_outside: int = 0
+    # Markers whose latest standing value lies outside their laboratory's interval.
+    outside: int = 0
+    # Core markers whose latest standing value is older than STALE_AFTER_DAYS.
+    stale_core: int = 0
+    # Core markers of the catalog with no standing value.
+    missing_core: int = 0
+    pending: int = 0
+    # Standing values no catalog marker names.
+    unassigned: int = 0
+
+
+def superseded_by_tenant(db: Session, tenant_id: uuid.UUID) -> set[uuid.UUID]:
+    """Every observation of a tenant a PUBLISHED source value has replaced — the tenant-wide
+    twin of `superseded_by`, the same definition, for the practice view's one pass."""
+    rows = db.execute(
+        select(Observation.supersedes_observation_id).where(
+            Observation.tenant_id == tenant_id,
+            Observation.supersedes_observation_id.is_not(None),
+            Observation.review_status == ReviewStatus.PUBLISHED,
+            Observation.source_category.is_distinct_from(KpiMeasurementClass.DERIVED),
+        )
+    ).scalars()
+    return {replaced for replaced in rows if replaced is not None}
+
+
+def preparation_facts_by_patient(
+    db: Session,
+    tenant_id: uuid.UUID,
+    cutoffs: dict[uuid.UUID, datetime],
+    core_codes: set[str],
+    now: datetime,
+    stale_after_days: int = STALE_AFTER_DAYS,
+) -> dict[uuid.UUID, PatientPreparationFacts]:
+    """The practice view's facts for every record of a tenant in one pass (explicit tenant
+    filter; RLS beneath it). A value stands when it is published, no laboratory correction
+    has replaced it, and it was not derived from a replaced input — the timeline's
+    definition. A marker's latest value is its newest standing one by sample time; the
+    position against the interval is `position_vs_source_interval`, the timeline's as well.
+    Every record of the tenant gets an entry, even one without a value."""
+    replaced = superseded_by_tenant(db, tenant_id)
+    stale_derived = derived_from(db, replaced)
+    rows = (
+        db.execute(
+            select(Observation)
+            .where(Observation.tenant_id == tenant_id)
+            .order_by(Observation.patient_id, Observation.observed_at, Observation.received_at)
+        )
+        .scalars()
+        .all()
+    )
+    out: dict[uuid.UUID, PatientPreparationFacts] = {}
+    # The latest standing value per (patient, marker), in sample order.
+    latest: dict[tuple[uuid.UUID, str], Observation] = {}
+    for obs in rows:
+        facts = out.setdefault(obs.patient_id, PatientPreparationFacts())
+        if obs.review_status == ReviewStatus.PENDING:
+            facts.pending += 1
+            continue
+        standing = (
+            obs.review_status == ReviewStatus.PUBLISHED
+            and obs.id not in replaced
+            and obs.id not in stale_derived
+        )
+        if not standing:
+            continue
+        value, _unit = held_value(obs)
+        position = position_vs_source_interval(value, obs.reference_low, obs.reference_high)
+        cutoff = cutoffs.get(obs.patient_id)
+        if cutoff is not None and obs.received_at > cutoff:
+            facts.new_since_run += 1
+            if position in ("above", "below"):
+                facts.new_outside += 1
+        if obs.kpi_code is None:
+            facts.unassigned += 1
+            continue
+        latest[(obs.patient_id, obs.kpi_code)] = obs
+    stale_before = now - timedelta(days=stale_after_days)
+    seen: dict[uuid.UUID, set[str]] = {}
+    for (patient_id, code), obs in latest.items():
+        facts = out[patient_id]
+        seen.setdefault(patient_id, set()).add(code)
+        value, _unit = held_value(obs)
+        if position_vs_source_interval(value, obs.reference_low, obs.reference_high) in (
+            "above",
+            "below",
+        ):
+            facts.outside += 1
+        if code in core_codes and obs.observed_at < stale_before:
+            facts.stale_core += 1
+    for patient_id, facts in out.items():
+        facts.missing_core = len(core_codes - seen.get(patient_id, set()))
     return out
 
 

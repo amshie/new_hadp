@@ -175,6 +175,10 @@ const ACTION_LABELS: Record<string, Record<Locale, string>> = {
     de: "Übersicht gelesen (Datenquellen)",
     en: "Overview read (data sources)",
   },
+  "worklist.preparation.read": {
+    de: "Vorbereitung je Akte gelesen",
+    en: "Preparation by record read",
+  },
   "metric.read": {
     de: "Kennzahl Vorbereitungszeit gelesen",
     en: "Preparation time metric read",

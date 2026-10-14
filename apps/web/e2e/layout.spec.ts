@@ -10,6 +10,7 @@ import { asStaff } from "./support/staff";
 const PAGES = [
   "/overview",
   "/patients",
+  "/vorbereitung",
   "/review-queue",
   "/einstellungen",
   "/einstellungen/profil",

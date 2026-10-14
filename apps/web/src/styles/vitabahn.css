@@ -2149,6 +2149,57 @@
   padding: 2px 22px 18px;
 }
 
+/* The practice view (docs/notes/0023): one row per record, the counts as numbers in a
+   column each; a column's heading is a button that sorts by it; a record's name leads to its
+   own page. */
+.vb-scope .vb-prep-table th.is-num,
+.vb-scope .vb-prep-table td.is-num {
+  text-align: right;
+}
+.vb-scope .vb-prep-table td.is-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text-body);
+}
+.vb-scope .vb-prep-table td {
+  vertical-align: top;
+}
+.vb-scope .vb-prep-table th {
+  white-space: normal;
+  vertical-align: bottom;
+}
+.vb-scope .vb-prep-record {
+  font-weight: 600;
+  color: var(--text-strong);
+  text-decoration: none;
+}
+.vb-scope .vb-prep-record:hover,
+.vb-scope .vb-prep-record:focus-visible {
+  text-decoration: underline;
+}
+.vb-scope .vb-prep-sort {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vb-scope .vb-prep-sort:hover,
+.vb-scope .vb-prep-sort:focus-visible,
+.vb-scope .vb-prep-sort[aria-pressed="true"] {
+  color: var(--text-strong);
+}
+.vb-scope .vb-prep-sort:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
 /* On paper: the page's content only, every line in full. */
 @media print {
   .vb-scope .vb-sidebar,

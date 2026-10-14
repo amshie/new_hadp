@@ -389,6 +389,11 @@ def main() -> int:
             "de": ("Vorbereitung ·", "Seit Lauf", "Drucken", "Zur Akte"),
             "en": ("Preparation ·", "Since run", "Print", "To the record"),
         }
+        # The practice view (docs/notes/0023): one row per record, the counts as columns.
+        wording["/vorbereitung"] = {
+            "de": ("Vorbereitung je Akte", "Neu seit Lauf", "Ohne Interpretation", "Kernmarkern"),
+            "en": ("Preparation by record", "New since run", "No interpretation", "core markers"),
+        }
         # The interpretation form: its fields are interface, what is chosen in them is not.
         wording[f"/patients/{pid}/interpretation/neu"] = {
             "de": ("Grund (Pflicht)", "Endpunkt-Adäquanz", "Bitte wählen"),
