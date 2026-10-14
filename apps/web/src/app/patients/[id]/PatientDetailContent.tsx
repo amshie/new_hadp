@@ -248,9 +248,9 @@ export function PatientDetailContent({
   const runDraft = () => {
     startDraftTransition(async () => {
       setDraftError(null);
+      // On success the action redirects to the report; it answers only a refusal.
       const res = await generateReportAction(view.patientId);
-      if (res.ok) router.push(res.reviewUrl);
-      else setDraftError(res.error);
+      if (res && !res.ok) setDraftError(res.error);
     });
   };
 
@@ -516,6 +516,9 @@ export function PatientDetailContent({
                   }}
                 />
                 <span>
+                  {review.dateOfBirth
+                    ? `${fill(t.born, { date: review.dateOfBirth })} · `
+                    : ""}
                   {review.ageYears === null
                     ? t.ageUnknown
                     : byCount(t.age, review.ageYears)}
@@ -534,6 +537,24 @@ export function PatientDetailContent({
                     : fill(t.reportVersion, { version: review.versionNo })}
                 </span>
               </div>
+              {/* Where the record stands in time: its newest sample, its latest run. */}
+              {!erased && (
+                <div className="vb-pt-stand">
+                  <span>
+                    {view.prep.today.latestDay
+                      ? fill(t.lastValues, { date: view.prep.today.latestDay })
+                      : t.noValuesYet}
+                  </span>
+                  <span>
+                    {view.prep.run
+                      ? fill(t.lastRun, {
+                          n: view.prep.run.number,
+                          date: view.prep.run.day,
+                        })
+                      : t.noRunYet}
+                  </span>
+                </div>
+              )}
             </div>
             {(canInvite || reportLink) && (
               <div

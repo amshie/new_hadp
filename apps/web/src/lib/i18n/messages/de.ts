@@ -592,6 +592,11 @@ export const de = {
     age: { one: "{n} Jahr", other: "{n} Jahre" },
     ageUnknown: "Alter unbekannt",
     noReport: "Kein Bericht",
+    born: "geb. {date}",
+    lastValues: "Letzte Werte vom {date}",
+    noValuesYet: "Noch keine Werte",
+    lastRun: "Letzte Interpretation: Lauf {n} · {date}",
+    noRunYet: "Noch keine Interpretation",
     reportVersion: "Bericht · v{version}",
     actions: {
       openReport: "Bericht öffnen",
@@ -625,6 +630,72 @@ export const de = {
       pageTitle: "Vorbereitung · {name}",
       quiet: "Nichts hinzugekommen, nichts gewechselt, nichts offen.",
       quietNoRun: "Keine Werte erfasst.",
+      // What stands today (docs/notes/0025): counts and positions, the clinician's verdicts.
+      today: {
+        title: "Lage heute",
+        asOf: "neueste Messung vom {date}",
+        noValues: "Noch kein veröffentlichter Wert.",
+        tally: {
+          withValue: "Marker mit Wert",
+          outside: "außerhalb des Intervalls",
+          within: "im Intervall",
+          noReference: "ohne Referenz der Quelle",
+          pending: "in Prüfung · nicht veröffentlicht",
+        },
+        outsideTitle: "Außerhalb des Quellreferenzintervalls",
+        ofAll: "{n} von {total}",
+        noneOutside:
+          "Kein Marker, dessen letzter Wert außerhalb des Quellreferenzintervalls liegt.",
+        columns: {
+          marker: "Marker",
+          trend: "Verlauf",
+          value: "Letzter Wert",
+          reference: "Ref",
+          position: "Lage",
+          measured: "Gemessen",
+        },
+        trend: { one: "Verlauf: {n} Messung", other: "Verlauf: {n} Messungen" },
+        measurements: { one: "{n} Messung", other: "{n} Messungen" },
+        trendNote:
+          "Verlauf: ein Punkt im Intervallband je Messung; eine Linie nur zwischen Werten, die die Plattform als vergleichbar erkannt hat.",
+        noReferenceNote:
+          "{n} Werte ohne Referenzintervall der Quelle (z. B. Blutdruck, Puls, Körpermaße) stehen in der Werteliste, nicht hier.",
+        toValues: "Zu den Werten",
+        verdictsTitle: "Letzte Interpretation",
+        runMeta: "Lauf {n} · erfasst am {date}",
+        noRunMeta: "noch keine erfasst",
+        verdictColumns: {
+          domain: "Domäne",
+          outside: "Außerh.",
+          cis: "CIS",
+          actionability: "Actionability",
+          followup: "Follow-up",
+        },
+        withValue: "{x} von {n} mit Wert",
+        noVerdict: "kein Urteil erfasst",
+        verdictsNote:
+          "Urteile der Ärztin oder des Arztes, wie erfasst · keine Berechnung.",
+        verdictsCounts:
+          "{inadequate} mit inadäquatem Follow-up · {unassessed} nicht bewertet.",
+      },
+      since: {
+        title: "Seit Lauf {n} · {date}",
+        noRunTitle: "Seit der letzten Interpretation",
+        none: "Keine neuen Werte seit der letzten Interpretation.",
+        noRun: "Noch keine Interpretation erfasst.",
+      },
+      gaps: {
+        title: "Alt und fehlend",
+        note: "von {n} Kernmarkern des Katalogs: älter als {days} Tage oder ohne veröffentlichten Wert – als Vorlage für den nächsten Laborauftrag",
+        allFrom: "alle vom {date}",
+        from: "{n} vom {date}",
+        never: "nie erfasst",
+        show: { one: "{n} Marker anzeigen", other: "{n} Marker anzeigen" },
+        hide: "Marker ausblenden",
+        noneStale: "Kein Kernmarker mit letztem Wert älter als {days} Tage.",
+        noneMissing:
+          "Jeder Kernmarker des Katalogs hat einen veröffentlichten Wert.",
+      },
       groups: {
         newValues: {
           one: "{n} neuer Wert seit Lauf {run}",

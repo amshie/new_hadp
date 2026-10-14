@@ -569,6 +569,11 @@ export const en: Messages = {
     age: { one: "{n} year", other: "{n} years" },
     ageUnknown: "Age unknown",
     noReport: "No report",
+    born: "born {date}",
+    lastValues: "Latest values from {date}",
+    noValuesYet: "No values yet",
+    lastRun: "Latest interpretation: run {n} · {date}",
+    noRunYet: "No interpretation yet",
     reportVersion: "Report · v{version}",
     actions: {
       openReport: "Open report",
@@ -603,6 +608,74 @@ export const en: Messages = {
       pageTitle: "Preparation · {name}",
       quiet: "Nothing new, nothing moved, nothing open.",
       quietNoRun: "No values recorded.",
+      // What stands today (docs/notes/0025): counts and positions, the clinician's verdicts.
+      today: {
+        title: "Today's position",
+        asOf: "newest sample from {date}",
+        noValues: "No published value yet.",
+        tally: {
+          withValue: "markers with a value",
+          outside: "outside the interval",
+          within: "within the interval",
+          noReference: "without a source reference",
+          pending: "in review · not published",
+        },
+        outsideTitle: "Outside the source reference interval",
+        ofAll: "{n} of {total}",
+        noneOutside:
+          "No marker whose latest value lies outside the source reference interval.",
+        columns: {
+          marker: "Marker",
+          trend: "Course",
+          value: "Latest value",
+          reference: "Ref",
+          position: "Position",
+          measured: "Measured",
+        },
+        trend: {
+          one: "Course: {n} measurement",
+          other: "Course: {n} measurements",
+        },
+        measurements: { one: "{n} measurement", other: "{n} measurements" },
+        trendNote:
+          "Course: one point in the interval band per measurement; a line only between values the platform found comparable.",
+        noReferenceNote:
+          "{n} values without a source reference interval (e.g. blood pressure, pulse, body measures) are in the values list, not here.",
+        toValues: "To the values",
+        verdictsTitle: "Latest interpretation",
+        runMeta: "Run {n} · recorded on {date}",
+        noRunMeta: "none recorded yet",
+        verdictColumns: {
+          domain: "Domain",
+          outside: "Outside",
+          cis: "CIS",
+          actionability: "Actionability",
+          followup: "Follow-up",
+        },
+        withValue: "{x} of {n} with a value",
+        noVerdict: "no verdict recorded",
+        verdictsNote: "The clinician's verdicts, as recorded · no computation.",
+        verdictsCounts:
+          "{inadequate} with inadequate follow-up · {unassessed} not assessed.",
+      },
+      since: {
+        title: "Since run {n} · {date}",
+        noRunTitle: "Since the latest interpretation",
+        none: "No new values since the latest interpretation.",
+        noRun: "No interpretation recorded yet.",
+      },
+      gaps: {
+        title: "Old and missing",
+        note: "of the catalog's {n} core markers: older than {days} days or without a published value – a template for the next laboratory order",
+        allFrom: "all from {date}",
+        from: "{n} from {date}",
+        never: "never recorded",
+        show: { one: "Show {n} marker", other: "Show {n} markers" },
+        hide: "Hide markers",
+        noneStale:
+          "No core marker whose latest value is older than {days} days.",
+        noneMissing: "Every core marker of the catalog has a published value.",
+      },
       groups: {
         newValues: {
           one: "{n} new value since run {run}",

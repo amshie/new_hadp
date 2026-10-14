@@ -62,10 +62,68 @@ export interface PrepMissing {
   axis: string;
 }
 
+// One standing value of a marker on its trend: where it lies against its interval, and
+// whether a line may join it to the value before it (the API found the two comparable).
+export interface PrepTrendPoint {
+  id: string;
+  day: string;
+  position: ReferencePosition;
+  linked: boolean;
+}
+
+// A marker whose latest standing value lies outside its laboratory's interval, with every
+// standing value of the marker behind it.
+export interface PrepOutside extends PrepValue {
+  code: string;
+  axis: string;
+  trend: PrepTrendPoint[];
+}
+
+// What stands today (docs/notes/0025): every marker's latest standing value, counted by
+// where it lies against the laboratory's interval. Counts and positions, never a rating.
+export interface PrepToday {
+  // Markers with a published standing value, the values no catalog marker names included.
+  withValue: number;
+  outside: PrepOutside[];
+  within: number;
+  // Published, but with no interval of the source to lie against.
+  noReference: number;
+  // The newest sample day among them; null without a value.
+  latestDay: string | null;
+}
+
+// One domain's line beside the clinician's latest verdict: how many of its core markers
+// have a value, how many of its markers lie outside their interval, and the verdict itself
+// (null when the run recorded none, or without a run).
+export interface PrepDomain {
+  axis: string;
+  coreTotal: number;
+  coreWithValue: number;
+  outside: number;
+  verdict: {
+    cisStatus: string;
+    actionabilityClass: string;
+    followupAdequacy: string;
+    reviewed: boolean;
+  } | null;
+}
+
+export interface PrepCount {
+  key: string;
+  count: number;
+}
+
 export interface VisitPrep {
   // The run the facts are "since"; null when the record has no interpretation yet — then
   // there is no "new" and no "moved", only what stands today.
   run: { number: number; day: string } | null;
+  today: PrepToday;
+  domains: PrepDomain[];
+  // The old and the missing core markers, grouped: by sample day (most first) and by domain
+  // (the catalog's order), so a page can say "17, all from 10.06.2025" before it lists them.
+  staleByDay: PrepCount[];
+  staleByAxis: PrepCount[];
+  missingByAxis: PrepCount[];
   // Published values received after the run, in the order of the domain lists.
   newValues: PrepValue[];
   // Of those, how many lie outside their laboratory's interval.
@@ -198,6 +256,77 @@ export function presentVisitPrep(
   const unassigned = overview.unassigned.filter(
     (v) => v.status !== "rejected",
   ).length;
+
+  // What stands today, per marker; the unassigned values count one each.
+  const outside: PrepOutside[] = [];
+  let within = 0;
+  let noReference = 0;
+  let withValue = 0;
+  let latestMs = -Infinity;
+  let latestDay: string | null = null;
+  const tally = (v: ValueView) => {
+    withValue += 1;
+    if (v.observedMs > latestMs) {
+      latestMs = v.observedMs;
+      latestDay = v.observedDay;
+    }
+    if (v.position === "within") within += 1;
+    else if (v.position !== "above" && v.position !== "below") noReference += 1;
+  };
+  for (const domain of overview.domains) {
+    for (const row of domain.rows) {
+      if (row.kind !== "series") continue;
+      const s = row.series;
+      const latest = s.latest;
+      if (!latest) continue;
+      tally(latest);
+      if (latest.position === "above" || latest.position === "below") {
+        outside.push({
+          ...asPrepValue(s, latest, domain.axis),
+          code: s.kpiCode,
+          axis: domain.axis,
+          trend: s.values
+            .filter((v) => v.standing)
+            .map((v) => ({
+              id: v.id,
+              day: v.observedDay,
+              position: v.position,
+              linked: v.previousId != null && v.comparability === "comparable",
+            })),
+        });
+      }
+    }
+  }
+  for (const v of overview.unassigned) if (v.standing) tally(v);
+
+  const domains: PrepDomain[] = overview.domains.map((d) => ({
+    axis: d.axis,
+    coreTotal: d.facts.coreTotal,
+    coreWithValue: d.facts.coreWithValue,
+    outside: d.facts.outside,
+    verdict: d.verdict
+      ? {
+          cisStatus: d.verdict.cisStatus,
+          actionabilityClass: d.verdict.actionabilityClass,
+          followupAdequacy: d.verdict.followupAdequacy,
+          reviewed: d.verdict.reviewed,
+        }
+      : null,
+  }));
+
+  const countBy = <T>(items: T[], key: (item: T) => string): PrepCount[] => {
+    const out: PrepCount[] = [];
+    for (const item of items) {
+      const k = key(item);
+      const found = out.find((c) => c.key === k);
+      if (found) found.count += 1;
+      else out.push({ key: k, count: 1 });
+    }
+    return out;
+  };
+  const staleByDay = countBy(stale, (x) => x.observedDay).sort(
+    (a, b) => b.count - a.count,
+  );
   const domainsWithoutVerdict = hasRun
     ? overview.domains.filter((d) => d.verdict == null).map((d) => d.axis)
     : [];
@@ -207,6 +336,11 @@ export function presentVisitPrep(
 
   return {
     run,
+    today: { withValue, outside, within, noReference, latestDay },
+    domains,
+    staleByDay,
+    staleByAxis: countBy(stale, (x) => x.axis),
+    missingByAxis: countBy(missing, (x) => x.axis),
     newValues,
     newOutside: newValues.filter(
       (v) => v.position === "above" || v.position === "below",
