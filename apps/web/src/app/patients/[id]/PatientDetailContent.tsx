@@ -89,7 +89,7 @@ function statusVita(
     };
   if (status === "draft_generated" || status === "draft_edited")
     return {
-      fg: "var(--amber-500)",
+      fg: "var(--status-warning-text)",
       bg: "rgba(201,136,28,0.12)",
       bd: "rgba(201,136,28,0.30)",
       text: t.draft,
@@ -545,7 +545,7 @@ export function PatientDetailContent({
                       borderRadius: "var(--radius-sm)",
                       border: "1px solid rgba(165,72,64,0.45)",
                       background: "transparent",
-                      color: "var(--rose-500)",
+                      color: "var(--status-danger-text)",
                       fontFamily: "var(--font-text)",
                       fontSize: "13px",
                       fontWeight: 600,
@@ -645,7 +645,7 @@ export function PatientDetailContent({
                 <div
                   style={{
                     fontFamily: "var(--font-mono)",
-                    fontSize: "10.5px",
+                    fontSize: "11px",
                     color: "var(--text-muted)",
                   }}
                 >
@@ -827,7 +827,7 @@ export function PatientDetailContent({
                       <div
                         style={{
                           fontFamily: "var(--font-mono)",
-                          fontSize: "10.5px",
+                          fontSize: "11px",
                           color: "var(--text-muted)",
                           marginTop: "2px",
                         }}
@@ -1074,7 +1074,7 @@ export function PatientDetailContent({
               <div
                 style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: "10px",
+                  fontSize: "11px",
                   letterSpacing: "0.14em",
                   textTransform: "uppercase",
                   color: "var(--text-faint)",
@@ -1455,7 +1455,7 @@ export function PatientDetailContent({
                   role="alert"
                   style={{
                     fontSize: "12.5px",
-                    color: "var(--rose-500)",
+                    color: "var(--status-danger-text)",
                     background: "rgba(194,74,74,0.10)",
                     border: "1px solid rgba(194,74,74,0.30)",
                     borderRadius: "var(--radius-sm)",
@@ -1503,7 +1503,7 @@ export function PatientDetailContent({
                     borderRadius: "var(--radius-sm)",
                     border: "1px solid rgba(165,72,64,0.5)",
                     background: "rgba(194,74,74,0.10)",
-                    color: "var(--rose-500)",
+                    color: "var(--status-danger-text)",
                     fontFamily: "var(--font-text)",
                     fontSize: "13.5px",
                     fontWeight: 600,

@@ -167,8 +167,10 @@
 
   --text-strong: var(--slate-900);
   --text-body: var(--slate-700);
-  --text-muted: var(--slate-500);
-  --text-faint: var(--slate-400);
+  /* Muted and faint text that still read: 4.5:1 on the card, the page and the sunken
+     surface (docs/notes/0020). slate-400 is for borders, icons and tracks, not for words. */
+  --text-muted: #5a6b70;
+  --text-faint: #5f7075;
   --text-on-brand: #ffffff;
   --text-on-dark: var(--slate-50);
 
@@ -187,6 +189,12 @@
   --status-warning: var(--amber-500);
   --status-danger: var(--rose-500);
   --status-info: var(--sky-400);
+  /* The same four as words: a status colour tints a dot, a bar or a background; text in it
+     takes these, which hold 4.5:1 on the light surfaces (docs/notes/0020). */
+  --status-positive-text: var(--teal-500);
+  --status-warning-text: #8a5a10;
+  --status-danger-text: #b03f3f;
+  --status-info-text: #246a86;
 
   /* ---- Type ---- */
   --font-display: "Archivo Variable", "Helvetica Neue", Arial, sans-serif;
@@ -258,7 +266,12 @@
   --text-strong: var(--slate-50);
   --text-body: var(--slate-300);
   --text-muted: var(--slate-400);
-  --text-faint: var(--slate-500);
+  --text-faint: #808f94;
+
+  --status-positive-text: var(--vital-400);
+  --status-warning-text: var(--amber-400);
+  --status-danger-text: var(--rose-400);
+  --status-info-text: var(--sky-400);
 
   --brand: var(--vital-400);
   --brand-hover: var(--vital-300);

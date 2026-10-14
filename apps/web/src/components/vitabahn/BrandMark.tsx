@@ -63,7 +63,7 @@ export function BrandMark({
             style={{
               display: "block",
               fontFamily: "var(--font-mono)",
-              fontSize: "9.5px",
+              fontSize: "11px",
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               color: onDark ? "var(--slate-400)" : "var(--text-muted)",

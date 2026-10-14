@@ -494,12 +494,12 @@
   white-space: nowrap;
 }
 .vb-scope .vb-ov-tag-now {
-  color: var(--amber-500);
+  color: var(--status-warning-text);
   background: rgba(201, 136, 28, 0.12);
   border-color: rgba(201, 136, 28, 0.3);
 }
 .vb-scope .vb-ov-tag-soon {
-  color: var(--sky-400);
+  color: var(--status-info-text);
   background: rgba(63, 164, 201, 0.12);
   border-color: rgba(63, 164, 201, 0.3);
 }
@@ -664,7 +664,7 @@
 }
 .vb-scope .vb-ov-tab-n {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   padding: 0 6px;
   border-radius: var(--radius-pill);
   background: var(--surface-sunken);
@@ -695,7 +695,7 @@
   background: var(--surface-sunken);
   border-top: 1px solid var(--border-subtle);
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-faint);
@@ -824,7 +824,7 @@
 }
 .vb-scope .vb-ov-table thead th {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-faint);
@@ -960,7 +960,7 @@
   display: block;
   padding: 0 10px 6px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-faint);
@@ -1126,7 +1126,7 @@
 }
 .vb-scope .vb-team-error {
   margin: 0;
-  color: var(--rose-500);
+  color: var(--status-danger-text);
   font-size: 13px;
 }
 .vb-scope .vb-team-counts {
@@ -1146,7 +1146,7 @@
   border-top: 1px solid var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-faint);
@@ -1169,7 +1169,7 @@
 }
 .vb-scope .vb-team-me {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 400;
   color: var(--text-faint);
 }
@@ -1241,7 +1241,7 @@
   background: var(--surface-sunken);
 }
 .vb-scope .vb-team-menu .danger {
-  color: var(--rose-500);
+  color: var(--status-danger-text);
 }
 .vb-scope .vb-team-matrix th,
 .vb-scope .vb-team-matrix td {
@@ -1252,7 +1252,7 @@
 }
 .vb-scope .vb-team-matrix thead th {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   color: var(--text-faint);
   font-weight: 500;
@@ -1621,10 +1621,10 @@
 .vb-scope .vb-auth-notice.is-error {
   border-color: var(--status-danger);
   background: transparent;
-  color: var(--status-danger);
+  color: var(--status-danger-text);
 }
 .vb-scope .vb-auth-notice.is-error svg {
-  color: var(--status-danger);
+  color: var(--status-danger-text);
 }
 .vb-scope .vb-auth-languages {
   display: flex;
@@ -1788,7 +1788,7 @@
   accent-color: var(--brand);
 }
 .vb-scope .vb-pub-error {
-  color: var(--status-danger);
+  color: var(--status-danger-text);
 }
 .vb-scope .vb-pub-btn {
   height: 42px;

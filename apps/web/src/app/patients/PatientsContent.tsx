@@ -29,7 +29,7 @@ const cardStyle: CSSProperties = {
 };
 const colLabel: CSSProperties = {
   fontFamily: "var(--font-mono)",
-  fontSize: "10px",
+  fontSize: "11px",
   letterSpacing: "0.1em",
   textTransform: "uppercase",
   color: "var(--text-faint)",
@@ -111,7 +111,7 @@ export function PatientsContent({
   });
   const tabBadge = (active: boolean): CSSProperties => ({
     fontFamily: "var(--font-mono)",
-    fontSize: "10.5px",
+    fontSize: "11px",
     fontWeight: 600,
     padding: "1px 7px",
     borderRadius: "var(--radius-pill)",
@@ -190,7 +190,7 @@ export function PatientsContent({
             <div
               style={{
                 fontFamily: "var(--font-mono)",
-                fontSize: "10.5px",
+                fontSize: "11px",
                 letterSpacing: "0.12em",
                 textTransform: "uppercase",
                 color: "var(--text-muted)",

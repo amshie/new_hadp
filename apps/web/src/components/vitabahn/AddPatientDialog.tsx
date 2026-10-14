@@ -91,7 +91,7 @@ const fieldErrorStyle: CSSProperties = {
   display: "block",
   marginTop: "5px",
   fontSize: "12px",
-  color: "var(--rose-500)",
+  color: "var(--status-danger-text)",
 };
 const hintStyle: CSSProperties = {
   display: "block",
@@ -126,7 +126,7 @@ const btnSecondary: CSSProperties = {
 };
 const alertStyle: CSSProperties = {
   fontSize: "12.5px",
-  color: "var(--rose-500)",
+  color: "var(--status-danger-text)",
   background: "rgba(194,74,74,0.10)",
   border: "1px solid rgba(194,74,74,0.30)",
   borderRadius: "var(--radius-sm)",
@@ -199,7 +199,7 @@ function StepIndicator({ step }: { step: Step }) {
                 justifyContent: "center",
                 borderRadius: "999px",
                 fontFamily: "var(--font-mono)",
-                fontSize: "10.5px",
+                fontSize: "11px",
                 fontWeight: 600,
                 color: done
                   ? "var(--text-on-brand)"
@@ -634,7 +634,7 @@ export function AddPatientDialog({
                     ...baseBtn,
                     border: "1px solid rgba(194,74,74,0.45)",
                     background: "rgba(194,74,74,0.10)",
-                    color: "var(--rose-500)",
+                    color: "var(--status-danger-text)",
                   }}
                 >
                   {t.discard.confirm}
@@ -890,7 +890,7 @@ export function AddPatientDialog({
                       {t.identity.name}{" "}
                       <span
                         aria-hidden="true"
-                        style={{ color: "var(--rose-500)" }}
+                        style={{ color: "var(--status-danger-text)" }}
                       >
                         *
                       </span>
@@ -1354,7 +1354,7 @@ export function AddPatientDialog({
                             </span>
                             <span
                               style={{
-                                fontSize: "10.5px",
+                                fontSize: "11px",
                                 fontWeight: 600,
                                 padding: "1px 7px",
                                 borderRadius: "999px",
