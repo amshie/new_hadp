@@ -29,6 +29,7 @@ from hadp_api.modules.enums import (
     ValueType,
 )
 from hadp_api.modules.identity.models import User
+from hadp_api.modules.imports.service import source_reference_text
 from hadp_api.modules.kpi.service import resolve_kpi_code, seed_kpi_catalog
 from hadp_api.modules.observations.models import Observation
 from hadp_api.modules.patients.models import Patient
@@ -180,7 +181,6 @@ def _ensure_observation(
     ).scalar_one_or_none()
     if existing is not None:
         return
-    has_ref = ref_low is not None or ref_high is not None
     db.add(
         Observation(
             tenant_id=tenant_id,
@@ -188,7 +188,12 @@ def _ensure_observation(
             original_name=name,
             original_value=str(value),
             original_unit=unit,
-            reference_text=f"{ref_low}-{ref_high} {unit or ''}".strip() if has_ref else None,
+            reference_text=source_reference_text(
+                None,
+                None if ref_low is None else str(ref_low),
+                None if ref_high is None else str(ref_high),
+                unit,
+            ),
             metric_code=metric_code,
             code_system="LOINC",
             kpi_code=resolve_kpi_code(db, name, metric_code),

@@ -71,6 +71,31 @@ class ImportResult:
     duplicate_count: int = 0
 
 
+def source_reference_text(
+    text: str | None, low: str | None, high: str | None, unit: str | None
+) -> str | None:
+    """The reference as the source gave it, for the reader of the value.
+
+    The source's own wording when it wrote one. Otherwise its bounds, as written, with the
+    value's unit — and only the bounds it gave: a single bound is named as the lower or upper
+    bound, and nothing is said about the other (the source may give a one-sided interval). No
+    bound and no wording: no reference text.
+    """
+    if text:
+        return text
+    low = (low or "").strip()
+    high = (high or "").strip()
+    if low and high:
+        bounds = f"{low}-{high}"
+    elif high:
+        bounds = f"obere Grenze {high}"
+    elif low:
+        bounds = f"untere Grenze {low}"
+    else:
+        return None
+    return f"{bounds} {(unit or '').strip()}".strip()
+
+
 def ingest_values(
     db: Session,
     *,
@@ -139,11 +164,8 @@ def ingest_values(
             original_name=row.original_name,
             original_value=row.original_value,
             original_unit=row.original_unit,
-            reference_text=row.reference_text
-            or (
-                f"{row.reference_low}-{row.reference_high} {row.original_unit or ''}".strip()
-                if (row.reference_low or row.reference_high)
-                else None
+            reference_text=source_reference_text(
+                row.reference_text, row.reference_low, row.reference_high, row.original_unit
             ),
             metric_code=norm.metric_code,
             code_system=norm.code_system,

@@ -16,16 +16,19 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from hadp_api.auth.sessions import hash_token
+from hadp_api.config import get_settings
 from hadp_api.errors import Conflict, IntendedUseViolation, NotFound, ValidationFailed
 from hadp_api.modules.consents import service as consents_service
 from hadp_api.modules.enums import ConsentPurpose, ReportRejectionReason, ReportStatus
 from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.observations.models import Observation
+from hadp_api.modules.observations.sampling import sampling_day
 from hadp_api.modules.reports.evidence import build_evidence_payload, validate_statements
 from hadp_api.modules.reports.language import restricted_terms
 from hadp_api.modules.reports.models import (
@@ -658,10 +661,13 @@ def _patient_view_values(db: Session, statements: list[dict[str, Any]]) -> list[
     """The measurements the released statements cite, as the source wrote them.
 
     One row per cited observation, in the order the statements cite them: the source's name,
-    value, unit and reference text, verbatim, and the day of sampling. Nothing is derived; a
-    statement's own text already quotes these, the table only lines them up for the reader.
-    An observation that no longer resolves is left out (the statement still stands as text).
+    value, unit and reference text, verbatim, and the day of sampling — the day the statement
+    names, as the laboratory's zone reads it (a source that gave only a day keeps it). Nothing
+    is derived; a statement's own text already quotes these, the table only lines them up for
+    the reader. An observation that no longer resolves is left out (the statement still stands
+    as text).
     """
+    zone = ZoneInfo(get_settings().lab_local_timezone)
     rows: list[dict[str, Any]] = []
     seen: set[str] = set()
     for statement in statements:
@@ -680,7 +686,7 @@ def _patient_view_values(db: Session, statements: list[dict[str, Any]]) -> list[
                     "value": obs.original_value,
                     "unit": obs.original_unit,
                     "reference": obs.reference_text,
-                    "observed_on": obs.observed_at.astimezone(UTC).date().isoformat(),
+                    "observed_on": sampling_day(obs, zone).isoformat(),
                 }
             )
     return rows
