@@ -1,6 +1,6 @@
 # 0016 — Einstellungen
 
-Status: parts 1 and 2 implemented (synthetic Alpha). From the mockup the founder approved on
+Status: parts 1, 2 and 3 implemented (synthetic Alpha). From the mockup the founder approved on
 2026-10-14, with all of its options.
 
 ## Part 1: the frame, language and appearance, the state of each section
@@ -46,8 +46,45 @@ Not taken from the mockup: a status column and invited people as rows of the mem
 An open invitation stands in its own list with its details and its one action; the members
 table lists members.
 
-## Still to come
+## Part 3: the sections that did not exist
 
-- Part 3: the sections that do not exist yet — Profil, Sicherheit & Sitzungen, Praxisprofil,
-  Datenquellen & Import, Einwilligungstexte, Aufbewahrung & Export. Each is added to the
-  sub-navigation when it exists, not before.
+Each section joined the sub-navigation when it existed. What is in place is shown as it is;
+what is not is said plainly.
+
+- **Profil** (every role): name, e-mail address, role and clinic, and the clinics the person
+  belongs to. Read only: name and address come from the sign-in.
+- **Sicherheit & Sitzungen** (every role, own account): how the platform signs people in
+  (`dev` or `oidc`), what that means for a second factor, the latest ten sessions — start,
+  state, end, the clinic last chosen; no device and no address, because none is recorded — and
+  "Alle anderen Sitzungen beenden" (asks first; `POST /auth/sessions/end-others`, recorded
+  without a clinic as `auth.sessions_ended`, like signing in and out). The page claims nothing
+  about a second factor it cannot see.
+- **Praxisprofil** (every role reads; the owner changes — new actions `TENANT_PROFILE_READ` and
+  `TENANT_PROFILE_EDIT`): the clinic's name and an optional address (`tenants.address`,
+  migration 0022, at most 300 characters), and the laboratory time zone, which is a platform
+  setting shown, not changed. A change is recorded with the names of the fields that changed,
+  never their values. The address appears beneath the released report in the patient view
+  ("Freigegeben von …"), so a patient knows which practice released it. No logo: the pilot
+  accepts no images.
+- **Datenquellen & Import** (every role): the three laboratory file readers, when each was last
+  used here, values entered by hand or through the API, and what happens after a file is read
+  in — stored unchanged, unambiguous values published, every other value held for a clinician
+  (the import's own review reasons), originals kept. PDF reports are not read; wearables are not
+  connected in pilot phase 1. Nothing is configured here yet.
+- **Einwilligungstexte** (every role): the consent purposes with their wording (German, as
+  recorded), the text version a consent recorded now refers to, and how many consents the
+  clinic recorded and withdrawn per purpose and version (`GET /consent-texts`, counts only,
+  audited). The wording is a placeholder of the pilot; the final texts are the data protection
+  advisers' and arrive as a new version, never as an edit.
+- **Aufbewahrung & Export** (owner): retention periods — no policy yet, and the platform
+  deletes nothing on its own; the data export per patient (Art. 15/20); deletion by two-person
+  approval with its open and executed requests; backup and restore — not set up in the pilot,
+  and a condition before real patient data (Milestone 5).
+
+## For the data protection officer and the Regulatory Lead
+
+- Einwilligungstexte and Aufbewahrung & Export state where the clinic stands without deciding
+  anything: the consent wording, the retention periods and the backup obligation are theirs to
+  set. The pages say so.
+- The clinic's address under a released report is the only change to what a patient sees. It
+  is the clinic's own data, not clinical content.

@@ -13,6 +13,14 @@ import type { Locale } from "./i18n/locales";
 
 const ACTION_LABELS: Record<string, Record<Locale, string>> = {
   "tenant.select": { de: "Praxis ausgewählt", en: "Clinic selected" },
+  "tenant.profile.read": {
+    de: "Praxisprofil gelesen",
+    en: "Clinic profile read",
+  },
+  "tenant.profile_changed": {
+    de: "Praxisprofil geändert",
+    en: "Clinic profile changed",
+  },
   "authz.denied": {
     de: "Zugriff verweigert (Rolle)",
     en: "Access denied (role)",
@@ -45,6 +53,10 @@ const ACTION_LABELS: Record<string, Record<Locale, string>> = {
     en: "Review item decided",
   },
   "consent.read": { de: "Einwilligungen gelesen", en: "Consents read" },
+  "consent.texts.read": {
+    de: "Einwilligungstexte gelesen",
+    en: "Consent texts read",
+  },
   "consent.granted": {
     de: "Einwilligung dokumentiert",
     en: "Consent documented",

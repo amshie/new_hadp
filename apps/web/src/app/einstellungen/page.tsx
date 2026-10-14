@@ -3,14 +3,18 @@ import { redirect } from "next/navigation";
 
 import { VitaShell } from "@/components/vitabahn/VitaShell";
 import {
+  consentTexts,
   getPreparationTime,
   listAuditEvents,
   listDeletionRequests,
   listMembers,
   listStaffInvitations,
   me,
+  type Me,
+  mySessions,
 } from "@/lib/api";
 import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
+import { CONSENT_OPTIONS } from "@/lib/consentCopy";
 import { byCount, fill } from "@/lib/i18n/fill";
 import { LOCALES, type Locale } from "@/lib/i18n/locales";
 import { LANGUAGE_NAMES, type Messages } from "@/lib/i18n/messages";
@@ -41,30 +45,56 @@ const DAY_MS = 86_400_000;
 
 // One line per section: what is in it now. Null: it could not be read.
 async function sectionStates(
-  role: string,
+  session: Me,
   locale: Locale,
   messages: Messages,
 ): Promise<Partial<Record<SettingsKey, string | null>>> {
+  const role = session.role ?? "";
   const s = messages.settings.state;
   const may = (key: SettingsKey) =>
     mayOpen(SETTINGS_SECTIONS.find((x) => x.key === key)!, role);
   const now = Date.now();
-  const [members, invitations, prep, deletions, denials] = await Promise.all([
-    may("members") ? soft(listMembers()) : null,
-    may("members") ? soft(listStaffInvitations()) : null,
-    may("preparationTime") ? soft(getPreparationTime()) : null,
-    may("deletionRequests") ? soft(listDeletionRequests()) : null,
-    may("auditTrail")
-      ? soft(
-          listAuditEvents({
-            category: "authz",
-            since: new Date(now - 7 * DAY_MS).toISOString(),
-            limit: 100,
-          }),
-        )
-      : null,
-  ]);
+  const [sessions, texts, members, invitations, prep, deletions, denials] =
+    await Promise.all([
+      soft(mySessions()),
+      soft(consentTexts()),
+      may("members") ? soft(listMembers()) : null,
+      may("members") ? soft(listStaffInvitations()) : null,
+      may("preparationTime") ? soft(getPreparationTime()) : null,
+      may("deletionRequests") ? soft(listDeletionRequests()) : null,
+      may("auditTrail")
+        ? soft(
+            listAuditEvents({
+              category: "authz",
+              since: new Date(now - 7 * DAY_MS).toISOString(),
+              limit: 100,
+            }),
+          )
+        : null,
+    ]);
   const out: Partial<Record<SettingsKey, string | null>> = {};
+  out.profile = `${session.user.display_name} · ${session.user.email}`;
+  out.clinicProfile = fill(s.clinicProfile, {
+    name: session.active_tenant_name ?? "—",
+    zone: CLINIC_TIME_ZONE,
+  });
+  const names = messages.overview.sources.names;
+  out.dataSources = fill(s.dataSources, {
+    readers: [names.csv, names.ldt2, names.ldt3].join(", "),
+  });
+  out.consentTexts = texts
+    ? fill(s.consentTexts, {
+        version: texts.current_version,
+        n: CONSENT_OPTIONS.length,
+      })
+    : null;
+  if (may("retention")) out.retention = s.retention;
+  out.security = sessions
+    ? `${byCount(
+        s.sessions,
+        sessions.sessions.filter((x) => x.state === "active").length,
+      )} · ${sessions.sign_in === "oidc" ? s.signIn.oidc : s.signIn.dev}`
+    : null;
   if (may("members")) {
     if (members && invitations) {
       const open = invitations.filter(
@@ -113,7 +143,7 @@ export default async function EinstellungenPage() {
   const messages = await getMessages();
   const t = messages.settings;
   const a = messages.appearance;
-  const states = await sectionStates(role, locale, messages);
+  const states = await sectionStates(session, locale, messages);
   const now = Date.now();
   const formats = [
     new Intl.NumberFormat(intlLocale(locale)).format(1234.5),
@@ -129,12 +159,12 @@ export default async function EinstellungenPage() {
 
   return (
     <VitaShell nav="einstellungen" crumb={t.title} identity={identity}>
-      <div className="vb-set-head">
-        <span className="vb-ov-eyebrow">{t.eyebrow}</span>
-        <h1 className="vb-ov-h1">{t.title}</h1>
-        <p className="vb-ov-lead">{t.intro}</p>
-      </div>
       <SettingsFrame role={role} current="appearance" messages={messages}>
+        <div className="vb-set-head">
+          <span className="vb-ov-eyebrow">{t.eyebrow}</span>
+          <h1 className="vb-ov-h1">{t.title}</h1>
+          <p className="vb-ov-lead">{t.intro}</p>
+        </div>
         <section
           className="vb-ov-card"
           aria-labelledby="appearance-title"

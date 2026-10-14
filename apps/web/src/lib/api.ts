@@ -67,6 +67,8 @@ export interface PatientView {
   released_at: string | null;
   synthetic: boolean;
   statements: { id: string; text: string }[];
+  // The practice that released the report; its address only if it gave one.
+  clinic?: { name: string; address: string | null } | null;
 }
 
 // Interpretation matrix (ADR-0003): six domain verdicts (CIS + Actionability as TWO separate
@@ -270,6 +272,14 @@ export async function logout(): Promise<void> {
 export const me = () => request<Me>("/api/v1/auth/me");
 export const myTenants = () =>
   request<TenantMembership[]>("/api/v1/tenancy/my-tenants");
+// One's own sessions, and ending every other one.
+export type MySessions = Schemas["SessionsOut"];
+export type MySession = Schemas["SessionOut"];
+export const mySessions = () => request<MySessions>("/api/v1/auth/sessions");
+export const endOtherSessions = () =>
+  request<Schemas["EndedOut"]>("/api/v1/auth/sessions/end-others", {
+    method: "POST",
+  });
 export const selectTenant = (tenant_id: string) =>
   request("/api/v1/tenancy/select-tenant", {
     method: "POST",
@@ -498,6 +508,19 @@ export const ownActivity = (limit = 5) =>
 
 // Member administration (owner-only server-side): list the team, change a role, remove.
 export const listMembers = () => request<MemberOut[]>("/api/v1/members");
+// The clinic's profile (every staff role reads it; the owner changes it).
+export type ClinicProfile = Schemas["ClinicProfileOut"];
+export const clinicProfile = () =>
+  request<ClinicProfile>("/api/v1/clinic-profile");
+export const updateClinicProfile = (input: Schemas["ClinicProfileIn"]) =>
+  request<ClinicProfile>("/api/v1/clinic-profile", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+// Which consent text versions the clinic's records refer to (counts only).
+export type ConsentTexts = Schemas["ConsentTextsOut"];
+export const consentTexts = () =>
+  request<ConsentTexts>("/api/v1/consent-texts");
 // The authorization matrix: what each role may do (owner-only server-side).
 export type RolePermissions = Schemas["RolePermissionsOut"];
 export const rolePermissions = () =>

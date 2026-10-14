@@ -6,11 +6,17 @@
 export type SettingsGroup = "personal" | "clinic" | "governance";
 
 export type SettingsKey =
+  | "profile"
   | "appearance"
+  | "security"
+  | "clinicProfile"
   | "members"
+  | "dataSources"
   | "preparationTime"
   | "deletionRequests"
-  | "auditTrail";
+  | "auditTrail"
+  | "consentTexts"
+  | "retention";
 
 export interface SettingsSection {
   key: SettingsKey;
@@ -27,12 +33,36 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
 ];
 
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
+  {
+    key: "profile",
+    group: "personal",
+    href: "/einstellungen/profil",
+    roles: null,
+  },
   { key: "appearance", group: "personal", href: "/einstellungen", roles: null },
+  {
+    key: "security",
+    group: "personal",
+    href: "/einstellungen/sicherheit",
+    roles: null,
+  },
+  {
+    key: "clinicProfile",
+    group: "clinic",
+    href: "/einstellungen/praxis",
+    roles: null,
+  },
   {
     key: "members",
     group: "clinic",
     href: "/einstellungen/mitglieder",
     roles: ["owner"],
+  },
+  {
+    key: "dataSources",
+    group: "clinic",
+    href: "/einstellungen/datenquellen",
+    roles: null,
   },
   {
     key: "preparationTime",
@@ -50,6 +80,18 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     key: "auditTrail",
     group: "governance",
     href: "/einstellungen/audit",
+    roles: ["owner"],
+  },
+  {
+    key: "consentTexts",
+    group: "governance",
+    href: "/einstellungen/einwilligungen",
+    roles: null,
+  },
+  {
+    key: "retention",
+    group: "governance",
+    href: "/einstellungen/aufbewahrung",
     roles: ["owner"],
   },
 ];

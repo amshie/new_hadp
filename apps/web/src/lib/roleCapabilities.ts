@@ -9,7 +9,12 @@
 export const CAPABILITIES = [
   {
     key: "readRecords",
-    actions: ["patient.read", "observation.read", "audit.read_own"],
+    actions: [
+      "patient.read",
+      "observation.read",
+      "audit.read_own",
+      "tenant_profile.read",
+    ],
   },
   {
     key: "createRecords",
@@ -32,6 +37,7 @@ export const CAPABILITIES = [
       "member.remove",
     ],
   },
+  { key: "clinicProfile", actions: ["tenant_profile.edit"] },
   { key: "auditTrail", actions: ["audit.read"] },
   { key: "metric", actions: ["metric.read", "metric.record"] },
   { key: "export", actions: ["privacy.export"] },

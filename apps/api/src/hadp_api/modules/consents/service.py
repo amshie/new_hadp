@@ -11,9 +11,10 @@ transaction, so existing access stops the moment consent is withdrawn.
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from hadp_api.modules.consents.models import ConsentEvent
@@ -135,3 +136,31 @@ def withdraw_consent(
 
         reports_service.revoke_all_patient_links(db, tenant_id=tenant_id, patient_id=patient_id)
     return event
+
+
+@dataclass(frozen=True)
+class VersionCount:
+    purpose: ConsentPurpose
+    consent_text_version: str
+    granted: int
+    withdrawn: int
+
+
+def counts_by_text_version(db: Session, tenant_id: uuid.UUID) -> list[VersionCount]:
+    """How many consents were recorded and withdrawn under each text version, per purpose —
+    for the clinic's page of consent texts. Counts only; no patient."""
+    rows = db.execute(
+        select(
+            ConsentEvent.purpose,
+            ConsentEvent.consent_text_version,
+            func.count().filter(ConsentEvent.event_type == ConsentEventType.GRANTED),
+            func.count().filter(ConsentEvent.event_type == ConsentEventType.WITHDRAWN),
+        )
+        .where(ConsentEvent.tenant_id == tenant_id)
+        .group_by(ConsentEvent.purpose, ConsentEvent.consent_text_version)
+        .order_by(ConsentEvent.purpose, ConsentEvent.consent_text_version)
+    ).all()
+    return [
+        VersionCount(purpose=p, consent_text_version=v, granted=int(g), withdrawn=int(w))
+        for p, v, g, w in rows
+    ]

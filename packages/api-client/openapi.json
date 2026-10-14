@@ -103,6 +103,50 @@
         }
       }
     },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "My Sessions",
+        "description": "One's own sessions: when each began, whether it still runs. No address, no device \u2014\nthe platform records neither.",
+        "operationId": "my_sessions_api_v1_auth_sessions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionsOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/sessions/end-others": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "End Other Sessions",
+        "description": "Sign out everywhere else: every other active session of this account ends now.",
+        "operationId": "end_other_sessions_api_v1_auth_sessions_end_others_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndedOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tenancy/my-tenants": {
       "get": {
         "tags": [
@@ -152,6 +196,66 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SelectTenantResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clinic-profile": {
+      "get": {
+        "tags": [
+          "clinic"
+        ],
+        "summary": "Read Clinic Profile",
+        "operationId": "read_clinic_profile_api_v1_clinic_profile_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClinicProfileOut"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "clinic"
+        ],
+        "summary": "Change Clinic Profile",
+        "operationId": "change_clinic_profile_api_v1_clinic_profile_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClinicProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClinicProfileOut"
                 }
               }
             }
@@ -464,6 +568,28 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/consent-texts": {
+      "get": {
+        "tags": [
+          "consents"
+        ],
+        "summary": "Consent Texts",
+        "description": "Which consent text versions the clinic's records refer to (Einstellungen \u203a\nEinwilligungstexte). Counts only, no patient. The wording of a version is not stored by\nthe API; a new wording is a new version, never an overwrite.",
+        "operationId": "consent_texts_api_v1_consent_texts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentTextsOut"
                 }
               }
             }
@@ -2694,6 +2820,68 @@
         "title": "CisStatus",
         "description": "Engine 1 \u2014 Credible Improvement Status (closed, one per domain axis)."
       },
+      "ClinicProfileIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ClinicProfileIn"
+      },
+      "ClinicProfileOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "lab_time_zone": {
+            "type": "string",
+            "title": "Lab Time Zone"
+          },
+          "is_synthetic": {
+            "type": "boolean",
+            "title": "Is Synthetic"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "address",
+          "lab_time_zone",
+          "is_synthetic"
+        ],
+        "title": "ClinicProfileOut"
+      },
       "ConsentEventOut": {
         "properties": {
           "id": {
@@ -2816,6 +3004,54 @@
           "last_event"
         ],
         "title": "ConsentStateOut"
+      },
+      "ConsentTextsOut": {
+        "properties": {
+          "current_version": {
+            "type": "string",
+            "title": "Current Version"
+          },
+          "counts": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentVersionCountOut"
+            },
+            "type": "array",
+            "title": "Counts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_version",
+          "counts"
+        ],
+        "title": "ConsentTextsOut"
+      },
+      "ConsentVersionCountOut": {
+        "properties": {
+          "purpose": {
+            "$ref": "#/components/schemas/ConsentPurpose"
+          },
+          "consent_text_version": {
+            "type": "string",
+            "title": "Consent Text Version"
+          },
+          "granted": {
+            "type": "integer",
+            "title": "Granted"
+          },
+          "withdrawn": {
+            "type": "integer",
+            "title": "Withdrawn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "purpose",
+          "consent_text_version",
+          "granted",
+          "withdrawn"
+        ],
+        "title": "ConsentVersionCountOut"
       },
       "CoreKpiOut": {
         "properties": {
@@ -3582,6 +3818,19 @@
           "statements"
         ],
         "title": "EditReportRequest"
+      },
+      "EndedOut": {
+        "properties": {
+          "ended": {
+            "type": "integer",
+            "title": "Ended"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ended"
+        ],
+        "title": "EndedOut"
       },
       "EvidenceObsOut": {
         "properties": {
@@ -4851,6 +5100,93 @@
           "role"
         ],
         "title": "SelectTenantResponse"
+      },
+      "SessionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "ended",
+              "expired"
+            ],
+            "title": "State"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current"
+          },
+          "clinic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clinic"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "started_at",
+          "expires_at",
+          "ended_at",
+          "state",
+          "current",
+          "clinic"
+        ],
+        "title": "SessionOut"
+      },
+      "SessionsOut": {
+        "properties": {
+          "sign_in": {
+            "type": "string",
+            "title": "Sign In"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/SessionOut"
+            },
+            "type": "array",
+            "title": "Sessions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sign_in",
+          "sessions"
+        ],
+        "title": "SessionsOut"
       },
       "SourceDocumentOut": {
         "properties": {

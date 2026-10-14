@@ -150,3 +150,47 @@ def withdraw_consent(
         detail={"purpose": body.purpose.value},
     )
     return _out(event)
+
+
+class ConsentVersionCountOut(BaseModel):
+    purpose: ConsentPurpose
+    consent_text_version: str
+    granted: int
+    withdrawn: int
+
+
+class ConsentTextsOut(BaseModel):
+    # The text version a consent recorded now refers to.
+    current_version: str
+    # Per purpose and text version: consents recorded and withdrawn in this clinic.
+    counts: list[ConsentVersionCountOut]
+
+
+@router.get("/consent-texts", response_model=ConsentTextsOut)
+def consent_texts(
+    ctx: TenantContext = Depends(require(Action.PATIENT_READ)),
+) -> ConsentTextsOut:
+    """Which consent text versions the clinic's records refer to (Einstellungen ›
+    Einwilligungstexte). Counts only, no patient. The wording of a version is not stored by
+    the API; a new wording is a new version, never an overwrite."""
+    counts = consents_service.counts_by_text_version(ctx.db, ctx.tenant_id)
+    record_audit(
+        ctx.db,
+        action="consent.texts.read",
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        correlation_id=ctx.correlation_id,
+        detail={"versions": len({c.consent_text_version for c in counts})},
+    )
+    return ConsentTextsOut(
+        current_version=consents_service.SYNTHETIC_CONSENT_TEXT_VERSION,
+        counts=[
+            ConsentVersionCountOut(
+                purpose=c.purpose,
+                consent_text_version=c.consent_text_version,
+                granted=c.granted,
+                withdrawn=c.withdrawn,
+            )
+            for c in counts
+        ],
+    )

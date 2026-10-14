@@ -584,12 +584,13 @@ test("the patient reads the released report through the access link", async ({
       report.getByRole("heading", { level: 1, name: "Ihr Bericht" }),
     ).toBeVisible();
     // Everything the page says: the release line with the synthetic label, the introduction,
-    // the released statements — exactly those the clinician approved — and the four-part
-    // disclaimer.
+    // the released statements — exactly those the clinician approved — the practice that
+    // released them, and the four-part disclaimer.
     await expect(report.getByRole("paragraph")).toHaveText([
       /^Ärztlich freigegeben am \d{2}\.\d{2}\.\d{4} · synthetische Demo-Inhalte$/,
       /^Diese Zusammenfassung gibt Ihre Messwerte wieder/,
       ...statements,
+      /^Freigegeben von Synthetic Longevity Clinic/,
       "Pilotumgebung. Synthetische Beispieldaten · keine reale Patientenversorgung.",
       "Die Inhalte sind keine automatische Diagnose oder Therapieempfehlung.",
       /Sie sehen ausschließlich freigegebene Versionen\.$/,

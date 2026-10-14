@@ -1334,3 +1334,44 @@
   gap: 8px;
   margin-top: 12px;
 }
+
+/* ---- Einstellungen: profile and security ---- */
+.vb-scope .vb-set-dl {
+  margin: 0;
+}
+.vb-scope .vb-set-dl dd {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.vb-scope .vb-sec-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 14px;
+}
+.vb-scope .vb-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-body);
+}
+.vb-scope .vb-clinic-form textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-family: var(--font-text);
+  font-size: 13px;
+  resize: vertical;
+}
+.vb-scope .vb-clinic-form {
+  max-width: 560px;
+}
