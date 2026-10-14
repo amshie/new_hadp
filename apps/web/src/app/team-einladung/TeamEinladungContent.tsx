@@ -23,7 +23,7 @@ export function TeamEinladungContent({
 
   if (state.kind === "done") {
     return (
-      <p style={{ lineHeight: 1.55 }}>
+      <p>
         <strong>Willkommen im Team.</strong>
         <br />
         Ihr Zugang wurde eingerichtet. Sie können sich nun mit Ihrer
@@ -33,48 +33,41 @@ export function TeamEinladungContent({
   }
 
   const canSubmit = displayName.trim().length > 0 && email.trim().length > 2;
-  const field: React.CSSProperties = {
-    width: "100%",
-    padding: "9px 11px",
-    borderRadius: "8px",
-    border: "1px solid var(--border-subtle, #dfe5e7)",
-    fontSize: "14px",
-    marginTop: "4px",
-  };
 
   return (
     <div>
-      <p style={{ lineHeight: 1.55 }}>
+      <p>
         Ihre Klinik hat Sie eingeladen, dem Team beizutreten. Bitte richten Sie
         Ihren Zugang ein. Ihre Rolle wurde von Ihrer Klinik festgelegt.
       </p>
-      <label style={{ display: "block", margin: "16px 0", lineHeight: 1.4 }}>
-        Name
+      <label className="vb-auth-field">
+        <span className="field-label">Name</span>
         <input
+          className="vb-auth-input"
           type="text"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           autoComplete="name"
-          style={field}
         />
       </label>
-      <label style={{ display: "block", margin: "16px 0", lineHeight: 1.4 }}>
-        E-Mail-Adresse
+      <label className="vb-auth-field">
+        <span className="field-label">E-Mail-Adresse</span>
         <input
+          className="vb-auth-input"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
-          style={field}
         />
       </label>
       {state.kind === "error" && (
-        <p role="alert" style={{ color: "#b3261e", lineHeight: 1.5 }}>
+        <p role="alert" className="vb-pub-error">
           {state.message}
         </p>
       )}
       <button
         type="button"
+        className="vb-ov-btn primary vb-pub-btn"
         disabled={!canSubmit || pending}
         onClick={() =>
           startTransition(async () => {
@@ -89,15 +82,6 @@ export function TeamEinladungContent({
             );
           })
         }
-        style={{
-          padding: "10px 18px",
-          borderRadius: "9px",
-          border: "1px solid #0f766e",
-          background: canSubmit ? "#0f766e" : "#e5e9ea",
-          color: canSubmit ? "#fff" : "#9aa6aa",
-          fontWeight: 600,
-          cursor: canSubmit ? "pointer" : "not-allowed",
-        }}
       >
         Zugang einrichten
       </button>

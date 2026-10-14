@@ -602,6 +602,17 @@ test("the patient reads the released report through the access link", async ({
         .getByRole("complementary", { name: "Wichtige Hinweise" })
         .getByRole("paragraph"),
     ).toHaveCount(4);
+    // The values the statements cite, as the source wrote them: one row per cited
+    // measurement, with the source's reference text and the day of sampling.
+    const values = report.getByRole("table");
+    await expect(values.getByRole("columnheader")).toHaveText([
+      "Wert",
+      "Ergebnis",
+      "Referenz der Quelle",
+      "Gemessen",
+    ]);
+    expect(await values.getByRole("row").count()).toBeGreaterThan(1);
+    await expect(values.getByRole("cell").first()).toHaveText(/\d+[.,]\d+ \S+/);
 
     // The link opens the report and nothing else: the clinic's pages stay closed.
     await page.goto(patientPath);

@@ -131,6 +131,12 @@ def test_full_happy_path_crosses_every_module(client, admin_session) -> None:  #
     assert view.json()["status"] == "released"
     assert view.json()["synthetic"] is True
     assert len(view.json()["statements"]) >= 1
+    # The values the statements cite, as the source wrote them: the patient's table.
+    values = view.json()["values"]
+    assert len(values) >= 1
+    assert set(values[0]) == {"observation_id", "name", "value", "unit", "reference", "observed_on"}
+    assert all(len(v["observed_on"]) == 10 for v in values)
+    assert len({v["observation_id"] for v in values}) == len(values)
 
     # 9) a wrong token reveals nothing
     bad = client.post(

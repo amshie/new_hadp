@@ -13,6 +13,7 @@ import { signOut } from "@/app/login/actions";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { initialsOf, roleName, type ShellIdentity } from "@/lib/identity";
 
+import { BrandMark } from "./BrandMark";
 import { chooseTheme, useDarkTheme } from "./theme";
 
 // VitaBahn dashboard shell (ADR-0005): sidebar + topbar + theme toggle, a faithful
@@ -217,55 +218,7 @@ export function VitaShell({
             gap: "12px",
           }}
         >
-          <div
-            style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "var(--radius-md)",
-              background:
-                "linear-gradient(150deg, var(--teal-500), var(--teal-700))",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 4px 12px rgba(9,50,45,0.5)",
-            }}
-          >
-            <svg width="24" height="24" viewBox="0 0 64 64" fill="none">
-              <path
-                d="M13 22 L30 53 L55 9"
-                stroke="#fff"
-                strokeWidth="6.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <circle cx="55" cy="9" r="5" fill="var(--vital-300)" />
-            </svg>
-          </div>
-          <div style={{ lineHeight: 1.1 }}>
-            <div
-              style={{
-                fontFamily: "var(--font-display)",
-                fontWeight: 800,
-                fontSize: "18px",
-                letterSpacing: "-0.01em",
-                color: "#fff",
-              }}
-            >
-              HADP
-            </div>
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "9.5px",
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                color: "var(--slate-400)",
-                marginTop: "3px",
-              }}
-            >
-              Health Analytics
-            </div>
-          </div>
+          <BrandMark onDark />
           <button
             ref={closeButton}
             type="button"
