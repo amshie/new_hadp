@@ -381,8 +381,8 @@ def main() -> int:
         }
         # The interpretation form: its fields are interface, what is chosen in them is not.
         wording[f"/patients/{pid}/interpretation/neu"] = {
-            "de": ("Grund des Runs (Pflicht)", "Endpunkt-Adäquanz", "Bitte wählen"),
-            "en": ("Reason for the run (required)", "Endpoint adequacy", "Please choose"),
+            "de": ("Grund (Pflicht)", "Endpunkt-Adäquanz", "Bitte wählen"),
+            "en": ("Reason (required)", "Endpoint adequacy", "Please choose"),
         }
         as_recorded = {
             f"/patients/{pid}": ("Freigabe geprüfter Berichte", "Metabolisch"),
