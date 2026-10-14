@@ -18,6 +18,10 @@ const ACTION_LABELS: Record<string, Record<Locale, string>> = {
     en: "Access denied (role)",
   },
   "audit.read": { de: "Audit-Protokoll gelesen", en: "Audit trail read" },
+  "audit.own.read": {
+    de: "Eigene Vorgänge gelesen",
+    en: "Own activity read",
+  },
   "patient.create": { de: "Akte angelegt", en: "Record created" },
   "patient.read": { de: "Akte geöffnet", en: "Record opened" },
   "patient.list": { de: "Aktenliste gelesen", en: "Record list read" },
@@ -154,6 +158,10 @@ const ACTION_LABELS: Record<string, Record<Locale, string>> = {
   "worklist.throughput.read": {
     de: "Übersicht gelesen (Durchsatz)",
     en: "Overview read (throughput)",
+  },
+  "worklist.sources.read": {
+    de: "Übersicht gelesen (Datenquellen)",
+    en: "Overview read (data sources)",
   },
   "metric.read": {
     de: "Kennzahl Vorbereitungszeit gelesen",

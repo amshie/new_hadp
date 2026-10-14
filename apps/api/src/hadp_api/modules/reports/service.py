@@ -70,10 +70,26 @@ def latest_reports_by_patient(db: Session, tenant_id: uuid.UUID) -> dict[uuid.UU
 
 
 def version_no_for(db: Session, report: Report) -> int | None:
+    version = current_version_for(db, report)
+    return version.version_no if version else None
+
+
+def current_version_for(db: Session, report: Report) -> ReportVersion | None:
     if report.current_version_id is None:
         return None
-    version = db.get(ReportVersion, report.current_version_id)
-    return version.version_no if version else None
+    return db.get(ReportVersion, report.current_version_id)
+
+
+def status_reached_at(version: ReportVersion) -> datetime:
+    """When the version reached the status it holds: released, approved or rejected at that
+    moment; a draft when it was written."""
+    if version.status == ReportStatus.RELEASED and version.released_at is not None:
+        return version.released_at
+    if version.status == ReportStatus.APPROVED and version.approved_at is not None:
+        return version.approved_at
+    if version.status == ReportStatus.REJECTED and version.rejected_at is not None:
+        return version.rejected_at
+    return version.created_at
 
 
 @dataclass
@@ -81,6 +97,7 @@ class ThroughputBucket:
     day: date
     created: int  # report versions created that day (a "draft" produced)
     signed: int  # report versions whose clinician approval (sign-off) landed that day
+    released: int = 0  # report versions the medical director released that day
 
 
 @dataclass
@@ -89,13 +106,15 @@ class ThroughputSummary:
     buckets: list[ThroughputBucket]
     total_created: int
     total_signed: int
+    total_released: int = 0
 
 
 def throughput_daily(db: Session, tenant_id: uuid.UUID, days: int) -> ThroughputSummary:
     """Real per-day report-version throughput for the dashboard "Review-Durchsatz" chart.
 
     "Erstellt" = report versions by `created_at` day; "Signiert" = report versions by
-    `approved_at` day (the clinician sign-off timestamp). Both are REAL persisted timestamps —
+    `approved_at` day (the clinician sign-off timestamp); "Freigegeben" = report versions by
+    `released_at` day (the medical director's release). All three are REAL persisted timestamps —
     no fabricated rate. Tenant-scoped (explicit filter + RLS defense-in-depth). Days are bucketed
     by **UTC calendar day** — pinned via `timezone('UTC', ...)` so the grouping matches the UTC
     window below regardless of the DB session time zone. Zero-activity days are present so the
@@ -127,24 +146,39 @@ def throughput_daily(db: Session, tenant_id: uuid.UUID, days: int) -> Throughput
         )
         .group_by(signed_day)
     ).all()
+    released_day = func.date(func.timezone("UTC", ReportVersion.released_at))
+    released_rows = db.execute(
+        select(released_day, func.count())
+        .where(
+            ReportVersion.tenant_id == tenant_id,
+            ReportVersion.released_at.is_not(None),
+            ReportVersion.released_at >= start_dt,
+        )
+        .group_by(released_day)
+    ).all()
     created_by_day: dict[date, int] = {row[0]: row[1] for row in created_rows}
     signed_by_day: dict[date, int] = {row[0]: row[1] for row in signed_rows}
+    released_by_day: dict[date, int] = {row[0]: row[1] for row in released_rows}
 
     buckets: list[ThroughputBucket] = []
     total_created = 0
     total_signed = 0
+    total_released = 0
     for i in range(days):
         d = start + timedelta(days=i)
         created = int(created_by_day.get(d, 0))
         signed = int(signed_by_day.get(d, 0))
+        released = int(released_by_day.get(d, 0))
         total_created += created
         total_signed += signed
-        buckets.append(ThroughputBucket(day=d, created=created, signed=signed))
+        total_released += released
+        buckets.append(ThroughputBucket(day=d, created=created, signed=signed, released=released))
     return ThroughputSummary(
         days=days,
         buckets=buckets,
         total_created=total_created,
         total_signed=total_signed,
+        total_released=total_released,
     )
 
 

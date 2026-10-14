@@ -130,4 +130,5 @@ def test_coverage_excludes_other_tenants(client, admin_session) -> None:  # type
             "published": 0,
             "with_reference": 0,
             "latest_observed_at": None,
+            "with_kpi": 0,
         }

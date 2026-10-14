@@ -9,7 +9,8 @@ Actionability as two separate fields, the three tri-state cells as supporting ev
 from __future__ import annotations
 
 import uuid
-from datetime import UTC
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -153,6 +154,30 @@ def _validate_evidence_refs(
         raise IntendedUseViolation(
             f"{replaced} evidence ref(s) cite a value a laboratory correction has replaced"
         )
+
+
+@dataclass(frozen=True)
+class LatestRun:
+    run_number: int
+    recorded_at: datetime
+
+
+def latest_runs_by_patient(db: Session, tenant_id: uuid.UUID) -> dict[uuid.UUID, LatestRun]:
+    """Each patient's latest interpretation run: its number and when it was recorded. No
+    verdict leaves here — the worklist only says that values arrived after it."""
+    rows = db.execute(
+        select(
+            InterpretationRun.patient_id,
+            InterpretationRun.run_number,
+            InterpretationRun.created_at,
+        )
+        .where(InterpretationRun.tenant_id == tenant_id)
+        .order_by(InterpretationRun.patient_id, InterpretationRun.run_number.desc())
+    ).all()
+    latest: dict[uuid.UUID, LatestRun] = {}
+    for patient_id, run_number, created_at in rows:
+        latest.setdefault(patient_id, LatestRun(run_number=run_number, recorded_at=created_at))
+    return latest
 
 
 def latest_matrix(

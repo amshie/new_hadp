@@ -82,96 +82,256 @@ export const de = {
   overview: {
     kicker: "Klinischer Arbeitsbereich",
     title: "Übersicht",
-    waiting: { one: "{n} Review", other: "{n} Reviews" },
-    waitingRest: {
-      one: "wartet auf Ihre Prüfung. Quellengebundene Entwürfe müssen vor jeder Freigabe geprüft werden. Synthetische Beispieldaten.",
-      other:
-        "warten auf Ihre Prüfung. Quellengebundene Entwürfe müssen vor jeder Freigabe geprüft werden. Synthetische Beispieldaten.",
+    lead: {
+      none: "Nichts wartet gerade auf Sie.",
+      one: "{n} Vorgang wartet auf Sie.",
+      other: "{n} Vorgänge warten auf Sie.",
     },
-    kpis: {
+    // A sentence for the reader's role, after the count.
+    leadRole: {
+      clinician: "Quellengebundene Entwürfe werden vor jeder Freigabe geprüft.",
+      medical_director:
+        "Freigegeben wird nur, was klinisch geprüft und genehmigt ist.",
+      assistant:
+        "Prüfen, Genehmigen und Freigeben bleiben den klinischen Rollen.",
+      owner: "Für die Praxis: Team, Löschanträge und Vorbereitungszeit.",
+    },
+    synthetic: "Synthetische Beispieldaten.",
+    statband: {
+      label: "Kennzahlen",
       openReviews: {
         label: "Offene Reviews",
         help: "Klinische Prüfung ausstehend",
       },
-      approved: { label: "Genehmigt", help: "Warten auf ärztliche Freigabe" },
-      released: { label: "Freigegeben", help: "An die Patientin freigegeben" },
-      patients: { label: "Patienten", help: "Tenant-bezogen · RLS-geschützt" },
+      toRelease: {
+        label: "Zur Freigabe",
+        help: "Warten auf ärztliche Freigabe",
+      },
+      valuesInReview: {
+        label: "Werte in Prüfung",
+        help: "Review-Queue, noch nicht veröffentlicht",
+      },
+      released: {
+        label: "Freigegeben · {days} T",
+        help: "Je Tag, der älteste links",
+        unavailable: "Derzeit nicht abrufbar",
+      },
+      patients: {
+        label: "Patienten",
+        help: "{withReport} mit Bericht · {without} ohne Entwurf",
+      },
+    },
+    today: {
+      title: "Heute",
+      note: "Nach Arbeitsstand und Alter geordnet, nicht nach klinischer Dringlichkeit. Die Reihenfolge ist Workflow, kein Urteil.",
+      asOf: "Stand {time}",
+      tiers: {
+        now: { title: "Jetzt", tag: "wartet auf Sie" },
+        soon: { title: "Demnächst", tag: "neue Werte" },
+        fyi: { title: "Zur Kenntnis", tag: "keine Aktion nötig" },
+      },
+      count: { one: "{n} Eintrag", other: "{n} Einträge" },
+      empty: {
+        now: "Nichts wartet auf Ihre Rolle.",
+        soon: "Keine neuen Werte und keine Akte ohne Entwurf.",
+        fyi: "Nichts Neues in den letzten 7 Tagen.",
+      },
+      waited: "wartet seit {since}",
+      kinds: {
+        review_draft: {
+          what: "Bericht v{version}: klinische Prüfung offen",
+          action: "Prüfen",
+        },
+        rework_rejected: {
+          what: "Bericht v{version} zurückgewiesen: Überarbeitung offen",
+          action: "Überarbeiten",
+        },
+        decide_values: {
+          what: {
+            one: "{n} Wert wartet auf Entscheidung",
+            other: "{n} Werte warten auf Entscheidung",
+          },
+          action: "Entscheiden",
+        },
+        release: {
+          what: "Bericht v{version} genehmigt: Freigabe offen",
+          action: "Öffnen",
+        },
+        decide_deletion: {
+          what: "Antrag auf Löschung: Entscheidung offen",
+          action: "Entscheiden",
+        },
+        execute_deletion: {
+          what: "Löschung genehmigt, noch nicht ausgeführt",
+          action: "Anzeigen",
+        },
+        upload_values: {
+          what: "Noch keine Werte in der Akte",
+          action: "Akte öffnen",
+        },
+        invitation_open: {
+          title: "Einladung · {role}",
+          what: "Noch nicht eingelöst · läuft ab am {until}",
+          action: "Anzeigen",
+        },
+        prep_baseline: {
+          title: "Vorbereitungszeit",
+          what: "Der Ausgangswert der Praxis ist noch nicht erfasst",
+          action: "Erfassen",
+        },
+        prep_follow_up: {
+          title: "Vorbereitungszeit",
+          what: "Seit über {days} Tagen keine neue Angabe",
+          action: "Erfassen",
+        },
+        values_since_run: {
+          what: {
+            one: "{n} Wert nach der letzten Interpretation empfangen",
+            other: "{n} Werte nach der letzten Interpretation empfangen",
+          },
+          detail: "Letzte Interpretation: Lauf {run}",
+          action: "Akte öffnen",
+        },
+        no_draft: {
+          what: {
+            one: "{n} veröffentlichter Wert, noch kein Entwurf",
+            other: "{n} veröffentlichte Werte, noch kein Entwurf",
+          },
+          action: "Akte öffnen",
+        },
+        approved_waiting: {
+          what: "Bericht v{version} genehmigt: wartet auf die ärztliche Freigabe",
+          action: "Anzeigen",
+        },
+        deletion_waiting: {
+          what: "Antrag auf Löschung: wartet auf die Ärztliche Leitung",
+          action: "Anzeigen",
+        },
+        released_recently: {
+          title: {
+            one: "{n} Bericht freigegeben",
+            other: "{n} Berichte freigegeben",
+          },
+          ref: "letzte 7 Tage",
+          action: "Arbeitsliste",
+        },
+      },
     },
     worklist: {
-      title: "Klinische Arbeitsliste",
+      title: "Arbeitsliste",
       note: "Nach Berichtsstatus · keine automatische Diagnose oder Therapieempfehlung.",
       tabs: {
         open: "Offene Reviews",
-        approved: "Genehmigt",
+        approved: "Zur Freigabe",
         released: "Freigegeben",
+        rejected: "Zurückgewiesen",
+        none: "Kein Entwurf",
         all: "Alle",
       },
       search: "Patient oder ID suchen",
       columns: {
         patient: "Patient",
-        assessment: "Assessment",
-        status: "Status",
+        state: "Stand",
+        next: "Nächster Schritt",
+        values: "Werte",
         updated: "Aktualisiert",
       },
+      next: {
+        clinical_review: { title: "Klinische Prüfung", who: "durch {role}" },
+        release: { title: "Freigabe", who: "durch {role}" },
+        rework: {
+          title: "Überarbeitung",
+          who: "eine neue Fassung nach der Zurückweisung",
+        },
+        none: { title: "Kein Schritt offen", who: "freigegeben {since}" },
+        draft: {
+          title: "Entwurf erstellen",
+          who: "aus den veröffentlichten Werten",
+        },
+        import: {
+          title: "Werte einlesen",
+          who: "noch keine Werte in der Akte",
+        },
+      },
+      inReview: "{n} in Prüfung",
       openRow: "Patient {name}, {ref} öffnen",
       emptyTitle: "Keine passenden Vorgänge",
       emptyNote: "Ändern Sie den Filter oder den Suchbegriff.",
     },
-    snapshot: {
-      title: "Berichtsstatus",
-      note: {
-        one: "Aktueller Bestand · Momentaufnahme · {n} Patient",
-        other: "Aktueller Bestand · Momentaufnahme · {n} Patienten",
+    practice: {
+      title: "Praxis · {days} Tage",
+      note: "Entwürfe erstellt und Reviews signiert, je Kalenderwoche · echte Zeitstempel.",
+      range: "{from} – {to}",
+      week: "KW {week}",
+      created: "Erstellt",
+      signed: "Signiert",
+      released: "Freigegeben",
+      chartLabel:
+        "Entwürfe erstellt und Reviews signiert, je Kalenderwoche. Jede Zahl steht auch in der Tabelle.",
+      showTable: "Als Tabelle anzeigen",
+      columns: {
+        week: "Kalenderwoche",
+        days: "Tage im Zeitraum",
       },
+      median: "Median vom ersten Entwurf bis zur Genehmigung · 30 T",
+      medianNote: "Durchlaufzeit, keine Arbeitszeit",
+      tooFew: "Ab {minimum} Berichten · bisher {n}",
+      baseline: "Ausgangswert der Praxis",
+      baselineNote: "Selbstangabe, Median je Termin",
+      baselineValue: "{n} min",
+      noBaseline: "Noch nicht erfasst",
+      foot: "Zwei verschiedene Größen; sie werden nicht miteinander verrechnet. Mehr unter Einstellungen › Vorbereitungszeit.",
+      unavailable: "Die Zahlen der Praxis sind derzeit nicht abrufbar.",
     },
-    coverage: {
+    duration: {
+      minutes: "{n} Min.",
+      hours: "{n} Std.",
+      days: "{n} T",
+    },
+    data: {
       title: "Datenlage",
       note: {
-        one: "Abdeckung über {n} reale Beobachtung · keine Qualitätsbewertung",
-        other:
-          "Abdeckung über {n} reale Beobachtungen · keine Qualitätsbewertung",
+        one: "Zählung über {n} Beobachtung · keine Qualitätsbewertung.",
+        other: "Zählung über {n} Beobachtungen · keine Qualitätsbewertung.",
       },
-      ring: "PUBLIZIERT",
-      published: "Publiziert",
-      withReference: "Mit Referenzintervall",
+      published: "Veröffentlicht",
+      withReference: "Mit Quellreferenzintervall",
+      withKpi: "Einem Katalogmarker zugeordnet",
       latest: "Neueste Beobachtung",
+      unavailable: "Die Datenlage ist derzeit nicht abrufbar.",
     },
-    gated: {
-      throughput: {
-        title: "Review-Durchsatz",
-        reason:
-          "Durchsatz-Zeitreihe ist derzeit nicht abrufbar. Eigener Backend-Slice (report_versions nach Status).",
+    sources: {
+      title: "Quellen",
+      names: {
+        csv: "CSV (HADP-Layout)",
+        ldt2: "LDT 2",
+        ldt3: "LDT 3",
+        other: "Von Hand oder über die Schnittstelle",
+        wearables: "Wearables",
       },
-      coverage: {
-        title: "Datenlage",
-        reason:
-          "Abdeckung über die Beobachtungen ist derzeit nicht abrufbar. Pro Patient zeigt die Detailansicht die reale Datenlage.",
+      last: {
+        one: "Zuletzt {when} · {n} Zeile",
+        other: "Zuletzt {when} · {n} Zeilen",
       },
-      activity: {
-        title: "Letzte Aktivität",
-        reason:
-          "Audit-Feed benötigt einen tenant-scoped Lese-Endpoint über die Append-only-Events. Eigener Backend-Slice.",
+      neverFile: "Noch keine Datei eingelesen",
+      neverOther: "Noch nichts erfasst",
+      wearablesNote: "Keine Anbindung in Pilotphase 1",
+      state: {
+        used: "genutzt",
+        ready: "bereit",
+        none: "nicht verbunden",
       },
-      imports: {
-        title: "Importe & Quellen",
-        reason:
-          "Import-Status benötigt einen Lese-Endpoint über import_jobs. Eigener Backend-Slice.",
-      },
+      unavailable: "Die Quellen sind derzeit nicht abrufbar.",
     },
-    throughput: {
-      title: "Review-Durchsatz",
-      note: "Entwürfe erstellt vs. Reviews signiert · echte Zeitstempel",
-      days14: "14 T",
-      days30: "30 T",
-      signed: "Signiert",
-      created: "Erstellt",
-      totalSigned: "Signiert gesamt",
-      totalCreated: "Erstellt gesamt",
-      avgSigned: "Ø Signiert / Tag",
-      showTable: "Datentabelle anzeigen",
-      day: "Tag",
-      summary:
-        "Review-Durchsatz über {days} Tage: {signed} signiert, {created} erstellt, Ø {avg} signiert pro Tag.",
+    activity: {
+      title: "Letzte Aktivität",
+      noteClinic:
+        "Aus dem Audit-Protokoll der Praxis, ohne Lesezugriffe und Anmeldungen · dieselben Bezeichnungen wie unter Einstellungen › Audit-Protokoll.",
+      noteOwn:
+        "Ihre eigenen Vorgänge, ohne Lesezugriffe und Anmeldungen. Das vollständige Protokoll liest der Inhaber.",
+      open: "Protokoll öffnen",
+      empty: "Noch keine Vorgänge.",
+      unavailable: "Die Aktivität ist derzeit nicht abrufbar.",
     },
   },
   patients: {

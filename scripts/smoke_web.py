@@ -306,17 +306,31 @@ def main() -> int:
 
         # The pages translated so far, in the language of the device: German without a choice,
         # English by choice — each with the wording of its own language and none of the other.
-        # The overview names all five places a report can stand in, whatever the data; both
-        # pages carry the button of the dialog to add a patient.
+        # The overview names its three tiers and the five places a report can stand in (the
+        # tabs of its work list), whatever the data; both pages carry the button of the dialog
+        # to add a patient.
         wording = {
             "/overview": {
                 "de": (
-                    "Klinische Arbeitsliste",
-                    "In Prüfung",
+                    "Heute",
+                    "Zur Kenntnis",
+                    "Arbeitsliste",
+                    "Zur Freigabe",
+                    "Zurückgewiesen",
                     "Kein Entwurf",
+                    "Datenlage",
                     "Patient hinzufügen",
                 ),
-                "en": ("Clinical work list", "In review", "No draft", "Add patient"),
+                "en": (
+                    "Today",
+                    "For information",
+                    "Work list",
+                    "To release",
+                    "Rejected",
+                    "No draft",
+                    "Data coverage",
+                    "Add patient",
+                ),
             },
             "/patients": {
                 "de": ("Patientenverzeichnis", "Ohne Bericht", "Patient hinzufügen"),

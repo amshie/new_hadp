@@ -1372,6 +1372,56 @@
         }
       }
     },
+    "/api/v1/audit-events/mine": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "List Own Audit Events",
+        "description": "The reader's own latest actions in this clinic, newest first \u2014 no reads or listings.\n\nFor the overview of a colleague who may not read the whole trail: the same events, with\nthe same wording, as the owner sees there, limited to what this account did itself.",
+        "operationId": "list_own_audit_events_api_v1_audit_events_mine_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20,
+              "minimum": 1,
+              "default": 5,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEventOut"
+                  },
+                  "title": "Response List Own Audit Events Api V1 Audit Events Mine Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/metrics/preparation-time": {
       "get": {
         "tags": [
@@ -1517,6 +1567,31 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CoverageOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/worklist/sources": {
+      "get": {
+        "tags": [
+          "worklist"
+        ],
+        "summary": "Get Sources",
+        "operationId": "get_sources_api_v1_worklist_sources_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SourceOut"
+                  },
+                  "type": "array",
+                  "title": "Response Get Sources Api V1 Worklist Sources Get"
                 }
               }
             }
@@ -2769,6 +2844,11 @@
               }
             ],
             "title": "Latest Observed At"
+          },
+          "with_kpi": {
+            "type": "integer",
+            "title": "With Kpi",
+            "default": 0
           }
         },
         "type": "object",
@@ -4742,6 +4822,50 @@
         ],
         "title": "SourceDocumentOut"
       },
+      "SourceOut": {
+        "properties": {
+          "parser_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parser Name"
+          },
+          "jobs": {
+            "type": "integer",
+            "title": "Jobs"
+          },
+          "rows": {
+            "type": "integer",
+            "title": "Rows"
+          },
+          "last_import_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Import At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parser_name",
+          "jobs",
+          "rows",
+          "last_import_at"
+        ],
+        "title": "SourceOut",
+        "description": "One way values came in: a laboratory file reader by its name, or (`parser_name` null)\nevery other way \u2014 entered by hand or sent through the API. Counts and times only."
+      },
       "StaffInvitationListItem": {
         "properties": {
           "invitation_id": {
@@ -4956,6 +5080,11 @@
           "signed": {
             "type": "integer",
             "title": "Signed"
+          },
+          "released": {
+            "type": "integer",
+            "title": "Released",
+            "default": 0
           }
         },
         "type": "object",
@@ -4986,6 +5115,11 @@
           "total_signed": {
             "type": "integer",
             "title": "Total Signed"
+          },
+          "total_released": {
+            "type": "integer",
+            "title": "Total Released",
+            "default": 0
           }
         },
         "type": "object",
@@ -5474,6 +5608,80 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "status_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status At"
+          },
+          "values_published": {
+            "type": "integer",
+            "title": "Values Published",
+            "default": 0
+          },
+          "values_pending": {
+            "type": "integer",
+            "title": "Values Pending",
+            "default": 0
+          },
+          "pending_since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Since"
+          },
+          "latest_received_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Received At"
+          },
+          "latest_run_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Run Number"
+          },
+          "latest_run_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Run At"
+          },
+          "values_since_run": {
+            "type": "integer",
+            "title": "Values Since Run",
+            "default": 0
           }
         },
         "type": "object",
