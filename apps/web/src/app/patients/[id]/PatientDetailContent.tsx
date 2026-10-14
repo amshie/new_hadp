@@ -248,9 +248,9 @@ export function PatientDetailContent({
   const runDraft = () => {
     startDraftTransition(async () => {
       setDraftError(null);
+      // On success the action redirects to the report; it answers only a refusal.
       const res = await generateReportAction(view.patientId);
-      if (res.ok) router.push(res.reviewUrl);
-      else setDraftError(res.error);
+      if (res && !res.ok) setDraftError(res.error);
     });
   };
 

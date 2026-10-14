@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import {
   ApiError,
@@ -57,26 +58,27 @@ function guard(reportId: string, path: string, t: Errors): string | null {
   return null;
 }
 
-export type GenerateReportResult =
-  | { ok: true; reviewUrl: string }
-  | { ok: false; error: string };
+// The action redirects on success, so it only ever returns a refusal.
+export type GenerateReportResult = { ok: false; error: string };
 
 // Draft generation is the entry into the Freigabe lifecycle: the API builds the
 // source-grounded draft (deterministic provider, evidence-validated, audited) and the
 // caller lands on the review surface. Nothing is approved or released here.
+//
+// The way on is a redirect from here, not a `router.push` by the caller once the action
+// has answered: the revalidation below refreshes the page the caller is on, and a push
+// issued after it was at times dropped by the router (the report page was rendered, the
+// address never changed). A redirect is applied together with the refresh.
 export async function generateReportAction(
   patientId: string,
 ): Promise<GenerateReportResult> {
   const t = await errors();
   if (!isUuid(patientId)) return { ok: false, error: t.invalidPatient };
+  let reportId: string;
   try {
     const report = await generateReport(patientId);
     if (!isUuid(report.report_id)) return { ok: false, error: t.failed };
-    revalidatePath(`/patients/${patientId}`);
-    return {
-      ok: true,
-      reviewUrl: `/patients/${patientId}/assessments/${report.report_id}`,
-    };
+    reportId = report.report_id;
   } catch (e) {
     if (e instanceof ApiError) {
       if (e.status === 403) return { ok: false, error: t.forbidden };
@@ -87,6 +89,8 @@ export async function generateReportAction(
     // actions word it.
     return { ok: false, error: safeMessage(e, t) };
   }
+  revalidatePath(`/patients/${patientId}`);
+  redirect(`/patients/${patientId}/assessments/${reportId}`);
 }
 
 // Rework of a report (edit): the API re-validates the evidence binding and refuses restricted
