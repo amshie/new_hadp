@@ -5,7 +5,7 @@ import { useI18n } from "@/lib/i18n/I18nProvider";
 import type { PreparationTime, Throughput } from "@/lib/api";
 import { presentWeeks } from "@/lib/presenters/today";
 
-import { duration, shortDay } from "./format";
+import { duration, shortDay } from "@/lib/format";
 import { Card, CardHead, KeyValue } from "./parts";
 
 // The clinic's last 30 days, per calendar week (docs/notes/0015): report drafts created and

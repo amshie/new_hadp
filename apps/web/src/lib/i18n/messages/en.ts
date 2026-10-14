@@ -1523,9 +1523,27 @@ export const en: Messages = {
   },
   settings: {
     title: "Settings",
+    eyebrow: "Administration",
     intro:
-      "Administration of the clinic. The sections available depend on your role.",
-    noSections: "No further sections are available for your role.",
+      "Personal, clinic and governance settings, kept apart. What your role may not open is locked, not hidden.",
+    nav: {
+      label: "Settings sections",
+      groups: {
+        personal: "Personal",
+        clinic: "Clinic",
+        governance: "Governance",
+      },
+      locked: "Only for {roles}",
+      and: " and ",
+    },
+    all: {
+      title: "All sections",
+      note: "Each card says what it holds right now.",
+    },
+    appearance: {
+      title: "Language & appearance",
+      desc: "The interface language and the appearance on this device.",
+    },
     members: {
       title: "Members",
       desc: "Manage the team, change roles and invite colleagues.",
@@ -1541,6 +1559,48 @@ export const en: Messages = {
     preparationTime: {
       title: "Preparation time",
       desc: "Record the clinic's baseline and its later figures, and view the measured turnaround time of reports.",
+    },
+    state: {
+      members: { one: "{n} member", other: "{n} members" },
+      invitations: {
+        one: "{n} open invitation",
+        other: "{n} open invitations",
+      },
+      noInvitations: "no open invitation",
+      baselineSet: "Baseline recorded",
+      baselineMissing: "Baseline missing",
+      median: "Median {value}",
+      noMedian: "no median yet",
+      deletions: { one: "{n} request open", other: "{n} requests open" },
+      noDeletions: "No request open",
+      denials: {
+        one: "{n} denied access in 7 days",
+        other: "{n} denied accesses in 7 days",
+      },
+      unavailable: "State not available at present",
+    },
+  },
+  appearance: {
+    title: "Language & appearance",
+    note: "Applies to you on this device. Clinical labels, laboratory details and names stay in the language they were recorded in.",
+    language: {
+      label: "Interface language",
+      help: "German is the default language of the pilot.",
+    },
+    theme: {
+      label: "Appearance",
+      help: "Light, dark, or as this device's system is set.",
+      light: "Light",
+      dark: "Dark",
+      system: "System",
+    },
+    formats: {
+      label: "Numbers and dates",
+      help: "The notation follows the language; dates and times are on the clinic's clock.",
+    },
+    progress: {
+      label: "State of the translation",
+      summary: "What is available in English",
     },
   },
   language: {
