@@ -4,6 +4,11 @@ import { fill } from "@/lib/i18n/fill";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import type { PreparationTime, Throughput } from "@/lib/api";
 import { presentWeeks } from "@/lib/presenters/today";
+import {
+  PILOT_TARGET_PERCENT,
+  percentText,
+  statedChange,
+} from "@/lib/presenters/preparationTime";
 
 import { duration, shortDay } from "@/lib/format";
 import { Card, CardHead, KeyValue } from "./parts";
@@ -55,6 +60,7 @@ export function PracticeCard({
 
   const measured = preparation?.measured_last_30_days ?? null;
   const minimum = preparation?.minimum_reports ?? 0;
+  const change = preparation ? statedChange(preparation) : null;
 
   return (
     <Card labelledBy="ov-practice">
@@ -199,6 +205,26 @@ export function PracticeCard({
         </details>
         {preparation && (
           <div className="vb-ov-kvblock">
+            {/* The pilot's figure first: the clinic's latest statement against its baseline. */}
+            <KeyValue
+              label={p.change}
+              note={
+                change
+                  ? fill(p.changeNote, {
+                      from: change.baselineMinutes,
+                      to: change.followUpMinutes,
+                      target: PILOT_TARGET_PERCENT,
+                    })
+                  : p.changeNoteNone
+              }
+              value={
+                change?.percent != null
+                  ? percentText(change.percent)
+                  : preparation.baseline
+                    ? p.noFollowUp
+                    : p.noBaseline
+              }
+            />
             <KeyValue
               label={p.median}
               note={p.medianNote}

@@ -455,7 +455,7 @@
 }
 
 /* Since you last looked: the card's foot, a button and a note side by side. */
-.vb-scope .vb-ov-foot {
+.vb-scope .vb-ov-cardfoot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -463,7 +463,7 @@
   padding: 8px 22px 14px;
   border-top: 1px solid var(--border-subtle);
 }
-.vb-scope .vb-ov-foot .vb-ov-note {
+.vb-scope .vb-ov-cardfoot .vb-ov-note {
   margin: 0;
 }
 
@@ -664,9 +664,26 @@
   font-weight: 600;
   cursor: pointer;
 }
-.vb-scope .vb-ov-tab[aria-pressed="true"] {
+.vb-scope .vb-ov-tab[aria-pressed="true"],
+.vb-scope .vb-ov-tab[aria-selected="true"] {
   background: var(--brand-soft);
   border-color: var(--brand-border);
+  color: var(--brand);
+}
+/* The patient page's tabs (docs/notes/0025), and a domain list's folded line. */
+.vb-scope .vb-pt-tabs {
+  margin-bottom: 20px;
+}
+.vb-scope .vb-foldrow {
+  padding: 10px 22px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.vb-scope .vb-foldrow .vb-prep-sort {
+  font-size: 12.5px;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--brand);
 }
 .vb-scope .vb-ov-tab-n {

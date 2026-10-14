@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 
 import type { ChangeRow } from "../src/lib/api";
 import { presentChanges } from "../src/lib/presenters/changes";
-import { asStaff, hydrated } from "./support/staff";
+import { asStaff, hydrated, openTab } from "./support/staff";
 
 // Seit zuletzt (apps/web/src/lib/presenters/changes.ts, docs/notes/0024): what arrived or
 // moved in a record since the person last opened it. The API decides what counts (apps/api
@@ -109,6 +109,7 @@ test("the clinician creates a record and opens it: nothing is new in it yet", as
 test("a colleague imports a file into the record", async ({ browser }) => {
   await asStaff(browser, "assistant", async (page) => {
     await page.goto(patientPath);
+    await openTab(page, "Akte");
     const lab = page.getByRole("region", { name: "Labordaten" });
     const chooser = lab.getByLabel("Labordatei wählen");
     await hydrated(chooser);

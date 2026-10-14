@@ -52,6 +52,9 @@ export function sectionId(axis: string): string {
   return `vb-domain-${axis}`;
 }
 
+// The list of values no catalog marker names, as a link target.
+export const UNASSIGNED_ID = "vb-unassigned";
+
 function ago(days: number, t: T["evidence"]["ago"]): string {
   if (days === 0) return t.today;
   if (days < 45) return byCount(t.days, days);
@@ -749,6 +752,14 @@ function DomainSectionCard({
     rowMatches({ kind: "series", series: s }, filter),
   );
   const shown = rows.length + also.length;
+  // Without a filter the core markers no source has named for the record are one line, not
+  // one row each (docs/notes/0025): the list shows what the record holds, and says how many
+  // it does not. The "missing" filter and the domain cards' bars still count every one.
+  const [showMissing, setShowMissing] = useState(false);
+  const folded = filter == null && !showMissing;
+  const missing =
+    filter == null ? rows.filter((r) => r.kind === "missing").length : 0;
+  const listed = folded ? rows.filter((r) => r.kind === "series") : rows;
   return (
     <section
       id={sectionId(domain.axis)}
@@ -818,7 +829,7 @@ function DomainSectionCard({
               <span className="vb-collabel">{e.columns.bar}</span>
               <span className="vb-collabel">{e.columns.measured}</span>
             </div>
-            {rows.map((r) =>
+            {listed.map((r) =>
               r.kind === "series" ? (
                 <SeriesRow
                   key={r.series.kpiCode}
@@ -831,6 +842,20 @@ function DomainSectionCard({
               ) : (
                 <MissingRow key={r.marker.code} row={r} t={e} />
               ),
+            )}
+            {missing > 0 && (
+              <div className="vb-foldrow">
+                <button
+                  type="button"
+                  className="vb-prep-sort"
+                  aria-expanded={showMissing}
+                  onClick={() => setShowMissing((v) => !v)}
+                >
+                  {showMissing
+                    ? e.hideMissing
+                    : byCount(e.showMissing, missing)}
+                </button>
+              </div>
             )}
             {also.length > 0 && (
               <>
@@ -889,6 +914,7 @@ function UnassignedCard({
   const status: Record<string, string> = t.valueStatus;
   return (
     <section
+      id={UNASSIGNED_ID}
       aria-labelledby="vb-unassigned-title"
       className="vb-ov-card"
       style={{ padding: "16px 22px 18px", marginBottom: "16px" }}
