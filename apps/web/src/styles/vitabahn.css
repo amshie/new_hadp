@@ -454,6 +454,19 @@
   }
 }
 
+/* Since you last looked: the card's foot, a button and a note side by side. */
+.vb-scope .vb-ov-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 22px 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+.vb-scope .vb-ov-foot .vb-ov-note {
+  margin: 0;
+}
+
 /* Today. */
 .vb-scope .vb-ov-tier {
   border-top: 1px solid var(--border-subtle);

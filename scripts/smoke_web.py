@@ -313,6 +313,7 @@ def main() -> int:
             "/overview": {
                 "de": (
                     "Heute",
+                    "Seit zuletzt",
                     "Zur Kenntnis",
                     "Arbeitsliste",
                     "Zur Freigabe",
@@ -323,6 +324,7 @@ def main() -> int:
                 ),
                 "en": (
                     "Today",
+                    "Since you last looked",
                     "For information",
                     "Work list",
                     "To release",

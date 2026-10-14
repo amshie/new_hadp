@@ -62,7 +62,7 @@ Worth saying first, because it is the positioning:
 | Wearables / devices                                 |    ✓     |     ✓      |     –      |    ✓     |   ✓   |    ✓     |    –     |       ✓       |     –      |   –   |    –     |
 | Intake forms, history, lifestyle data               |    ✓     |     ✓      |     –      |    ✓     |   ✓   |    –     |    ◐     |       ✓       |     ◐      |   ◐   |    –     |
 | Practice-level view (who deviated, stale data)      |    ✓     |     ◐      |     –      |    –     |   ✓   |    –     |    –     |       –       |     –      |   –   |    ◐     |
-| Alerts / notifications (results, deviation)         |    ✓     |     ?      |     ✓      |    ✓     |   ✓   |    ✓     |    ✓     |       ✓       |     ✓      |   ✓   |    –     |
+| Alerts / notifications (results, deviation)         |    ✓     |     ?      |     ✓      |    ✓     |   ✓   |    ✓     |    ✓     |       ✓       |     ✓      |   ✓   |   ◐ ⁴    |
 | Configurable reference ranges / protocols           |    ✓     |     ✓      |     ✓      |    –     |   –   |    –     |    –     |       ✓       |     –      |   –   |   ✗ ¹    |
 | "Optimal" zones, body-system scores, biological age |    –     |     ?      |     ✓      |    –     |   –   |    –     |    ✓     |       ✓       |     ✓      |   –   |    ✗     |
 | AI summary / chat over the patient's data           |    –     |     ✓      |     –      |    ◐     |   ✓   |    –     |    ✓     |       –       |     ✓      |   –   |   ✗ ²    |
@@ -83,7 +83,9 @@ Worth saying first, because it is the positioning:
 replacing the laboratory's interval with an undocumented "optimal" one is not. ² AI as a constrained
 drafting component over verified facts is allowed by CLAUDE.md's AI contract; AI that derives a
 verdict, a score or a recommendation is not. ³ Function exposes member data to AI assistants
-through connectors (Claude, Perplexity), not an API for clinics.
+through connectors (Claude, Perplexity), not an API for clinics. ⁴ In-app only: the overview names
+the records in which something arrived or moved since the person last opened them
+(`docs/notes/0024`); e-mail and push wait for a mail provider inside the EU residency constraint.
 
 ## The ten features they have and HADP does not — ranked
 

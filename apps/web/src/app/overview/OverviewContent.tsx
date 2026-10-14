@@ -13,6 +13,8 @@ import { byCount, fill } from "@/lib/i18n/fill";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import type { Messages } from "@/lib/i18n/messages";
 import type { StatusGroup, WorkRowView } from "@/lib/presenters/dashboard";
+import { presentChanges } from "@/lib/presenters/changes";
+import { reportStatusLabel } from "@/lib/presenters/review";
 import {
   FOLLOW_UP_AFTER_DAYS,
   nextStep,
@@ -114,6 +116,8 @@ export function OverviewContent({ data }: { data: OverviewData }) {
         now={data.now}
         onReleased={showReleased}
       />
+
+      <ChangesCard changes={data.changes} now={data.now} />
 
       <Worklist data={data} tab={tab} setTab={setTab} />
 
@@ -388,6 +392,125 @@ function TodayRow({
         )}
       </span>
     </li>
+  );
+}
+
+// --- Since you last looked ----------------------------------------------------------------
+
+const CHANGES_SHOWN = 8;
+
+function ChangesCard({
+  changes,
+  now,
+}: {
+  changes: OverviewData["changes"];
+  now: number;
+}) {
+  const { t } = useI18n();
+  const c = t.overview.changes;
+  const time = t.dashboard.time;
+  const statusWords = t.patientPage.reportStatus;
+  const rows = useMemo(
+    () => (changes ? presentChanges(changes.rows) : []),
+    [changes],
+  );
+  // The newest few by default; the rest on request, so the work list stays in reach.
+  const [all, setAll] = useState(false);
+  const shown = all ? rows : rows.slice(0, CHANGES_SHOWN);
+  return (
+    <Card labelledBy="ov-changes">
+      <CardHead
+        id="ov-changes"
+        level={2}
+        title={c.title}
+        note={c.note}
+        aside={
+          changes && (
+            <span className="vb-ov-eyebrow">
+              {byCount(c.count, rows.length)}
+            </span>
+          )
+        }
+      />
+      {!changes ? (
+        <EmptyState quiet>{c.unavailable}</EmptyState>
+      ) : rows.length === 0 ? (
+        <EmptyState quiet>
+          {c.empty}
+          {changes.never_opened > 0 &&
+            ` ${byCount(c.neverOpened, changes.never_opened)}`}
+        </EmptyState>
+      ) : (
+        <ul className="vb-ov-qlist">
+          {shown.map((r) => {
+            const facts: string[] = [];
+            if (r.new_published > 0)
+              facts.push(byCount(c.values, r.new_published));
+            if (r.new_pending > 0)
+              facts.push(byCount(c.pending, r.new_pending));
+            if (r.run_number != null)
+              facts.push(fill(c.run, { n: r.run_number }));
+            if (r.report_status)
+              facts.push(
+                fill(c.report, {
+                  version: r.report_version_no ?? 1,
+                  status: reportStatusLabel(r.report_status, statusWords),
+                }),
+              );
+            const since = ago(r.changed_at, now, time);
+            return (
+              <li key={r.patient_id} className="vb-ov-qrow" data-tier="soon">
+                <i className="vb-ov-qbar" aria-hidden="true" />
+                <div className="vb-ov-qwho">
+                  <b>{r.display_name}</b>
+                  {r.external_ref && <span>{r.external_ref}</span>}
+                </div>
+                <div className="vb-ov-qwhat">
+                  {facts.join(" · ")}
+                  <small>
+                    {fill(c.opened, {
+                      since: ago(r.last_opened_at, now, time),
+                    })}
+                  </small>
+                </div>
+                <span className="vb-ov-qsince">
+                  <span className="sr-only">{fill(c.changed, { since })}</span>
+                  <span aria-hidden="true">{since}</span>
+                </span>
+                <span className="vb-ov-qact">
+                  <Link
+                    href={`/patients/${r.patient_id}`}
+                    className="vb-ov-btn"
+                    aria-label={`${c.action}: ${r.display_name}`}
+                  >
+                    {c.action}
+                  </Link>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {changes && rows.length > 0 && (
+        <div className="vb-ov-foot">
+          {rows.length > CHANGES_SHOWN && (
+            <button
+              type="button"
+              className="vb-ov-btn ghost"
+              aria-expanded={all}
+              onClick={() => setAll((v) => !v)}
+            >
+              {all ? c.showFewer : fill(c.showAll, { n: rows.length })}
+            </button>
+          )}
+          {changes.never_opened > 0 && (
+            <p className="vb-ov-note">
+              {byCount(c.neverOpened, changes.never_opened)}
+            </p>
+          )}
+        </div>
+      )}
+    </Card>
   );
 }
 

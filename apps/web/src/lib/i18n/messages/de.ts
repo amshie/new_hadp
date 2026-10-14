@@ -217,6 +217,28 @@ export const de = {
         },
       },
     },
+    // Seit zuletzt (docs/notes/0024): what arrived or moved in a record since the person
+    // last opened it. The opening sets the mark; a step of their own is not news to them.
+    changes: {
+      title: "Seit zuletzt",
+      note: "Was in einer Akte ankam oder sich bewegte, seit Sie sie zuletzt geöffnet haben. Das Öffnen der Akte setzt den Stand; eigene Schritte zählen nicht.",
+      count: { one: "{n} Akte mit Neuem", other: "{n} Akten mit Neuem" },
+      empty: "Nichts Neues in den Akten, die Sie bereits geöffnet haben.",
+      neverOpened: {
+        one: "{n} Akte haben Sie noch nie geöffnet.",
+        other: "{n} Akten haben Sie noch nie geöffnet.",
+      },
+      unavailable: "Derzeit nicht abrufbar.",
+      opened: "zuletzt geöffnet {since}",
+      values: { one: "{n} neuer Wert", other: "{n} neue Werte" },
+      pending: { one: "{n} Wert in Prüfung", other: "{n} Werte in Prüfung" },
+      run: "Interpretation: Lauf {n} erfasst",
+      report: "Bericht v{version}: {status}",
+      changed: "Neuestes {since}",
+      action: "Akte öffnen",
+      showAll: "Alle {n} anzeigen",
+      showFewer: "Weniger anzeigen",
+    },
     worklist: {
       title: "Arbeitsliste",
       note: "Nach Berichtsstatus · keine automatische Diagnose oder Therapieempfehlung.",

@@ -147,6 +147,49 @@ def value_counts_by_patient(
     return out
 
 
+@dataclass
+class PatientArrivals:
+    """Values that arrived in one record after a moment the caller names — the person's last
+    opening of the record (docs/notes/0024). Published ones and ones awaiting review, and
+    when the latest of them arrived. Rejected values never count."""
+
+    published: int = 0
+    pending: int = 0
+    latest_received_at: datetime | None = None
+
+
+def arrivals_by_patient(
+    db: Session,
+    tenant_id: uuid.UUID,
+    cutoffs: dict[uuid.UUID, datetime],
+) -> dict[uuid.UUID, PatientArrivals]:
+    """Per patient, the values received after that patient's cutoff (explicit tenant
+    filter; RLS beneath it). A patient without a cutoff is not counted."""
+    if not cutoffs:
+        return {}
+    rows = db.execute(
+        select(Observation.patient_id, Observation.review_status, Observation.received_at).where(
+            Observation.tenant_id == tenant_id,
+            Observation.patient_id.in_(list(cutoffs)),
+            Observation.received_at > min(cutoffs.values()),
+        )
+    ).all()
+    out: dict[uuid.UUID, PatientArrivals] = {}
+    for patient_id, status, received_at in rows:
+        if received_at <= cutoffs[patient_id] or status == ReviewStatus.REJECTED:
+            continue
+        arrivals = out.setdefault(patient_id, PatientArrivals())
+        if status == ReviewStatus.PUBLISHED:
+            arrivals.published += 1
+        elif status == ReviewStatus.PENDING:
+            arrivals.pending += 1
+        else:
+            continue
+        if arrivals.latest_received_at is None or received_at > arrivals.latest_received_at:
+            arrivals.latest_received_at = received_at
+    return {pid: a for pid, a in out.items() if a.published or a.pending}
+
+
 # After this many days a core marker's latest value counts as old on the practice view and
 # the page before a visit. A stated constant, printed beside the count (the web's
 # STALE_AFTER_DAYS is its twin); a clinic's own setting is a later step.

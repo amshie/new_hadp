@@ -160,23 +160,29 @@ def _validate_evidence_refs(
 class LatestRun:
     run_number: int
     recorded_at: datetime
+    # Who recorded it (null for a run recorded by the system or by an account since gone).
+    recorded_by: uuid.UUID | None = None
 
 
 def latest_runs_by_patient(db: Session, tenant_id: uuid.UUID) -> dict[uuid.UUID, LatestRun]:
-    """Each patient's latest interpretation run: its number and when it was recorded. No
-    verdict leaves here — the worklist only says that values arrived after it."""
+    """Each patient's latest interpretation run: its number, when and by whom it was
+    recorded. No verdict leaves here — the worklist only says that values arrived after it."""
     rows = db.execute(
         select(
             InterpretationRun.patient_id,
             InterpretationRun.run_number,
             InterpretationRun.created_at,
+            InterpretationRun.created_by_user_id,
         )
         .where(InterpretationRun.tenant_id == tenant_id)
         .order_by(InterpretationRun.patient_id, InterpretationRun.run_number.desc())
     ).all()
     latest: dict[uuid.UUID, LatestRun] = {}
-    for patient_id, run_number, created_at in rows:
-        latest.setdefault(patient_id, LatestRun(run_number=run_number, recorded_at=created_at))
+    for patient_id, run_number, created_at, created_by in rows:
+        latest.setdefault(
+            patient_id,
+            LatestRun(run_number=run_number, recorded_at=created_at, recorded_by=created_by),
+        )
     return latest
 
 
