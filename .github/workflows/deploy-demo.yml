@@ -1,0 +1,83 @@
+name: Deploy demo
+
+# The demo stack on its server (infra/docker/README.md, "The demo stack") follows `main`:
+# once CI has passed on a push to main, the server pulls that state and runs
+# `scripts/demo_stack.sh up`, exactly what an operator would type. Nothing is built here —
+# the images are built on the server from the checkout, as they are today.
+#
+# What it needs, once (repository secrets):
+#   DEMO_SSH_HOST         the server's address (an IP or a DNS name)
+#   DEMO_SSH_USER         the user that runs the stack (root, or a user who may run docker
+#                         and read /etc/hadp-demo)
+#   DEMO_SSH_KEY          the private half of a key made for this workflow and nothing else;
+#                         its public half is in that user's authorized_keys on the server
+#   DEMO_SSH_KNOWN_HOSTS  the server's host key, from `ssh-keyscan <host>` — pinned, so a
+#                         changed host is a failure, not a question answered "yes"
+#
+# Synthetic data only: the demo holds nothing real, and this workflow carries nothing but
+# the command. The secrets are never printed; `set -x` is not used.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time, and a newer one waits for the running one rather than racing
+# it (the script itself refuses a second `up` under flock, which would fail the run).
+concurrency:
+  group: deploy-demo
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # On a CI run: only one that passed. On a manual run: always.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check that the secrets are set
+        env:
+          HOST: ${{ secrets.DEMO_SSH_HOST }}
+          USER: ${{ secrets.DEMO_SSH_USER }}
+          KEY: ${{ secrets.DEMO_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
+        run: |
+          for name in HOST USER KEY KNOWN_HOSTS; do
+            if [ -z "${!name}" ]; then
+              echo "::error::DEMO_SSH_$name is not set — see .github/workflows/deploy-demo.yml"
+              exit 1
+            fi
+          done
+
+      - name: Prepare the key and the pinned host
+        env:
+          KEY: ${{ secrets.DEMO_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Pull main on the server and bring the stack up
+        env:
+          HOST: ${{ secrets.DEMO_SSH_HOST }}
+          USER: ${{ secrets.DEMO_SSH_USER }}
+          # The commit CI passed on (a manual run takes whatever main holds).
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              -o BatchMode=yes \
+              -o ConnectTimeout=20 \
+              "$USER@$HOST" \
+              "set -eu; cd /opt/hadp && git fetch --quiet origin main && git checkout --quiet main && git merge --ff-only --quiet origin/main && git rev-parse --short HEAD && scripts/demo_stack.sh up"
+          echo "deployed: $SHA"
