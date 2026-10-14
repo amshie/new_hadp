@@ -44,11 +44,11 @@ type T = Messages["patientPage"];
 const EGRID =
   "minmax(160px,1.5fr) 132px minmax(110px,0.9fr) minmax(110px,1fr) 150px minmax(100px,0.8fr) 104px";
 
-function axisLabel(axis: string): string {
+export function axisLabel(axis: string): string {
   return DOMAIN_AXIS_LABELS[axis] ?? axis;
 }
 
-function sectionId(axis: string): string {
+export function sectionId(axis: string): string {
   return `vb-domain-${axis}`;
 }
 

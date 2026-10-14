@@ -508,6 +508,75 @@ export const en: Messages = {
       days: "{n} d",
     },
     // Before a visit: counts of recorded values, each a filter of the domain lists.
+    // The page before a visit: facts since the latest interpretation run, each a line that
+    // leads to its value (docs/notes/0022). Counted and copied, never rated.
+    visitPrep: {
+      title: "Preparation",
+      sinceRun: "Since run {n} · recorded on {date}",
+      noRun:
+        "No interpretation recorded yet – there is no “since”, only today’s state",
+      note: "Put together from the recorded values; every line leads to the value. Not a diagnosis or treatment advice.",
+      open: "Open as a page",
+      print: "Print",
+      backToRecord: "To the record",
+      pageTitle: "Preparation · {name}",
+      quiet: "Nothing new, nothing moved, nothing open.",
+      quietNoRun: "No values recorded.",
+      groups: {
+        newValues: {
+          one: "{n} new value since run {run}",
+          other: "{n} new values since run {run}",
+        },
+        newOutside: {
+          one: "{n} of them outside the source reference interval",
+          other: "{n} of them outside the source reference interval",
+        },
+        moved: {
+          one: "{n} marker whose position changed",
+          other: "{n} markers whose position changed",
+        },
+        stale: {
+          one: "{n} core marker whose latest value is older than {days} days",
+          other:
+            "{n} core markers whose latest value is older than {days} days",
+        },
+        missing: {
+          one: "{n} core marker without a published value",
+          other: "{n} core markers without a published value",
+        },
+        pending: {
+          one: "{n} value awaiting review",
+          other: "{n} values awaiting review",
+        },
+        unassigned: {
+          one: "{n} value without a catalog marker",
+          other: "{n} values without a catalog marker",
+        },
+        noVerdict: {
+          one: "{n} domain without a verdict in run {run}",
+          other: "{n} domains without a verdict in run {run}",
+        },
+        citesReplaced: {
+          one: "{n} domain rests on a value the laboratory has corrected",
+          other: "{n} domains rest on a value the laboratory has corrected",
+        },
+      },
+      line: {
+        reference: "source reference {range}",
+        noReference: "no source reference",
+        measured: "measured on {date}",
+        moved: "{from} → {to}",
+        movedDays: "before {previous}, now {latest}",
+        lastValue: "latest value from {date}",
+        unassigned: "no catalog marker",
+        pendingNote: "In the review queue – published only after a decision.",
+        unassignedNote:
+          "In the domain overview under “Without a catalog marker”.",
+        open: "Open marker {name}",
+        toDomain: "To domain {axis}",
+        toQueue: "To the review queue",
+      },
+    },
     prep: {
       title: "Before the visit",
       note: "Counted from the recorded values. Each count filters the domain lists below; none is a rating.",
