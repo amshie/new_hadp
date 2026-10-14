@@ -1727,6 +1727,28 @@
         }
       }
     },
+    "/api/v1/worklist/changes": {
+      "get": {
+        "tags": [
+          "worklist"
+        ],
+        "summary": "Get Changes",
+        "description": "What arrived or moved in each record since the signed-in person last opened it\n(docs/notes/0024). The opening is the person's own `patient.read` in the clinic's trail;\nnothing else is stored, and opening the record again is what clears the row. Rows come in\nthe patient list's order; the page puts the latest change first.",
+        "operationId": "get_changes_api_v1_worklist_changes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangesOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/worklist/coverage": {
       "get": {
         "tags": [
@@ -2828,6 +2850,155 @@
           "file"
         ],
         "title": "Body_upload_document_api_v1_patients__patient_id__documents_post"
+      },
+      "ChangeRowOut": {
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Patient Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "external_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Ref"
+          },
+          "last_opened_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Opened At"
+          },
+          "new_published": {
+            "type": "integer",
+            "title": "New Published",
+            "default": 0
+          },
+          "new_pending": {
+            "type": "integer",
+            "title": "New Pending",
+            "default": 0
+          },
+          "latest_received_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Received At"
+          },
+          "run_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Number"
+          },
+          "run_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run At"
+          },
+          "report_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Status"
+          },
+          "report_version_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Version No"
+          },
+          "report_status_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Status At"
+          },
+          "changed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Changed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "patient_id",
+          "display_name",
+          "external_ref",
+          "last_opened_at",
+          "changed_at"
+        ],
+        "title": "ChangeRowOut",
+        "description": "One record with something that arrived or moved after the signed-in person last\nopened it (docs/notes/0024). What the person did themselves is not news to them: a run\nthey recorded or a report step they took is left out. Counts and workflow facts only."
+      },
+      "ChangesOut": {
+        "properties": {
+          "opened": {
+            "type": "integer",
+            "title": "Opened"
+          },
+          "never_opened": {
+            "type": "integer",
+            "title": "Never Opened"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeRowOut"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "opened",
+          "never_opened",
+          "rows"
+        ],
+        "title": "ChangesOut"
       },
       "CisStatus": {
         "type": "string",

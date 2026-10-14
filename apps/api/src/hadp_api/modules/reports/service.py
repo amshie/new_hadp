@@ -92,6 +92,21 @@ def status_reached_at(version: ReportVersion) -> datetime:
     return version.created_at
 
 
+def version_stepped_by(version: ReportVersion, user_id: uuid.UUID) -> bool:
+    """Whether this person took the step that brought the version to the status it holds —
+    generated or edited the draft, approved it, rejected it. A release carries no account on
+    the version (the trail holds it), so a release is never counted as the person's own."""
+    if version.status == ReportStatus.APPROVED:
+        return version.approved_by_user_id == user_id
+    if version.status == ReportStatus.REJECTED:
+        return version.rejected_by_user_id == user_id
+    if version.status == ReportStatus.DRAFT_EDITED:
+        return version.edited_by_user_id == user_id
+    if version.status == ReportStatus.DRAFT_GENERATED:
+        return version.generated_by_user_id == user_id
+    return False
+
+
 @dataclass
 class ThroughputBucket:
     day: date

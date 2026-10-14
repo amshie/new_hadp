@@ -276,6 +276,10 @@ test("the card is on the patient page and opens as a page of its own", async ({
       await first.click();
       await expect(page.getByRole("dialog")).toBeVisible();
       await page.keyboard.press("Escape");
+      // Closed, with the focus back on the line that opened it: the page has settled before
+      // the next step, so the navigation that step starts is not crossed by the closing.
+      await expect(page.getByRole("dialog")).toBeHidden();
+      await expect(first).toBeFocused();
     }
 
     const open = card.getByRole("link", { name: "Als Seite öffnen" });

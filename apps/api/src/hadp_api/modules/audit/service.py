@@ -158,6 +158,25 @@ def last_activity_by_actor(db: Session, *, tenant_id: uuid.UUID) -> dict[uuid.UU
     return {actor: at for actor, at in rows if actor is not None}
 
 
+def last_reads_by_actor(
+    db: Session, *, tenant_id: uuid.UUID, actor_user_id: uuid.UUID, action: str
+) -> dict[uuid.UUID, datetime]:
+    """When one account last recorded `action` on each target in this clinic's trail — the
+    person's own events only (docs/notes/0024: "since you last opened the record" is read
+    from the trail, which already holds every opening; nothing else is stored)."""
+    rows = db.execute(
+        select(AuditEvent.target_id, func.max(AuditEvent.created_at))
+        .where(
+            AuditEvent.tenant_id == tenant_id,
+            AuditEvent.actor_user_id == actor_user_id,
+            AuditEvent.action == action,
+            AuditEvent.target_id.is_not(None),
+        )
+        .group_by(AuditEvent.target_id)
+    ).all()
+    return {target: at for target, at in rows if target is not None}
+
+
 def list_tenant_events(
     db: Session,
     *,

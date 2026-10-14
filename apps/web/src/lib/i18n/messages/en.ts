@@ -218,6 +218,31 @@ export const en: Messages = {
         },
       },
     },
+    // Since you last looked (docs/notes/0024): what arrived or moved in a record since the
+    // person last opened it. The opening sets the mark; a step of their own is not news.
+    changes: {
+      title: "Since you last looked",
+      note: "What arrived or moved in a record since you last opened it. Opening the record sets the mark; your own steps do not count.",
+      count: { one: "{n} record with news", other: "{n} records with news" },
+      empty: "Nothing new in the records you have already opened.",
+      neverOpened: {
+        one: "{n} record you have never opened.",
+        other: "{n} records you have never opened.",
+      },
+      unavailable: "Not available at present.",
+      opened: "last opened {since}",
+      values: { one: "{n} new value", other: "{n} new values" },
+      pending: {
+        one: "{n} value awaiting review",
+        other: "{n} values awaiting review",
+      },
+      run: "Interpretation: run {n} recorded",
+      report: "Report v{version}: {status}",
+      changed: "Latest {since}",
+      action: "Open record",
+      showAll: "Show all {n}",
+      showFewer: "Show fewer",
+    },
     worklist: {
       title: "Work list",
       note: "By report status · not a diagnosis or treatment advice.",

@@ -4,6 +4,8 @@ import { VitaShell } from "@/components/vitabahn/VitaShell";
 import {
   ApiError,
   type AuditEvent,
+  changes,
+  type Changes,
   coverage,
   type Coverage,
   type DeletionRequestView,
@@ -50,6 +52,8 @@ export interface OverviewData {
   deletionRequests: DeletionRequestView[] | null;
   invitations: StaffInvitationListItem[] | null;
   preparation: PreparationTime | null;
+  // What moved in the records the reader has opened, since they opened them.
+  changes: Changes | null;
   // The clinic's trail for the owner; one's own actions for everyone else.
   activity: AuditEvent[] | null;
   activityScope: "clinic" | "own";
@@ -65,23 +69,33 @@ async function load(): Promise<{ data: OverviewData; session: Me }> {
     const role = session.role ?? null;
     const owner = role === "owner";
     const governs = owner || role === "medical_director";
-    const [rows, thru, cov, src, deletions, invitations, prep, activity] =
-      await Promise.all([
-        worklist(),
-        soft(throughput(30)),
-        soft(coverage()),
-        soft(sources()),
-        governs ? soft(listDeletionRequests()) : Promise.resolve(null),
-        owner ? soft(listStaffInvitations()) : Promise.resolve(null),
-        owner ? soft(getPreparationTime()) : Promise.resolve(null),
-        owner
-          ? soft(
-              listAuditEvents({ limit: 25, exclude_reads: true }).then(
-                (page) => page.items,
-              ),
-            )
-          : soft(ownActivity(20)),
-      ]);
+    const [
+      rows,
+      thru,
+      cov,
+      src,
+      deletions,
+      invitations,
+      prep,
+      activity,
+      moved,
+    ] = await Promise.all([
+      worklist(),
+      soft(throughput(30)),
+      soft(coverage()),
+      soft(sources()),
+      governs ? soft(listDeletionRequests()) : Promise.resolve(null),
+      owner ? soft(listStaffInvitations()) : Promise.resolve(null),
+      owner ? soft(getPreparationTime()) : Promise.resolve(null),
+      owner
+        ? soft(
+            listAuditEvents({ limit: 25, exclude_reads: true }).then(
+              (page) => page.items,
+            ),
+          )
+        : soft(ownActivity(20)),
+      soft(changes()),
+    ]);
     const data: OverviewData = {
       role,
       now: Date.now(),
@@ -93,6 +107,7 @@ async function load(): Promise<{ data: OverviewData; session: Me }> {
       deletionRequests: deletions,
       invitations,
       preparation: prep,
+      changes: moved,
       activity,
       activityScope: owner ? "clinic" : "own",
     };

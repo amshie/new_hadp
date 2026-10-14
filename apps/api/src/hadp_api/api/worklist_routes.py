@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from hadp_api.auth.authz import Action
 from hadp_api.auth.dependencies import TenantContext, require
-from hadp_api.modules.audit.service import record_audit
+from hadp_api.modules.audit.service import last_reads_by_actor, record_audit
 from hadp_api.modules.enums import DomainAxis
 from hadp_api.modules.imports import summary as imports_summary
 from hadp_api.modules.interpretation import service as interpretation_service
@@ -132,6 +132,39 @@ class PreparationOut(BaseModel):
     stale_after_days: int
     core_markers: int
     rows: list[PreparationRowOut]
+
+
+class ChangeRowOut(BaseModel):
+    """One record with something that arrived or moved after the signed-in person last
+    opened it (docs/notes/0024). What the person did themselves is not news to them: a run
+    they recorded or a report step they took is left out. Counts and workflow facts only."""
+
+    patient_id: uuid.UUID
+    display_name: str
+    external_ref: str | None
+    last_opened_at: datetime
+    # Values received after the opening: published, and awaiting review.
+    new_published: int = 0
+    new_pending: int = 0
+    latest_received_at: datetime | None = None
+    # An interpretation run someone else recorded after the opening: its number and moment.
+    run_number: int | None = None
+    run_at: datetime | None = None
+    # The step the latest report took after the opening, by someone else: the status it
+    # reached, its version, and when.
+    report_status: str | None = None
+    report_version_no: int | None = None
+    report_status_at: datetime | None = None
+    # The latest of the moments above.
+    changed_at: datetime
+
+
+class ChangesOut(BaseModel):
+    # Records the person has opened at least once, and records they never opened — the
+    # latter can hold no "since", so they are counted, not listed.
+    opened: int
+    never_opened: int
+    rows: list[ChangeRowOut]
 
 
 @router.get("", response_model=list[WorklistRowOut])
@@ -250,6 +283,71 @@ def get_preparation(
     return PreparationOut(
         stale_after_days=obs_service.STALE_AFTER_DAYS, core_markers=len(core), rows=rows
     )
+
+
+@router.get("/changes", response_model=ChangesOut)
+def get_changes(
+    ctx: TenantContext = Depends(require(Action.OBSERVATION_READ)),
+) -> ChangesOut:
+    """What arrived or moved in each record since the signed-in person last opened it
+    (docs/notes/0024). The opening is the person's own `patient.read` in the clinic's trail;
+    nothing else is stored, and opening the record again is what clears the row. Rows come in
+    the patient list's order; the page puts the latest change first."""
+    db = ctx.db
+    patients = patients_service.list_patients(db, ctx.tenant_id)
+    opened_at = last_reads_by_actor(
+        db, tenant_id=ctx.tenant_id, actor_user_id=ctx.user.id, action="patient.read"
+    )
+    cutoffs = {p.id: opened_at[p.id] for p in patients if p.id in opened_at}
+    arrivals = obs_service.arrivals_by_patient(db, ctx.tenant_id, cutoffs)
+    latest = reports_service.latest_reports_by_patient(db, ctx.tenant_id)
+    runs = interpretation_service.latest_runs_by_patient(db, ctx.tenant_id)
+    rows: list[ChangeRowOut] = []
+    for p in patients:
+        since = cutoffs.get(p.id)
+        if since is None:
+            continue
+        moments: list[datetime] = []
+        row = ChangeRowOut(
+            patient_id=p.id,
+            display_name=p.display_name,
+            external_ref=p.external_ref,
+            last_opened_at=since,
+            changed_at=since,
+        )
+        arrived = arrivals.get(p.id)
+        if arrived is not None and arrived.latest_received_at is not None:
+            row.new_published = arrived.published
+            row.new_pending = arrived.pending
+            row.latest_received_at = arrived.latest_received_at
+            moments.append(arrived.latest_received_at)
+        run = runs.get(p.id)
+        if run is not None and run.recorded_at > since and run.recorded_by != ctx.user.id:
+            row.run_number = run.run_number
+            row.run_at = run.recorded_at
+            moments.append(run.recorded_at)
+        report = latest.get(p.id)
+        version = reports_service.current_version_for(db, report) if report else None
+        if version is not None:
+            reached = reports_service.status_reached_at(version)
+            if reached > since and not reports_service.version_stepped_by(version, ctx.user.id):
+                row.report_status = version.status.value
+                row.report_version_no = version.version_no
+                row.report_status_at = reached
+                moments.append(reached)
+        if not moments:
+            continue
+        row.changed_at = max(moments)
+        rows.append(row)
+    record_audit(
+        db,
+        action="worklist.changes.read",
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        correlation_id=ctx.correlation_id,
+        detail={"count": len(rows)},
+    )
+    return ChangesOut(opened=len(cutoffs), never_opened=len(patients) - len(cutoffs), rows=rows)
 
 
 @router.get("/coverage", response_model=CoverageOut)
