@@ -41,6 +41,9 @@ function point(over: Partial<TimelinePoint>): TimelinePoint {
     supersedes_observation_id: null,
     superseded_by_observation_id: null,
     input_replaced: false,
+    derived: false,
+    formula_id: null,
+    derived_from: [],
     ...over,
   };
 }

@@ -149,7 +149,9 @@ export function VisitPrepCard({
                 {reference(v.referenceLow, v.referenceHigh, v.unit)}
               </span>
               <span className="vb-prep-meta">
-                {fill(t.line.measured, { date: v.observedDay })}
+                {fill(v.derived ? t.line.derived : t.line.measured, {
+                  date: v.observedDay,
+                })}
               </span>
               {v.axis == null && (
                 <span className="vb-prep-meta">{t.line.unassigned}</span>

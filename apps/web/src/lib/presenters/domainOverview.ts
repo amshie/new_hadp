@@ -13,6 +13,7 @@
 
 import type { CoreKpi, DomainMatrixView, TimelinePoint } from "../api";
 import { CLINIC_TIME_ZONE } from "../clinicTime";
+import { derivationOf, type Derivation } from "../derivation";
 import {
   referencePosition,
   type ReferencePosition,
@@ -62,6 +63,9 @@ export interface ValueView {
   // A published laboratory correction replaced it, or it was derived from a value that was.
   superseded: boolean;
   inputReplaced: boolean;
+  // Computed by the platform from other values of the record — no source reported it: the
+  // formula and the inputs. Null for a value a source reported.
+  derivation: Derivation | null;
   // Published and still standing: the only kind of value that counts as a marker's latest.
   standing: boolean;
   // The change the API computed against the previous comparable value, if any.
@@ -88,6 +92,8 @@ export interface MarkerSeries {
   receivedSinceRun: number;
   outside: boolean;
   corrected: boolean;
+  // Its values are computed by the platform from other values, not measured.
+  derived: boolean;
 }
 
 export interface MissingMarker {
@@ -185,6 +191,7 @@ function time(iso: string): number {
 
 function toValue(
   p: TimelinePoint,
+  byId: ReadonlyMap<string, TimelinePoint>,
   runAt: number | null,
   now: number,
 ): ValueView {
@@ -211,6 +218,7 @@ function toValue(
     status: p.review_status,
     superseded,
     inputReplaced,
+    derivation: derivationOf(p, byId),
     standing,
     delta: p.delta_vs_previous ?? null,
     previousId: p.previous_observation_id ?? null,
@@ -252,6 +260,7 @@ function toSeries(
     receivedSinceRun: values.filter((v) => v.receivedAfterRun).length,
     outside: latest != null && isOutside(latest),
     corrected: values.some((v) => v.superseded),
+    derived: values.some((v) => v.derivation != null),
   };
 }
 
@@ -271,8 +280,9 @@ export function presentDomainOverview(
     { points: TimelinePoint[]; values: ValueView[] }
   >();
   const unassigned: ValueView[] = [];
+  const byId = new Map(timeline.map((p) => [p.observation_id, p]));
   for (const p of timeline) {
-    const value = toValue(p, runAt, now);
+    const value = toValue(p, byId, runAt, now);
     if (p.kpi_code == null || p.kpi_primary_domain == null) {
       unassigned.push(value);
       continue;

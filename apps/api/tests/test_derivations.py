@@ -324,3 +324,23 @@ def test_rls_scopes_observation_derivation_by_tenant(admin_session: Session) -> 
         ).scalar_one()
         no_ctx.rollback()
     assert count_none == 0  # deny-by-default with no tenant context
+
+
+# --- the timeline says what is derived, and from what ---
+
+
+def test_timeline_says_a_value_is_derived_and_from_what(admin_session: Session) -> None:
+    tenant, patient = _patient(admin_session)
+    total = _obs(admin_session, tenant, patient, "cardio.total_cholesterol", "4.8", "mmol/L")
+    hdl = _obs(admin_session, tenant, patient, "cardio.hdl_c", "1.3", "mmol/L")
+    derived = _compute(admin_session, tenant, patient, formula_id="non_hdl_c.v1")
+    assert derived is not None
+
+    points = {p.observation_id: p for p in obs_service.build_timeline(admin_session, patient.id)}
+    computed = points[derived.id]
+    assert computed.derived is True
+    assert computed.formula_id == "non_hdl_c.v1"
+    assert computed.derived_from == [("hdl", hdl.id), ("total_cholesterol", total.id)]
+    # A value a source reported says nothing of the kind.
+    for measured in (points[total.id], points[hdl.id]):
+        assert (measured.derived, measured.formula_id, measured.derived_from) == (False, None, [])

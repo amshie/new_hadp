@@ -27,6 +27,7 @@ import {
   ADEQUACY_LABELS,
   CIS_LABELS,
   DOMAIN_AXIS_LABELS,
+  sourceNoteText,
 } from "@/lib/presenters/review";
 import { referenceBar } from "@/lib/referencePosition";
 
@@ -606,6 +607,14 @@ function SeriesRow({
             </span>
           )}
           {series.corrected && <span className="vb-ov-tag">{e.corrected}</span>}
+          {/* Computed by the platform from other values: said beside the name, so the value
+            never reads as a measured one. */}
+          {series.derived && (
+            <span className="vb-ov-tag" title={e.derivedTitle}>
+              {e.derived}
+              <span className="sr-only"> – {e.derivedTitle}</span>
+            </span>
+          )}
         </span>
       </span>
       <span>{axis && <Sparkline series={series} axis={axis} />}</span>
@@ -1144,11 +1153,24 @@ export function SeriesValues({ series, t }: { series: MarkerSeries; t: T }) {
                     >
                       {valueText(v)}
                     </td>
-                    <td style={{ ...cell, fontFamily: "var(--font-mono)" }}>
-                      {v.originalUnit
-                        ? `${v.originalValue} ${v.originalUnit}`
-                        : v.originalValue}
-                    </td>
+                    {/* A computed value was reported by no source: the column says what it
+                      was computed from instead. */}
+                    {v.derivation ? (
+                      <td style={cell}>
+                        {
+                          sourceNoteText(
+                            { kind: "derived", derivation: v.derivation },
+                            t.sourceNote,
+                          ).short
+                        }
+                      </td>
+                    ) : (
+                      <td style={{ ...cell, fontFamily: "var(--font-mono)" }}>
+                        {v.originalUnit
+                          ? `${v.originalValue} ${v.originalUnit}`
+                          : v.originalValue}
+                      </td>
+                    )}
                     <td style={{ ...cell, fontFamily: "var(--font-mono)" }}>
                       {v.referenceLow != null || v.referenceHigh != null
                         ? `${v.referenceLow ?? "—"}–${v.referenceHigh ?? "—"}`

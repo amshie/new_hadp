@@ -3572,6 +3572,25 @@
         ],
         "title": "DeletionRequestOut"
       },
+      "DerivationInputOut": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "observation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Observation Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "observation_id"
+        ],
+        "title": "DerivationInputOut"
+      },
       "DevLoginRequest": {
         "properties": {
           "email": {
@@ -6123,6 +6142,28 @@
           "input_replaced": {
             "type": "boolean",
             "title": "Input Replaced"
+          },
+          "derived": {
+            "type": "boolean",
+            "title": "Derived"
+          },
+          "formula_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formula Id"
+          },
+          "derived_from": {
+            "items": {
+              "$ref": "#/components/schemas/DerivationInputOut"
+            },
+            "type": "array",
+            "title": "Derived From"
           }
         },
         "type": "object",
@@ -6151,7 +6192,10 @@
           "comparability_reason",
           "supersedes_observation_id",
           "superseded_by_observation_id",
-          "input_replaced"
+          "input_replaced",
+          "derived",
+          "formula_id",
+          "derived_from"
         ],
         "title": "TimelinePointOut"
       },

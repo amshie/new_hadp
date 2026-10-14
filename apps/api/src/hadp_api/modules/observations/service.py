@@ -79,6 +79,13 @@ class TimelinePoint:
     # A derived value one of whose inputs a published correction has replaced: it was computed
     # from a value that no longer stands.
     input_replaced: bool
+    # Computed by the platform from other observations of the record, by a versioned formula
+    # (ADR-0004 §8/§10): no source reported it. `formula_id` names the formula and its version
+    # (frozen on the value); `derived_from` the inputs, as (role, observation id) pairs from
+    # the append-only lineage. Empty/None for a value a source reported.
+    derived: bool
+    formula_id: str | None
+    derived_from: list[tuple[str, uuid.UUID]]
 
 
 @dataclass
@@ -435,6 +442,9 @@ def build_timeline(db: Session, patient_id: uuid.UUID) -> list[TimelinePoint]:
     policies = resolve_comparison_policies(db, kpi_codes)
     replaced = superseded_by(db, patient_id)
     stale_derived = derived_from(db, set(replaced))
+    lineage = derivation_inputs(
+        db, {o.id for o in observations if o.source_category == KpiMeasurementClass.DERIVED}
+    )
     zone = ZoneInfo(get_settings().lab_local_timezone)
     # Track the previous PUBLISHED observation per (canonical KPI identity, normalized_unit). The
     # identity is kpi_code when resolved (the canonical comparison unit), else the source code.
@@ -502,6 +512,9 @@ def build_timeline(db: Session, patient_id: uuid.UUID) -> list[TimelinePoint]:
                 supersedes_observation_id=obs.supersedes_observation_id,
                 superseded_by_observation_id=replaced.get(obs.id),
                 input_replaced=obs.id in stale_derived,
+                derived=obs.source_category == KpiMeasurementClass.DERIVED,
+                formula_id=obs.formula_id,
+                derived_from=lineage.get(obs.id, []),
             )
         )
     return points
