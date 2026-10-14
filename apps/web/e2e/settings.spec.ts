@@ -41,7 +41,7 @@ test("a section the role may not open is named and locked, not hidden", async ({
     );
     await expect(
       all.getByRole("link", { name: /^Sicherheit & Sitzungen/ }),
-    ).toContainText(/\d+ aktive Sitzungen? · Entwicklungsanmeldung/);
+    ).toContainText(/\d+ aktive Sitzung(en)? · Entwicklungsanmeldung/);
   });
 });
 
@@ -57,10 +57,12 @@ test("the sub-navigation stays on every settings page, and each card says what i
     ).toContainText(/\d+ Mitglieder · /);
     await expect(
       all.getByRole("link", { name: /^Löschanträge/ }),
-    ).toContainText(/Kein Antrag offen|\d+ Anträ?ge? offen/);
+    ).toContainText(/Kein Antrag offen|\d+ (Antrag|Anträge) offen/);
     await expect(
       all.getByRole("link", { name: /^Audit-Protokoll/ }),
-    ).toContainText(/abgewiesene?r? Zugriffe? in 7 Tagen/);
+    ).toContainText(
+      /\d+ (abgewiesener Zugriff|abgewiesene Zugriffe) in 7 Tagen/,
+    );
 
     // From one settings page to the next without going back.
     await page.goto("/einstellungen/audit");
@@ -176,7 +178,7 @@ test("a person reads their profile, and ends their other sessions", async ({
     page.once("dialog", (dialog) => dialog.accept());
     await end.click();
     await expect(page.getByRole("status")).toHaveText(
-      /^\d+ Sitzungen? beendet\.$/,
+      /^\d+ Sitzung(en)? beendet\.$/,
     );
     await expect(page.getByRole("main")).toContainText(
       "Keine andere Sitzung ist aktiv.",
