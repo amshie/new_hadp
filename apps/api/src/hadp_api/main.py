@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse, Response
 from hadp_api.api import (
     audit_routes,
     auth_routes,
+    clinic_routes,
     consents_routes,
     health,
     imports_routes,
@@ -183,6 +184,7 @@ def create_app() -> FastAPI:
         health.router,
         auth_routes.router,
         tenancy_routes.router,
+        clinic_routes.router,
         patients_routes.router,
         consents_routes.router,
         invitations_routes.router,

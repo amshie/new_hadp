@@ -1343,7 +1343,8 @@ export const en: Messages = {
       no: "no",
       unavailable: "The authorization matrix is not available at present.",
       capabilities: {
-        readRecords: "Read records, values and their own actions",
+        readRecords:
+          "Read records, values, their own actions and the clinic profile",
         createRecords: "Create records, document consent, invite patients",
         importValues: "Upload and read in laboratory values",
         draftReports: "Draft and rework reports",
@@ -1354,6 +1355,7 @@ export const en: Messages = {
         reject: "Reject reports",
         release: "Release reports",
         team: "Manage the team and invite colleagues",
+        clinicProfile: "Change the clinic profile",
         auditTrail: "Read the clinic's audit trail",
         metric: "Record and view the preparation time",
         export: "Create a data export",
@@ -1601,6 +1603,30 @@ export const en: Messages = {
       title: "Language & appearance",
       desc: "The interface language and the appearance on this device.",
     },
+    profile: {
+      title: "Profile",
+      desc: "Your name and e-mail address as colleagues see them in the trail, and your clinics.",
+    },
+    security: {
+      title: "Security & sessions",
+      desc: "How you sign in, your sessions, and ending all the others.",
+    },
+    clinicProfile: {
+      title: "Clinic profile",
+      desc: "The clinic's name and address as the team and patients see them, and the laboratory's time zone.",
+    },
+    dataSources: {
+      title: "Data sources & import",
+      desc: "Which readers read laboratory files, when last, and what happens to a value after it is read in.",
+    },
+    consentTexts: {
+      title: "Consent texts",
+      desc: "The versions every consent refers to. A new wording is a new version, never an overwrite.",
+    },
+    retention: {
+      title: "Retention & export",
+      desc: "Retention periods, data export (Art. 15/20), deletion and restore.",
+    },
     members: {
       title: "Team & roles",
       desc: "Manage the team, change roles and invite colleagues.",
@@ -1635,6 +1661,161 @@ export const en: Messages = {
         other: "{n} denied accesses in 7 days",
       },
       unavailable: "State not available at present",
+      sessions: {
+        one: "{n} active session",
+        other: "{n} active sessions",
+      },
+      signIn: {
+        dev: "Development sign-in",
+        oidc: "The clinic's sign-in service",
+      },
+      clinicProfile: "{name} · {zone}",
+      dataSources: "{readers} · wearables not connected",
+      consentTexts: "Version {version} · {n} purposes",
+      retention: "Retention policy not yet set",
+    },
+  },
+  clinicPage: {
+    lead: "What the clinic is called and where it is — at the top of every page and beneath the report a patient reads through their access link.",
+    profile: "Details",
+    name: "Name of the clinic",
+    address: "Address",
+    addressHelp: "Shown beneath the released report. At most 300 characters.",
+    noAddress: "No address given",
+    zone: "Laboratory time zone",
+    zoneHelp:
+      "Laboratory times without a zone of their own are read in this zone. It applies to the whole pilot and is not changed here.",
+    logo: "Logo",
+    logoNote: "Not possible yet: this pilot accepts no images.",
+    save: "Save",
+    saved: "Saved.",
+    ownerOnly: "The clinic's owner can change this.",
+    errors: {
+      invalid: "Please give a name; the address has at most 300 characters.",
+      forbidden: "Your role does not allow this action.",
+      failed: "Not saved. Please try again.",
+    },
+    unavailable: "The clinic profile is not available at present.",
+  },
+  sourcesPage: {
+    lead: "How values get into the records. Which source a clinic uses depends on its laboratory — a structured file is always preferable to a PDF.",
+    readers: "Readers for laboratory files",
+    readersNote:
+      "What kind of file it is is decided by its content, never by its name.",
+    what: {
+      csv: "A table in the HADP layout: one row per value, with the laboratory's unit and reference interval.",
+      ldt2: "Laboratory data transfer, version 2 (record 8201).",
+      ldt3: "Laboratory data transfer, version 3 (record 8205), with a checksum.",
+      other: "Entered by hand or sent through the interface.",
+    },
+    never: "Nothing read in yet",
+    last: "Last {when}",
+    jobs: { one: "{n} import", other: "{n} imports" },
+    rows: { one: "{n} row", other: "{n} rows" },
+    after: "What happens after a file is read in",
+    steps: {
+      stored: "The file is stored unchanged before it is read.",
+      published:
+        "A value whose marker, unit and number are unambiguous is published.",
+      review:
+        "Every other value waits in the review queue until a clinician decides — an unknown unit, an unclear marker, an impossible number, a possible duplicate or correction.",
+      original:
+        "The laboratory's original value, unit and reference interval are kept unchanged.",
+    },
+    pdf: "PDF reports are not read yet.",
+    wearables: "Wearables",
+    wearablesNote: "Not connected in pilot phase 1.",
+    unavailable: "The sources are not available at present.",
+  },
+  consentTextsPage: {
+    lead: "The consents the clinic documents, and the version of the text each one refers to.",
+    current: "Current version",
+    currentNote:
+      "Every newly documented consent refers to this version. A changed wording gets a new version number; recorded consents keep theirs.",
+    placeholder:
+      "The wordings are placeholders of the pilot. The final texts are written by the clinic's data protection advisers; they arrive as a new version, not edited here.",
+    purposes: "Purposes",
+    counts: "Recorded in this clinic",
+    caption: "Consents per purpose and version",
+    columns: {
+      purpose: "Purpose",
+      version: "Version",
+      granted: "Given",
+      withdrawn: "Withdrawn",
+    },
+    none: "No consent documented yet.",
+    unavailable: "The figures are not available at present.",
+  },
+  retentionPage: {
+    lead: "How long the clinic keeps data, how a patient receives their data, and how data is deleted.",
+    policy: "Retention periods",
+    policyNote:
+      "No policy set yet. The clinic, as the controller, sets the periods with its data protection advisers. Until then the platform deletes nothing on its own.",
+    export: "Data export (GDPR Art. 15 and 20)",
+    exportNote:
+      "The owner creates it on the patient's page: one file with everything the record holds. Every export is in the audit trail.",
+    deletion: "Deletion (GDPR Art. 17)",
+    deletionNote:
+      "Two-person approval: the owner requests, the medical director decides, then it is carried out.",
+    deletionState: "{open} open · {executed} carried out",
+    deletionLink: "To the deletion requests",
+    backup: "Backup and restore",
+    backupNote:
+      "Not set up in this pilot. Encrypted backups in the EU with a tested restore are a condition before real patient data.",
+    unavailable: "Not available at present.",
+  },
+  profilePage: {
+    lead: "How you appear in this clinic and in the audit trail.",
+    account: "Account",
+    name: "Name",
+    email: "E-mail address",
+    role: "Role in this clinic",
+    clinic: "Clinic",
+    clinics: "Your clinics",
+    clinicsNote:
+      "If you belong to several clinics, you choose the clinic after signing in.",
+    current: "current",
+    source:
+      "Your name and e-mail address come from the sign-in and are not changed here: in the pilot they are synthetic accounts; with the clinic's sign-in service (OIDC) you change them there.",
+  },
+  securityPage: {
+    lead: "How you sign in, and where you are signed in right now.",
+    signIn: {
+      title: "Sign-in",
+      method: "Method",
+      mfa: "Second factor",
+      dev: "Development sign-in: no password and no second factor. It exists only in the pilot with synthetic data; in operation it is switched off.",
+      oidc: "Your clinic's sign-in service (OIDC).",
+      mfaDev: "Not available with the development sign-in.",
+      mfaOidc:
+        "Set up and asked for by your clinic's sign-in service; this platform does not see it.",
+    },
+    sessions: {
+      title: "Your sessions",
+      note: "The latest ten. Kept are the start, the expiry and the clinic last chosen — no device and no address.",
+      caption: "Your sessions, newest first",
+      columns: {
+        started: "Started",
+        state: "State",
+        until: "Until",
+        clinic: "Clinic",
+      },
+      states: {
+        active: "active",
+        ended: "ended",
+        expired: "expired",
+      },
+      current: "this session",
+      endOthers: "End all other sessions",
+      endConfirm:
+        "End all other sessions? Whoever is signed in there has to sign in again. This session stays.",
+      ended: {
+        one: "{n} session ended.",
+        other: "{n} sessions ended.",
+      },
+      none: "No other session is active.",
+      failed: "The sessions could not be ended. Please try again.",
+      unavailable: "The sessions are not available at present.",
     },
   },
   appearance: {

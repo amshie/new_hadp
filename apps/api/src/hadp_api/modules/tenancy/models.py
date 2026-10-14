@@ -20,6 +20,9 @@ class Tenant(UUIDPrimaryKey, TimestampCreated, Base):
     # Synthetic labeling: development/demo tenants are flagged so UI and exports can
     # surface "synthetic data" and so real data can never be confused with demo data.
     is_synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # The clinic's postal address as its owner wrote it (migration 0022); shown to the staff and
+    # beneath a released report. Optional.
+    address: Mapped[str | None] = mapped_column(String(300), nullable=True)
 
 
 class Membership(UUIDPrimaryKey, TimestampCreated, Base):

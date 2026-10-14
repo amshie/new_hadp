@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import secrets
 import uuid
+from datetime import UTC, datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
@@ -16,7 +18,12 @@ from sqlalchemy.orm import Session
 from hadp_api.api.schemas import TenantMembershipOut, UserOut
 from hadp_api.auth.dependencies import Principal, get_correlation_id, get_current_principal
 from hadp_api.auth.provider import get_auth_provider
-from hadp_api.auth.sessions import create_session, revoke_session
+from hadp_api.auth.sessions import (
+    create_session,
+    list_user_sessions,
+    revoke_other_sessions,
+    revoke_session,
+)
 from hadp_api.config import get_settings
 from hadp_api.db.session import RequestSession
 from hadp_api.errors import NotAuthenticated, NotFound
@@ -191,3 +198,81 @@ def me(
         active_tenant_name=tenant_name,
         role=role,
     )
+
+
+class SessionOut(BaseModel):
+    id: uuid.UUID
+    # In UTC.
+    started_at: datetime
+    expires_at: datetime
+    # When it was signed out or ended from another session; null otherwise.
+    ended_at: datetime | None
+    state: Literal["active", "ended", "expired"]
+    # The session this request came with.
+    current: bool
+    # The clinic last chosen in it, by name; null when none was chosen.
+    clinic: str | None
+
+
+class SessionsOut(BaseModel):
+    # How this platform signs people in: "dev" (the password-less development sign-in) or
+    # "oidc" (the clinic's sign-in service, which asks for the second factor).
+    sign_in: str
+    # The account's latest ten sessions, newest first.
+    sessions: list[SessionOut]
+
+
+class EndedOut(BaseModel):
+    ended: int
+
+
+@router.get("/sessions", response_model=SessionsOut)
+def my_sessions(
+    principal: Principal = Depends(get_current_principal),
+    db: Session = RequestSession,
+) -> SessionsOut:
+    """One's own sessions: when each began, whether it still runs. No address, no device —
+    the platform records neither."""
+    now = datetime.now(UTC)
+    names: dict[uuid.UUID, str] = {}
+    out: list[SessionOut] = []
+    for s in list_user_sessions(db, principal.user.id):
+        clinic: str | None = None
+        if s.active_tenant_id is not None:
+            if s.active_tenant_id not in names:
+                tenant = db.get(Tenant, s.active_tenant_id)
+                names[s.active_tenant_id] = tenant.name if tenant else ""
+            clinic = names[s.active_tenant_id] or None
+        state: Literal["active", "ended", "expired"] = (
+            "ended" if s.revoked_at is not None else "expired" if s.expires_at <= now else "active"
+        )
+        out.append(
+            SessionOut(
+                id=s.id,
+                started_at=s.created_at.astimezone(UTC),
+                expires_at=s.expires_at.astimezone(UTC),
+                ended_at=s.revoked_at.astimezone(UTC) if s.revoked_at else None,
+                state=state,
+                current=s.id == principal.session.id,
+                clinic=clinic,
+            )
+        )
+    return SessionsOut(sign_in=get_auth_provider(get_settings()).name, sessions=out)
+
+
+@router.post("/sessions/end-others", response_model=EndedOut)
+def end_other_sessions(
+    principal: Principal = Depends(get_current_principal),
+    db: Session = RequestSession,
+    correlation_id: str = Depends(get_correlation_id),
+) -> EndedOut:
+    """Sign out everywhere else: every other active session of this account ends now."""
+    ended = revoke_other_sessions(db, user_id=principal.user.id, keep=principal.session.id)
+    record_audit(
+        db,
+        action="auth.sessions_ended",
+        actor_user_id=principal.user.id,
+        correlation_id=correlation_id,
+        detail={"count": ended},
+    )
+    return EndedOut(ended=ended)

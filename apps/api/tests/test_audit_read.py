@@ -595,6 +595,7 @@ def test_the_categories_are_the_families_of_events_a_clinic_can_hold() -> None:
     assert tenantless == {
         "auth.dev_login",
         "auth.logout",
+        "auth.sessions_ended",
         "login.failed",
         "csrf.denied",
         "rate_limited",
@@ -660,11 +661,12 @@ def test_audit_events_are_written_in_one_way_only() -> None:
 
 # A GET handler that records nothing -> the words by which the page names that read as not
 # recorded, in German and in English. None: no clinic's data (liveness; the session's own
-# identity and clinics; the KPI catalog and the role matrix, reference data the same for every
-# clinic).
+# identity, sessions and clinics; the KPI catalog and the role matrix, reference data the same
+# for every clinic).
 SILENT_READS: dict[tuple[str, str], tuple[str, str] | None] = {
     ("health.py", "health"): None,
     ("auth_routes.py", "me"): None,
+    ("auth_routes.py", "my_sessions"): None,
     ("tenancy_routes.py", "my_tenants"): None,
     ("kpi_routes.py", "core_catalog"): None,
     ("members_routes.py", "list_role_permissions"): None,

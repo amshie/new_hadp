@@ -16,14 +16,15 @@ test("a section the role may not open is named and locked, not hidden", async ({
   await asStaff(browser, "clinician", async (page) => {
     await page.goto("/einstellungen");
     const sections = nav(page);
-    // The one section every role opens is a link, and it is the page shown.
-    await expect(sections.getByRole("link")).toHaveCount(1);
+    // Six sections are for every role (the personal ones, the clinic profile, the data
+    // sources, the consent texts); this one is the page shown.
+    await expect(sections.getByRole("link")).toHaveCount(6);
     await expect(
       sections.getByRole("link", { name: "Sprache & Darstellung" }),
     ).toHaveAttribute("aria-current", "page");
     // The four others are listed, locked, and say for whom they are.
     const locked = sections.locator('[aria-disabled="true"]');
-    await expect(locked).toHaveCount(4);
+    await expect(locked).toHaveCount(5);
     await expect(locked.filter({ hasText: "Team & Rollen" })).toContainText(
       "Nur für Inhaber",
     );
@@ -31,9 +32,16 @@ test("a section the role may not open is named and locked, not hidden", async ({
       "Nur für Inhaber und Ärztliche Leitung",
     );
     // The cards of "Alle Bereiche" are locked too: no link, no state read for this role.
+    // Profile and security are this person's own, and say what they hold.
     const all = page.getByRole("region", { name: "Alle Bereiche" });
-    await expect(all.getByRole("link")).toHaveCount(0);
-    await expect(all.getByRole("listitem")).toHaveCount(4);
+    await expect(all.getByRole("link")).toHaveCount(5);
+    await expect(all.getByRole("listitem")).toHaveCount(10);
+    await expect(all.getByRole("link", { name: /^Profil/ })).toContainText(
+      "Synthetic Clinician · clinician@demo.synthetic",
+    );
+    await expect(
+      all.getByRole("link", { name: /^Sicherheit & Sitzungen/ }),
+    ).toContainText(/\d+ aktive Sitzungen? · Entwicklungsanmeldung/);
   });
 });
 
@@ -43,7 +51,7 @@ test("the sub-navigation stays on every settings page, and each card says what i
   await asStaff(browser, "owner", async (page) => {
     await page.goto("/einstellungen");
     const all = page.getByRole("region", { name: "Alle Bereiche" });
-    await expect(all.getByRole("link")).toHaveCount(4);
+    await expect(all.getByRole("link")).toHaveCount(10);
     await expect(
       all.getByRole("link", { name: /^Team & Rollen/ }),
     ).toContainText(/\d+ Mitglieder · /);
@@ -130,5 +138,140 @@ test("a colleague's row leads to their entries in the audit trail", async ({
     }
     await main.getByRole("link", { name: "Alle Personen anzeigen" }).click();
     await expect(page).toHaveURL(/\/einstellungen\/audit$/);
+  });
+});
+
+test("a person reads their profile, and ends their other sessions", async ({
+  browser,
+}) => {
+  // A second sign-in of the same person, in a browser of its own.
+  const elsewhere = await browser.newContext();
+  const other = await elsewhere.newPage();
+  await other.goto("/login");
+  const address = other.getByRole("textbox", { name: "E-Mail-Adresse" });
+  await hydrated(address);
+  await address.fill("assistant@demo.synthetic");
+  await address.press("Enter");
+  await expect(other).toHaveURL(/\/overview$/);
+
+  await asStaff(browser, "assistant", async (page) => {
+    await page.goto("/einstellungen/profil");
+    const account = page.getByRole("region", { name: "Konto" });
+    await expect(account).toContainText("Synthetic Assistant");
+    await expect(account).toContainText("assistant@demo.synthetic");
+    await expect(account).toContainText("Assistenz");
+
+    await page.goto("/einstellungen/sicherheit");
+    const sessions = page.getByRole("table", {
+      name: "Ihre Sitzungen, neueste zuerst",
+    });
+    await expect(sessions.getByText("diese Sitzung")).toHaveCount(1);
+    await expect(page.getByRole("main")).toContainText(
+      "Nicht vorhanden in der Entwicklungsanmeldung.",
+    );
+    const end = page.getByRole("button", {
+      name: "Alle anderen Sitzungen beenden",
+    });
+    await hydrated(end);
+    page.once("dialog", (dialog) => dialog.accept());
+    await end.click();
+    await expect(page.getByRole("status")).toHaveText(
+      /^\d+ Sitzungen? beendet\.$/,
+    );
+    await expect(page.getByRole("main")).toContainText(
+      "Keine andere Sitzung ist aktiv.",
+    );
+  });
+
+  // The other sign-in is over; this person's session in the suite still works.
+  await other.goto("/overview");
+  await expect(other).toHaveURL(/\/login/);
+  await elsewhere.close();
+});
+
+test("the owner keeps the clinic profile; everyone reads it", async ({
+  browser,
+}) => {
+  await asStaff(browser, "owner", async (page) => {
+    await page.goto("/einstellungen/praxis");
+    const address = page.getByRole("textbox", { name: "Anschrift" });
+    await hydrated(address);
+    await expect(
+      page.getByRole("textbox", { name: "Name der Praxis" }),
+    ).toHaveValue("Synthetic Longevity Clinic");
+    await expect(page.getByRole("main")).toContainText("Europe/Berlin");
+    await address.fill("Synthetische Straße 1\n10115 Berlin");
+    await page.getByRole("button", { name: "Speichern" }).click();
+    await expect(page.getByRole("status")).toHaveText("Gespeichert.");
+    await page.reload();
+    await expect(page.getByRole("textbox", { name: "Anschrift" })).toHaveValue(
+      "Synthetische Straße 1\n10115 Berlin",
+    );
+    // Back as it was: no address.
+    const again = page.getByRole("textbox", { name: "Anschrift" });
+    await hydrated(again);
+    await again.fill("");
+    await page.getByRole("button", { name: "Speichern" }).click();
+    await expect(page.getByRole("status")).toHaveText("Gespeichert.");
+  });
+  await asStaff(browser, "clinician", async (page) => {
+    await page.goto("/einstellungen/praxis");
+    const main = page.getByRole("main");
+    await expect(main).toContainText("Synthetic Longevity Clinic");
+    await expect(main).toContainText("Ändern kann der Inhaber der Praxis.");
+    await expect(page.getByRole("textbox")).toHaveCount(0);
+  });
+});
+
+test("data sources, consent texts and retention say what is in place and what is not", async ({
+  browser,
+}) => {
+  await asStaff(browser, "clinician", async (page) => {
+    await page.goto("/einstellungen/datenquellen");
+    const readers = page.getByRole("region", {
+      name: "Leser für Labordateien",
+    });
+    for (const name of ["CSV (HADP-Layout)", "LDT 2", "LDT 3", "Wearables"]) {
+      await expect(readers).toContainText(name);
+    }
+    await expect(page.getByRole("main")).toContainText(
+      "PDF-Befunde werden noch nicht gelesen.",
+    );
+
+    await page.goto("/einstellungen/einwilligungen");
+    const current = page.getByRole("region", { name: /^Aktuelle Fassung/ });
+    await expect(current).toContainText("synthetic-v1");
+    // The wording of a purpose is recorded text: German, and marked so.
+    const purpose = current.getByText("Freigabe geprüfter Berichte");
+    expect(
+      await purpose.evaluate((e) => e.closest("[lang]")?.getAttribute("lang")),
+    ).toBe("de");
+    const table = page.getByRole("table", {
+      name: "Einwilligungen je Zweck und Fassung",
+    });
+    await expect(table.getByRole("columnheader")).toHaveText([
+      "Zweck",
+      "Fassung",
+      "Erteilt",
+      "Widerrufen",
+    ]);
+
+    // Retention is the owner's: locked for this role.
+    await expect(
+      nav(page).locator('[aria-disabled="true"]', {
+        hasText: "Aufbewahrung & Export",
+      }),
+    ).toContainText("Nur für Inhaber");
+  });
+  await asStaff(browser, "owner", async (page) => {
+    await page.goto("/einstellungen/aufbewahrung");
+    const main = page.getByRole("main");
+    await expect(main).toContainText("Noch keine Richtlinie hinterlegt.");
+    await expect(main).toContainText(
+      "In dieser Pilotumgebung nicht eingerichtet.",
+    );
+    await expect(
+      main.getByRole("link", { name: "Zu den Löschanträgen" }),
+    ).toHaveAttribute("href", "/einstellungen/loeschantraege");
   });
 });

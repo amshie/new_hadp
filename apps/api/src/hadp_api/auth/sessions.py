@@ -47,3 +47,38 @@ def get_active_session(db: Session, raw_token: str) -> AuthSession | None:
 def revoke_session(db: Session, session: AuthSession) -> None:
     session.revoked_at = datetime.now(UTC)
     db.flush()
+
+
+def list_user_sessions(db: Session, user_id: uuid.UUID, *, limit: int = 10) -> list[AuthSession]:
+    """The account's latest sessions, newest first — active, signed out and expired alike."""
+    return list(
+        db.execute(
+            select(AuthSession)
+            .where(AuthSession.user_id == user_id)
+            .order_by(AuthSession.created_at.desc(), AuthSession.id)
+            .limit(limit)
+        )
+        .scalars()
+        .all()
+    )
+
+
+def revoke_other_sessions(db: Session, *, user_id: uuid.UUID, keep: uuid.UUID) -> int:
+    """End every active session of the account but `keep`. Returns how many were ended."""
+    now = datetime.now(UTC)
+    others = (
+        db.execute(
+            select(AuthSession).where(
+                AuthSession.user_id == user_id,
+                AuthSession.id != keep,
+                AuthSession.revoked_at.is_(None),
+                AuthSession.expires_at > now,
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for session in others:
+        session.revoked_at = now
+    db.flush()
+    return len(others)

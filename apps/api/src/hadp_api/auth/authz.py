@@ -45,6 +45,10 @@ class Action(str, Enum):
     # The preparation-time metric (go-live plan A6): what the clinic states about its own
     # preparation time, and what the platform measures from the report lifecycle. It shows
     # how quickly the clinic's clinicians work through their reports — tenant administration.
+    # The clinic's own profile: its name and address. Every staff role reads it (it is in the
+    # shell anyway); the owner changes it — tenant administration.
+    TENANT_PROFILE_READ = "tenant_profile.read"
+    TENANT_PROFILE_EDIT = "tenant_profile.edit"
     METRIC_READ = "metric.read"
     METRIC_RECORD = "metric.record"
     REVIEW_RESOLVE = "review.resolve"
@@ -104,6 +108,8 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
     # One's own actions: every staff role. It shows a colleague nothing they did not do.
     Action.AUDIT_READ_OWN: _READ_STAFF,
     # The clinic's own preparation-time statements and the measured turnaround: OWNER only.
+    Action.TENANT_PROFILE_READ: _READ_STAFF,
+    Action.TENANT_PROFILE_EDIT: frozenset({Role.OWNER}),
     Action.METRIC_READ: frozenset({Role.OWNER}),
     Action.METRIC_RECORD: frozenset({Role.OWNER}),
     # Review-queue resolution is a clinical judgement (WORKFLOW §2.2/§2.4: the

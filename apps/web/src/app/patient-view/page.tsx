@@ -81,6 +81,20 @@ export default async function PatientViewPage() {
             <p style={{ margin: 0 }}>{s.text}</p>
           </div>
         ))}
+        {view.clinic && (
+          <p
+            style={{
+              marginTop: "22px",
+              color: "var(--text-muted, #5b6b70)",
+              fontSize: "13px",
+              lineHeight: 1.5,
+              whiteSpace: "pre-line",
+            }}
+          >
+            Freigegeben von {view.clinic.name}
+            {view.clinic.address ? `\n${view.clinic.address}` : ""}
+          </p>
+        )}
       </div>,
     );
   } catch {

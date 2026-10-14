@@ -21,6 +21,7 @@ from hadp_api.db.session import RequestSession
 from hadp_api.errors import NotFound
 from hadp_api.modules.audit.service import record_audit, record_security_event
 from hadp_api.modules.reports import service as reports_service
+from hadp_api.modules.tenancy.models import Tenant
 from hadp_api.security.client_address import client_address
 from hadp_api.security.rate_limit import (
     REFUSAL_WINDOW_SECONDS,
@@ -73,6 +74,11 @@ def patient_view(
                 detail={"recorded": REFUSALS_RECORDED, "window_seconds": REFUSAL_WINDOW_SECONDS},
             )
         raise
+    # The practice that released the report: its name and, if it gave one, its address.
+    tenant = db.get(Tenant, body.tenant)
+    view["clinic"] = (
+        {"name": tenant.name, "address": tenant.address} if tenant is not None else None
+    )
     record_audit(
         db,
         action="report.patient_view",

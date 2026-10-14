@@ -1400,7 +1400,7 @@ export const de = {
       no: "nein",
       unavailable: "Die Rechtematrix ist derzeit nicht abrufbar.",
       capabilities: {
-        readRecords: "Akten, Werte und eigene Vorgänge lesen",
+        readRecords: "Akten, Werte, eigene Vorgänge und das Praxisprofil lesen",
         createRecords:
           "Akten anlegen, Einwilligungen dokumentieren, Patientinnen und Patienten einladen",
         importValues: "Laborwerte hochladen und einlesen",
@@ -1412,6 +1412,7 @@ export const de = {
         reject: "Berichte zurückweisen",
         release: "Berichte freigeben",
         team: "Team verwalten und Kolleg:innen einladen",
+        clinicProfile: "Praxisprofil ändern",
         auditTrail: "Audit-Protokoll der Praxis lesen",
         metric: "Vorbereitungszeit erfassen und einsehen",
         export: "Datenauskunft erstellen",
@@ -1680,6 +1681,30 @@ export const de = {
       title: "Sprache & Darstellung",
       desc: "Die Sprache der Oberfläche und das Erscheinungsbild auf diesem Gerät.",
     },
+    profile: {
+      title: "Profil",
+      desc: "Name und E-Mail-Adresse, wie Kolleginnen und Kollegen sie im Protokoll sehen, und Ihre Praxen.",
+    },
+    security: {
+      title: "Sicherheit & Sitzungen",
+      desc: "Wie Sie sich anmelden, Ihre Sitzungen, und alle anderen beenden.",
+    },
+    clinicProfile: {
+      title: "Praxisprofil",
+      desc: "Name und Anschrift der Praxis, wie Team und Patientinnen sie sehen, und die Zeitzone des Labors.",
+    },
+    dataSources: {
+      title: "Datenquellen & Import",
+      desc: "Welche Leser Labordateien lesen, wann zuletzt, und was nach dem Einlesen mit einem Wert geschieht.",
+    },
+    consentTexts: {
+      title: "Einwilligungstexte",
+      desc: "Die Fassungen, auf die sich jede Einwilligung bezieht. Eine neue Fassung ist eine neue Version, nie ein Überschreiben.",
+    },
+    retention: {
+      title: "Aufbewahrung & Export",
+      desc: "Aufbewahrungsfristen, Datenauskunft (Art. 15/20), Löschung und Wiederherstellung.",
+    },
     members: {
       title: "Team & Rollen",
       desc: "Team verwalten, Rollen ändern und Kolleg:innen einladen.",
@@ -1715,6 +1740,165 @@ export const de = {
         other: "{n} abgewiesene Zugriffe in 7 Tagen",
       },
       unavailable: "Stand derzeit nicht abrufbar",
+      sessions: {
+        one: "{n} aktive Sitzung",
+        other: "{n} aktive Sitzungen",
+      },
+      signIn: {
+        dev: "Entwicklungsanmeldung",
+        oidc: "Anmeldestelle der Praxis",
+      },
+      clinicProfile: "{name} · {zone}",
+      dataSources: "{readers} · Wearables nicht verbunden",
+      consentTexts: "Fassung {version} · {n} Zwecke",
+      retention: "Aufbewahrungsrichtlinie noch nicht hinterlegt",
+    },
+  },
+  clinicPage: {
+    lead: "Wie die Praxis heißt und wo sie ist – im Kopf jeder Seite und unter dem Bericht, den eine Patientin über ihren Zugriffslink liest.",
+    profile: "Angaben",
+    name: "Name der Praxis",
+    address: "Anschrift",
+    addressHelp:
+      "Erscheint unter dem freigegebenen Bericht. Höchstens 300 Zeichen.",
+    noAddress: "Keine Anschrift hinterlegt",
+    zone: "Zeitzone des Labors",
+    zoneHelp:
+      "Laborzeiten ohne eigene Zeitzone werden in dieser Zone gelesen. Sie gilt für die ganze Pilotumgebung und wird nicht hier geändert.",
+    logo: "Logo",
+    logoNote: "Noch nicht möglich: Diese Pilotumgebung nimmt keine Bilder an.",
+    save: "Speichern",
+    saved: "Gespeichert.",
+    ownerOnly: "Ändern kann der Inhaber der Praxis.",
+    errors: {
+      invalid:
+        "Bitte einen Namen angeben; die Anschrift hat höchstens 300 Zeichen.",
+      forbidden: "Diese Aktion ist Ihrer Rolle nicht erlaubt.",
+      failed: "Nicht gespeichert. Bitte erneut versuchen.",
+    },
+    unavailable: "Das Praxisprofil ist derzeit nicht abrufbar.",
+  },
+  sourcesPage: {
+    lead: "Wie Werte in die Akten kommen. Welche Quelle eine Praxis nutzt, ist eine Frage des Labors – eine strukturierte Datei ist einer PDF immer vorzuziehen.",
+    readers: "Leser für Labordateien",
+    readersNote:
+      "Welche Art Datei es ist, entscheidet der Inhalt, nie der Dateiname.",
+    what: {
+      csv: "Tabelle im HADP-Layout: eine Zeile je Wert, mit Einheit und Referenzintervall des Labors.",
+      ldt2: "Labordatenträger, Version 2 (Satzart 8201).",
+      ldt3: "Labordatenträger, Version 3 (Satzart 8205), mit Prüfsumme.",
+      other: "Von Hand eingetragen oder über die Schnittstelle gesendet.",
+    },
+    never: "Noch nichts eingelesen",
+    last: "Zuletzt {when}",
+    jobs: { one: "{n} Vorgang", other: "{n} Vorgänge" },
+    rows: { one: "{n} Zeile", other: "{n} Zeilen" },
+    after: "Was nach dem Einlesen geschieht",
+    steps: {
+      stored: "Die Datei wird unverändert gespeichert, bevor sie gelesen wird.",
+      published:
+        "Ein Wert, dessen Kennzahl, Einheit und Zahl eindeutig sind, wird veröffentlicht.",
+      review:
+        "Jeder andere Wert wartet in der Review-Queue, bis eine Clinician entscheidet – unbekannte Einheit, unklare Kennzahl, unmögliche Zahl, mögliche Doppelung oder Korrektur.",
+      original:
+        "Originalwert, Einheit und Referenzintervall des Labors bleiben unverändert erhalten.",
+    },
+    pdf: "PDF-Befunde werden noch nicht gelesen.",
+    wearables: "Wearables",
+    wearablesNote: "Keine Anbindung in Pilotphase 1.",
+    unavailable: "Die Quellen sind derzeit nicht abrufbar.",
+  },
+  consentTextsPage: {
+    lead: "Die Einwilligungen, die die Praxis dokumentiert, und die Fassung des Textes, auf die sich jede bezieht.",
+    current: "Aktuelle Fassung",
+    currentNote:
+      "Jede neu dokumentierte Einwilligung bezieht sich auf diese Fassung. Eine geänderte Formulierung bekommt eine neue Versionsnummer; erfasste Einwilligungen behalten ihre.",
+    placeholder:
+      "Die Formulierungen sind Platzhalter der Pilotphase. Die endgültigen Texte erstellt die Datenschutzberatung der Praxis; sie werden mit einer neuen Version eingespielt, nicht hier bearbeitet.",
+    purposes: "Zwecke",
+    counts: "Erfasst in dieser Praxis",
+    caption: "Einwilligungen je Zweck und Fassung",
+    columns: {
+      purpose: "Zweck",
+      version: "Fassung",
+      granted: "Erteilt",
+      withdrawn: "Widerrufen",
+    },
+    none: "Noch keine Einwilligung dokumentiert.",
+    unavailable: "Die Zahlen sind derzeit nicht abrufbar.",
+  },
+  retentionPage: {
+    lead: "Wie lange die Praxis Daten aufbewahrt, wie eine Patientin ihre Daten erhält, und wie gelöscht wird.",
+    policy: "Aufbewahrungsfristen",
+    policyNote:
+      "Noch keine Richtlinie hinterlegt. Die Fristen legt die Praxis als Verantwortliche mit ihrer Datenschutzberatung fest. Bis dahin löscht die Plattform nichts von sich aus.",
+    export: "Datenauskunft (Art. 15 und 20 DSGVO)",
+    exportNote:
+      "Der Inhaber erstellt sie auf der Seite der Patientin oder des Patienten: eine Datei mit allem, was die Akte enthält. Jede Auskunft steht im Audit-Protokoll.",
+    deletion: "Löschung (Art. 17 DSGVO)",
+    deletionNote:
+      "Nach dem Vier-Augen-Prinzip: Der Inhaber beantragt, die Ärztliche Leitung entscheidet, dann wird ausgeführt.",
+    deletionState: "{open} offen · {executed} ausgeführt",
+    deletionLink: "Zu den Löschanträgen",
+    backup: "Sicherung und Wiederherstellung",
+    backupNote:
+      "In dieser Pilotumgebung nicht eingerichtet. Verschlüsselte Sicherungen in der EU mit geprüfter Wiederherstellung sind eine Bedingung vor echten Patientendaten.",
+    unavailable: "Derzeit nicht abrufbar.",
+  },
+  // Settings → profile and security (everyone, about themselves).
+  profilePage: {
+    lead: "So stehen Sie in dieser Praxis und im Audit-Protokoll.",
+    account: "Konto",
+    name: "Name",
+    email: "E-Mail-Adresse",
+    role: "Rolle in dieser Praxis",
+    clinic: "Praxis",
+    clinics: "Ihre Praxen",
+    clinicsNote:
+      "Gehören Sie zu mehreren Praxen, wählen Sie die Praxis nach der Anmeldung.",
+    current: "aktuell",
+    source:
+      "Name und E-Mail-Adresse kommen aus der Anmeldung und werden nicht hier geändert: In der Pilotumgebung sind es synthetische Konten; mit der Anmeldestelle der Praxis (OIDC) ändern Sie sie dort.",
+  },
+  securityPage: {
+    lead: "Wie Sie sich anmelden, und wo Sie gerade angemeldet sind.",
+    signIn: {
+      title: "Anmeldung",
+      method: "Verfahren",
+      mfa: "Zweiter Faktor",
+      dev: "Entwicklungsanmeldung: ohne Passwort und ohne zweiten Faktor. Es gibt sie nur in der Pilotumgebung mit synthetischen Daten; im Betrieb ist sie abgeschaltet.",
+      oidc: "Die Anmeldestelle Ihrer Praxis (OIDC).",
+      mfaDev: "Nicht vorhanden in der Entwicklungsanmeldung.",
+      mfaOidc:
+        "Richtet die Anmeldestelle Ihrer Praxis ein und fragt ihn ab; diese Plattform sieht ihn nicht.",
+    },
+    sessions: {
+      title: "Ihre Sitzungen",
+      note: "Die letzten zehn. Gespeichert werden Beginn, Ablauf und die zuletzt gewählte Praxis – kein Gerät und keine Adresse.",
+      caption: "Ihre Sitzungen, neueste zuerst",
+      columns: {
+        started: "Begonnen",
+        state: "Stand",
+        until: "Bis",
+        clinic: "Praxis",
+      },
+      states: {
+        active: "aktiv",
+        ended: "beendet",
+        expired: "abgelaufen",
+      },
+      current: "diese Sitzung",
+      endOthers: "Alle anderen Sitzungen beenden",
+      endConfirm:
+        "Alle anderen Sitzungen beenden? Wer dort angemeldet ist, muss sich neu anmelden. Diese Sitzung bleibt.",
+      ended: {
+        one: "{n} Sitzung beendet.",
+        other: "{n} Sitzungen beendet.",
+      },
+      none: "Keine andere Sitzung ist aktiv.",
+      failed:
+        "Die Sitzungen konnten nicht beendet werden. Bitte erneut versuchen.",
+      unavailable: "Die Sitzungen sind derzeit nicht abrufbar.",
     },
   },
   // Language and appearance, under Einstellungen.

@@ -82,3 +82,21 @@ export function duration(
   }).format(hours / 24);
   return fill(w.days, { n: days });
 }
+
+// "14.10.2026, 08:12 MESZ" on the clinic's wall clock: the zone is part of every time.
+export function dateTime(
+  iso: string | null | undefined,
+  locale: Locale,
+): string {
+  const at = iso ? Date.parse(iso) : NaN;
+  if (!Number.isFinite(at)) return "—";
+  return new Intl.DateTimeFormat(intlLocale(locale), {
+    timeZone: CLINIC_TIME_ZONE,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(at);
+}
