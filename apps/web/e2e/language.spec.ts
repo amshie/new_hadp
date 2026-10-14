@@ -1,6 +1,12 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { asStaff, hydrated, openTab, watchPageErrors } from "./support/staff";
+import {
+  asStaff,
+  followLink,
+  hydrated,
+  openTab,
+  watchPageErrors,
+} from "./support/staff";
 
 // The interface language is a person's choice — under Einstellungen, or on the sign-in page —
 // kept on the device (apps/web/src/lib/i18n). German is what a device without a choice gets.
@@ -255,7 +261,10 @@ test("a person chooses English under Einstellungen, and goes back to German", as
     await german.click();
     await expectEnglishSettings(page);
 
-    // And back.
+    // And back — from the page anew: until the refused choice's redirect has rendered it again,
+    // the button above still carries the value written into it, and a click there sends "fr"
+    // once more.
+    await page.goto("/einstellungen");
     const back = page.getByRole("button", { name: "Deutsch" });
     await hydrated(back);
     await back.click();
@@ -687,11 +696,13 @@ test("the report page follows the choice; its closed vocabularies stay German an
     await hydrated(row);
     await row.click();
     await expect(page).toHaveURL(/\/patients\/[0-9a-f-]{36}$/);
-    // A click before the page is hydrated can be lost to the router's take-over.
-    const openReport = page.getByRole("link", { name: "Open report" });
-    await hydrated(openReport);
-    await openReport.click();
-    await expect(page).toHaveURL(/\/assessments\/[0-9a-f-]{36}$/);
+    // A click before the page is hydrated can be lost to the router's take-over (followLink
+    // waits for it), and now and then after it too (followLink clicks once more).
+    await followLink(
+      page,
+      page.getByRole("link", { name: "Open report" }),
+      /\/assessments\/[0-9a-f-]{36}$/,
+    );
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const main = page.getByRole("main");
     expect(await languageOf(main)).toBe("en");
