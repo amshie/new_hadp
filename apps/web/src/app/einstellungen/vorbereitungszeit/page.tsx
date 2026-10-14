@@ -11,7 +11,7 @@ import { getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
 
 import { PreparationTimeContent, type Outcome } from "./PreparationTimeContent";
-import { SettingsFrame } from "../SettingsFrame";
+import { SettingsFrame, sectionEyebrow } from "../SettingsFrame";
 
 // The preparation-time metric (owner only): what the clinic states about its own preparation
 // time, and what the platform measures from the report lifecycle. The API authorizes the read
@@ -67,11 +67,12 @@ export default async function PreparationTimePage({
   );
   const notice = (text: string) =>
     shell(
-      <div style={{ maxWidth: "620px" }}>
-        <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>{title}</h1>
-        <p style={{ lineHeight: 1.55, color: "var(--text-muted, #5b6b70)" }}>
-          {text}
-        </p>
+      <div className="vb-set-head">
+        <span className="vb-ov-eyebrow">
+          {sectionEyebrow("preparationTime", messages)}
+        </span>
+        <h1 className="vb-ov-h1">{title}</h1>
+        <p className="vb-ov-lead">{text}</p>
       </div>,
     );
 
@@ -102,6 +103,7 @@ export default async function PreparationTimePage({
       outcome={outcome}
       t={t}
       title={title}
+      eyebrow={sectionEyebrow("preparationTime", messages)}
     />,
   );
 }

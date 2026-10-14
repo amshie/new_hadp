@@ -4,6 +4,7 @@ import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { AddPatientDialog } from "@/components/vitabahn/AddPatientDialog";
+import { EmptyState } from "@/components/vitabahn/EmptyState";
 import { clickable } from "@/components/vitabahn/interactive";
 import { byCount, fill } from "@/lib/i18n/fill";
 import { useI18n } from "@/lib/i18n/I18nProvider";
@@ -21,12 +22,6 @@ import type {
 
 const PGRID = "minmax(220px,2fr) 70px minmax(150px,1.3fr) 120px";
 
-const cardStyle: CSSProperties = {
-  background: "var(--surface-card)",
-  border: "1px solid var(--border-subtle)",
-  borderRadius: "var(--radius-lg)",
-  boxShadow: "var(--shadow-sm)",
-};
 const colLabel: CSSProperties = {
   fontFamily: "var(--font-mono)",
   fontSize: "11px",
@@ -121,56 +116,14 @@ export function PatientsContent({
 
   return (
     <>
-      <div
-        style={{
-          marginBottom: "28px",
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: "20px",
-          flexWrap: "wrap",
-        }}
-      >
+      <div className="vb-ov-pagehead" style={{ marginBottom: "28px" }}>
         <div style={{ minWidth: 0 }}>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "11px",
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              color: "var(--brand)",
-              fontWeight: 500,
-              marginBottom: "10px",
-            }}
-          >
+          <div className="vb-ov-eyebrow">
             {fill(t.kicker, { clinic: tenantName })}
           </div>
-          <h1
-            style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 700,
-              fontSize: "var(--text-3xl)",
-              letterSpacing: "var(--tracking-tight)",
-              color: "var(--text-strong)",
-              margin: "0 0 10px",
-              lineHeight: 1.05,
-            }}
-          >
-            {t.title}
-          </h1>
-          <p
-            style={{
-              fontSize: "var(--text-md)",
-              lineHeight: 1.5,
-              color: "var(--text-muted)",
-              margin: 0,
-              maxWidth: "64ch",
-            }}
-          >
-            <span style={{ color: "var(--text-strong)", fontWeight: 600 }}>
-              {byCount(t.count, view.total)}
-            </span>{" "}
-            {t.lead}
+          <h1 className="vb-ov-h1">{t.title}</h1>
+          <p className="vb-ov-lead">
+            <b>{byCount(t.count, view.total)}</b> {t.lead}
           </p>
         </div>
         <AddPatientDialog />
@@ -186,7 +139,7 @@ export function PatientsContent({
         }}
       >
         {chips.map((c) => (
-          <div key={c.label} style={{ ...cardStyle, padding: "18px" }}>
+          <div key={c.label} className="vb-ov-card" style={{ padding: "18px" }}>
             <div
               style={{
                 fontFamily: "var(--font-mono)",
@@ -221,7 +174,7 @@ export function PatientsContent({
       </div>
 
       {/* directory */}
-      <div style={{ ...cardStyle, overflow: "hidden" }}>
+      <div className="vb-ov-card" style={{ overflow: "hidden" }}>
         <div style={{ padding: "20px 22px 0" }}>
           <h3
             style={{
@@ -531,22 +484,7 @@ export function PatientsContent({
                 );
               })}
               {visible.length === 0 && (
-                <div style={{ textAlign: "center", padding: "54px 20px" }}>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontWeight: 700,
-                      fontSize: "var(--text-lg)",
-                      color: "var(--text-strong)",
-                      marginBottom: "6px",
-                    }}
-                  >
-                    {t.noneTitle}
-                  </div>
-                  <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-                    {t.noneNote}
-                  </div>
-                </div>
+                <EmptyState title={t.noneTitle}>{t.noneNote}</EmptyState>
               )}
             </div>
           </div>

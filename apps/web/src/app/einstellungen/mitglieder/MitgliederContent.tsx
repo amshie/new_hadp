@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { Dialog } from "@/components/vitabahn/Dialog";
+import { EmptyState } from "@/components/vitabahn/EmptyState";
 import type {
   MemberOut,
   RolePermissions,
@@ -232,9 +233,9 @@ export function MitgliederContent({
         </div>
         <div className="vb-ov-body">
           {open.length === 0 ? (
-            <p className="vb-ov-tier-empty" style={{ padding: 0 }}>
+            <EmptyState quiet style={{ padding: 0 }}>
               {t.pending.none}
-            </p>
+            </EmptyState>
           ) : (
             <ul className="vb-ov-srclist">
               {open.map((inv) => {

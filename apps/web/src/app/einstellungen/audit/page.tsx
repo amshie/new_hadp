@@ -15,7 +15,7 @@ import { shellIdentity } from "@/lib/identity";
 import { isUuid } from "@/lib/uuid";
 
 import { AuditContent, type AuditQuery } from "./AuditContent";
-import { SettingsFrame } from "../SettingsFrame";
+import { SettingsFrame, sectionEyebrow } from "../SettingsFrame";
 
 // The clinic's audit trail (owner-only): who did what, and when. The API authorizes the read
 // (AUDIT_READ) and returns exactly this clinic's events; this page mirrors the role check with
@@ -65,11 +65,12 @@ export default async function AuditPageRoute({
   );
   const notice = (text: string) =>
     shell(
-      <div style={{ maxWidth: "620px" }}>
-        <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>{title}</h1>
-        <p style={{ lineHeight: 1.55, color: "var(--text-muted, #5b6b70)" }}>
-          {text}
-        </p>
+      <div className="vb-set-head">
+        <span className="vb-ov-eyebrow">
+          {sectionEyebrow("auditTrail", messages)}
+        </span>
+        <h1 className="vb-ov-h1">{title}</h1>
+        <p className="vb-ov-lead">{text}</p>
       </div>,
     );
 
@@ -130,6 +131,7 @@ export default async function AuditPageRoute({
       stalePosition={stalePosition}
       t={t}
       title={title}
+      eyebrow={sectionEyebrow("auditTrail", messages)}
       locale={locale}
     />,
   );

@@ -24,13 +24,6 @@ import {
 // The card follows the interface language (lib/i18n); dates and sizes keep their German form
 // (ADR-0007: formats are decided on their own).
 
-const cardStyle: CSSProperties = {
-  background: "var(--surface-card)",
-  border: "1px solid var(--border-subtle)",
-  borderRadius: "var(--radius-lg)",
-  boxShadow: "var(--shadow-sm)",
-};
-
 const thStyle: CSSProperties = {
   textAlign: "left",
   padding: "10px 14px",
@@ -155,7 +148,8 @@ export function LabDocumentsCard({
 
   return (
     <section
-      style={{ ...cardStyle, marginBottom: "16px", overflow: "hidden" }}
+      className="vb-ov-card"
+      style={{ marginBottom: "16px", overflow: "hidden" }}
       aria-labelledby="lab-documents-heading"
     >
       <div style={{ padding: "20px 22px 16px" }}>

@@ -30,6 +30,12 @@ export function sectionTitle(key: SettingsKey, messages: Messages): string {
   return messages.settings[key].title;
 }
 
+// The group a section sits in, as the page's eyebrow above its title.
+export function sectionEyebrow(key: SettingsKey, messages: Messages): string {
+  const section = SETTINGS_SECTIONS.find((s) => s.key === key);
+  return section ? messages.settings.nav.groups[section.group] : "";
+}
+
 function LockIcon() {
   return (
     <svg

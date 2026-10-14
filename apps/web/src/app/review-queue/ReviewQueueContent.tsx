@@ -3,6 +3,7 @@
 import { useState, useTransition, type CSSProperties } from "react";
 
 import { Dialog } from "@/components/vitabahn/Dialog";
+import { EmptyState } from "@/components/vitabahn/EmptyState";
 import type { ReviewQueueItem } from "@/lib/api";
 import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
 import { useI18n } from "@/lib/i18n/I18nProvider";
@@ -95,13 +96,6 @@ function fmtObserved(iso: string, dateOnly: boolean): string {
   })}`;
 }
 
-const cardStyle: CSSProperties = {
-  background: "var(--surface-card)",
-  border: "1px solid var(--border-subtle)",
-  borderRadius: "var(--radius-lg)",
-  boxShadow: "var(--shadow-sm)",
-};
-
 const thStyle: CSSProperties = {
   textAlign: "left",
   padding: "11px 14px",
@@ -189,48 +183,29 @@ export function ReviewQueueContent({
 
   return (
     <>
-      <div style={{ marginBottom: "18px" }}>
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: 800,
-            fontSize: "var(--text-2xl, 26px)",
-            color: "var(--text-strong)",
-            margin: 0,
-            letterSpacing: "-0.02em",
-          }}
-        >
-          {t.title}
-        </h1>
-        <p
-          style={{
-            margin: "6px 0 0",
-            fontSize: "13px",
-            color: "var(--text-muted)",
-            maxWidth: "82ch",
-          }}
-        >
-          {t.lead}
-          {!canResolve && t.readOnly}
-        </p>
+      <div className="vb-ov-pagehead" style={{ marginBottom: "18px" }}>
+        <div style={{ minWidth: 0 }}>
+          <h1 className="vb-ov-h1" style={{ marginTop: 0 }}>
+            {t.title}
+          </h1>
+          <p className="vb-ov-lead">
+            {t.lead}
+            {!canResolve && t.readOnly}
+          </p>
+        </div>
       </div>
 
       {items.length === 0 ? (
-        <div
-          style={{
-            ...cardStyle,
-            padding: "36px 24px",
-            textAlign: "center",
-            color: "var(--text-muted)",
-            fontSize: "13.5px",
-          }}
-        >
-          {t.empty}
+        <div className="vb-ov-card">
+          <EmptyState>{t.empty}</EmptyState>
         </div>
       ) : (
         // On a narrow screen the table scrolls sideways: clipped, its last column — the
         // decision — was out of reach on a phone.
-        <div style={{ ...cardStyle, position: "relative", overflowX: "auto" }}>
+        <div
+          className="vb-ov-card"
+          style={{ position: "relative", overflowX: "auto" }}
+        >
           <table
             style={{
               width: "100%",
@@ -368,10 +343,10 @@ export function ReviewQueueContent({
             justifyContent: "center",
             padding: "24px",
           }}
+          dialogClassName="vb-ov-card"
           dialogStyle={{
             width: "480px",
             maxWidth: "100%",
-            ...cardStyle,
             padding: "22px",
           }}
         >

@@ -309,16 +309,6 @@ svg.icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-w
 .change-up { color: var(--success); font-weight: 750; }
 .change-flat { color: var(--info); font-weight: 750; }
 .change-down { color: var(--danger); font-weight: 750; }
-.audit-card { display: flex; align-items: center; gap: 15px; padding: 16px 17px; }
-.audit-steps { display: flex; align-items: center; min-width: 0; flex: 1; }
-.audit-step { display: flex; align-items: center; gap: 7px; min-width: 0; }
-.audit-step-dot { width: 24px; height: 24px; display: grid; place-items: center; flex: none; border-radius: 50%; color: var(--muted); background: var(--surface-3); border: 1px solid var(--border); font-size: 11px; font-weight: 800; }
-.audit-step.done .audit-step-dot { color: var(--success); background: var(--success-bg); border-color: var(--check-success-border); }
-.audit-step.active .audit-step-dot { color: var(--brand-700); background: var(--brand-50); border-color: var(--brand-700); box-shadow: 0 0 0 3px rgba(12,107,93,.1); }
-.audit-step-copy { min-width: 0; }
-.audit-step-copy strong { display: block; overflow: hidden; color: var(--ink); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.audit-step-copy span { display: block; overflow: hidden; margin-top: 2px; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.audit-line { min-width: 20px; height: 1px; flex: 1; margin: 0 7px; background: var(--border); }
 .action-bar { position: sticky; bottom: 14px; z-index: 20; display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 11px 13px; border: 1px solid var(--border-strong); border-radius: 14px; background: rgba(255,255,255,.94); backdrop-filter: blur(12px); box-shadow: 0 18px 45px -24px rgba(17,39,46,.42); }
 .action-bar-copy { min-width: 0; flex: 1; }
 .action-bar-copy strong { display: block; color: var(--ink); font-size: 12px; }
@@ -355,9 +345,6 @@ svg.icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-w
   .content { padding: 24px 18px 56px; }
   .dashboard-grid, .evidence-layout { grid-template-columns: 1fr; }
   .evidence-summary { position: static; }
-  .audit-steps { overflow-x: auto; padding-bottom: 3px; }
-  .audit-step { min-width: 120px; }
-  .audit-line { min-width: 25px; }
   .auth-page { grid-template-columns: 1fr; }
   .auth-brand { min-height: 250px; padding: 27px 28px; }
   .auth-message { margin: 46px 0 24px; }
@@ -393,7 +380,6 @@ svg.icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-w
   .domain-card { overflow-x: auto; }
   .domain-table { min-width: 780px; }
   .marker-table { min-width: 760px; }
-  .audit-card { align-items: stretch; flex-direction: column; }
   .action-bar { align-items: stretch; flex-direction: column; bottom: 8px; }
   .action-bar-buttons { width: 100%; }
   .action-bar-buttons .btn { flex: 1; }

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import { EmptyState } from "@/components/vitabahn/EmptyState";
 import type { DeletionRequestView } from "@/lib/api";
 import { fill } from "@/lib/i18n/fill";
 import { useI18n } from "@/lib/i18n/I18nProvider";
@@ -13,6 +14,7 @@ import {
   executeDeletionAction,
   rejectDeletionAction,
 } from "./actions";
+import { sectionEyebrow } from "../SettingsFrame";
 
 // Owner + medical-director queue for patient-erasure requests (docs/notes/0012). The medical
 // director approves/rejects a pending request; the owner may withdraw their own pending one.
@@ -71,19 +73,13 @@ export function LoeschantraegeContent({
 
   return (
     <div style={{ maxWidth: "820px" }}>
-      <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>
-        {messages.settings.deletionRequests.title}
-      </h1>
-      <p
-        style={{
-          color: "var(--text-muted, #5b6b70)",
-          fontSize: "13px",
-          marginBottom: "22px",
-          lineHeight: 1.55,
-        }}
-      >
-        {t.lead}
-      </p>
+      <div className="vb-set-head">
+        <span className="vb-ov-eyebrow">
+          {sectionEyebrow("deletionRequests", messages)}
+        </span>
+        <h1 className="vb-ov-h1">{messages.settings.deletionRequests.title}</h1>
+        <p className="vb-ov-lead">{t.lead}</p>
+      </div>
 
       {error && (
         <p role="alert" style={{ color: "#b3261e", lineHeight: 1.5 }}>
@@ -92,9 +88,9 @@ export function LoeschantraegeContent({
       )}
 
       {requests.length === 0 ? (
-        <p style={{ color: "var(--text-muted, #5b6b70)", fontSize: "13px" }}>
-          {t.none}
-        </p>
+        <div className="vb-ov-card">
+          <EmptyState>{t.none}</EmptyState>
+        </div>
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {requests.map((r) => {

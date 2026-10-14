@@ -36,14 +36,6 @@ export type Outcome = {
 
 type T = Messages["preparationPage"];
 
-const cardStyle: CSSProperties = {
-  background: "var(--surface-card)",
-  border: "1px solid var(--border-subtle)",
-  borderRadius: "var(--radius-lg)",
-  boxShadow: "var(--shadow-sm)",
-  padding: "18px 22px",
-};
-
 const thStyle: CSSProperties = {
   textAlign: "left",
   padding: "10px 14px",
@@ -125,7 +117,10 @@ function Stated({
   t: T;
 }) {
   return (
-    <div style={{ ...cardStyle, flex: "1 1 260px" }}>
+    <div
+      className="vb-ov-card"
+      style={{ padding: "18px 22px", flex: "1 1 260px" }}
+    >
       <div style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>
         {title}
       </div>
@@ -174,7 +169,10 @@ function Measured({
     measured.q1_seconds !== null &&
     measured.q3_seconds !== null;
   return (
-    <div style={{ ...cardStyle, flex: "1 1 260px" }}>
+    <div
+      className="vb-ov-card"
+      style={{ padding: "18px 22px", flex: "1 1 260px" }}
+    >
       <div style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>
         {title}
       </div>
@@ -209,11 +207,13 @@ export function PreparationTimeContent({
   outcome,
   t,
   title,
+  eyebrow,
 }: {
   metric: PreparationTime;
   outcome: Outcome;
   t: T;
   title: string;
+  eyebrow: string;
 }) {
   const { baseline, latest_follow_up: followUp } = metric;
   const difference =
@@ -223,10 +223,11 @@ export function PreparationTimeContent({
 
   return (
     <div style={{ maxWidth: "1040px" }}>
-      <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>{title}</h1>
-      <p style={{ ...leadStyle, fontSize: "13px" }}>
-        {fill(t.lead, { zone: CLINIC_TIME_ZONE })}
-      </p>
+      <div className="vb-set-head">
+        <span className="vb-ov-eyebrow">{eyebrow}</span>
+        <h1 className="vb-ov-h1">{title}</h1>
+        <p className="vb-ov-lead">{fill(t.lead, { zone: CLINIC_TIME_ZONE })}</p>
+      </div>
 
       {outcome.saved && (
         <p
@@ -290,8 +291,9 @@ export function PreparationTimeContent({
 
         <form
           action={recordStatementAction}
+          className="vb-ov-card"
           style={{
-            ...cardStyle,
+            padding: "18px 22px",
             display: "flex",
             flexWrap: "wrap",
             alignItems: "end",
@@ -367,7 +369,7 @@ export function PreparationTimeContent({
           </p>
         )}
         {metric.statements.length > 0 && (
-          <div style={{ ...cardStyle, padding: 0, marginTop: "14px" }}>
+          <div className="vb-ov-card" style={{ marginTop: "14px" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <caption className="sr-only">{t.history.caption}</caption>
               <thead>

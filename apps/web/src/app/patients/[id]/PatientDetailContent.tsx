@@ -15,7 +15,9 @@ import type {
   DeletionReason,
   SourceDocument,
 } from "@/lib/api";
+import { AuditSteps } from "@/components/vitabahn/AuditSteps";
 import { Dialog } from "@/components/vitabahn/Dialog";
+import { EmptyState } from "@/components/vitabahn/EmptyState";
 import { byCount, fill } from "@/lib/i18n/fill";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import type { Messages } from "@/lib/i18n/messages";
@@ -44,12 +46,6 @@ import { GERMAN, LagePill, ReferenceBar } from "./MarkerParts";
 // of fact (a column heading, "Follow-up adequacy:") is interface. Numbers and dates keep
 // their form.
 
-const cardStyle: CSSProperties = {
-  background: "var(--surface-card)",
-  border: "1px solid var(--border-subtle)",
-  borderRadius: "var(--radius-lg)",
-  boxShadow: "var(--shadow-sm)",
-};
 const secBtn: CSSProperties = {
   height: "38px",
   padding: "0 15px",
@@ -321,7 +317,8 @@ export function PatientDetailContent({
 
       {/* identity */}
       <div
-        style={{ ...cardStyle, padding: "22px 24px 4px", marginBottom: "20px" }}
+        className="vb-ov-card"
+        style={{ padding: "22px 24px 4px", marginBottom: "20px" }}
       >
         <div
           style={{
@@ -575,7 +572,10 @@ export function PatientDetailContent({
       </div>
 
       {/* data completeness (real, deterministic — the compliant replacement for the comp's quality gauge) */}
-      <div style={{ ...cardStyle, padding: "16px 22px", marginBottom: "20px" }}>
+      <div
+        className="vb-ov-card"
+        style={{ padding: "16px 22px", marginBottom: "20px" }}
+      >
         <div
           style={{
             display: "flex",
@@ -690,156 +690,19 @@ export function PatientDetailContent({
 
       {/* Audit stepper (real, from report status) */}
       <div
-        style={{
-          ...cardStyle,
-          padding: "20px 22px 22px",
-          marginBottom: "16px",
-        }}
+        className="vb-ov-card"
+        style={{ padding: "20px 22px 22px", marginBottom: "16px" }}
       >
-        <h3
-          style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: 700,
-            fontSize: "var(--text-lg)",
-            color: "var(--text-strong)",
-            margin: "0 0 3px",
-            letterSpacing: "-0.01em",
-          }}
-        >
-          {t.audit.title}
-        </h3>
-        <p
-          style={{
-            fontSize: "12.5px",
-            color: "var(--text-muted)",
-            margin: "0 0 18px",
-          }}
-        >
+        <h3 className="vb-ov-h2">{t.audit.title}</h3>
+        <p className="vb-ov-note" style={{ margin: "3px 0 18px" }}>
           {t.audit.note}
         </p>
         {review.status === "none" ? (
-          <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+          <EmptyState quiet style={{ padding: 0 }}>
             {t.audit.none}
-          </div>
+          </EmptyState>
         ) : (
-          // The steps need 560px: a narrower screen scrolls them sideways, like the table above.
-          <div style={{ overflowX: "auto" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                minWidth: "560px",
-              }}
-            >
-              {review.auditSteps.map((s, i, a) => {
-                // The step's wording in the page's language, by the step and its line.
-                const step: Record<string, string> = t.audit.steps[s.key];
-                const done = s.state === "done";
-                const active = s.state === "active";
-                const dotBg = done
-                  ? "var(--vital-500)"
-                  : active
-                    ? "var(--amber-400)"
-                    : "var(--surface-sunken)";
-                const dotFg = done || active ? "#fff" : "var(--text-faint)";
-                return (
-                  <div
-                    key={s.key}
-                    style={{
-                      flex: 1,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        width: "100%",
-                      }}
-                    >
-                      <div
-                        style={{
-                          flex: 1,
-                          height: "2px",
-                          background:
-                            i === 0 ? "transparent" : "var(--teal-300)",
-                        }}
-                      />
-                      <div
-                        style={{
-                          width: "26px",
-                          height: "26px",
-                          flexShrink: 0,
-                          borderRadius: "999px",
-                          background: dotBg,
-                          color: dotFg,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "12px",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {done ? (
-                          <svg
-                            aria-hidden="true"
-                            focusable="false"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="#fff"
-                            strokeWidth="2.6"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M20 6L9 17l-5-5" />
-                          </svg>
-                        ) : (
-                          s.dot
-                        )}
-                      </div>
-                      <div
-                        style={{
-                          flex: 1,
-                          height: "2px",
-                          background:
-                            i === a.length - 1
-                              ? "transparent"
-                              : "var(--teal-300)",
-                        }}
-                      />
-                    </div>
-                    <div style={{ marginTop: "9px" }}>
-                      <div
-                        style={{
-                          fontSize: "12.5px",
-                          fontWeight: 600,
-                          color: "var(--text-strong)",
-                        }}
-                      >
-                        {step.label}
-                      </div>
-                      <div
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "11px",
-                          color: "var(--text-muted)",
-                          marginTop: "2px",
-                        }}
-                      >
-                        {step[s.subKey] ?? ""}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <AuditSteps steps={review.auditSteps} copy={t.audit.steps} />
         )}
       </div>
 

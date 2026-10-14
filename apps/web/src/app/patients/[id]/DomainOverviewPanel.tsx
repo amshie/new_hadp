@@ -3,6 +3,7 @@
 import { useState, type CSSProperties } from "react";
 import Link from "next/link";
 
+import { EmptyState } from "@/components/vitabahn/EmptyState";
 import { clickable } from "@/components/vitabahn/interactive";
 import { comparabilityNote } from "@/lib/comparabilityCopy";
 import { byCount, fill } from "@/lib/i18n/fill";
@@ -40,54 +41,6 @@ import { GERMAN, LagePill, ReferenceBar } from "./MarkerParts";
 
 type T = Messages["patientPage"];
 
-const cardStyle: CSSProperties = {
-  background: "var(--surface-card)",
-  border: "1px solid var(--border-subtle)",
-  borderRadius: "var(--radius-lg)",
-  boxShadow: "var(--shadow-sm)",
-};
-const colLabel: CSSProperties = {
-  fontFamily: "var(--font-mono)",
-  fontSize: "11px",
-  letterSpacing: "0.1em",
-  textTransform: "uppercase",
-  color: "var(--text-faint)",
-  fontWeight: 500,
-};
-const heading: CSSProperties = {
-  fontFamily: "var(--font-display)",
-  fontWeight: 800,
-  fontSize: "var(--text-xl)",
-  color: "var(--text-strong)",
-  margin: "0 0 3px",
-  letterSpacing: "-0.02em",
-};
-const note: CSSProperties = {
-  fontSize: "12.5px",
-  color: "var(--text-muted)",
-  margin: 0,
-  maxWidth: "94ch",
-  lineHeight: 1.5,
-};
-const chip: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  padding: "2px 9px",
-  borderRadius: "999px",
-  fontFamily: "var(--font-text)",
-  fontSize: "11px",
-  fontWeight: 600,
-  color: "var(--text-muted)",
-  background: "var(--surface-sunken)",
-  border: "1px solid var(--border-subtle)",
-  whiteSpace: "nowrap",
-};
-const warnChip: CSSProperties = {
-  ...chip,
-  color: "var(--status-warning-text)",
-  background: "rgba(201,136,28,0.12)",
-  border: "1px solid rgba(201,136,28,0.30)",
-};
 const EGRID =
   "minmax(160px,1.5fr) 132px minmax(110px,0.9fr) minmax(110px,1fr) 150px minmax(100px,0.8fr) 104px";
 
@@ -166,7 +119,8 @@ function PrepCard({
   return (
     <section
       aria-labelledby="vb-prep-title"
-      style={{ ...cardStyle, padding: "18px 22px 20px", marginBottom: "20px" }}
+      className="vb-ov-card"
+      style={{ padding: "18px 22px 20px", marginBottom: "20px" }}
     >
       <div
         style={{
@@ -179,10 +133,10 @@ function PrepCard({
         }}
       >
         <div style={{ minWidth: 0 }}>
-          <h3 id="vb-prep-title" style={heading}>
+          <h3 id="vb-prep-title" className="vb-ov-h2">
             {t.title}
           </h3>
-          <p style={note}>{t.note}</p>
+          <p className="vb-ov-note">{t.note}</p>
         </div>
         <span
           style={{
@@ -296,8 +250,8 @@ function PrepCard({
       {filter && (
         <p
           role="status"
+          className="vb-ov-note"
           style={{
-            ...note,
             marginTop: "12px",
             display: "flex",
             flexWrap: "wrap",
@@ -638,17 +592,17 @@ function SeriesRow({
           }}
         >
           {showDomain && (
-            <span style={chip}>
+            <span className="vb-ov-tag">
               <span lang={GERMAN}>{axisLabel(series.primaryDomain)}</span>
             </span>
           )}
           {series.pending > 0 && (
-            <span style={warnChip}>
+            <span className="vb-ov-tag vb-ov-tag-now">
               <span aria-hidden="true">◷&nbsp;</span>
               {byCount(e.pending, series.pending)}
             </span>
           )}
-          {series.corrected && <span style={chip}>{e.corrected}</span>}
+          {series.corrected && <span className="vb-ov-tag">{e.corrected}</span>}
         </span>
       </span>
       <span>{axis && <Sparkline series={series} axis={axis} />}</span>
@@ -757,7 +711,7 @@ function MissingRow({
           {row.marker.name}
         </span>
         <span style={{ display: "flex", marginTop: "5px" }}>
-          <span style={chip}>
+          <span className="vb-ov-tag">
             {classes[row.marker.measurementClass] ??
               row.marker.measurementClass}
           </span>
@@ -799,8 +753,8 @@ function DomainSectionCard({
     <section
       id={sectionId(domain.axis)}
       aria-labelledby={`${sectionId(domain.axis)}-title`}
+      className="vb-ov-card"
       style={{
-        ...cardStyle,
         marginBottom: "16px",
         overflow: "hidden",
         scrollMarginTop: "16px",
@@ -817,21 +771,11 @@ function DomainSectionCard({
         }}
       >
         <div style={{ minWidth: 0 }}>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "11px",
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              color: "var(--text-faint)",
-            }}
-          >
-            {e.eyebrow}
-          </div>
-          <h3 id={`${sectionId(domain.axis)}-title`} style={heading}>
+          <div className="vb-ov-eyebrow">{e.eyebrow}</div>
+          <h3 id={`${sectionId(domain.axis)}-title`} className="vb-ov-h2">
             <span lang={GERMAN}>{axisLabel(domain.axis)}</span>
           </h3>
-          <p style={note}>{e.note}</p>
+          <p className="vb-ov-note">{e.note}</p>
         </div>
         <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
           {domain.facts.coreTotal > 0 &&
@@ -848,9 +792,7 @@ function DomainSectionCard({
         </span>
       </div>
       {shown === 0 ? (
-        <p style={{ ...note, padding: "6px 22px 18px" }}>
-          {filter ? e.emptyFilter : e.empty}
-        </p>
+        <EmptyState quiet>{filter ? e.emptyFilter : e.empty}</EmptyState>
       ) : (
         // Relative: the rows' screen-reader sentences (.sr-only, absolute) are held in this
         // scroller — otherwise they reach past a narrow screen and widen the whole page.
@@ -868,13 +810,13 @@ function DomainSectionCard({
                 background: "var(--surface-sunken)",
               }}
             >
-              <span style={colLabel}>{e.columns.marker}</span>
-              <span style={colLabel}>{t.history.column}</span>
-              <span style={colLabel}>{e.columns.value}</span>
-              <span style={colLabel}>{e.columns.change}</span>
-              <span style={colLabel}>{e.columns.position}</span>
-              <span style={colLabel}>{e.columns.bar}</span>
-              <span style={colLabel}>{e.columns.measured}</span>
+              <span className="vb-collabel">{e.columns.marker}</span>
+              <span className="vb-collabel">{t.history.column}</span>
+              <span className="vb-collabel">{e.columns.value}</span>
+              <span className="vb-collabel">{e.columns.change}</span>
+              <span className="vb-collabel">{e.columns.position}</span>
+              <span className="vb-collabel">{e.columns.bar}</span>
+              <span className="vb-collabel">{e.columns.measured}</span>
             </div>
             {rows.map((r) =>
               r.kind === "series" ? (
@@ -948,12 +890,15 @@ function UnassignedCard({
   return (
     <section
       aria-labelledby="vb-unassigned-title"
-      style={{ ...cardStyle, padding: "16px 22px 18px", marginBottom: "16px" }}
+      className="vb-ov-card"
+      style={{ padding: "16px 22px 18px", marginBottom: "16px" }}
     >
-      <h3 id="vb-unassigned-title" style={heading}>
+      <h3 id="vb-unassigned-title" className="vb-ov-h2">
         {t.unassigned.title}
       </h3>
-      <p style={{ ...note, marginBottom: "12px" }}>{t.unassigned.note}</p>
+      <p className="vb-ov-note" style={{ marginBottom: "12px" }}>
+        {t.unassigned.note}
+      </p>
       <ul
         style={{
           listStyle: "none",
@@ -1007,7 +952,9 @@ function UnassignedCard({
             >
               {v.observedDay}
             </span>
-            <span style={v.status === "pending" ? warnChip : chip}>
+            <span
+              className={`vb-ov-tag${v.status === "pending" ? " vb-ov-tag-now" : ""}`}
+            >
               {status[v.status] ?? v.status}
             </span>
             {v.status === "pending" && (
@@ -1051,10 +998,12 @@ export function DomainOverviewPanel({
         aria-labelledby="vb-domains-title"
         style={{ marginBottom: "20px" }}
       >
-        <h3 id="vb-domains-title" style={heading}>
+        <h3 id="vb-domains-title" className="vb-ov-h2">
           {t.domains.title}
         </h3>
-        <p style={{ ...note, marginBottom: "12px" }}>{t.domains.note}</p>
+        <p className="vb-ov-note" style={{ marginBottom: "12px" }}>
+          {t.domains.note}
+        </p>
         <div
           style={{
             display: "grid",
@@ -1131,8 +1080,8 @@ export function SeriesValues({ series, t }: { series: MarkerSeries; t: T }) {
                 <th
                   key={h}
                   scope="col"
+                  className="vb-collabel"
                   style={{
-                    ...colLabel,
                     textAlign: "left",
                     padding: "6px 10px",
                     borderBottom: "1px solid var(--border-subtle)",

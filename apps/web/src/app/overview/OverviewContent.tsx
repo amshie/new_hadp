@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { AddPatientDialog } from "@/components/vitabahn/AddPatientDialog";
+import { EmptyState } from "@/components/vitabahn/EmptyState";
 import { clickable } from "@/components/vitabahn/interactive";
 import { actionLabel, targetLabel } from "@/lib/auditCopy";
 import { roleName } from "@/lib/identity";
@@ -253,7 +254,7 @@ function TodayCard({
               <small>{byCount(d.count, items.length)}</small>
             </h3>
             {items.length === 0 ? (
-              <p className="vb-ov-tier-empty">{d.empty[tier]}</p>
+              <EmptyState quiet>{d.empty[tier]}</EmptyState>
             ) : (
               <ul className="vb-ov-qlist">
                 {items.map((item) => (
@@ -530,10 +531,7 @@ function Worklist({
             );
           })}
           {visible.length === 0 && (
-            <div className="vb-ov-wlempty">
-              <b>{w.emptyTitle}</b>
-              <span>{w.emptyNote}</span>
-            </div>
+            <EmptyState title={w.emptyTitle}>{w.emptyNote}</EmptyState>
           )}
         </div>
       </div>
@@ -642,7 +640,9 @@ function ActivityCard({ data }: { data: OverviewData }) {
         {items == null ? (
           <p className="vb-ov-unavailable">{a.unavailable}</p>
         ) : items.length === 0 ? (
-          <p className="vb-ov-tier-empty">{a.empty}</p>
+          <EmptyState quiet style={{ padding: 0 }}>
+            {a.empty}
+          </EmptyState>
         ) : (
           <ul className="vb-ov-feed">
             {items.map((e) => (
