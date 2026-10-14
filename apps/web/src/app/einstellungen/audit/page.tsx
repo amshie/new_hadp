@@ -83,11 +83,13 @@ export default async function AuditPageRoute({
   const since = clinicDayStart(from);
   const until = clinicDayStart(to, 1);
   const target = one(raw.target);
+  const actor = one(raw.actor);
   const position = one(raw.cursor);
   const cursor = position && CURSOR.test(position) ? position : undefined;
   const query: AuditQuery = {
     category: auditCategory(one(raw.category)),
     target: isUuid(target) ? target.toLowerCase() : undefined,
+    actor: isUuid(actor) ? actor.toLowerCase() : undefined,
     from: since ? from : undefined,
     to: until ? to : undefined,
     hideReads: one(raw.reads) === "0",
@@ -95,6 +97,7 @@ export default async function AuditPageRoute({
   const filters: AuditFilters = {
     category: query.category,
     target_id: query.target,
+    actor_user_id: query.actor,
     since: since?.toISOString(),
     until: until?.toISOString(),
     exclude_reads: query.hideReads,

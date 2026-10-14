@@ -1341,28 +1341,85 @@ export const de = {
   // Settings → members (owners only). The names of the roles are `roles` above.
   membersPage: {
     ownersOnly: "Die Mitgliederverwaltung ist nur für Inhaber verfügbar.",
-    lead: "Laden Sie eine Kollegin oder einen Kollegen in Ihr Klinik-Team ein. Die eingeladene Person richtet ihren Zugang selbst über einen einmaligen Link ein. Die Rolle legen Sie hier fest.",
-    team: "Team",
+    eyebrow: "Einstellungen · Praxis",
+    lead: "Wer in dieser Praxis arbeitet und was die Rolle erlaubt. Eingeladene richten ihren Zugang selbst über einen einmaligen Link ein; die Rolle legen Sie fest.",
+    team: "Mitglieder",
     you: " · Sie",
     roleOf: "Rolle von {name}",
-    remove: "Entfernen",
-    removeConfirm: "{name} aus dem Team entfernen?",
-    invite: {
-      title: "Kolleg:in einladen",
+    roleCount: "{role} {n}",
+    columns: {
+      person: "Person",
       role: "Rolle",
-      create: "Einladung erstellen",
+      lastActive: "Zuletzt aktiv",
+      actions: "Aktionen",
+    },
+    never: "noch nie",
+    more: "Weitere Aktionen für {name}",
+    showInTrail: "Im Protokoll anzeigen",
+    remove: "Aus dem Team entfernen …",
+    removeConfirm:
+      "{name} aus dem Team entfernen? Die Person verliert sofort den Zugang zu dieser Praxis. Der Vorgang wird protokolliert.",
+    roleConfirm:
+      "Rolle von {name} von {from} zu {to} ändern? Der Vorgang wird protokolliert.",
+    note: "Eine Rolle ändern oder ein Mitglied entfernen wird protokolliert und fragt vorher nach. Inhaber und Ärztliche Leitung sind getrennte Rollen: Wer freigibt, verwaltet nicht, und umgekehrt.",
+    invite: {
+      open: "Kolleg:in einladen",
+      title: "Kolleg:in einladen",
+      note: "Der Link wird genau einmal angezeigt und läuft nach 7 Tagen ab. Die Rolle legen Sie hier fest; die eingeladene Person kann sie nicht ändern.",
+      label: "Für wen (optional)",
+      labelHelp:
+        "Zum Beispiel die E-Mail-Adresse. Nur zur Beschriftung in Ihrer Liste; der Link wird nicht versendet.",
+      role: "Rolle",
+      cancel: "Abbrechen",
+      create: "Einladungslink erstellen",
       // Around the name of the role, then around "shown only once" (both bold).
       createdBefore: "Einladung für",
       createdAfter:
         "erstellt. Geben Sie diesen Link an die eingeladene Person weiter — er wird",
       once: "nur einmal angezeigt",
       link: "Einmaliger Einladungslink",
+      done: "Fertig",
     },
     pending: {
-      title: "Ausstehende Einladungen",
-      none: "Keine ausstehenden Einladungen.",
-      validUntil: "gültig bis {day}",
+      title: "Offene Einladungen",
+      none: "Keine offenen Einladungen.",
+      created: "Link erstellt am {day} von {name}",
+      createdNoName: "Link erstellt am {day}",
+      expires: "Läuft ab am {day} · noch nicht eingelöst",
       revoke: "Widerrufen",
+      revokeOf: "Einladung {what} widerrufen",
+      revokeConfirm:
+        "Einladung widerrufen? Der Link funktioniert danach nicht mehr.",
+    },
+    matrix: {
+      title: "Was eine Rolle darf",
+      note: "Aus der Rechtematrix der Plattform; jede Aktion wird zusätzlich auf dem Server geprüft.",
+      caption: "Was jede Rolle darf",
+      capability: "Darf",
+      yes: "ja",
+      no: "nein",
+      unavailable: "Die Rechtematrix ist derzeit nicht abrufbar.",
+      capabilities: {
+        readRecords: "Akten, Werte und eigene Vorgänge lesen",
+        createRecords:
+          "Akten anlegen, Einwilligungen dokumentieren, Patientinnen und Patienten einladen",
+        importValues: "Laborwerte hochladen und einlesen",
+        draftReports: "Berichte entwerfen und überarbeiten",
+        decideValues: "Werte der Review-Queue entscheiden",
+        interpret: "Interpretation erfassen",
+        approve: "Berichte genehmigen",
+        redraft: "Neuen Entwurf nach einer Laborkorrektur öffnen",
+        reject: "Berichte zurückweisen",
+        release: "Berichte freigeben",
+        team: "Team verwalten und Kolleg:innen einladen",
+        auditTrail: "Audit-Protokoll der Praxis lesen",
+        metric: "Vorbereitungszeit erfassen und einsehen",
+        export: "Datenauskunft erstellen",
+        requestDeletion: "Löschung einer Akte beantragen",
+        listDeletion: "Löschanträge einsehen",
+        decideDeletion: "Löschanträge entscheiden",
+        executeDeletion: "Genehmigte Löschungen ausführen",
+      },
     },
     // What the server actions answer.
     errors: {
@@ -1462,6 +1519,8 @@ export const de = {
     targetBefore: "Nur Einträge, die unter dem Datensatz",
     targetAfter: " protokolliert sind.",
     allTargets: "Alle Datensätze anzeigen",
+    actorOnly: "Nur Einträge von {name}.",
+    allActors: "Alle Personen anzeigen",
     readsHidden: "Lesezugriffe sind ausgeblendet.",
     showReads: "Lesezugriffe einblenden",
     stalePosition:
@@ -1622,7 +1681,7 @@ export const de = {
       desc: "Die Sprache der Oberfläche und das Erscheinungsbild auf diesem Gerät.",
     },
     members: {
-      title: "Mitglieder",
+      title: "Team & Rollen",
       desc: "Team verwalten, Rollen ändern und Kolleg:innen einladen.",
     },
     deletionRequests: {

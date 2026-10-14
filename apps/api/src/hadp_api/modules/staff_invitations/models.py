@@ -43,3 +43,6 @@ class StaffInvitation(UUIDPrimaryKey, TimestampCreated, Base):
     redeemed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Whom the owner meant the link for, as they wrote it (migration 0021). Owners only; never
+    # sent anything, never in an audit event.
+    label: Mapped[str | None] = mapped_column(String(200), nullable=True)

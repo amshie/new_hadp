@@ -33,11 +33,17 @@ export type CreateResult =
 
 export async function createStaffInviteAction(
   role: string,
+  label?: string,
 ): Promise<CreateResult> {
   const t = await errors();
   if (!ROLES.has(role)) return { ok: false, error: t.invalidRole };
+  const note = (label ?? "").trim();
+  if (note.length > 200) return { ok: false, error: t.invalidInput };
   try {
-    const inv = await createStaffInvitation(role as StaffRole);
+    const inv = await createStaffInvitation(
+      role as StaffRole,
+      note || undefined,
+    );
     revalidatePath("/einstellungen/mitglieder");
     return { ok: true, url: inv.invitation_url, role: inv.role };
   } catch (e) {

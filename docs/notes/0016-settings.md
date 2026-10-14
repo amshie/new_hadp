@@ -1,6 +1,6 @@
 # 0016 — Einstellungen
 
-Status: part 1 implemented (synthetic Alpha). From the mockup the founder approved on
+Status: parts 1 and 2 implemented (synthetic Alpha). From the mockup the founder approved on
 2026-10-14, with all of its options.
 
 ## Part 1: the frame, language and appearance, the state of each section
@@ -22,10 +22,32 @@ Status: part 1 implemented (synthetic Alpha). From the mockup the founder approv
   open the section; a read the role may not make would be refused and recorded as a denied
   access. The preparation-time and audit states are themselves audited reads, as on their pages.
 
+## Part 2: Team & Rollen
+
+- **Members as a table**: person (name, e-mail, "Sie" for oneself), role, when they last acted,
+  and a "⋯" button with "Im Protokoll anzeigen" (the audit trail filtered to that person — the
+  audit page gained an `actor` filter) and "Aus dem Team entfernen …". One's own row has no
+  actions. Changing a role and removing a member ask first; the API records both, as before.
+- **Zuletzt aktiv** is the date of the member's latest event in this clinic's trail (any event,
+  reads too; `last_active_at` on `GET /api/v1/members`). The owner reads the trail itself; this
+  is its latest date per person, nothing more.
+- **Inviting** is a dialog: whom the link is for (optional), the role, then the link — shown
+  once, as before. The note of whom it is for is a new column (`staff_invitations.label`,
+  migration 0021): at most 200 characters, shown to owners only, never sent anywhere and never in
+  an audit event. It is the only personal data the dialog adds, and it is optional.
+- **Offene Einladungen** with who created the link and when, its expiry, and "Widerrufen" (asks
+  first).
+- **Was eine Rolle darf**: the authorization matrix itself (`GET /api/v1/roles`, owners; the
+  matrix of `auth/authz.py`, not restated). The page groups its actions into lines a clinic reads
+  (`apps/web/src/lib/roleCapabilities.ts`); the API's tests hold that every action is in exactly
+  one line and that each line's actions are granted to the same roles.
+
+Not taken from the mockup: a status column and invited people as rows of the members table.
+An open invitation stands in its own list with its details and its one action; the members
+table lists members.
+
 ## Still to come
 
-- Part 2: Team & Rollen (the members page as a table, an invitation dialog, open invitations,
-  what each role may do).
 - Part 3: the sections that do not exist yet — Profil, Sicherheit & Sitzungen, Praxisprofil,
   Datenquellen & Import, Einwilligungstexte, Aufbewahrung & Export. Each is added to the
   sub-navigation when it exists, not before.

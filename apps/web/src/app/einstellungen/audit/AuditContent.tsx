@@ -26,6 +26,8 @@ import type { Messages } from "@/lib/i18n/messages";
 export interface AuditQuery {
   category?: AuditCategory;
   target?: string;
+  // One colleague's entries only (their account id).
+  actor?: string;
   // Calendar days (YYYY-MM-DD) on the clinic's wall clock; `to` is the last day shown.
   from?: string;
   to?: string;
@@ -92,6 +94,7 @@ function href(query: AuditQuery, extra?: { cursor?: string }): string {
   const qs = new URLSearchParams();
   if (query.category) qs.set("category", query.category);
   if (query.target) qs.set("target", query.target);
+  if (query.actor) qs.set("actor", query.actor);
   if (query.from) qs.set("from", query.from);
   if (query.to) qs.set("to", query.to);
   if (query.hideReads) qs.set("reads", "0");
@@ -205,7 +208,12 @@ export function AuditContent({
 }) {
   const notShown = t.notShown;
   const filtered = Boolean(
-    query.category || query.target || query.from || query.to || query.hideReads,
+    query.category ||
+      query.target ||
+      query.actor ||
+      query.from ||
+      query.to ||
+      query.hideReads,
   );
 
   return (
@@ -316,6 +324,9 @@ export function AuditContent({
         {query.target && (
           <input type="hidden" name="target" value={query.target} />
         )}
+        {query.actor && (
+          <input type="hidden" name="actor" value={query.actor} />
+        )}
         <button
           type="submit"
           style={{
@@ -343,6 +354,18 @@ export function AuditContent({
           {t.targetAfter}{" "}
           <Link href={href({ ...query, target: undefined })} prefetch={false}>
             {t.allTargets}
+          </Link>
+        </p>
+      )}
+      {query.actor && (
+        <p style={noteStyle}>
+          {fill(t.actorOnly, {
+            name:
+              page.items.find((e) => e.actor?.user_id === query.actor)?.actor
+                ?.display_name ?? query.actor.slice(0, 8),
+          })}{" "}
+          <Link href={href({ ...query, actor: undefined })} prefetch={false}>
+            {t.allActors}
           </Link>
         </p>
       )}

@@ -426,13 +426,28 @@ test("the German of members and deletion requests, put together", () => {
     "Einladung für Ärztliche Leitung erstellt. Geben Sie diesen Link an die eingeladene Person weiter — er wird nur einmal angezeigt.",
   );
   expect(fill(m.removeConfirm, { name: "Synthetic Clinician" })).toBe(
-    "Synthetic Clinician aus dem Team entfernen?",
+    "Synthetic Clinician aus dem Team entfernen? Die Person verliert sofort den Zugang zu dieser Praxis. Der Vorgang wird protokolliert.",
+  );
+  expect(
+    fill(m.roleConfirm, {
+      name: "Synthetic Clinician",
+      from: de.roles.clinician,
+      to: de.roles.medical_director,
+    }),
+  ).toBe(
+    "Rolle von Synthetic Clinician von Clinician zu Ärztliche Leitung ändern? Der Vorgang wird protokolliert.",
   );
   expect(fill(m.roleOf, { name: "Synthetic Clinician" })).toBe(
     "Rolle von Synthetic Clinician",
   );
-  expect(fill(m.pending.validUntil, { day: "2026-10-20" })).toBe(
-    "gültig bis 2026-10-20",
+  expect(
+    fill(m.pending.created, { day: "13.10.2026", name: "Synthetic Owner" }),
+  ).toBe("Link erstellt am 13.10.2026 von Synthetic Owner");
+  expect(fill(m.pending.expires, { day: "20.10.2026" })).toBe(
+    "Läuft ab am 20.10.2026 · noch nicht eingelöst",
+  );
+  expect(fill(m.roleCount, { role: de.roles.assistant, n: 2 })).toBe(
+    "Assistenz 2",
   );
 
   const d = de.deletionRequestsPage;

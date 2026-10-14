@@ -1,7 +1,13 @@
 import { redirect } from "next/navigation";
 
 import { VitaShell } from "@/components/vitabahn/VitaShell";
-import { ApiError, listMembers, listStaffInvitations, me } from "@/lib/api";
+import {
+  ApiError,
+  listMembers,
+  listStaffInvitations,
+  me,
+  rolePermissions,
+} from "@/lib/api";
 import { getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
 
@@ -50,11 +56,13 @@ export default async function MitgliederPage() {
     );
   }
 
-  let members, invitations;
+  let members, invitations, permissions;
   try {
-    [members, invitations] = await Promise.all([
+    [members, invitations, permissions] = await Promise.all([
       listMembers(),
       listStaffInvitations(),
+      // The matrix is a secondary card: if it cannot be read, the card says so.
+      rolePermissions().catch(() => null),
     ]);
   } catch (e) {
     if (e instanceof ApiError && (e.status === 401 || e.status === 403))
@@ -73,7 +81,9 @@ export default async function MitgliederPage() {
         <MitgliederContent
           members={members}
           invitations={invitations}
+          permissions={permissions}
           selfUserId={session.user.id}
+          now={Date.now()}
         />
       </SettingsFrame>
     </VitaShell>

@@ -36,6 +36,7 @@ def create_staff_invitation(
     tenant_id: uuid.UUID,
     role: Role,
     created_by_user_id: uuid.UUID,
+    label: str | None = None,
 ) -> tuple[StaffInvitation, str]:
     """Mint a single-use staff invitation; the raw token exists only in the return value."""
     raw_token = secrets.token_urlsafe(32)
@@ -43,6 +44,7 @@ def create_staff_invitation(
         tenant_id=tenant_id,
         role=role,
         created_by_user_id=created_by_user_id,
+        label=(label or "").strip() or None,
         token_hash=hash_token(raw_token),
         status=InvitationStatus.PENDING,
         expires_at=datetime.now(UTC) + INVITATION_TTL,
