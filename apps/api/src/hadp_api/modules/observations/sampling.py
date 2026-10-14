@@ -20,7 +20,9 @@ def same_instant(a: Observation, b: Observation) -> bool:
     )
 
 
-def _local_day(observation: Observation, zone: ZoneInfo) -> date:
+def sampling_day(observation: Observation, zone: ZoneInfo) -> date:
+    """The day the value was sampled, as the laboratory's zone reads it. A source that named
+    only a day keeps that day (stored at UTC midnight, it is read in UTC)."""
     if observation.observed_at_is_date_only:
         return observation.observed_at.astimezone(UTC).date()
     return observation.observed_at.astimezone(zone).date()
@@ -31,4 +33,4 @@ def same_sampling_time(a: Observation, b: Observation, zone: ZoneInfo) -> bool:
     laboratory's zone. The second case is a "may be the same sample", never a certainty."""
     if a.observed_at_is_date_only == b.observed_at_is_date_only:
         return a.observed_at == b.observed_at
-    return _local_day(a, zone) == _local_day(b, zone)
+    return sampling_day(a, zone) == sampling_day(b, zone)

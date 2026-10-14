@@ -380,6 +380,12 @@ _NOT_QUOTED = (
 
 def _release_and_read(client, admin_session, tenant, pid: str) -> tuple[dict, list[str]]:  # type: ignore[no-untyped-def]
     """Draft, approve, release; return the report view and what the patient view shows."""
+    report, view = _release_and_view(client, admin_session, tenant, pid)
+    return report, [s["text"] for s in view["statements"]]
+
+
+def _release_and_view(client, admin_session, tenant, pid: str) -> tuple[dict, dict]:  # type: ignore[no-untyped-def]
+    """Draft, approve, release; return the report view and the patient view."""
     grant_release_consent(admin_session, tenant_id=tenant.id, patient_id=pid)
     report_id = _draft(client, pid)["report_id"]
     assert client.post(f"/api/v1/reports/{report_id}/approve").status_code == 200
@@ -398,7 +404,7 @@ def _release_and_read(client, admin_session, tenant, pid: str) -> tuple[dict, li
         json={"tenant": str(tenant.id), "token": release.json()["patient_access_token"]},
     )
     assert view.status_code == 200, view.text
-    return report, [s["text"] for s in view.json()["statements"]]
+    return report, view.json()
 
 
 def test_source_free_text_typed_by_hand_never_reaches_the_patient(client, admin_session) -> None:  # type: ignore[no-untyped-def]
@@ -582,3 +588,57 @@ def test_the_patient_reads_the_statement_as_generated(client, admin_session) -> 
         "Referenzintervall der Quelle: 0 bis 3 mmol/L. "
         "Der Wert liegt über dem Referenzintervall der Quelle."
     ]
+
+
+def test_the_patients_table_names_the_day_the_statement_names_and_only_the_bounds_given(
+    client, admin_session
+) -> None:  # type: ignore[no-untyped-def]
+    """A sample drawn half an hour after midnight in the laboratory's zone is, in UTC, still
+    on the day before. The patient's table names the day the statement names — the
+    laboratory's. A source that gave only an upper bound: the table names that bound, and no
+    other ("None-3.0" was what it once showed)."""
+    _user, tenant = _clinician(client, admin_session, "pv-day")
+    pid = _import(
+        client,
+        [
+            {
+                "original_name": "LDL Cholesterol",
+                "original_value": "3.4",
+                "original_unit": "mmol/L",
+                "reference_high": "3.0",
+                "observed_at": "2025-06-09T22:30:00Z",
+            }
+        ],
+    )
+
+    _report, view = _release_and_view(client, admin_session, tenant, pid)
+
+    (statement,) = view["statements"]
+    assert statement["text"].startswith("LDL Cholesterol am 10.06.2025 um 00:30 Uhr (UTC+2):")
+    (value,) = view["values"]
+    assert value["observed_on"] == "2025-06-10"
+    assert value["reference"] == "obere Grenze 3.0 mmol/L"
+
+
+def test_the_patients_table_keeps_a_day_only_value_on_its_day(client, admin_session) -> None:  # type: ignore[no-untyped-def]
+    """A source that named only a day: the table names that day, moved through no zone."""
+    _user, tenant = _clinician(client, admin_session, "pv-dayonly")
+    pid = _import(
+        client,
+        [
+            {
+                "original_name": "LDL Cholesterol",
+                "original_value": "2.8",
+                "original_unit": "mmol/L",
+                "reference_low": "0",
+                "reference_high": "3.0",
+                **DAY,
+            }
+        ],
+    )
+
+    _report, view = _release_and_view(client, admin_session, tenant, pid)
+
+    (value,) = view["values"]
+    assert value["observed_on"] == "2025-06-10"
+    assert value["reference"] == "0-3.0 mmol/L"

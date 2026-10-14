@@ -29,6 +29,8 @@ export interface PrepValue {
   referenceHigh: string | null;
   observedDay: string;
   position: ReferencePosition;
+  // Computed by the platform from other values (observedDay: the latest of theirs), not measured.
+  derived: boolean;
 }
 
 export interface PrepMove {
@@ -166,6 +168,7 @@ function asPrepValue(
     referenceHigh: v.referenceHigh,
     observedDay: v.observedDay,
     position: v.position,
+    derived: v.derivation != null,
   };
 }
 

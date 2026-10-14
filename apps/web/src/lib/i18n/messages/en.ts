@@ -719,6 +719,7 @@ export const en: Messages = {
         reference: "source reference {range}",
         noReference: "no source reference",
         measured: "measured on {date}",
+        derived: "calculated from values up to {date}",
         moved: "{from} → {to}",
         movedDays: "before {previous}, now {latest}",
         lastValue: "latest value from {date}",
@@ -836,7 +837,7 @@ export const en: Messages = {
         functional_test: "Functional test",
         wearable: "Wearable",
         imaging: "Imaging",
-        derived: "Derived",
+        derived: "Calculated",
         omics: "Omics",
       },
       missing: "No value recorded",
@@ -850,6 +851,9 @@ export const en: Messages = {
         other: "{n} values awaiting review",
       },
       corrected: "corrected by the laboratory",
+      derived: "calculated",
+      derivedTitle:
+        "Calculated by the platform from other values of this record – not a measured value.",
       noChange: "—",
       ago: {
         today: "today",
@@ -925,6 +929,12 @@ export const en: Messages = {
       source_unit: {
         short: "Unit of the source",
         full: "The value stands as the source states it, in the source's unit – and so does a reference interval that is shown. The value is not normalised; a change from the previous value is therefore not calculated.",
+      },
+      derived: {
+        short: "calculated from {inputs}",
+        full: "Not a measured value: the platform calculated it with the formula {formula} from {inputs}. No source reported it.",
+        otherValues: "other values of this record",
+        and: "and",
       },
     },
     marker: {

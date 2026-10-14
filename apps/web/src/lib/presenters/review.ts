@@ -4,6 +4,11 @@
 // Domain rollup / data-quality coverage are intentionally absent (Gate G1, ADR-0002 §6).
 
 import { comparabilityNote } from "@/lib/comparabilityCopy";
+import {
+  derivationOf,
+  derivedInputsText,
+  type Derivation,
+} from "@/lib/derivation";
 import { fill } from "@/lib/i18n/fill";
 import type { Messages } from "@/lib/i18n/messages";
 import {
@@ -97,10 +102,12 @@ export interface MarkerView {
   // How `current` relates to what the source wrote — null when the value is normalized in
   // the unit the source itself used. Provenance, never a verdict. The page words it
   // (sourceNoteText below); for a conversion: what the source wrote, and the unit the value
-  // was converted to (null: the metric's own, not named).
+  // was converted to (null: the metric's own, not named); for a value the platform computed
+  // from other values: the formula and the inputs — no source reported it.
   sourceNote:
     | { kind: "text" | "source_unit" }
     | { kind: "converted"; source: string; unit: string | null }
+    | { kind: "derived"; derivation: Derivation }
     | null;
   status: string;
   // Not published: still in the review queue, or rejected there. Such a value is shown as
@@ -200,12 +207,18 @@ function unitJoin(
   return unit ? `${value} ${unit}` : value;
 }
 
-// How the shown value relates to the source's writing. Three cases need saying: the platform
-// converted the unit; the value is held as the source wrote it (not normalized, so no change
-// over time is computed); no number is read from the source's writing at all — a text result,
-// an addition ("<0,5", "12,4 H"), or a way of writing a number the platform does not read
-// one way ("4.000", "1.234,5").
-function sourceNote(p: TimelinePoint): MarkerView["sourceNote"] {
+// How the shown value relates to the source's writing. Four cases need saying: no source
+// wrote it — the platform computed it from other values of the record; the platform converted
+// the unit; the value is held as the source wrote it (not normalized, so no change over time
+// is computed); no number is read from the source's writing at all — a text result, an
+// addition ("<0,5", "12,4 H"), or a way of writing a number the platform does not read one
+// way ("4.000", "1.234,5").
+function sourceNote(
+  p: TimelinePoint,
+  byId: ReadonlyMap<string, TimelinePoint>,
+): MarkerView["sourceNote"] {
+  const derivation = derivationOf(p, byId);
+  if (derivation) return { kind: "derived", derivation };
   if (p.value == null) return { kind: "text" };
   if (p.converted)
     return {
@@ -345,6 +358,18 @@ export function sourceNoteText(
   note: NonNullable<MarkerView["sourceNote"]>,
   t: Messages["patientPage"]["sourceNote"],
 ): { short: string; full: string } {
+  if (note.kind === "derived") {
+    const values = {
+      inputs:
+        derivedInputsText(note.derivation, t.derived.and) ??
+        t.derived.otherValues,
+      formula: note.derivation.formulaId ?? "—",
+    };
+    return {
+      short: fill(t.derived.short, values),
+      full: fill(t.derived.full, values),
+    };
+  }
   if (note.kind !== "converted") return t[note.kind];
   const values = {
     source: note.source ?? "",
@@ -375,6 +400,8 @@ export function presentReview(
   matrix: DomainMatrixView | null,
 ): ReviewView {
   const age = ageYears(patient.date_of_birth);
+  // A computed value names the values it was computed from (sourceNote).
+  const byId = new Map(timeline.map((p) => [p.observation_id, p]));
   const domains: DomainView[] = (matrix?.domains ?? []).map((d) => {
     const markerCodes = Array.from(
       new Set(
@@ -461,7 +488,7 @@ export function presentReview(
             : "—",
         code: p.metric_code ?? p.kpi_code ?? "—",
         identity: p.kpi_code ?? p.metric_code ?? null,
-        sourceNote: sourceNote(p),
+        sourceNote: sourceNote(p, byId),
         status: p.review_status,
         reviewRequired: !published,
         superseded: p.superseded_by_observation_id != null,

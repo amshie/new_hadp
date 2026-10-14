@@ -38,7 +38,10 @@ export interface DetailView {
   erased: boolean;
 }
 
-export function dataCompleteness(points: TimelinePoint[]): Completeness {
+// Over the values sources reported: a value the platform computed from them adds no data,
+// has no reference interval of its own, and was not measured.
+export function dataCompleteness(timeline: TimelinePoint[]): Completeness {
+  const points = timeline.filter((p) => p.derived !== true);
   const total = points.length;
   const published = points.filter(
     (p) => p.review_status === "published",

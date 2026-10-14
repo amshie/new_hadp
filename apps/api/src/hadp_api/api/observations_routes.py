@@ -17,6 +17,12 @@ from hadp_api.modules.patients import service as patients_service
 router = APIRouter(tags=["observations"])
 
 
+class DerivationInputOut(BaseModel):
+    # The input's part in the formula (e.g. "total_cholesterol", "hdl") and the observation.
+    role: str
+    observation_id: uuid.UUID
+
+
 class TimelinePointOut(BaseModel):
     observation_id: uuid.UUID
     metric_code: str | None
@@ -55,6 +61,12 @@ class TimelinePointOut(BaseModel):
     superseded_by_observation_id: uuid.UUID | None
     # A derived value computed from an input that a published correction has replaced.
     input_replaced: bool
+    # Computed by the platform from other observations of the record (a versioned formula), not
+    # reported by any source. `formula_id` names the formula and its version; `derived_from`
+    # lists the inputs it was computed from. False / null / empty for a value a source reported.
+    derived: bool
+    formula_id: str | None
+    derived_from: list[DerivationInputOut]
 
 
 @router.get("/patients/{patient_id}/observations", response_model=list[TimelinePointOut])
@@ -101,6 +113,12 @@ def timeline(
             supersedes_observation_id=p.supersedes_observation_id,
             superseded_by_observation_id=p.superseded_by_observation_id,
             input_replaced=p.input_replaced,
+            derived=p.derived,
+            formula_id=p.formula_id,
+            derived_from=[
+                DerivationInputOut(role=role, observation_id=input_id)
+                for role, input_id in p.derived_from
+            ],
         )
         for p in points
     ]

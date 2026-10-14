@@ -737,6 +737,7 @@ export const de = {
         reference: "Referenz der Quelle {range}",
         noReference: "ohne Referenz der Quelle",
         measured: "gemessen am {date}",
+        derived: "berechnet aus Werten bis {date}",
         moved: "{from} → {to}",
         movedDays: "vorher {previous}, jetzt {latest}",
         lastValue: "letzter Wert vom {date}",
@@ -853,7 +854,7 @@ export const de = {
         functional_test: "Funktionstest",
         wearable: "Wearable",
         imaging: "Bildgebung",
-        derived: "Abgeleitet",
+        derived: "Berechnet",
         omics: "Omics",
       },
       missing: "Kein Wert erfasst",
@@ -864,6 +865,10 @@ export const de = {
       hideMissing: "Kernmarker ohne Wert ausblenden",
       pending: { one: "{n} Wert in Prüfung", other: "{n} Werte in Prüfung" },
       corrected: "vom Labor korrigiert",
+      // A value the platform computed from other values of the record; no source reported it.
+      derived: "berechnet",
+      derivedTitle:
+        "Von der Plattform aus anderen Werten dieser Akte berechnet – kein gemessener Wert.",
       noChange: "—",
       ago: {
         today: "heute",
@@ -941,6 +946,12 @@ export const de = {
       source_unit: {
         short: "Einheit der Quelle",
         full: "Der Wert steht so, wie die Quelle ihn nennt, in ihrer Einheit – ein angezeigtes Referenzintervall ebenso. Der Wert ist nicht normalisiert; eine Veränderung zum Vorwert wird deshalb nicht berechnet.",
+      },
+      derived: {
+        short: "berechnet aus {inputs}",
+        full: "Kein gemessener Wert: Die Plattform hat ihn nach der Formel {formula} aus {inputs} berechnet. Keine Quelle hat ihn gemeldet.",
+        otherValues: "anderen Werten dieser Akte",
+        and: "und",
       },
     },
     marker: {
