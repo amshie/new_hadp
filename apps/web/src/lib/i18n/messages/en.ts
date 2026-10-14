@@ -330,24 +330,15 @@ export const en: Messages = {
     kicker: "Clinic · {clinic}",
     title: "Patients",
     count: { one: "{n} patient", other: "{n} patients" },
-    lead: "· scoped to the clinic, protected by row-level security · pseudonymised, synthetic sample data.",
+    lead: "· pseudonymised, synthetic sample data.",
     chips: {
-      total: {
-        label: "Total",
-        help: "In the clinic · protected by row-level security",
-      },
+      total: { label: "Total", help: "In this clinic" },
       withReport: { label: "With a report", help: "At least one report draft" },
       open: { label: "Open assessments", help: "Clinical review pending" },
-      quality: {
-        label: "Avg. data quality",
-        help: "No data-quality model (Gate G1)",
-      },
     },
-    notAvailable: "n/a",
-    gatedTitle: "No approved real-data indicator (ADR-0006)",
     directory: {
       title: "Patient directory",
-      note: "Pseudonymised · not a diagnosis or treatment advice. The risk and data-quality columns are switched off in the real-data view (no approved source or model value — ADR-0006).",
+      note: "Pseudonymised · not a diagnosis or treatment advice.",
     },
     tabs: {
       all: "All",
@@ -363,8 +354,6 @@ export const en: Messages = {
     columns: {
       patient: "Patient",
       age: "Age",
-      risk: "Risk",
-      quality: "Data quality",
       lastAssessment: "Last assessment",
       status: "Status",
     },
@@ -1018,9 +1007,9 @@ export const en: Messages = {
   interpretation: {
     crumb: "Record interpretation · {patient}",
     titleNew: "Record interpretation",
-    titleCorrection: "Record correction run (after run #{run})",
-    lead: "Six domain axes · CIS and Actionability as two separate, closed entries per axis · three verdict-free tri-state cells as evidence context. The system validates and records your entries; it derives nothing. A run is recorded as a whole; corrections create a new run (append-only).",
-    reason: "Reason for the run (required)",
+    titleCorrection: "Record interpretation · correction after run {run}",
+    lead: "Six domain axes · CIS and Actionability as two separate, closed entries per axis · three verdict-free tri-state cells as evidence context. The system validates and records your entries; it derives nothing. An interpretation is recorded as a whole; a correction is kept as a new run, nothing is overwritten.",
+    reason: "Reason (required)",
     reasonPlaceholderNew: "e.g. baseline interpretation",
     reasonPlaceholderCorrection: "e.g. correction after new laboratory values",
     cis: "CIS",
@@ -1035,10 +1024,10 @@ export const en: Messages = {
     evidenceRequired: " — required",
     noEvidence: "No published observations available.",
     cancel: "Cancel",
-    submit: "Record run (append-only)",
+    submit: "Record interpretation",
     submitting: "Recording …",
     invalid: {
-      reason: "Please give a reason for the run.",
+      reason: "Please give a reason.",
       domain: "{axis}: CIS, Actionability and follow-up adequacy are required.",
       cell: "{axis} / {cell}: state and endpoint adequacy are required.",
       evidence:
@@ -1127,7 +1116,7 @@ export const en: Messages = {
     domains: {
       title: "Domain interpretation",
       note: "Six domain axes · an Actionability verdict per axis. No score.",
-      run: "Run #{n}",
+      run: "Run {n}",
       noRun: "There is no interpretation run for this patient yet.",
       reviewed: "✓ reviewed",
       draft: "Draft",

@@ -149,7 +149,7 @@ test("the assistant creates the patient and records the consent to release", asy
     await wizard.getByRole("button", { name: "Weiter" }).click();
 
     await expect(
-      wizard.getByText("Keine Übereinstimmungen im Mandanten gefunden."),
+      wizard.getByText("Keine Übereinstimmungen in dieser Praxis gefunden."),
     ).toBeVisible();
     await wizard.getByRole("button", { name: "Patient anlegen" }).click();
 
@@ -340,7 +340,7 @@ test("the clinician authors the interpretation run", async ({ browser }) => {
     // follow-up adequacy plus a state and an endpoint adequacy for each of the three cells.
     // One cell is given a state that needs evidence, and cites a published value.
     await page
-      .getByRole("textbox", { name: "Grund des Runs (Pflicht)" })
+      .getByRole("textbox", { name: "Grund (Pflicht)" })
       .fill("Synthetische Baseline (E2E)");
     for (const axis of DOMAIN_AXES) {
       const domain = page.getByRole("region", { name: axis, exact: true });
@@ -380,9 +380,7 @@ test("the clinician authors the interpretation run", async ({ browser }) => {
         await expect(cell.getByText("Belege (1 gewählt)")).toBeVisible();
       }
     }
-    await page
-      .getByRole("button", { name: "Run erfassen (append-only)" })
-      .click();
+    await page.getByRole("button", { name: "Interpretation erfassen" }).click();
 
     // Back on the patient page every axis carries the run, and the cited value is listed
     // under its domain.
@@ -612,7 +610,9 @@ test("the patient reads the released report through the access link", async ({
       "Gemessen",
     ]);
     expect(await values.getByRole("row").count()).toBeGreaterThan(1);
-    await expect(values.getByRole("cell").first()).toHaveText(/\d+[.,]\d+ \S+/);
+    await expect(values.getByRole("cell").first()).toHaveText(
+      /^\d+([.,]\d+)? \S+/,
+    );
 
     // The link opens the report and nothing else: the clinic's pages stay closed.
     await page.goto(patientPath);

@@ -86,7 +86,7 @@ test("the German of the dialog to add a patient, put together", () => {
 test("the German of the interpretation form, put together", () => {
   const t = de.interpretation;
   expect(fill(t.titleCorrection, { run: 3 })).toBe(
-    "Korrektur-Run erfassen (nach Run #3)",
+    "Interpretation erfassen · Korrektur nach Lauf 3",
   );
   expect(fill(t.crumb, { patient: "Synthetic Patient One" })).toBe(
     "Interpretation erfassen · Synthetic Patient One",
@@ -435,7 +435,7 @@ test("the German of members and deletion requests, put together", () => {
       to: de.roles.medical_director,
     }),
   ).toBe(
-    "Rolle von Synthetic Clinician von Clinician zu Ärztliche Leitung ändern? Der Vorgang wird protokolliert.",
+    "Rolle von Synthetic Clinician von Ärztin/Arzt zu Ärztliche Leitung ändern? Der Vorgang wird protokolliert.",
   );
   expect(fill(m.roleOf, { name: "Synthetic Clinician" })).toBe(
     "Rolle von Synthetic Clinician",

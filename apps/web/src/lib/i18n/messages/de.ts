@@ -13,7 +13,7 @@ export const de = {
     pilot: "Pilotumgebung",
     pilotNote: "Synthetische Beispieldaten · keine reale Patientenversorgung.",
     signOut: "Abmelden",
-    clinic: "Mandant: ",
+    clinic: "Praxis: ",
     toggleTheme: "Theme wechseln",
     skipLink: "Zum Hauptinhalt springen",
     brandAria: "HADP Übersicht",
@@ -22,7 +22,7 @@ export const de = {
   },
   roles: {
     owner: "Inhaber",
-    clinician: "Clinician",
+    clinician: "Ärztin/Arzt",
     assistant: "Assistenz",
     medical_director: "Ärztliche Leitung",
   },
@@ -58,7 +58,7 @@ export const de = {
     pending: "Anmeldung läuft …",
     purposeNote:
       "Der Zugriff auf Patientendaten ist zweckgebunden und wird protokolliert.",
-    errorNoClinic: "Kein Mandant für dieses Konto verfügbar.",
+    errorNoClinic: "Für dieses Konto ist keine Praxis eingerichtet.",
     errorFailed: "Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
   },
   dashboard: {
@@ -335,12 +335,12 @@ export const de = {
     },
   },
   patients: {
-    kicker: "Mandant · {clinic}",
+    kicker: "Praxis · {clinic}",
     title: "Patienten",
     count: { one: "{n} Patientin", other: "{n} Patienten" },
-    lead: "· tenant-bezogen, RLS-geschützt · pseudonymisierte, synthetische Beispieldaten.",
+    lead: "· pseudonymisierte, synthetische Beispieldaten.",
     chips: {
-      total: { label: "Gesamt", help: "Im Mandanten · RLS-geschützt" },
+      total: { label: "Gesamt", help: "In dieser Praxis" },
       withReport: {
         label: "Mit Bericht",
         help: "Mindestens ein Berichtsentwurf",
@@ -349,16 +349,10 @@ export const de = {
         label: "Offene Assessments",
         help: "Klinische Prüfung ausstehend",
       },
-      quality: {
-        label: "Ø Datenqualität",
-        help: "Kein Datenqualitätsmodell (Gate G1)",
-      },
     },
-    notAvailable: "n. v.",
-    gatedTitle: "Kein zugelassener Echtdaten-Indikator (ADR-0006)",
     directory: {
       title: "Patientenverzeichnis",
-      note: "Pseudonymisiert · keine automatische Diagnose oder Therapieempfehlung. Risiko- und Datenqualitäts-Spalten sind in der Echtdaten-Ansicht deaktiviert (kein zugelassener Quell-/Modellwert — ADR-0006).",
+      note: "Pseudonymisiert · keine automatische Diagnose oder Therapieempfehlung.",
     },
     tabs: {
       all: "Alle",
@@ -374,8 +368,6 @@ export const de = {
     columns: {
       patient: "Patient",
       age: "Alter",
-      risk: "Risiko",
-      quality: "Datenqualität",
       lastAssessment: "Letztes Assessment",
       status: "Status",
     },
@@ -420,7 +412,7 @@ export const de = {
       refPlaceholder: "z. B. SYN-0042",
       refHint: "Referenz Ihres Praxissystems.",
       duplicateNote:
-        "Vor dem Anlegen wird im Mandanten auf mögliche Duplikate geprüft.",
+        "Vor dem Anlegen wird in dieser Praxis auf mögliche Duplikate geprüft.",
     },
     consent: {
       title: "Einwilligungen",
@@ -444,7 +436,7 @@ export const de = {
       unavailable: "Duplikatprüfung derzeit nicht verfügbar.",
       retry: "Erneut prüfen",
       strong: "Möglicherweise bereits vorhanden",
-      similar: "Ähnlicher Eintrag im Mandanten",
+      similar: "Ähnlicher Eintrag in dieser Praxis",
       match: {
         external_ref: "Gleiche externe ID",
         name_dob: "Name + Geburtsdatum",
@@ -452,7 +444,7 @@ export const de = {
       },
       createAnyway:
         "Trotzdem neu anlegen — es handelt sich um eine andere Person.",
-      none: "Keine Übereinstimmungen im Mandanten gefunden.",
+      none: "Keine Übereinstimmungen in dieser Praxis gefunden.",
     },
     done: {
       title: "Patient angelegt",
@@ -483,7 +475,7 @@ export const de = {
       refTooLong: "Die externe ID darf höchstens 120 Zeichen haben.",
       signInAgain: "Nicht berechtigt. Bitte erneut anmelden.",
       duplicate:
-        "Im Mandanten existiert bereits ein Eintrag mit diesen Angaben.",
+        "In dieser Praxis existiert bereits ein Eintrag mit diesen Angaben.",
       checkInput: "Anlegen fehlgeschlagen. Bitte Eingaben prüfen.",
       failed: "Anlegen fehlgeschlagen. Bitte erneut versuchen.",
     },
@@ -1050,9 +1042,9 @@ export const de = {
   interpretation: {
     crumb: "Interpretation erfassen · {patient}",
     titleNew: "Interpretation erfassen",
-    titleCorrection: "Korrektur-Run erfassen (nach Run #{run})",
-    lead: "Sechs Domänen-Achsen · CIS und Actionability als zwei getrennte, geschlossene Angaben je Achse · drei bewertungsfreie Tri-State-Zellen als Belegkontext. Das System validiert und protokolliert Ihre Angaben; es leitet nichts ab. Ein Run wird vollständig erfasst; Korrekturen erzeugen einen neuen Run (append-only).",
-    reason: "Grund des Runs (Pflicht)",
+    titleCorrection: "Interpretation erfassen · Korrektur nach Lauf {run}",
+    lead: "Sechs Domänen-Achsen · CIS und Actionability als zwei getrennte, geschlossene Angaben je Achse · drei bewertungsfreie Tri-State-Zellen als Belegkontext. Das System validiert und protokolliert Ihre Angaben; es leitet nichts ab. Eine Interpretation wird vollständig erfasst; eine Korrektur wird als neuer Lauf festgehalten, nichts wird überschrieben.",
+    reason: "Grund (Pflicht)",
     reasonPlaceholderNew: "z. B. Baseline-Interpretation",
     reasonPlaceholderCorrection: "z. B. Korrektur nach neuen Laborwerten",
     // The names of the fields; what is chosen in them stays German (ADR-0007).
@@ -1068,10 +1060,10 @@ export const de = {
     evidenceRequired: " — Pflicht",
     noEvidence: "Keine veröffentlichten Beobachtungen vorhanden.",
     cancel: "Abbrechen",
-    submit: "Run erfassen (append-only)",
+    submit: "Interpretation erfassen",
     submitting: "Wird erfasst …",
     invalid: {
-      reason: "Bitte einen Grund für den Run angeben.",
+      reason: "Bitte einen Grund angeben.",
       domain:
         "{axis}: CIS, Actionability und Follow-up-Adäquanz sind Pflichtangaben.",
       cell: "{axis} / {cell}: Zustand und Endpunkt-Adäquanz sind Pflichtangaben.",
@@ -1173,8 +1165,8 @@ export const de = {
     domains: {
       title: "Domänen-Interpretation",
       note: "Sechs Domänen-Achsen · Actionability-Verdict je Achse. Kein Score.",
-      run: "Run #{n}",
-      noRun: "Für diese Patientin liegt noch kein Interpretation-Run vor.",
+      run: "Lauf {n}",
+      noRun: "Für diese Patientin liegt noch keine Interpretation vor.",
       reviewed: "✓ reviewt",
       draft: "Entwurf",
       // The name of the fact; its value is a closed vocabulary and stays German.
@@ -1799,7 +1791,7 @@ export const de = {
       published:
         "Ein Wert, dessen Kennzahl, Einheit und Zahl eindeutig sind, wird veröffentlicht.",
       review:
-        "Jeder andere Wert wartet in der Review-Queue, bis eine Clinician entscheidet – unbekannte Einheit, unklare Kennzahl, unmögliche Zahl, mögliche Doppelung oder Korrektur.",
+        "Jeder andere Wert wartet in der Review-Queue, bis eine Ärztin oder ein Arzt entscheidet – unbekannte Einheit, unklare Kennzahl, unmögliche Zahl, mögliche Doppelung oder Korrektur.",
       original:
         "Originalwert, Einheit und Referenzintervall des Labors bleiben unverändert erhalten.",
     },

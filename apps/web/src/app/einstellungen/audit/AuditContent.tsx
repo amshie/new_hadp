@@ -2,7 +2,12 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import type { AuditCategory, AuditEvent, AuditPage } from "@/lib/api";
-import { actionLabel, auditCategories, targetLabel } from "@/lib/auditCopy";
+import {
+  actionLabel,
+  auditCategories,
+  detailLabel,
+  targetLabel,
+} from "@/lib/auditCopy";
 import { CLINIC_TIME_ZONE, clinicTime } from "@/lib/clinicTime";
 import { fill } from "@/lib/i18n/fill";
 import type { Locale } from "@/lib/i18n/locales";
@@ -176,12 +181,15 @@ function Row({
           "—"
         )}
       </td>
-      <td style={{ ...tdStyle, paddingRight: "22px", ...mono }}>
+      <td style={{ ...tdStyle, paddingRight: "22px", fontSize: "12px" }}>
         {details.length === 0
           ? "—"
           : details.map(([key, value]) => (
               <div key={key} style={{ overflowWrap: "anywhere" }}>
-                {key}: {detailText(value, t)}
+                <span style={{ color: "var(--text-muted)" }}>
+                  {detailLabel(key, locale)}:
+                </span>{" "}
+                <span style={mono}>{detailText(value, t)}</span>
               </div>
             ))}
       </td>
