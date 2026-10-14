@@ -154,3 +154,15 @@ report opens a NEW version — the rejected version is a preserved record). The 
 honesty note above is thereby resolved: "Signiert" now also counts approvals performed
 through the UI. Status copy is role-aware and honest (`statusHint`, shared by both
 surfaces); actions the role may not perform do not render — hiding is UX, the API enforces.
+
+## Addendum 4 (2026-10-14) — the gated Risiko / Datenqualität surfaces are withdrawn
+
+Founder decision after the design review of 2026-10-14. The Risiko and Datenqualität columns of
+the Patienten directory and its Ø Datenqualität figure had been kept visible and honestly gated
+("n. v." on every row) to honour the comp. In use they said nothing: two empty columns on every
+row and an empty figure above them. They are removed from the directory. Nothing about their
+substance changes: an autonomous patient risk score stays register-BLOCKED and there is no
+data-quality model; should either ever be approved through the documented clinical, privacy and
+MDR review, the column returns with a real source. The directory's copy no longer names the
+tenancy mechanics (tenant, RLS, gates, ADR numbers): what protects the data is documented in
+the threat model, not announced on every page.

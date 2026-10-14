@@ -607,7 +607,7 @@ test("the interpretation form follows the choice; what is chosen in it stays Ger
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const heading = page.getByRole("heading", {
       level: 1,
-      name: /^Record correction run \(after run #\d+\)$/,
+      name: /^Record interpretation · correction after run \d+$/,
     });
     await expect(heading).toBeVisible();
     expect(await languageOf(heading)).toBe("en");
@@ -646,12 +646,12 @@ test("the interpretation form follows the choice; what is chosen in it stays Ger
 
     // What the form says before anything is sent is English as well. Nothing is recorded.
     const submit = page.getByRole("button", {
-      name: "Record run (append-only)",
+      name: "Record interpretation",
     });
     await hydrated(submit);
     await submit.click();
     await expect(page.getByRole("main").getByRole("alert")).toHaveText(
-      "Please give a reason for the run.",
+      "Please give a reason.",
     );
   });
 });

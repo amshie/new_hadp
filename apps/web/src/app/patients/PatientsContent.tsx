@@ -13,12 +13,13 @@ import type {
 } from "@/lib/presenters/dashboard";
 
 // VitaBahn Patienten directory (ADR-0006, real-data path). Consumes the governed DirectoryView
-// (real patients + worklist). Patient name/age/status/last-assessment are real. The founder-approved
-// Risiko and Datenqualität columns are kept VISIBLE but honestly GATED — there is no compliant real
-// source (an autonomous patient risk score is register-BLOCKED; no data-quality engine exists), so
-// they show "n. v." rather than fabricated values (ADR-0006). Programm/cohort tabs are dropped (no field).
+// (real patients + worklist). Patient name/age/status/last-assessment are real. The Risiko and
+// Datenqualität columns and the data-quality figure the comp had are not shown: no compliant
+// source exists for them (an autonomous patient risk score is register-BLOCKED; no data-quality
+// engine exists), and a column that is always empty says nothing (ADR-0006, amendment of
+// 2026-10-14). Programm/cohort tabs are dropped (no field).
 
-const PGRID = "minmax(220px,2fr) 70px 96px 110px minmax(150px,1.3fr) 120px";
+const PGRID = "minmax(220px,2fr) 70px minmax(150px,1.3fr) 120px";
 
 const cardStyle: CSSProperties = {
   background: "var(--surface-card)",
@@ -34,23 +35,6 @@ const colLabel: CSSProperties = {
   color: "var(--text-faint)",
   fontWeight: 500,
 };
-
-// A column that is kept visible and has no value: no approved source exists for it (ADR-0006).
-function Gated() {
-  const t = useI18n().t.patients;
-  return (
-    <span
-      title={t.gatedTitle}
-      style={{
-        fontFamily: "var(--font-mono)",
-        fontSize: "11px",
-        color: "var(--text-faint)",
-      }}
-    >
-      {t.notAvailable}
-    </span>
-  );
-}
 
 // The tabs of the directory, by the group a patient's latest report is in (never by its
 // label, which differs by language).
@@ -108,11 +92,6 @@ export function PatientsContent({
       value: view.openAssessments,
       label: t.chips.open.label,
       help: t.chips.open.help,
-    },
-    {
-      value: t.notAvailable,
-      label: t.chips.quality.label,
-      help: t.chips.quality.help,
     },
   ];
 
@@ -439,8 +418,6 @@ export function PatientsContent({
               >
                 <span style={colLabel}>{t.columns.patient}</span>
                 <span style={colLabel}>{t.columns.age}</span>
-                <span style={colLabel}>{t.columns.risk}</span>
-                <span style={colLabel}>{t.columns.quality}</span>
                 <span style={colLabel}>{t.columns.lastAssessment}</span>
                 <span style={colLabel}>{t.columns.status}</span>
               </div>
@@ -523,12 +500,6 @@ export function PatientsContent({
                       }}
                     >
                       {p.age}
-                    </div>
-                    <div>
-                      <Gated />
-                    </div>
-                    <div>
-                      <Gated />
                     </div>
                     <div
                       style={{

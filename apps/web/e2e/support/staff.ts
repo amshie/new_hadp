@@ -31,7 +31,7 @@ export async function hydrated(control: Locator): Promise<void> {
 const STAFF = {
   owner: { email: "owner@demo.synthetic", roleLabel: "Inhaber" },
   assistant: { email: "assistant@demo.synthetic", roleLabel: "Assistenz" },
-  clinician: { email: "clinician@demo.synthetic", roleLabel: "Clinician" },
+  clinician: { email: "clinician@demo.synthetic", roleLabel: "Ärztin/Arzt" },
   medicalDirector: {
     email: "medical.director@demo.synthetic",
     roleLabel: "Ärztliche Leitung",

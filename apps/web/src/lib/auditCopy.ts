@@ -252,3 +252,64 @@ export function targetLabel(type: string | null, locale: Locale): string {
   if (!type) return "—";
   return TARGET_LABELS[type]?.[locale] ?? type;
 }
+
+// The keys of an event's detail, as the API writes them, in words. An event's detail is a
+// small record of codes, counts and flags — never a value, a name or an e-mail address
+// (docs/notes/0015) — and the trail shows all of it; a key this table does not know is shown
+// as it is. The values stay as written: a code is a code, a count a count.
+const DETAIL_LABELS: Record<string, Record<Locale, string>> = {
+  action: { de: "Aktion", en: "Action" },
+  attempted: { de: "Versucht", en: "Attempted" },
+  attempted_tenant: { de: "Versuchte Praxis", en: "Attempted clinic" },
+  basis: { de: "Grundlage", en: "Basis" },
+  by_actor: { de: "Nach Person gefiltert", en: "Filtered by person" },
+  by_target: { de: "Nach Datensatz gefiltert", en: "Filtered by record" },
+  by_time: { de: "Nach Zeitraum gefiltert", en: "Filtered by period" },
+  byte_size: { de: "Größe (Bytes)", en: "Size (bytes)" },
+  candidates: { de: "Treffer", en: "Matches" },
+  category: { de: "Bereich", en: "Area" },
+  changed: { de: "Geänderte Felder", en: "Changed fields" },
+  code: { de: "Code", en: "Code" },
+  continued: { de: "Fortgesetzt", en: "Continued" },
+  count: { de: "Anzahl", en: "Count" },
+  created: { de: "Angelegt", en: "Created" },
+  days: { de: "Tage", en: "Days" },
+  definition: { de: "Messvorschrift", en: "Definition" },
+  domains: { de: "Domänen", en: "Domains" },
+  exclude_reads: { de: "Ohne Lesezugriffe", en: "Without read accesses" },
+  failed_objects: { de: "Fehlgeschlagene Objekte", en: "Failed objects" },
+  jobs: { de: "Vorgänge", en: "Jobs" },
+  kind: { de: "Art", en: "Kind" },
+  method: { de: "Verfahren", en: "Method" },
+  metric: { de: "Kennzahl", en: "Metric" },
+  new_role: { de: "Neue Rolle", en: "New role" },
+  old_role: { de: "Bisherige Rolle", en: "Previous role" },
+  open: { de: "Offen", en: "Open" },
+  patient_access_withdrawn: {
+    de: "Zugriffslinks zurückgezogen",
+    en: "Access links withdrawn",
+  },
+  patient_id: { de: "Akte", en: "Record" },
+  provider: { de: "Anbieter", en: "Provider" },
+  purpose: { de: "Zweck", en: "Purpose" },
+  reason: { de: "Grund", en: "Reason" },
+  reason_category: { de: "Grundkategorie", en: "Reason category" },
+  recorded: { de: "Aufgezeichnet", en: "Recorded" },
+  removed_role: { de: "Entfernte Rolle", en: "Removed role" },
+  role: { de: "Rolle", en: "Role" },
+  row_index: { de: "Zeile", en: "Row" },
+  run_number: { de: "Lauf", en: "Run" },
+  status: { de: "Status", en: "Status" },
+  superseded_observation_id: {
+    de: "Ersetzter Wert",
+    en: "Replaced value",
+  },
+  total: { de: "Gesamt", en: "Total" },
+  version_no: { de: "Fassung", en: "Version" },
+  versions: { de: "Fassungen", en: "Versions" },
+  window_seconds: { de: "Zeitfenster (Sekunden)", en: "Window (seconds)" },
+};
+
+export function detailLabel(key: string, locale: Locale): string {
+  return DETAIL_LABELS[key]?.[locale] ?? key;
+}
