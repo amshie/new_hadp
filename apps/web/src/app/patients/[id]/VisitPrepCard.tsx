@@ -13,7 +13,7 @@ import type {
 } from "@/lib/presenters/domainOverview";
 import type { VisitPrep } from "@/lib/presenters/visitPrep";
 
-import { axisLabel, sectionId } from "./DomainOverviewPanel";
+import { UNASSIGNED_ID, axisLabel, sectionId } from "./DomainOverviewPanel";
 import { GERMAN, LagePill } from "./MarkerParts";
 
 // One line per domain, in the order the items already have (the catalog's).
@@ -72,7 +72,7 @@ export function VisitPrepCard({
         </button>
       );
     }
-    const target = axis ? `#${sectionId(axis)}` : "#vb-unassigned-title";
+    const target = axis ? `#${sectionId(axis)}` : `#${UNASSIGNED_ID}`;
     return (
       <Link
         href={`${recordHref}${target}`}

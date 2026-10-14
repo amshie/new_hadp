@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { asStaff, hydrated, watchPageErrors } from "./support/staff";
+import { asStaff, hydrated, openTab, watchPageErrors } from "./support/staff";
 
 // The interface language is a person's choice — under Einstellungen, or on the sign-in page —
 // kept on the device (apps/web/src/lib/i18n). German is what a device without a choice gets.
@@ -354,18 +354,18 @@ test("the patient page follows the choice; what is not interface stays German an
     const back = page.getByRole("button", { name: "Back to patients" });
     await expect(back).toBeVisible();
     expect(await languageOf(back)).toBe("en");
-    for (const heading of [
-      "Preparation",
-      "Data coverage",
-      "Before the visit",
-      "Domains",
-      "Consents",
-      "Laboratory data",
-      "Audit status",
-    ]) {
-      await expect(
-        page.getByRole("heading", { level: 3, name: heading, exact: true }),
-      ).toBeVisible();
+    // Its three tabs, each with its cards.
+    for (const [tab, headings] of [
+      [null, ["Preparation", "Data coverage"]],
+      ["Values", ["Before the visit", "Domains"]],
+      ["Record", ["Consents", "Laboratory data", "Audit status"]],
+    ] as const) {
+      if (tab) await openTab(page, tab);
+      for (const heading of headings) {
+        await expect(
+          page.getByRole("heading", { level: 3, name: heading, exact: true }),
+        ).toBeVisible();
+      }
     }
     for (const german of [
       "jede Zeile führt zum Wert",
@@ -379,6 +379,7 @@ test("the patient page follows the choice; what is not interface stays German an
       await expect(body).not.toContainText(german);
     }
     // The counts before a visit are English and filter the lists; each is a button.
+    await openTab(page, "Values");
     const prep = page.getByRole("region", { name: "Before the visit" });
     await expect(prep).toContainText(
       /Last interpretation: run \d+ · \d{2}\.\d{2}\.\d{4}/,
@@ -569,6 +570,7 @@ test("the patient page follows the choice; what is not interface stays German an
     await hydrated(row);
     await row.click();
     await expect(page).toHaveURL(/\/patients\/[0-9a-f-]{36}$/);
+    await openTab(page, "Record");
     const upload = page.getByRole("button", { name: "Upload and read" });
     await hydrated(upload);
     await page.getByLabel("Choose laboratory file").setInputFiles({

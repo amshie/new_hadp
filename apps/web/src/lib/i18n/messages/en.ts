@@ -294,6 +294,12 @@ export const en: Messages = {
       median: "Median from first draft to approval · 30 d",
       medianNote: "Turnaround, not working time",
       tooFew: "From {minimum} reports · {n} so far",
+      change: "Preparation time per appointment",
+      changeNote:
+        "Latest follow-up figure against the baseline ({from} → {to} min, stated by the clinic) · pilot criterion: at least −{target} %",
+      changeNoteNone:
+        "Latest follow-up figure against the baseline, both stated by the clinic",
+      noFollowUp: "No follow-up figure yet",
       baseline: "The clinic's baseline",
       baselineNote: "Self-reported, median per appointment",
       baselineValue: "{n} min",
@@ -536,6 +542,13 @@ export const en: Messages = {
     },
   },
   patientPage: {
+    // The page in three tabs (docs/notes/0025).
+    tabs: {
+      label: "Parts of the record",
+      vorbereitung: "Preparation",
+      werte: "Values",
+      akte: "Record",
+    },
     back: "Back to patients",
     cancel: "Cancel",
     close: "Close",
@@ -754,6 +767,11 @@ export const en: Messages = {
         omics: "Omics",
       },
       missing: "No value recorded",
+      showMissing: {
+        one: "Show {n} core marker without a value",
+        other: "Show {n} core markers without a value",
+      },
+      hideMissing: "Hide core markers without a value",
       pending: {
         one: "{n} value awaiting review",
         other: "{n} values awaiting review",
@@ -1653,6 +1671,15 @@ export const en: Messages = {
       below: "The latest follow-up figure is {n} min below the baseline.",
       above: "The latest follow-up figure is {n} min above the baseline.",
       bothStated: "Both figures are stated by the clinic",
+      // The pilot's figure (docs/notes/0025): the two statements set against each other.
+      change: {
+        title: "Change against the baseline",
+        note: "{from} → {to} minutes per appointment, both stated by the clinic. The platform only computes the difference.",
+        targetMet:
+          "By these figures the pilot criterion of at least −{target} % is met.",
+        targetOpen:
+          "Pilot criterion: at least −{target} % against the baseline.",
+      },
       differentBasis: " – on different bases ({first} and {second}).",
     },
     form: {

@@ -299,6 +299,12 @@ export const de = {
       median: "Median vom ersten Entwurf bis zur Genehmigung · 30 T",
       medianNote: "Durchlaufzeit, keine Arbeitszeit",
       tooFew: "Ab {minimum} Berichten · bisher {n}",
+      change: "Vorbereitungszeit je Termin",
+      changeNote:
+        "Letzte Folgeangabe gegenüber dem Ausgangswert ({from} → {to} min, Angaben der Praxis) · Pilotkriterium: mindestens −{target} %",
+      changeNoteNone:
+        "Letzte Folgeangabe gegenüber dem Ausgangswert, beide Angaben der Praxis",
+      noFollowUp: "Noch keine Folgeangabe",
       baseline: "Ausgangswert der Praxis",
       baselineNote: "Selbstangabe, Median je Termin",
       baselineValue: "{n} min",
@@ -558,6 +564,13 @@ export const de = {
   // position against the reference interval, the comparability notes (ADR-0007: their English
   // needs the medical director) — and the wording of the consent purposes (versioned text).
   patientPage: {
+    // The page in three tabs (docs/notes/0025).
+    tabs: {
+      label: "Bereiche der Akte",
+      vorbereitung: "Vorbereitung",
+      werte: "Werte",
+      akte: "Akte",
+    },
     back: "Zurück zu Patienten",
     cancel: "Abbrechen",
     close: "Schließen",
@@ -773,6 +786,11 @@ export const de = {
         omics: "Omics",
       },
       missing: "Kein Wert erfasst",
+      showMissing: {
+        one: "{n} Kernmarker ohne Wert anzeigen",
+        other: "{n} Kernmarker ohne Wert anzeigen",
+      },
+      hideMissing: "Kernmarker ohne Wert ausblenden",
       pending: { one: "{n} Wert in Prüfung", other: "{n} Werte in Prüfung" },
       corrected: "vom Labor korrigiert",
       noChange: "—",
@@ -1728,6 +1746,15 @@ export const de = {
       below: "Die letzte Folgeangabe liegt {n} Min. unter dem Ausgangswert.",
       above: "Die letzte Folgeangabe liegt {n} Min. über dem Ausgangswert.",
       bothStated: "Beide Zahlen sind Angaben der Praxis",
+      // The pilot's figure (docs/notes/0025): the two statements set against each other.
+      change: {
+        title: "Veränderung gegenüber dem Ausgangswert",
+        note: "{from} → {to} Minuten je Termin, beide Angaben der Praxis. Die Plattform rechnet nur die Differenz.",
+        targetMet:
+          "Das Pilotkriterium von mindestens −{target} % ist nach diesen Angaben erreicht.",
+        targetOpen:
+          "Pilotkriterium: mindestens −{target} % gegenüber dem Ausgangswert.",
+      },
       differentBasis:
         " – auf unterschiedlicher Grundlage ({first} und {second}).",
     },

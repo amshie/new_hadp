@@ -26,6 +26,16 @@ export async function hydrated(control: Locator): Promise<void> {
     .toBe(true);
 }
 
+// A tab of the patient page (docs/notes/0025) by its name; the count beside the name is not
+// asked for. Waits for hydration first: before it the page shows every part at once, and
+// the tab is a button that does nothing yet.
+export async function openTab(page: Page, name: string): Promise<void> {
+  const tab = page.getByRole("tab", { name: new RegExp(`^${name}\\b`) });
+  await hydrated(tab);
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+}
+
 // The seeded synthetic accounts of the demo clinic, by the role the API gives them, with the
 // role as the shell names it next to the signed-in person.
 const STAFF = {

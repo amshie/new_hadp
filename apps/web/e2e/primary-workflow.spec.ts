@@ -7,6 +7,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   asStaff,
   hydrated,
+  openTab,
   watchPageErrors,
   withoutPageScripts,
 } from "./support/staff";
@@ -172,6 +173,7 @@ test("the assistant creates the patient and records the consent to release", asy
       "Synthetische Beispieldaten · keine reale Patientenversorgung.",
     );
     // The consent the release gate asks for is on record; the other purposes are not.
+    await openTab(page, "Akte");
     const consents = page
       .getByRole("region", { name: "Einwilligungen" })
       .getByRole("listitem");
@@ -237,6 +239,7 @@ test("the assistant imports a laboratory file: one value is published, two wait 
 }) => {
   await asStaff(browser, "assistant", async (page) => {
     await page.goto(patientPath);
+    await openTab(page, "Akte");
 
     const lab = page.getByRole("region", { name: "Labordaten" });
     const chooser = lab.getByLabel("Labordatei wählen");
@@ -261,6 +264,7 @@ test("the assistant imports a laboratory file: one value is published, two wait 
     // A value that waits says so, and no position against its reference interval is stated
     // for it (88 lies within 59–104). The catalog places creatinine in
     // "Regenerationskapazität"; it is also listed, and not counted, under "Metabolisch".
+    await openTab(page, "Werte");
     const creatinine = markerRow(page, "Regenerationskapazität", "Creatinine");
     await expect(creatinine).toContainText("in Prüfung – nicht veröffentlicht");
     await expect(creatinine).toContainText("1 Wert in Prüfung");
@@ -278,6 +282,7 @@ test("the assistant imports a laboratory file: one value is published, two wait 
 
     // Both held values are in the review queue. The assistant sees them and is told that the
     // decision is not hers: the queue offers her no control.
+    await openTab(page, "Akte");
     await lab.getByRole("link", { name: "Zur Review-Queue" }).click();
     await page.waitForURL("**/review-queue");
     await expect(
@@ -320,6 +325,7 @@ test("the clinician publishes the held values", async ({ browser }) => {
     // On the patient page the value no longer waits, and its position is now stated.
     await page.goto(patientPath);
     await expect(figure(page, "veröffentlicht")).toHaveText("3/3");
+    await openTab(page, "Werte");
     const creatinine = markerRow(page, "Regenerationskapazität", "Creatinine");
     await expect(creatinine).toContainText("Im Intervall");
     await expect(creatinine).not.toContainText("in Prüfung");
@@ -385,6 +391,7 @@ test("the clinician authors the interpretation run", async ({ browser }) => {
     // Back on the patient page every axis carries the run, and the cited value is listed
     // under its domain.
     await page.waitForURL(`**${patientPath}`);
+    await openTab(page, "Werte");
     for (const axis of DOMAIN_AXES) {
       const card = page.locator(".vb-domaincard").filter({
         has: page.getByRole("link", { name: `${axis}: zur Markerliste` }),

@@ -8,6 +8,11 @@ import type {
 import { CLINIC_TIME_ZONE, clinicTime } from "@/lib/clinicTime";
 import { byCount, fill } from "@/lib/i18n/fill";
 import type { Messages } from "@/lib/i18n/messages";
+import {
+  PILOT_TARGET_PERCENT,
+  percentText,
+  statedChange,
+} from "@/lib/presenters/preparationTime";
 
 import { recordStatementAction } from "./actions";
 
@@ -216,10 +221,8 @@ export function PreparationTimeContent({
   eyebrow: string;
 }) {
   const { baseline, latest_follow_up: followUp } = metric;
-  const difference =
-    baseline && followUp
-      ? followUp.median_minutes - baseline.median_minutes
-      : null;
+  const change = statedChange(metric);
+  const difference = change?.minutes ?? null;
 
   return (
     <div style={{ maxWidth: "1040px" }}>
@@ -272,6 +275,31 @@ export function PreparationTimeContent({
             t={t}
           />
         </div>
+        {change && change.percent != null && (
+          <div
+            className="vb-ov-card"
+            style={{ padding: "18px 22px", marginBottom: "12px" }}
+          >
+            <div style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>
+              {t.stated.change.title}
+            </div>
+            <div style={figureStyle}>{percentText(change.percent)}</div>
+            <div style={{ fontSize: "12.5px", color: "var(--text-body)" }}>
+              {fill(t.stated.change.note, {
+                from: change.baselineMinutes,
+                to: change.followUpMinutes,
+              })}
+            </div>
+            <div style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>
+              {fill(
+                change.targetMet
+                  ? t.stated.change.targetMet
+                  : t.stated.change.targetOpen,
+                { target: PILOT_TARGET_PERCENT },
+              )}
+            </div>
+          </div>
+        )}
         {difference !== null && (
           <p style={{ ...leadStyle, color: "var(--text-body)" }}>
             {difference === 0

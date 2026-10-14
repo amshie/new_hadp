@@ -492,7 +492,7 @@ function ChangesCard({
         </ul>
       )}
       {changes && rows.length > 0 && (
-        <div className="vb-ov-foot">
+        <div className="vb-ov-cardfoot">
           {rows.length > CHANGES_SHOWN && (
             <button
               type="button"

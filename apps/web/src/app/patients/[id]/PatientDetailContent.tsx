@@ -1,6 +1,14 @@
 "use client";
 
-import { useRef, useState, useTransition, type CSSProperties } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+  type CSSProperties,
+  type KeyboardEvent,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -28,7 +36,11 @@ import { sourceNoteText, type MarkerView } from "@/lib/presenters/review";
 
 import { ConsentCard } from "./ConsentCard";
 import { DataExportCard } from "./DataExportCard";
-import { DomainOverviewPanel, SeriesValues } from "./DomainOverviewPanel";
+import {
+  DomainOverviewPanel,
+  SeriesValues,
+  UNASSIGNED_ID,
+} from "./DomainOverviewPanel";
 import { HistoryChart } from "./HistoryChart";
 import { LabDocumentsCard } from "./LabDocumentsCard";
 import { GERMAN, LagePill, ReferenceBar } from "./MarkerParts";
@@ -112,6 +124,26 @@ function initialsOf(name: string): string {
   return letters.join("").toUpperCase() || "–";
 }
 
+// The three tabs of the page, in their order.
+type PatientTab = "vorbereitung" | "werte" | "akte";
+const PATIENT_TABS: readonly PatientTab[] = ["vorbereitung", "werte", "akte"];
+const panelId = (tab: PatientTab) => `vb-pt-panel-${tab}`;
+const tabId = (tab: PatientTab) => `vb-pt-tab-${tab}`;
+
+// Which tab a fragment of the address opens, and the element in it to scroll to: a tab by
+// its name, a domain list or the unassigned list in the values tab.
+export function tabOfFragment(
+  hash: string,
+): { tab: PatientTab; id: string | null } | null {
+  const id = hash.startsWith("#") ? hash.slice(1) : hash;
+  if (!id) return null;
+  if ((PATIENT_TABS as readonly string[]).includes(id))
+    return { tab: id as PatientTab, id: null };
+  if (id.startsWith("vb-domain-") || id === UNASSIGNED_ID)
+    return { tab: "werte", id };
+  return null;
+}
+
 export function PatientDetailContent({
   view,
   documents,
@@ -138,6 +170,60 @@ export function PatientDetailContent({
     series: MarkerSeries | null;
   } | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+
+  // The page in three tabs (docs/notes/0025): the preparation first, then the values, then
+  // the record's administration. Every panel is in the page (hidden, not left out), so a
+  // link into a domain list — from the preparation card, the practice view, the printable
+  // page — still lands: the address's fragment names the list, and the fragment opens the
+  // tab that holds it.
+  const [tab, setTab] = useState<PatientTab>("vorbereitung");
+  // Until the page is hydrated every part is shown, one under the other: a page without
+  // scripts reads in full, and the parts that then fold away lie below the first one.
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  const hiddenUnless = (key: PatientTab) => hydrated && tab !== key;
+  const tabRefs = useRef<Record<PatientTab, HTMLButtonElement | null>>({
+    vorbereitung: null,
+    werte: null,
+    akte: null,
+  });
+  const [wanted, setWanted] = useState<string | null>(null);
+  useEffect(() => {
+    const follow = () => {
+      const target = tabOfFragment(window.location.hash);
+      if (!target) return;
+      setTab(target.tab);
+      setWanted(target.id);
+    };
+    follow();
+    window.addEventListener("hashchange", follow);
+    return () => window.removeEventListener("hashchange", follow);
+  }, []);
+  useEffect(() => {
+    if (!wanted) return;
+    document.getElementById(wanted)?.scrollIntoView({ block: "start" });
+    setWanted(null);
+  }, [wanted, tab]);
+  const onTabKey = (e: KeyboardEvent<HTMLButtonElement>) => {
+    const i = PATIENT_TABS.indexOf(tab);
+    const next =
+      e.key === "ArrowRight"
+        ? PATIENT_TABS[(i + 1) % PATIENT_TABS.length]
+        : e.key === "ArrowLeft"
+          ? PATIENT_TABS[(i + PATIENT_TABS.length - 1) % PATIENT_TABS.length]
+          : e.key === "Home"
+            ? PATIENT_TABS[0]
+            : e.key === "End"
+              ? PATIENT_TABS[PATIENT_TABS.length - 1]
+              : null;
+    if (!next) return;
+    e.preventDefault();
+    setTab(next);
+    tabRefs.current[next]?.focus();
+  };
 
   // A tombstoned (erased) record shows a banner and hides all staff actions — its artifacts
   // are gone and it must never accept a new invitation, interpretation, or deletion request.
@@ -572,150 +658,203 @@ export function PatientDetailContent({
         )}
       </div>
 
-      {/* The facts since the latest interpretation run, one line each, before everything
-          else (docs/notes/0022). A tombstoned record has nothing to prepare. */}
-      {!erased && (
-        <VisitPrepCard
-          prep={view.prep}
-          overview={view.overview}
-          patientId={view.patientId}
-          onOpen={openSeries}
-        />
-      )}
-
-      {/* data completeness (real, deterministic — the compliant replacement for the comp's quality gauge) */}
       <div
-        className="vb-ov-card"
-        style={{ padding: "16px 22px", marginBottom: "20px" }}
+        role="tablist"
+        aria-label={t.tabs.label}
+        className="vb-ov-tabs vb-pt-tabs"
       >
+        {PATIENT_TABS.map((key) => (
+          <button
+            key={key}
+            ref={(el) => {
+              tabRefs.current[key] = el;
+            }}
+            type="button"
+            role="tab"
+            id={tabId(key)}
+            className="vb-ov-tab"
+            aria-selected={tab === key}
+            aria-controls={panelId(key)}
+            tabIndex={tab === key ? 0 : -1}
+            onClick={() => setTab(key)}
+            onKeyDown={onTabKey}
+          >
+            {t.tabs[key]}
+            {key === "werte" && (
+              <>
+                {" "}
+                <span className="vb-ov-tab-n">{completeness.published}</span>
+              </>
+            )}
+          </button>
+        ))}
+      </div>
+
+      <div
+        role="tabpanel"
+        id={panelId("vorbereitung")}
+        aria-labelledby={tabId("vorbereitung")}
+        hidden={hiddenUnless("vorbereitung")}
+      >
+        {/* The facts since the latest interpretation run, one line each, before everything
+          else (docs/notes/0022). A tombstoned record has nothing to prepare. */}
+        {!erased && (
+          <VisitPrepCard
+            prep={view.prep}
+            overview={view.overview}
+            patientId={view.patientId}
+            onOpen={openSeries}
+          />
+        )}
+
+        {/* data completeness (real, deterministic — the compliant replacement for the comp's quality gauge) */}
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "16px",
-            flexWrap: "wrap",
-          }}
+          className="vb-ov-card"
+          style={{ padding: "16px 22px", marginBottom: "20px" }}
         >
-          <div>
-            <h3
-              style={{
-                fontFamily: "var(--font-display)",
-                fontWeight: 700,
-                fontSize: "var(--text-md)",
-                color: "var(--text-strong)",
-                margin: "0 0 2px",
-                letterSpacing: "-0.01em",
-              }}
-            >
-              {t.coverage.title}
-            </h3>
-            <p
-              style={{
-                fontSize: "12px",
-                color: "var(--text-muted)",
-                margin: 0,
-              }}
-            >
-              {t.coverage.note}
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: "26px", flexWrap: "wrap" }}>
-            {[
-              { v: String(completeness.total), l: t.coverage.observations },
-              {
-                v: `${completeness.published}/${completeness.total}`,
-                l: t.coverage.published,
-              },
-              {
-                v: `${completeness.withReference}/${completeness.total}`,
-                l: t.coverage.withReference,
-              },
-              {
-                v:
-                  completeness.latestAgeDays == null
-                    ? "—"
-                    : completeness.latestAgeDays === 0
-                      ? t.coverage.today
-                      : fill(t.coverage.days, {
-                          n: completeness.latestAgeDays,
-                        }),
-                l: t.coverage.latest,
-              },
-            ].map((s) => (
-              <div key={s.l}>
-                <div
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 700,
-                    fontSize: "var(--text-lg)",
-                    color: "var(--text-strong)",
-                  }}
-                >
-                  {s.v}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "16px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <h3
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 700,
+                  fontSize: "var(--text-md)",
+                  color: "var(--text-strong)",
+                  margin: "0 0 2px",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {t.coverage.title}
+              </h3>
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "var(--text-muted)",
+                  margin: 0,
+                }}
+              >
+                {t.coverage.note}
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: "26px", flexWrap: "wrap" }}>
+              {[
+                { v: String(completeness.total), l: t.coverage.observations },
+                {
+                  v: `${completeness.published}/${completeness.total}`,
+                  l: t.coverage.published,
+                },
+                {
+                  v: `${completeness.withReference}/${completeness.total}`,
+                  l: t.coverage.withReference,
+                },
+                {
+                  v:
+                    completeness.latestAgeDays == null
+                      ? "—"
+                      : completeness.latestAgeDays === 0
+                        ? t.coverage.today
+                        : fill(t.coverage.days, {
+                            n: completeness.latestAgeDays,
+                          }),
+                  l: t.coverage.latest,
+                },
+              ].map((s) => (
+                <div key={s.l}>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontWeight: 700,
+                      fontSize: "var(--text-lg)",
+                      color: "var(--text-strong)",
+                    }}
+                  >
+                    {s.v}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "11px",
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    {s.l}
+                  </div>
                 </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "11px",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  {s.l}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Before the visit, the six domains, and each domain's markers (values placed by the
-          catalog). A tombstoned record has no values left to place. */}
-      {!erased && (
-        <DomainOverviewPanel overview={view.overview} onOpen={openSeries} />
-      )}
-
-      {/* Consent state per purpose (all staff) + documenting a consent or a withdrawal (care
-          staff). A tombstoned record takes no new entries. */}
-      {!erased && (
-        <ConsentCard
-          patientId={view.patientId}
-          consents={consents}
-          canRecord={canInvite}
-        />
-      )}
-
-      {/* Laboratory files: upload + import (care staff), list of stored files (all staff).
-          A tombstoned record takes no new data. */}
-      {!erased && (
-        <LabDocumentsCard
-          patientId={view.patientId}
-          documents={documents}
-          canImport={canInvite}
-        />
-      )}
-
-      {/* Data export (GDPR Art. 15/20): tenant administration, owner only. */}
-      {canRequestDeletion && dataExports !== null && (
-        <DataExportCard patientId={view.patientId} exports={dataExports} />
-      )}
-
-      {/* Audit stepper (real, from report status) */}
       <div
-        className="vb-ov-card"
-        style={{ padding: "20px 22px 22px", marginBottom: "16px" }}
+        role="tabpanel"
+        id={panelId("werte")}
+        aria-labelledby={tabId("werte")}
+        hidden={hiddenUnless("werte")}
       >
-        <h3 className="vb-ov-h2">{t.audit.title}</h3>
-        <p className="vb-ov-note" style={{ margin: "3px 0 18px" }}>
-          {t.audit.note}
-        </p>
-        {review.status === "none" ? (
-          <EmptyState quiet style={{ padding: 0 }}>
-            {t.audit.none}
-          </EmptyState>
-        ) : (
-          <AuditSteps steps={review.auditSteps} copy={t.audit.steps} />
+        {/* Before the visit, the six domains, and each domain's markers (values placed by the
+            catalog). A tombstoned record has no values left to place. */}
+        {!erased && (
+          <DomainOverviewPanel overview={view.overview} onOpen={openSeries} />
         )}
+      </div>
+
+      <div
+        role="tabpanel"
+        id={panelId("akte")}
+        aria-labelledby={tabId("akte")}
+        hidden={hiddenUnless("akte")}
+      >
+        {/* Consent state per purpose (all staff) + documenting a consent or a withdrawal (care
+          staff). A tombstoned record takes no new entries. */}
+        {!erased && (
+          <ConsentCard
+            patientId={view.patientId}
+            consents={consents}
+            canRecord={canInvite}
+          />
+        )}
+
+        {/* Laboratory files: upload + import (care staff), list of stored files (all staff).
+          A tombstoned record takes no new data. */}
+        {!erased && (
+          <LabDocumentsCard
+            patientId={view.patientId}
+            documents={documents}
+            canImport={canInvite}
+          />
+        )}
+
+        {/* Data export (GDPR Art. 15/20): tenant administration, owner only. */}
+        {canRequestDeletion && dataExports !== null && (
+          <DataExportCard patientId={view.patientId} exports={dataExports} />
+        )}
+
+        {/* Audit stepper (real, from report status) */}
+        <div
+          className="vb-ov-card"
+          style={{ padding: "20px 22px 22px", marginBottom: "16px" }}
+        >
+          <h3 className="vb-ov-h2">{t.audit.title}</h3>
+          <p className="vb-ov-note" style={{ margin: "3px 0 18px" }}>
+            {t.audit.note}
+          </p>
+          {review.status === "none" ? (
+            <EmptyState quiet style={{ padding: 0 }}>
+              {t.audit.none}
+            </EmptyState>
+          ) : (
+            <AuditSteps steps={review.auditSteps} copy={t.audit.steps} />
+          )}
+        </div>
       </div>
 
       {/* Invite dialog (P3, docs/notes/0010) — one-time URL, manual secure sharing only */}
