@@ -12,7 +12,7 @@ import { getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
 
 import { MitgliederContent } from "./MitgliederContent";
-import { SettingsFrame } from "../SettingsFrame";
+import { SettingsFrame, sectionEyebrow } from "../SettingsFrame";
 
 // Owner-only staff administration (real-data path): the API gates every staff-invite endpoint
 // to owners server-side (STAFF_INVITE_CREATE). This page mirrors that with a deny-by-default
@@ -43,13 +43,12 @@ export default async function MitgliederPage() {
           current="members"
           messages={messages}
         >
-          <div style={{ maxWidth: "620px" }}>
-            <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>{title}</h1>
-            <p
-              style={{ lineHeight: 1.55, color: "var(--text-muted, #5b6b70)" }}
-            >
-              {messages.membersPage.ownersOnly}
-            </p>
+          <div className="vb-set-head">
+            <span className="vb-ov-eyebrow">
+              {sectionEyebrow("members", messages)}
+            </span>
+            <h1 className="vb-ov-h1">{title}</h1>
+            <p className="vb-ov-lead">{messages.membersPage.ownersOnly}</p>
           </div>
         </SettingsFrame>
       </VitaShell>

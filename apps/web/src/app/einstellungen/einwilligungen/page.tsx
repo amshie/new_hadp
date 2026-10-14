@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { EmptyState } from "@/components/vitabahn/EmptyState";
 import { VitaShell } from "@/components/vitabahn/VitaShell";
 import { consentTexts, me } from "@/lib/api";
 import { CONSENT_OPTIONS } from "@/lib/consentCopy";
@@ -90,9 +91,9 @@ export default async function EinwilligungenPage() {
             {texts == null ? (
               <p className="vb-ov-unavailable">{t.unavailable}</p>
             ) : texts.counts.length === 0 ? (
-              <p className="vb-ov-tier-empty" style={{ padding: 0 }}>
+              <EmptyState quiet style={{ padding: 0 }}>
                 {t.none}
-              </p>
+              </EmptyState>
             ) : (
               <table className="vb-ov-table">
                 <caption className="sr-only">{t.caption}</caption>

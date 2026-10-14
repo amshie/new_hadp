@@ -20,13 +20,6 @@ import { recordConsentAction } from "./consent-actions";
 // it is versioned text (lib/consentCopy.ts), shown as it is recorded and marked as German.
 // The day keeps its German form (ADR-0007: formats are decided on their own).
 
-const cardStyle: CSSProperties = {
-  background: "var(--surface-card)",
-  border: "1px solid var(--border-subtle)",
-  borderRadius: "var(--radius-lg)",
-  boxShadow: "var(--shadow-sm)",
-};
-
 const btnSec: CSSProperties = {
   height: "32px",
   padding: "0 12px",
@@ -115,7 +108,8 @@ export function ConsentCard({
 
   return (
     <section
-      style={{ ...cardStyle, marginBottom: "16px", overflow: "hidden" }}
+      className="vb-ov-card"
+      style={{ marginBottom: "16px", overflow: "hidden" }}
       aria-labelledby="consent-heading"
     >
       <div style={{ padding: "20px 22px 14px" }}>
@@ -248,10 +242,10 @@ export function ConsentCard({
             justifyContent: "center",
             padding: "24px",
           }}
+          dialogClassName="vb-ov-card"
           dialogStyle={{
             width: "500px",
             maxWidth: "100%",
-            ...cardStyle,
             padding: "22px",
           }}
         >

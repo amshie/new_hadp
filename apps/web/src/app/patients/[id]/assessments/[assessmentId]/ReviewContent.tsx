@@ -1,7 +1,8 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
+import { AuditSteps } from "@/components/vitabahn/AuditSteps";
 import { Dialog } from "@/components/vitabahn/Dialog";
 import { Icon } from "@/components/Icon";
 import { useToast } from "@/components/Toaster";
@@ -908,27 +909,12 @@ export function ReviewContent({
           <p>{t.audit.note}</p>
         </div>
       </div>
-      <section className="card audit-card" aria-label={t.audit.title}>
-        <div className="audit-steps">
-          {view.auditSteps.map((s, i) => {
-            // The step's wording in the page's language, by the step and its line.
-            const step: Record<string, string> = p.audit.steps[s.key];
-            return (
-              <Fragment key={s.key}>
-                <div className={`audit-step ${s.state}`.trim()}>
-                  <span className="audit-step-dot">{s.dot}</span>
-                  <span className="audit-step-copy">
-                    <strong>{step.label}</strong>
-                    <span>{step[s.subKey] ?? ""}</span>
-                  </span>
-                </div>
-                {i < view.auditSteps.length - 1 && (
-                  <span className="audit-line" aria-hidden="true" />
-                )}
-              </Fragment>
-            );
-          })}
-        </div>
+      <section
+        className="card"
+        style={{ padding: "16px 17px" }}
+        aria-label={t.audit.title}
+      >
+        <AuditSteps steps={view.auditSteps} copy={p.audit.steps} />
       </section>
 
       <div className="action-bar">

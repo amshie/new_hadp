@@ -18,13 +18,6 @@ import type { Messages } from "@/lib/i18n/messages";
 // The card follows the interface language (lib/i18n); dates and sizes keep their German form
 // (ADR-0007: formats are decided on their own).
 
-const cardStyle: CSSProperties = {
-  background: "var(--surface-card)",
-  border: "1px solid var(--border-subtle)",
-  borderRadius: "var(--radius-lg)",
-  boxShadow: "var(--shadow-sm)",
-};
-
 const btnSec: CSSProperties = {
   height: "36px",
   padding: "0 14px",
@@ -157,7 +150,8 @@ export function DataExportCard({
 
   return (
     <section
-      style={{ ...cardStyle, marginBottom: "16px", overflow: "hidden" }}
+      className="vb-ov-card"
+      style={{ marginBottom: "16px", overflow: "hidden" }}
       aria-labelledby="data-export-heading"
     >
       <div style={{ padding: "20px 22px 16px" }}>
@@ -308,10 +302,10 @@ export function DataExportCard({
             justifyContent: "center",
             padding: "24px",
           }}
+          dialogClassName="vb-ov-card"
           dialogStyle={{
             width: "500px",
             maxWidth: "100%",
-            ...cardStyle,
             padding: "22px",
           }}
         >

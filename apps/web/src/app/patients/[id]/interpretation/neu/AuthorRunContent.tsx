@@ -149,14 +149,6 @@ function fromPrefill(prefill: PrefillDomain[]): Record<string, DomainDraft> {
   return out;
 }
 
-const cardStyle: CSSProperties = {
-  background: "var(--surface-card)",
-  border: "1px solid var(--border-subtle)",
-  borderRadius: "var(--radius-lg)",
-  boxShadow: "var(--shadow-sm)",
-  padding: "18px 20px",
-  marginBottom: "14px",
-};
 const labelStyle: CSSProperties = {
   display: "block",
   fontSize: "11px",
@@ -300,7 +292,10 @@ export function AuthorRunContent({
         </p>
       </div>
 
-      <div style={cardStyle}>
+      <div
+        className="vb-ov-card"
+        style={{ padding: "18px 20px", marginBottom: "14px" }}
+      >
         <label style={labelStyle} htmlFor="run-reason">
           {t.reason}
         </label>
@@ -321,7 +316,8 @@ export function AuthorRunContent({
         return (
           <section
             key={axis}
-            style={cardStyle}
+            className="vb-ov-card"
+            style={{ padding: "18px 20px", marginBottom: "14px" }}
             aria-label={DOMAIN_AXIS_LABELS[axis] ?? axis}
           >
             <h2

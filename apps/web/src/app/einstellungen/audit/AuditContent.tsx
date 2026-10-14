@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 
+import { EmptyState } from "@/components/vitabahn/EmptyState";
 import type { AuditCategory, AuditEvent, AuditPage } from "@/lib/api";
 import {
   actionLabel,
@@ -38,13 +39,6 @@ export interface AuditQuery {
   to?: string;
   hideReads: boolean;
 }
-
-const cardStyle: CSSProperties = {
-  background: "var(--surface-card)",
-  border: "1px solid var(--border-subtle)",
-  borderRadius: "var(--radius-lg)",
-  boxShadow: "var(--shadow-sm)",
-};
 
 const thStyle: CSSProperties = {
   textAlign: "left",
@@ -193,6 +187,7 @@ export function AuditContent({
   stalePosition,
   t,
   title,
+  eyebrow,
   locale,
 }: {
   page: AuditPage;
@@ -201,6 +196,7 @@ export function AuditContent({
   stalePosition: boolean;
   t: T;
   title: string;
+  eyebrow: string;
   locale: Locale;
 }) {
   const notShown = t.notShown;
@@ -215,18 +211,11 @@ export function AuditContent({
 
   return (
     <div style={{ maxWidth: "1180px" }}>
-      <h1 style={{ fontSize: "22px", marginBottom: "4px" }}>{title}</h1>
-      <p
-        style={{
-          color: "var(--text-muted)",
-          fontSize: "13px",
-          lineHeight: 1.55,
-          margin: "0 0 10px",
-          maxWidth: "92ch",
-        }}
-      >
-        {fill(t.lead, { zone: CLINIC_TIME_ZONE })}
-      </p>
+      <div className="vb-set-head" style={{ marginBottom: "10px" }}>
+        <span className="vb-ov-eyebrow">{eyebrow}</span>
+        <h1 className="vb-ov-h1">{title}</h1>
+        <p className="vb-ov-lead">{fill(t.lead, { zone: CLINIC_TIME_ZONE })}</p>
+      </div>
       <details
         style={{
           color: "var(--text-muted)",
@@ -257,8 +246,8 @@ export function AuditContent({
         key={href(query)}
         method="get"
         action={PATH}
+        className="vb-ov-card"
         style={{
-          ...cardStyle,
           padding: "16px 22px",
           marginBottom: "16px",
           display: "flex",
@@ -374,23 +363,17 @@ export function AuditContent({
       )}
 
       <section
-        style={{ ...cardStyle, overflow: "hidden" }}
+        className="vb-ov-card"
+        style={{ overflow: "hidden" }}
         aria-labelledby="audit-heading"
       >
         <h2 id="audit-heading" className="sr-only">
           {t.entries}
         </h2>
         {page.items.length === 0 ? (
-          <p
-            style={{
-              margin: 0,
-              padding: "22px",
-              fontSize: "12.5px",
-              color: "var(--text-muted)",
-            }}
-          >
+          <EmptyState>
             {filtered || continued ? t.emptyFiltered : t.empty}
-          </p>
+          </EmptyState>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table

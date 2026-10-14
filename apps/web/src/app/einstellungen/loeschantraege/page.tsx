@@ -6,7 +6,7 @@ import { getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
 
 import { LoeschantraegeContent } from "./LoeschantraegeContent";
-import { SettingsFrame } from "../SettingsFrame";
+import { SettingsFrame, sectionEyebrow } from "../SettingsFrame";
 
 // Owner + medical-director erasure-request queue (real-data path). The API gates the list
 // endpoint to those two roles server-side (PRIVACY_REQUEST_LIST); this page mirrors that with
@@ -40,11 +40,12 @@ export default async function LoeschantraegePage() {
           current="deletionRequests"
           messages={messages}
         >
-          <div style={{ maxWidth: "620px" }}>
-            <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>{title}</h1>
-            <p
-              style={{ lineHeight: 1.55, color: "var(--text-muted, #5b6b70)" }}
-            >
+          <div className="vb-set-head">
+            <span className="vb-ov-eyebrow">
+              {sectionEyebrow("deletionRequests", messages)}
+            </span>
+            <h1 className="vb-ov-h1">{title}</h1>
+            <p className="vb-ov-lead">
               {messages.deletionRequestsPage.reserved}
             </p>
           </div>
