@@ -1,919 +1,667 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { AddPatientDialog } from "@/components/vitabahn/AddPatientDialog";
 import { clickable } from "@/components/vitabahn/interactive";
+import { actionLabel, targetLabel } from "@/lib/auditCopy";
+import { roleName } from "@/lib/identity";
 import { byCount, fill } from "@/lib/i18n/fill";
 import { useI18n } from "@/lib/i18n/I18nProvider";
-import type {
-  CoverageView,
-  OverviewView,
-  StatusSnapshotView,
-  ThroughputChartView,
-  WorkRowView,
-} from "@/lib/presenters/dashboard";
+import type { Messages } from "@/lib/i18n/messages";
+import type { StatusGroup, WorkRowView } from "@/lib/presenters/dashboard";
+import {
+  FOLLOW_UP_AFTER_DAYS,
+  nextStep,
+  presentActivity,
+  presentDataMeters,
+  presentSources,
+  presentStatband,
+  presentToday,
+  type Tier,
+  type TodayItem,
+} from "@/lib/presenters/today";
 
-import { ThroughputTile } from "./ThroughputTile";
+import { ago, clock, day, longDay } from "./format";
+import type { OverviewData } from "./page";
+import { Card, CardHead, KeyValue, Pill } from "./parts";
+import { PracticeCard } from "./PracticeCard";
 
-// VitaBahn Übersicht (ADR-0006, real-data path). Consumes the governed OverviewView (real,
-// deterministic counts + work-list over the API). Review-Durchsatz (per-day report-version
-// throughput) and Datenlage (observation coverage) are now real, tenant-scoped tiles; the activity
-// feed and imports panel still have NO backend source and stay honest gated states (deferred slices).
+// Übersicht (docs/notes/0015): one question, "what needs me today?", answered for the
+// reader's role; then the work list with each record's next step, the clinic's weeks, its
+// data and sources, and the latest activity. Workflow and counts only — no score, no
+// urgency, no judgement of any value.
 
-const cardStyle: CSSProperties = {
-  background: "var(--surface-card)",
-  border: "1px solid var(--border-subtle)",
-  borderRadius: "var(--radius-lg)",
-  boxShadow: "var(--shadow-sm)",
+type TabKey = "open" | "approved" | "released" | "rejected" | "none" | "all";
+const TABS: TabKey[] = [
+  "open",
+  "approved",
+  "released",
+  "rejected",
+  "none",
+  "all",
+];
+const TAB_GROUP: Record<Exclude<TabKey, "all">, StatusGroup> = {
+  open: "review",
+  approved: "approved",
+  released: "released",
+  rejected: "rejected",
+  none: "none",
 };
-const colLabel: CSSProperties = {
-  fontFamily: "var(--font-mono)",
-  fontSize: "10px",
-  letterSpacing: "0.1em",
-  textTransform: "uppercase",
-  color: "var(--text-faint)",
-  fontWeight: 500,
-};
-const sectionTitle: CSSProperties = {
-  fontFamily: "var(--font-display)",
-  fontWeight: 700,
-  fontSize: "var(--text-lg)",
-  color: "var(--text-strong)",
-  margin: "0 0 3px",
-  letterSpacing: "-0.01em",
-};
-const WORK_GRID = "minmax(220px,2fr) minmax(160px,1.4fr) 140px 110px";
 
-function GatedPanel({ title, reason }: { title: string; reason: string }) {
-  return (
-    <div
-      style={{
-        ...cardStyle,
-        padding: "20px 22px",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <h3 style={sectionTitle}>{title}</h3>
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "120px",
-          textAlign: "center",
-          padding: "16px 8px",
-        }}
-      >
-        <div>
-          <div
-            style={{
-              display: "inline-flex",
-              marginBottom: "8px",
-              width: "32px",
-              height: "32px",
-              borderRadius: "999px",
-              background: "var(--surface-sunken)",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <svg
-              aria-hidden="true"
-              focusable="false"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--text-faint)"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 8v4l2 2" />
-            </svg>
-          </div>
-          <div
-            style={{
-              fontSize: "12.5px",
-              color: "var(--text-muted)",
-              maxWidth: "34ch",
-              margin: "0 auto",
-              lineHeight: 1.5,
-            }}
-          >
-            {reason}
-          </div>
-        </div>
-      </div>
-    </div>
+const inTab = (r: WorkRowView, tab: TabKey) =>
+  tab === "all" || r.group === TAB_GROUP[tab];
+
+export function OverviewContent({ data }: { data: OverviewData }) {
+  const { locale, t } = useI18n();
+  const o = t.overview;
+  const today = useMemo(
+    () =>
+      presentToday({
+        role: data.role,
+        rows: data.rows,
+        deletionRequests: data.deletionRequests,
+        invitations: data.invitations,
+        preparation: data.preparation,
+        now: data.now,
+      }),
+    [data],
   );
-}
-
-// Real status snapshot (current bestand by latest report status). A momentaufnahme, NOT a
-// throughput time series — the heading says so. Bars are share-of-total over real worklist rows.
-function StatusSnapshotTile({ snapshot }: { snapshot: StatusSnapshotView }) {
-  const t = useI18n().t.overview.snapshot;
-  return (
-    <div style={{ ...cardStyle, padding: "20px 22px" }}>
-      <h3 style={sectionTitle}>{t.title}</h3>
-      <p
-        style={{
-          fontSize: "12.5px",
-          color: "var(--text-muted)",
-          margin: "0 0 16px",
-        }}
-      >
-        {byCount(t.note, snapshot.total)}
-      </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-        {snapshot.buckets.map((b) => (
-          <div key={b.key}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "baseline",
-                marginBottom: "5px",
-              }}
-            >
-              <span style={{ fontSize: "12.5px", color: "var(--text-body)" }}>
-                {b.label}
-              </span>
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  color: "var(--text-strong)",
-                }}
-              >
-                {b.count}
-              </span>
-            </div>
-            <div
-              style={{
-                height: "7px",
-                borderRadius: "999px",
-                background: "var(--surface-sunken)",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  width: `${Math.round(b.share * 100)}%`,
-                  background: b.color,
-                  borderRadius: "999px",
-                }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+  const band = useMemo(
+    () => presentStatband(data.rows, data.throughput),
+    [data.rows, data.throughput],
   );
-}
-
-// Real tenant-wide observation coverage (ADR-0006). Counts/freshness, explicitly NOT a quality
-// score — the caption says so. The donut shows the PUBLISHED share (a workflow state), never a
-// merged "quality %".
-function CoverageBar({
-  label,
-  pct,
-  detail,
-  color,
-}: {
-  label: string;
-  pct: number;
-  detail: string;
-  color: string;
-}) {
-  return (
-    <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          marginBottom: "5px",
-        }}
-      >
-        <span style={{ fontSize: "12.5px", color: "var(--text-body)" }}>
-          {label}
-        </span>
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "12px",
-            fontWeight: 600,
-            color: "var(--text-strong)",
-          }}
-        >
-          {detail}
-        </span>
-      </div>
-      <div
-        style={{
-          height: "7px",
-          borderRadius: "999px",
-          background: "var(--surface-sunken)",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            width: `${pct}%`,
-            background: color,
-            borderRadius: "999px",
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function CoverageTile({ coverage }: { coverage: CoverageView }) {
-  const t = useI18n().t.overview.coverage;
-  return (
-    <div style={{ ...cardStyle, padding: "20px 22px" }}>
-      <h3 style={sectionTitle}>{t.title}</h3>
-      <p
-        style={{
-          fontSize: "12.5px",
-          color: "var(--text-muted)",
-          margin: "0 0 16px",
-        }}
-      >
-        {byCount(t.note, coverage.total)}
-      </p>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "18px",
-          flexWrap: "wrap",
-        }}
-      >
-        <div
-          style={{
-            width: "118px",
-            height: "118px",
-            borderRadius: "50%",
-            flexShrink: 0,
-            background: `conic-gradient(var(--vital-500) ${coverage.publishedPct}%, var(--surface-sunken) ${coverage.publishedPct}% 100%)`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            style={{
-              width: "88px",
-              height: "88px",
-              borderRadius: "50%",
-              background: "var(--surface-card)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <div
-              style={{
-                fontFamily: "var(--font-display)",
-                fontWeight: 700,
-                fontSize: "26px",
-                lineHeight: 1,
-                color: "var(--text-strong)",
-              }}
-            >
-              {coverage.publishedPct}%
-            </div>
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "9px",
-                letterSpacing: "0.1em",
-                color: "var(--text-faint)",
-                marginTop: "4px",
-              }}
-            >
-              {t.ring}
-            </div>
-          </div>
-        </div>
-        <div
-          style={{
-            flex: 1,
-            minWidth: "150px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "11px",
-          }}
-        >
-          <CoverageBar
-            label={t.published}
-            pct={coverage.publishedPct}
-            detail={`${coverage.published}/${coverage.total}`}
-            color="var(--vital-500)"
-          />
-          <CoverageBar
-            label={t.withReference}
-            pct={coverage.referencePct}
-            detail={`${coverage.withReference}/${coverage.total}`}
-            color="var(--brand)"
-          />
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: "12.5px",
-            }}
-          >
-            <span style={{ color: "var(--text-body)" }}>{t.latest}</span>
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "12px",
-                color: "var(--text-muted)",
-              }}
-            >
-              {coverage.latestAgeLabel}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// The tabs of the work list, by the group a row's report is in (never by its label, which
-// differs by language).
-type TabKey = "open" | "approved" | "released" | "all";
-const TABS: TabKey[] = ["open", "approved", "released", "all"];
-
-function inTab(r: WorkRowView, tab: TabKey): boolean {
-  if (tab === "all") return true;
-  if (tab === "open") return r.group === "review";
-  return r.group === tab;
-}
-
-export function OverviewContent({
-  view,
-  coverage,
-  throughput,
-}: {
-  view: OverviewView;
-  coverage: CoverageView | null;
-  throughput: ThroughputChartView | null;
-}) {
-  const router = useRouter();
-  const t = useI18n().t.overview;
   const [tab, setTab] = useState<TabKey>("all");
-  const [term, setTerm] = useState("");
 
-  const counts: Record<TabKey, number> = useMemo(
-    () => ({
-      open: view.kpis.openReviews,
-      approved: view.kpis.approved,
-      released: view.kpis.released,
-      all: view.rows.length,
-    }),
-    [view],
-  );
+  const waiting = today.now.length;
+  const leadRole =
+    data.role && data.role in o.leadRole
+      ? o.leadRole[data.role as keyof Messages["overview"]["leadRole"]]
+      : "";
 
-  const visible = useMemo(() => {
-    const q = term.toLowerCase();
-    return view.rows.filter((r) => {
-      const hay = `${r.name} ${r.ref} ${r.assessment}`.toLowerCase();
-      return inTab(r, tab) && hay.includes(q);
-    });
-  }, [view.rows, tab, term]);
-
-  const kpis: {
-    value: number;
-    label: string;
-    help: string;
-    iconBg: string;
-    icon: ReactNode;
-  }[] = [
-    {
-      value: view.kpis.openReviews,
-      label: t.kpis.openReviews.label,
-      help: t.kpis.openReviews.help,
-      iconBg: "rgba(201,136,28,0.12)",
-      icon: (
-        <svg
-          aria-hidden="true"
-          focusable="false"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--amber-500)"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M9 11l3 3L22 4" />
-          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-        </svg>
-      ),
-    },
-    {
-      value: view.kpis.approved,
-      label: t.kpis.approved.label,
-      help: t.kpis.approved.help,
-      iconBg: "rgba(63,164,201,0.12)",
-      icon: (
-        <svg
-          aria-hidden="true"
-          focusable="false"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--sky-400)"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-          <path d="M22 4L12 14.01l-3-3" />
-        </svg>
-      ),
-    },
-    {
-      value: view.kpis.released,
-      label: t.kpis.released.label,
-      help: t.kpis.released.help,
-      iconBg: "var(--brand-soft)",
-      icon: (
-        <svg
-          aria-hidden="true"
-          focusable="false"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--teal-600)"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M20 6L9 17l-5-5" />
-        </svg>
-      ),
-    },
-    {
-      value: view.kpis.patients,
-      label: t.kpis.patients.label,
-      help: t.kpis.patients.help,
-      iconBg: "var(--brand-soft)",
-      icon: (
-        <svg
-          aria-hidden="true"
-          focusable="false"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--teal-600)"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-      ),
-    },
-  ];
-
-  const tabBtn = (active: boolean): CSSProperties => ({
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "7px",
-    padding: "7px 13px",
-    borderRadius: "var(--radius-pill)",
-    fontFamily: "var(--font-text)",
-    fontSize: "13px",
-    fontWeight: 600,
-    cursor: "pointer",
-    border: "1px solid " + (active ? "var(--brand-border)" : "transparent"),
-    background: active ? "var(--brand-soft)" : "transparent",
-    color: active ? "var(--brand)" : "var(--text-muted)",
-  });
-  const tabBadge = (active: boolean): CSSProperties => ({
-    fontFamily: "var(--font-mono)",
-    fontSize: "10.5px",
-    fontWeight: 600,
-    padding: "1px 7px",
-    borderRadius: "var(--radius-pill)",
-    background: active ? "var(--brand)" : "var(--surface-sunken)",
-    color: active ? "var(--text-on-brand)" : "var(--text-muted)",
-  });
+  const showReleased = () => {
+    setTab("released");
+    document
+      .getElementById("arbeitsliste")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
-    <>
-      <div
-        style={{
-          marginBottom: "28px",
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: "20px",
-          flexWrap: "wrap",
-        }}
-      >
+    <div className="vb-ov">
+      <div className="vb-ov-pagehead">
         <div style={{ minWidth: 0 }}>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "11px",
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              color: "var(--brand)",
-              fontWeight: 500,
-              marginBottom: "10px",
-            }}
-          >
-            {t.kicker}
+          <div className="vb-ov-eyebrow">
+            {o.kicker} · {longDay(data.now, locale)}
           </div>
-          <h1
-            style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 700,
-              fontSize: "var(--text-3xl)",
-              letterSpacing: "var(--tracking-tight)",
-              color: "var(--text-strong)",
-              margin: "0 0 10px",
-              lineHeight: 1.05,
-            }}
-          >
-            {t.title}
-          </h1>
-          <p
-            style={{
-              fontSize: "var(--text-md)",
-              lineHeight: 1.5,
-              color: "var(--text-muted)",
-              margin: 0,
-              maxWidth: "62ch",
-            }}
-          >
-            <span style={{ color: "var(--text-strong)", fontWeight: 600 }}>
-              {byCount(t.waiting, view.kpis.openReviews)}
-            </span>{" "}
-            {view.kpis.openReviews === 1
-              ? t.waitingRest.one
-              : t.waitingRest.other}
+          <h1 className="vb-ov-h1">{o.title}</h1>
+          <p className="vb-ov-lead">
+            <b>{waiting === 0 ? o.lead.none : byCount(o.lead, waiting)}</b>{" "}
+            {leadRole && `${leadRole} `}
+            {o.synthetic}
           </p>
         </div>
         <AddPatientDialog />
       </div>
 
-      {/* KPI ROW (real counts) */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(212px, 1fr))",
-          gap: "16px",
-          marginBottom: "16px",
-        }}
-      >
-        {kpis.map((k) => (
-          <div key={k.label} style={{ ...cardStyle, padding: "18px" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: "14px",
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "10.5px",
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  color: "var(--text-muted)",
-                  fontWeight: 500,
-                }}
-              >
-                {k.label}
-              </span>
-              <div
-                style={{
-                  width: "30px",
-                  height: "30px",
-                  borderRadius: "var(--radius-sm)",
-                  background: k.iconBg,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {k.icon}
-              </div>
-            </div>
-            <div
-              style={{
-                fontFamily: "var(--font-display)",
-                fontWeight: 700,
-                fontSize: "34px",
-                lineHeight: 1,
-                color: "var(--text-strong)",
-                letterSpacing: "-0.02em",
-                marginBottom: "6px",
-              }}
-            >
-              {k.value}
-            </div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-              {k.help}
-            </div>
-          </div>
-        ))}
+      <Statband band={band} />
+
+      <TodayCard
+        today={today}
+        role={data.role}
+        now={data.now}
+        onReleased={showReleased}
+      />
+
+      <Worklist data={data} tab={tab} setTab={setTab} />
+
+      <div className="vb-ov-grid2">
+        <PracticeCard
+          throughput={data.throughput}
+          preparation={data.preparation}
+        />
+        <DataCard data={data} />
       </div>
 
-      {/* WORK LIST (real worklist) */}
-      <div style={{ ...cardStyle, marginBottom: "16px", overflow: "hidden" }}>
-        <div style={{ padding: "20px 22px 0" }}>
-          <h3 style={sectionTitle}>{t.worklist.title}</h3>
-          <p
-            style={{
-              fontSize: "12.5px",
-              color: "var(--text-muted)",
-              margin: "0 0 16px",
-            }}
-          >
-            {t.worklist.note}
-          </p>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "16px",
-              flexWrap: "wrap",
-              marginBottom: "4px",
-            }}
-          >
-            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-              {TABS.map((key) => {
-                const active = tab === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setTab(key)}
-                    style={tabBtn(active)}
-                  >
-                    {t.worklist.tabs[key]}{" "}
-                    <span style={tabBadge(active)}>{counts[key]}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <div
-              style={{
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <svg
-                aria-hidden="true"
-                focusable="false"
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
+      <ActivityCard data={data} />
+    </div>
+  );
+}
+
+// --- The band of counts -------------------------------------------------------------------
+
+function Statband({ band }: { band: ReturnType<typeof presentStatband> }) {
+  const s = useI18n().t.overview.statband;
+  const max = Math.max(1, ...band.releasedByDay);
+  const n = band.releasedByDay.length;
+  const points = band.releasedByDay
+    .map((v, i) => {
+      const x = n <= 1 ? 45 : 2 + (86 * i) / (n - 1);
+      return `${x.toFixed(1)},${(16 - (13 * v) / max).toFixed(1)}`;
+    })
+    .join(" ");
+  return (
+    <section className="vb-ov-statband" aria-label={s.label}>
+      <Stat
+        value={band.openReviews}
+        label={s.openReviews.label}
+        help={s.openReviews.help}
+      />
+      <Stat
+        value={band.toRelease}
+        label={s.toRelease.label}
+        help={s.toRelease.help}
+      />
+      <Stat
+        value={band.valuesInReview}
+        label={s.valuesInReview.label}
+        help={s.valuesInReview.help}
+      />
+      <Stat
+        value={band.released ?? "—"}
+        label={fill(s.released.label, { days: band.releasedDays ?? 30 })}
+        help={band.released == null ? s.released.unavailable : s.released.help}
+        spark={
+          n > 0 ? (
+            <svg width="90" height="18" aria-hidden="true" focusable="false">
+              <polyline
+                points={points}
                 fill="none"
-                stroke="var(--text-faint)"
-                strokeWidth="1.8"
-                strokeLinecap="round"
+                stroke="var(--vital-500)"
+                strokeWidth="1.6"
                 strokeLinejoin="round"
-                style={{
-                  position: "absolute",
-                  left: "11px",
-                  pointerEvents: "none",
-                }}
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="M21 21l-4.35-4.35" />
-              </svg>
-              <input
-                className="vb-input"
-                type="text"
-                aria-label={t.worklist.search}
-                value={term}
-                onChange={(e) => setTerm(e.target.value)}
-                placeholder={t.worklist.search}
-                style={{
-                  height: "36px",
-                  width: "220px",
-                  padding: "0 12px 0 33px",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--border-default)",
-                  background: "var(--surface-sunken)",
-                  color: "var(--text-strong)",
-                  fontFamily: "var(--font-text)",
-                  fontSize: "13px",
-                  outline: "none",
-                }}
               />
-            </div>
-          </div>
-        </div>
-        <div style={{ overflowX: "auto" }}>
-          <div style={{ minWidth: "720px" }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: WORK_GRID,
-                alignItems: "center",
-                gap: "16px",
-                padding: "14px 22px 10px",
-                borderBottom: "1px solid var(--border-subtle)",
-                marginTop: "14px",
-              }}
-            >
-              <span style={colLabel}>{t.worklist.columns.patient}</span>
-              <span style={colLabel}>{t.worklist.columns.assessment}</span>
-              <span style={colLabel}>{t.worklist.columns.status}</span>
-              <span style={{ ...colLabel, textAlign: "right" }}>
-                {t.worklist.columns.updated}
+            </svg>
+          ) : null
+        }
+      />
+      <Stat
+        value={band.patients}
+        label={s.patients.label}
+        help={fill(s.patients.help, {
+          withReport: band.withReport,
+          without: band.withoutReport,
+        })}
+      />
+    </section>
+  );
+}
+
+function Stat({
+  value,
+  label,
+  help,
+  spark,
+}: {
+  value: number | string;
+  label: string;
+  help: string;
+  spark?: ReactNode;
+}) {
+  return (
+    <div className="vb-ov-stat">
+      <span className="vb-ov-stat-v">{value}</span>
+      <span className="vb-ov-stat-l">{label}</span>
+      <span className="vb-ov-stat-h">
+        {spark}
+        {spark ? <span className="sr-only">{help}</span> : help}
+      </span>
+    </div>
+  );
+}
+
+// --- Today --------------------------------------------------------------------------------
+
+const TIERS: Tier[] = ["now", "soon", "fyi"];
+
+function TodayCard({
+  today,
+  role,
+  now,
+  onReleased,
+}: {
+  today: ReturnType<typeof presentToday>;
+  role: string | null;
+  now: number;
+  onReleased: () => void;
+}) {
+  const { locale, t } = useI18n();
+  const d = t.overview.today;
+  return (
+    <Card labelledBy="ov-today">
+      <CardHead
+        id="ov-today"
+        level={2}
+        title={d.title}
+        note={d.note}
+        aside={
+          <span className="vb-ov-eyebrow">
+            {fill(d.asOf, { time: clock(now, locale) })}
+          </span>
+        }
+      />
+      {TIERS.map((tier) => {
+        const items = today[tier];
+        return (
+          <div key={tier} className="vb-ov-tier" data-tier={tier}>
+            <h3 className="vb-ov-tier-h">
+              <b>{d.tiers[tier].title}</b>
+              <span className={`vb-ov-tag vb-ov-tag-${tier}`}>
+                {d.tiers[tier].tag}
               </span>
-            </div>
-            {visible.map((r) => {
-              const sm = r.statusBadge;
-              return (
-                <div
-                  key={r.patientId}
-                  className="vb-row"
-                  {...clickable(
-                    () => router.push(`/patients/${r.patientId}`),
-                    fill(t.worklist.openRow, { name: r.name, ref: r.ref }),
-                  )}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: WORK_GRID,
-                    alignItems: "center",
-                    gap: "16px",
-                    padding: "13px 22px",
-                    borderBottom: "1px solid var(--border-subtle)",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "11px",
-                      minWidth: 0,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: "34px",
-                        height: "34px",
-                        flexShrink: 0,
-                        borderRadius: "999px",
-                        background: "var(--brand-soft)",
-                        border: "1px solid var(--brand-border)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        color: "var(--teal-600)",
-                      }}
-                    >
-                      {r.initials}
-                    </div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div
-                        style={{
-                          fontSize: "13.5px",
-                          fontWeight: 600,
-                          color: "var(--text-strong)",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {r.name}
-                      </div>
-                      <div
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "11px",
-                          color: "var(--text-faint)",
-                        }}
-                      >
-                        {r.ref}
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      color: "var(--text-body)",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {r.assessment}
-                  </div>
-                  <div>
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        padding: "3px 10px",
-                        borderRadius: "999px",
-                        fontSize: "11.5px",
-                        fontWeight: 600,
-                        color: sm.fg,
-                        background: sm.bg,
-                        border: "1px solid " + sm.bd,
-                      }}
-                    >
-                      {sm.label}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "11.5px",
-                      color: "var(--text-muted)",
-                      textAlign: "right",
-                    }}
-                  >
-                    {r.updatedLabel}
-                  </div>
-                </div>
-              );
-            })}
-            {visible.length === 0 && (
-              <div style={{ textAlign: "center", padding: "54px 20px" }}>
-                <div
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 700,
-                    fontSize: "var(--text-lg)",
-                    color: "var(--text-strong)",
-                    marginBottom: "6px",
-                  }}
-                >
-                  {t.worklist.emptyTitle}
-                </div>
-                <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-                  {t.worklist.emptyNote}
-                </div>
-              </div>
+              <small>{byCount(d.count, items.length)}</small>
+            </h3>
+            {items.length === 0 ? (
+              <p className="vb-ov-tier-empty">{d.empty[tier]}</p>
+            ) : (
+              <ul className="vb-ov-qlist">
+                {items.map((item) => (
+                  <TodayRow
+                    key={item.key}
+                    item={item}
+                    tier={tier}
+                    role={role}
+                    now={now}
+                    onReleased={onReleased}
+                  />
+                ))}
+              </ul>
             )}
           </div>
+        );
+      })}
+    </Card>
+  );
+}
+
+function TodayRow({
+  item,
+  tier,
+  now,
+  onReleased,
+}: {
+  item: TodayItem;
+  tier: Tier;
+  role: string | null;
+  now: number;
+  onReleased: () => void;
+}) {
+  const { locale, t } = useI18n();
+  const k = t.overview.today.kinds;
+  const time = t.dashboard.time;
+  let title = item.name ?? "—";
+  let ref = item.ref ?? "";
+  let what = "";
+  let detail = "";
+  let action = "";
+  switch (item.kind) {
+    case "review_draft":
+    case "rework_rejected":
+    case "release":
+    case "approved_waiting":
+      what = fill(k[item.kind].what, { version: item.version ?? 1 });
+      action = k[item.kind].action;
+      break;
+    case "decide_values":
+    case "no_draft":
+      what = byCount(k[item.kind].what, item.count);
+      action = k[item.kind].action;
+      break;
+    case "values_since_run":
+      what = byCount(k.values_since_run.what, item.count);
+      detail = fill(k.values_since_run.detail, { run: item.runNumber ?? "—" });
+      action = k.values_since_run.action;
+      break;
+    case "decide_deletion":
+    case "execute_deletion":
+    case "deletion_waiting":
+    case "upload_values":
+      what = k[item.kind].what;
+      action = k[item.kind].action;
+      break;
+    case "invitation_open":
+      title = fill(k.invitation_open.title, {
+        role: roleName(t.roles, item.name),
+      });
+      ref = "";
+      what = fill(k.invitation_open.what, { until: day(item.until, locale) });
+      action = k.invitation_open.action;
+      break;
+    case "prep_baseline":
+      title = k.prep_baseline.title;
+      what = k.prep_baseline.what;
+      action = k.prep_baseline.action;
+      break;
+    case "prep_follow_up":
+      title = k.prep_follow_up.title;
+      what = fill(k.prep_follow_up.what, { days: FOLLOW_UP_AFTER_DAYS });
+      action = k.prep_follow_up.action;
+      break;
+    case "released_recently":
+      title = byCount(k.released_recently.title, item.count);
+      ref = k.released_recently.ref;
+      what = item.names.join(", ");
+      action = k.released_recently.action;
+      break;
+  }
+  const since = item.since ? ago(item.since, now, time) : "";
+  return (
+    <li className="vb-ov-qrow" data-tier={tier}>
+      <i className="vb-ov-qbar" aria-hidden="true" />
+      <div className="vb-ov-qwho">
+        <b>{title}</b>
+        {ref && <span>{ref}</span>}
+      </div>
+      <div className="vb-ov-qwhat">
+        {what}
+        {detail && <small>{detail}</small>}
+      </div>
+      <span className="vb-ov-qsince">
+        {since && (
+          <>
+            <span className="sr-only">
+              {fill(t.overview.today.waited, { since })}
+            </span>
+            <span aria-hidden="true">{since}</span>
+          </>
+        )}
+      </span>
+      <span className="vb-ov-qact">
+        {item.kind === "released_recently" ? (
+          <button
+            type="button"
+            className="vb-ov-btn ghost"
+            onClick={onReleased}
+          >
+            {action}
+          </button>
+        ) : (
+          <Link
+            href={item.href}
+            className={`vb-ov-btn${tier === "now" ? " primary" : ""}`}
+            aria-label={`${action}: ${title}`}
+          >
+            {action}
+          </Link>
+        )}
+      </span>
+    </li>
+  );
+}
+
+// --- The work list ------------------------------------------------------------------------
+
+const WORK_GRID =
+  "minmax(200px,1.6fr) minmax(130px,0.9fr) minmax(190px,1.4fr) 150px 110px";
+
+function Worklist({
+  data,
+  tab,
+  setTab,
+}: {
+  data: OverviewData;
+  tab: TabKey;
+  setTab: (tab: TabKey) => void;
+}) {
+  const router = useRouter();
+  const { t } = useI18n();
+  const w = t.overview.worklist;
+  const [term, setTerm] = useState("");
+  const raw = useMemo(
+    () => new Map(data.rows.map((r) => [r.patient_id, r])),
+    [data.rows],
+  );
+  const rows = data.view.rows;
+  const counts = useMemo(() => {
+    const out = {} as Record<TabKey, number>;
+    for (const key of TABS) out[key] = rows.filter((r) => inTab(r, key)).length;
+    return out;
+  }, [rows]);
+  const visible = useMemo(() => {
+    const q = term.toLowerCase();
+    return rows.filter(
+      (r) => inTab(r, tab) && `${r.name} ${r.ref}`.toLowerCase().includes(q),
+    );
+  }, [rows, tab, term]);
+
+  return (
+    <section
+      className="vb-ov-card"
+      aria-labelledby="ov-worklist"
+      id="arbeitsliste"
+      style={{ overflow: "hidden", scrollMarginTop: "16px" }}
+    >
+      <div className="vb-ov-head">
+        <div style={{ minWidth: 0 }}>
+          <h2 id="ov-worklist" className="vb-ov-h2">
+            {w.title}
+          </h2>
+          <p className="vb-ov-note">{w.note}</p>
+        </div>
+        <div className="vb-ov-wltools">
+          <div className="vb-ov-tabs" role="group" aria-label={w.title}>
+            {TABS.map((key) => (
+              <button
+                key={key}
+                type="button"
+                className="vb-ov-tab"
+                aria-pressed={tab === key}
+                onClick={() => setTab(key)}
+              >
+                {w.tabs[key]} <span className="vb-ov-tab-n">{counts[key]}</span>
+              </button>
+            ))}
+          </div>
+          <input
+            className="vb-input vb-ov-search"
+            type="text"
+            aria-label={w.search}
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            placeholder={w.search}
+          />
         </div>
       </div>
+      <div style={{ overflowX: "auto" }}>
+        <div style={{ minWidth: "820px" }}>
+          <div
+            className="vb-ov-wlrow vb-ov-wlhead"
+            style={{ gridTemplateColumns: WORK_GRID }}
+          >
+            <span>{w.columns.patient}</span>
+            <span>{w.columns.state}</span>
+            <span>{w.columns.next}</span>
+            <span>{w.columns.values}</span>
+            <span style={{ textAlign: "right" }}>{w.columns.updated}</span>
+          </div>
+          {visible.map((r) => {
+            const source = raw.get(r.patientId);
+            const step = source ? nextStep(source) : "import";
+            const next = w.next[step];
+            const who =
+              step === "clinical_review"
+                ? fill(next.who, { role: roleName(t.roles, "clinician") })
+                : step === "release"
+                  ? fill(next.who, {
+                      role: roleName(t.roles, "medical_director"),
+                    })
+                  : step === "none"
+                    ? fill(next.who, { since: r.updatedLabel })
+                    : next.who;
+            return (
+              <div
+                key={r.patientId}
+                className="vb-row vb-ov-wlrow"
+                {...clickable(
+                  () => router.push(`/patients/${r.patientId}`),
+                  fill(w.openRow, { name: r.name, ref: r.ref }),
+                )}
+                style={{ gridTemplateColumns: WORK_GRID, cursor: "pointer" }}
+              >
+                <div className="vb-ov-pat">
+                  <span className="vb-ov-av" aria-hidden="true">
+                    {r.initials}
+                  </span>
+                  <div style={{ minWidth: 0 }}>
+                    <b>{r.name}</b>
+                    <span>{r.ref}</span>
+                  </div>
+                </div>
+                <div className="vb-ov-state">
+                  <Pill meta={r.statusBadge} />
+                  {r.version != null && (
+                    <span className="vb-ov-mono">v{r.version}</span>
+                  )}
+                </div>
+                <div className="vb-ov-next">
+                  {next.title}
+                  <small>{who}</small>
+                </div>
+                <div className="vb-ov-mono">
+                  {r.valuesPublished}
+                  {r.valuesPending > 0 &&
+                    ` · ${fill(w.inReview, { n: r.valuesPending })}`}
+                </div>
+                <div className="vb-ov-mono" style={{ textAlign: "right" }}>
+                  {r.updatedLabel}
+                </div>
+              </div>
+            );
+          })}
+          {visible.length === 0 && (
+            <div className="vb-ov-wlempty">
+              <b>{w.emptyTitle}</b>
+              <span>{w.emptyNote}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
 
-      {/* Row 1 — real Review-Durchsatz (wide) + Datenlage coverage */}
-      <div className="vb-dash-split" style={{ marginBottom: "16px" }}>
-        {throughput ? (
-          <ThroughputTile view={throughput} />
+// --- Data and sources ---------------------------------------------------------------------
+
+function DataCard({ data }: { data: OverviewData }) {
+  const { locale, t } = useI18n();
+  const d = t.overview.data;
+  const s = t.overview.sources;
+  const time = t.dashboard.time;
+  const meters = data.coverage ? presentDataMeters(data.coverage) : null;
+  const sources = data.sources ? presentSources(data.sources) : null;
+  return (
+    <Card labelledBy="ov-data">
+      <CardHead
+        id="ov-data"
+        title={d.title}
+        note={data.coverage ? byCount(d.note, data.coverage.total) : undefined}
+      />
+      <div className="vb-ov-body">
+        {meters && data.coverage ? (
+          <>
+            {meters.map((m) => (
+              <div key={m.key} className="vb-ov-meter">
+                <KeyValue label={d[m.key]} value={`${m.count} / ${m.total}`} />
+                <div className="vb-ov-track" aria-hidden="true">
+                  <i style={{ width: `${Math.round(m.share * 100)}%` }} />
+                </div>
+              </div>
+            ))}
+            <KeyValue
+              label={d.latest}
+              value={day(data.coverage.latest_observed_at, locale)}
+            />
+          </>
         ) : (
-          <GatedPanel {...t.gated.throughput} />
+          <p className="vb-ov-unavailable">{d.unavailable}</p>
         )}
-        {coverage ? (
-          <CoverageTile coverage={coverage} />
+        <h4 className="vb-ov-h4">{s.title}</h4>
+        {sources ? (
+          <ul className="vb-ov-srclist">
+            {sources.map((src) => (
+              <li key={src.parserName ?? "other"}>
+                <div>
+                  {src.key === "other" && src.parserName
+                    ? src.parserName
+                    : s.names[src.key]}
+                  <small>
+                    {src.lastImportAt
+                      ? fill(byCount(s.last, src.rows), {
+                          when: ago(src.lastImportAt, data.now, time),
+                        })
+                      : src.key === "other"
+                        ? s.neverOther
+                        : s.neverFile}
+                  </small>
+                </div>
+                <span className="vb-ov-tag">
+                  {src.jobs > 0 ? s.state.used : s.state.ready}
+                </span>
+              </li>
+            ))}
+            <li>
+              <div>
+                {s.names.wearables}
+                <small>{s.wearablesNote}</small>
+              </div>
+              <span className="vb-ov-tag">{s.state.none}</span>
+            </li>
+          </ul>
         ) : (
-          <GatedPanel {...t.gated.coverage} />
+          <p className="vb-ov-unavailable">{s.unavailable}</p>
         )}
       </div>
+    </Card>
+  );
+}
 
-      {/* Row 2 — real Berichtsstatus snapshot + still-gated panels (deferred backend slices) */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-          gap: "16px",
-        }}
-      >
-        <StatusSnapshotTile snapshot={view.statusSnapshot} />
-        <GatedPanel {...t.gated.activity} />
-        <GatedPanel {...t.gated.imports} />
+// --- Activity -----------------------------------------------------------------------------
+
+function ActivityCard({ data }: { data: OverviewData }) {
+  const { locale, t } = useI18n();
+  const a = t.overview.activity;
+  const items = data.activity
+    ? presentActivity(data.activity, data.rows)
+    : null;
+  return (
+    <Card labelledBy="ov-activity">
+      <CardHead
+        id="ov-activity"
+        title={a.title}
+        note={data.activityScope === "clinic" ? a.noteClinic : a.noteOwn}
+        aside={
+          data.activityScope === "clinic" ? (
+            <Link href="/einstellungen/audit" className="vb-ov-btn ghost">
+              {a.open}
+            </Link>
+          ) : undefined
+        }
+      />
+      <div className="vb-ov-body">
+        {items == null ? (
+          <p className="vb-ov-unavailable">{a.unavailable}</p>
+        ) : items.length === 0 ? (
+          <p className="vb-ov-tier-empty">{a.empty}</p>
+        ) : (
+          <ul className="vb-ov-feed">
+            {items.map((e) => (
+              <li key={e.id}>
+                <i aria-hidden="true" />
+                <div>
+                  <b>{actionLabel(e.action, locale)}</b>
+                  {(e.patientName ?? e.targetType) &&
+                    ` · ${e.patientName ?? targetLabel(e.targetType, locale)}`}
+                  {e.actor && <small>{e.actor}</small>}
+                </div>
+                <span className="vb-ov-mono">
+                  {ago(e.at, data.now, t.dashboard.time)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-    </>
+    </Card>
   );
 }

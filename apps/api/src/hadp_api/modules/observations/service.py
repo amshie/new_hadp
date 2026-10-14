@@ -94,6 +94,56 @@ class CoverageSummary:
     published: int
     with_reference: int
     latest_observed_at: datetime | None
+    # Observations linked to a catalog KPI (a mapping, not a judgement of the value).
+    with_kpi: int = 0
+
+
+@dataclass
+class PatientValueCounts:
+    """What lies under one patient's record, counted for the worklist. Workflow counts only:
+    how many values are published, how many await a human decision, how many arrived after
+    the patient's latest interpretation run — never a statement about any value."""
+
+    published: int = 0
+    pending: int = 0
+    # Received after the cutoff the caller gives (the latest run); rejected values excluded.
+    received_after_cutoff: int = 0
+    latest_received_at: datetime | None = None
+    # When the oldest value still awaiting a decision was received.
+    pending_since: datetime | None = None
+
+
+def value_counts_by_patient(
+    db: Session,
+    tenant_id: uuid.UUID,
+    cutoffs: dict[uuid.UUID, datetime],
+) -> dict[uuid.UUID, PatientValueCounts]:
+    """Per-patient value counts for one tenant (explicit tenant filter; RLS beneath it).
+
+    `cutoffs` maps a patient to the moment after which a value counts as "received after"
+    (the patient's latest interpretation run). A patient without a cutoff counts none. The
+    definition matches the patient page's (rejected values never count).
+    """
+    rows = db.execute(
+        select(Observation.patient_id, Observation.review_status, Observation.received_at).where(
+            Observation.tenant_id == tenant_id
+        )
+    ).all()
+    out: dict[uuid.UUID, PatientValueCounts] = {}
+    for patient_id, status, received_at in rows:
+        counts = out.setdefault(patient_id, PatientValueCounts())
+        if status == ReviewStatus.PUBLISHED:
+            counts.published += 1
+        elif status == ReviewStatus.PENDING:
+            counts.pending += 1
+            if counts.pending_since is None or received_at < counts.pending_since:
+                counts.pending_since = received_at
+        if counts.latest_received_at is None or received_at > counts.latest_received_at:
+            counts.latest_received_at = received_at
+        cutoff = cutoffs.get(patient_id)
+        if cutoff is not None and status != ReviewStatus.REJECTED and received_at > cutoff:
+            counts.received_after_cutoff += 1
+    return out
 
 
 def coverage_summary(db: Session, tenant_id: uuid.UUID) -> CoverageSummary:
@@ -111,6 +161,7 @@ def coverage_summary(db: Session, tenant_id: uuid.UUID) -> CoverageSummary:
             )
             .label("with_reference"),
             func.max(Observation.observed_at).label("latest_observed_at"),
+            func.count().filter(Observation.kpi_code.is_not(None)).label("with_kpi"),
         ).where(Observation.tenant_id == tenant_id)
     ).one()
     return CoverageSummary(
@@ -118,6 +169,7 @@ def coverage_summary(db: Session, tenant_id: uuid.UUID) -> CoverageSummary:
         published=row.published or 0,
         with_reference=row.with_reference or 0,
         latest_observed_at=row.latest_observed_at,
+        with_kpi=row.with_kpi or 0,
     )
 
 

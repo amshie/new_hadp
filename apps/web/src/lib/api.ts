@@ -16,6 +16,7 @@ export type ReleaseOut = Schemas["ReleaseOut"];
 export type WorklistRow = Schemas["WorklistRowOut"];
 export type Coverage = Schemas["CoverageOut"];
 export type Throughput = Schemas["ThroughputOut"];
+export type Source = Schemas["SourceOut"];
 export type ReviewQueueItem = Schemas["ReviewItemOut"];
 export type ResolveReviewOut = Schemas["ResolveReviewOut"];
 export type InvitationOut = Schemas["InvitationOut"];
@@ -306,6 +307,9 @@ export const coverage = () => request<Coverage>("/api/v1/worklist/coverage");
 export const throughput = (days = 30) =>
   request<Throughput>(`/api/v1/worklist/throughput?days=${days}`);
 
+// The ways values came in: one line per laboratory file reader, then everything else.
+export const sources = () => request<Source[]>("/api/v1/worklist/sources");
+
 export const timeline = (patientId: string) =>
   request<TimelinePoint[]>(`/api/v1/patients/${patientId}/observations`);
 
@@ -473,9 +477,11 @@ export interface AuditFilters {
   until?: string;
   exclude_reads?: boolean;
   cursor?: string;
+  limit?: number;
 }
 export const listAuditEvents = (filters: AuditFilters) => {
   const qs = new URLSearchParams();
+  if (filters.limit) qs.set("limit", String(filters.limit));
   if (filters.category) qs.set("category", filters.category);
   if (filters.target_id) qs.set("target_id", filters.target_id);
   if (filters.since) qs.set("since", filters.since);
@@ -484,6 +490,9 @@ export const listAuditEvents = (filters: AuditFilters) => {
   if (filters.cursor) qs.set("cursor", filters.cursor);
   return request<AuditPage>(`/api/v1/audit-events?${qs.toString()}`);
 };
+// One's own latest actions (any staff role), newest first, without reads.
+export const ownActivity = (limit = 5) =>
+  request<AuditEvent[]>(`/api/v1/audit-events/mine?limit=${limit}`);
 
 // Member administration (owner-only server-side): list the team, change a role, remove.
 export const listMembers = () => request<MemberOut[]>("/api/v1/members");

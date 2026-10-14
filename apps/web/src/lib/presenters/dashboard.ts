@@ -4,7 +4,7 @@
 // codes/raw fields/timestamps. Everything here is a deterministic count/format over real
 // data — no score, no risk, no quality engine (those have no backend; see ADR-0006).
 
-import type { Coverage, Patient, Throughput, WorklistRow } from "@/lib/api";
+import type { Patient, WorklistRow } from "@/lib/api";
 import { fill } from "@/lib/i18n/fill";
 import type { Messages } from "@/lib/i18n/messages";
 
@@ -109,195 +109,47 @@ export interface WorkRowView {
   name: string;
   initials: string;
   ref: string;
-  assessment: string;
+  version: number | null;
   group: StatusGroup;
   statusBadge: BadgeMeta;
   updatedLabel: string;
+  // When the latest report reached its status (ISO); null without a report.
+  statusAt: string | null;
   reviewUrl: string | null;
   hasReport: boolean;
+  valuesPublished: number;
+  valuesPending: number;
 }
 
 export interface OverviewView {
-  kpis: {
-    openReviews: number;
-    approved: number;
-    released: number;
-    patients: number;
-  };
   rows: WorkRowView[];
-  statusSnapshot: StatusSnapshotView;
 }
 
 export function presentOverview(
   rows: WorklistRow[],
-  patients: Patient[],
   w: DashboardWording,
 ): OverviewView {
-  const work: WorkRowView[] = rows.map((r) => {
-    const group = statusGroup(r.report_status);
-    const sm = statusMeta(group, w);
-    return {
-      patientId: r.patient_id,
-      name: r.display_name,
-      initials: initials(r.display_name),
-      ref: r.external_ref ?? "—",
-      assessment: r.report_id
-        ? fill(w.reportVersion, { version: r.version_no ?? 1 })
-        : w.status.none,
-      group,
-      statusBadge: sm,
-      updatedLabel: relativeTime(r.updated_at, w.time),
-      reviewUrl: r.report_id
-        ? `/patients/${r.patient_id}/assessments/${r.report_id}`
-        : null,
-      hasReport: r.report_id != null,
-    };
-  });
   return {
-    kpis: {
-      openReviews: rows.filter((r) => DRAFT(r.report_status)).length,
-      approved: rows.filter((r) => r.report_status === "approved").length,
-      released: rows.filter((r) => r.report_status === "released").length,
-      patients: patients.length,
-    },
-    rows: work,
-    statusSnapshot: presentStatusSnapshot(rows, w),
-  };
-}
-
-// --- Berichtsstatus snapshot (real, from the worklist we already load) -----------------------
-// A current-bestand distribution of the latest report status across the tenant's patients. This
-// is a SNAPSHOT (Momentaufnahme), deliberately NOT a throughput time series — a true rate over
-// time needs report_versions timestamps (a deferred backend slice). Honest label, real counts.
-
-export interface StatusBucket {
-  key: string;
-  label: string;
-  count: number;
-  share: number; // 0..1 of all rows; 0 when there are no rows
-  color: string;
-}
-
-export interface StatusSnapshotView {
-  total: number;
-  buckets: StatusBucket[];
-}
-
-export function presentStatusSnapshot(
-  rows: WorklistRow[],
-  w: DashboardWording,
-): StatusSnapshotView {
-  const total = rows.length;
-  const count = (pred: (r: WorklistRow) => boolean) => rows.filter(pred).length;
-  const raw: { key: string; label: string; count: number; color: string }[] = [
-    {
-      key: "offen",
-      label: w.status.review,
-      count: count((r) => DRAFT(r.report_status)),
-      color: "var(--amber-500)",
-    },
-    {
-      key: "genehmigt",
-      label: w.status.approved,
-      count: count((r) => r.report_status === "approved"),
-      color: "var(--brand)",
-    },
-    {
-      key: "freigegeben",
-      label: w.status.released,
-      count: count((r) => r.report_status === "released"),
-      color: "var(--vital-500)",
-    },
-    {
-      key: "abgelehnt",
-      label: w.status.rejected,
-      count: count((r) => r.report_status === "rejected"),
-      color: "var(--rose-500)",
-    },
-    {
-      key: "kein",
-      label: w.status.none,
-      count: count((r) => r.report_id == null),
-      color: "var(--text-faint)",
-    },
-  ];
-  return {
-    total,
-    buckets: raw.map((b) => ({
-      ...b,
-      share: total > 0 ? b.count / total : 0,
-    })),
-  };
-}
-
-// --- Review-Durchsatz (real per-day report-version throughput; ADR-0006 follow-up) ------------
-// Erstellt = versions created that day; Signiert = versions approved (signed off) that day. Both
-// from persisted ReportVersion timestamps — a real rate over time, no fabricated trend. The view
-// carries the full window (default 30 days); the tile slices it to the selected 14/30 sub-window
-// and recomputes totals from the slice.
-
-export interface ThroughputPoint {
-  date: string; // ISO date (YYYY-MM-DD)
-  label: string; // short "D.M." for the axis
-  created: number;
-  signed: number;
-}
-
-export interface ThroughputChartView {
-  points: ThroughputPoint[];
-}
-
-function shortDay(iso: string): string {
-  // Parse the date-only "YYYY-MM-DD" by component. `new Date(iso)` would parse it as UTC midnight
-  // and `.getDate()` would render it in the viewer's local zone — off-by-one west of UTC, which
-  // would disagree with the raw ISO shown in the accessible data table.
-  const [, mm, dd] = iso.split("-");
-  const m = Number(mm);
-  const d = Number(dd);
-  if (!Number.isFinite(m) || !Number.isFinite(d)) return "";
-  return `${d}.${m}.`;
-}
-
-export function presentThroughput(t: Throughput): ThroughputChartView {
-  return {
-    points: t.buckets.map((b) => ({
-      date: b.date,
-      label: shortDay(b.date),
-      created: b.created,
-      signed: b.signed,
-    })),
-  };
-}
-
-// --- Datenlage / coverage (real, tenant-wide observation counts; ADR-0006) -------------------
-// Deterministic counts + freshness over real observations. NOT a clinical data-quality score
-// (no quality model exists — Gate G1). publishedPct/referencePct are coverage ratios, never a
-// merged "quality %".
-
-export interface CoverageView {
-  total: number;
-  published: number;
-  withReference: number;
-  publishedPct: number; // 0..100, rounded
-  referencePct: number; // 0..100, rounded
-  latestAgeLabel: string;
-}
-
-export function presentCoverage(
-  c: Coverage,
-  w: DashboardWording,
-): CoverageView {
-  const pct = (n: number) =>
-    c.total > 0 ? Math.round((n * 100) / c.total) : 0;
-  return {
-    total: c.total,
-    published: c.published,
-    withReference: c.with_reference,
-    publishedPct: pct(c.published),
-    referencePct: pct(c.with_reference),
-    latestAgeLabel: c.latest_observed_at
-      ? relativeTime(c.latest_observed_at, w.time)
-      : "—",
+    rows: rows.map((r) => {
+      const group = statusGroup(r.report_status);
+      return {
+        patientId: r.patient_id,
+        name: r.display_name,
+        initials: initials(r.display_name),
+        ref: r.external_ref ?? "—",
+        version: r.report_id ? (r.version_no ?? 1) : null,
+        group,
+        statusBadge: statusMeta(group, w),
+        updatedLabel: relativeTime(r.status_at ?? r.updated_at, w.time),
+        statusAt: r.status_at ?? null,
+        reviewUrl: r.report_id
+          ? `/patients/${r.patient_id}/assessments/${r.report_id}`
+          : null,
+        hasReport: r.report_id != null,
+        valuesPublished: r.values_published ?? 0,
+        valuesPending: r.values_pending ?? 0,
+      };
+    }),
   };
 }
 

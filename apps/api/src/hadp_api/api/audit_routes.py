@@ -145,3 +145,52 @@ def list_audit_events(
         ],
         next_cursor=page.next_cursor,
     )
+
+
+@router.get("/audit-events/mine", response_model=list[AuditEventOut])
+def list_own_audit_events(
+    limit: int = Query(default=5, ge=1, le=20),
+    ctx: TenantContext = Depends(require(Action.AUDIT_READ_OWN)),
+) -> list[AuditEventOut]:
+    """The reader's own latest actions in this clinic, newest first — no reads or listings.
+
+    For the overview of a colleague who may not read the whole trail: the same events, with
+    the same wording, as the owner sees there, limited to what this account did itself.
+    """
+    check_rate_limit(
+        action="audit.own.read",
+        key=f"{ctx.tenant_id}:{ctx.user.id}",
+        limit=120,
+        window_seconds=60,
+        correlation_id=ctx.correlation_id,
+    )
+    page = audit_service.list_tenant_events(
+        ctx.db,
+        tenant_id=ctx.tenant_id,
+        limit=limit,
+        actor_user_id=ctx.user.id,
+        exclude_reads=True,
+    )
+    record_audit(
+        ctx.db,
+        action="audit.own.read",
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        correlation_id=ctx.correlation_id,
+        detail={"count": len(page.events)},
+    )
+    actor = AuditActorOut(
+        user_id=ctx.user.id, display_name=ctx.user.display_name, email=ctx.user.email
+    )
+    return [
+        AuditEventOut(
+            id=e.id,
+            occurred_at=e.created_at.astimezone(UTC),
+            action=e.action,
+            actor=actor,
+            target_type=e.target_type,
+            target_id=e.target_id,
+            detail=e.detail,
+        )
+        for e in page.events
+    ]

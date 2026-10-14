@@ -93,11 +93,13 @@ def test_throughput_buckets_created_and_signed(client, admin_session) -> None:  
         "date": today.isoformat(),
         "created": 2,
         "signed": 1,
+        "released": 0,
     }
     assert by_date[yesterday.isoformat()] == {
         "date": yesterday.isoformat(),
         "created": 1,
         "signed": 1,
+        "released": 0,
     }
 
 

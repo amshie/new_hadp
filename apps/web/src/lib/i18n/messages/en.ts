@@ -83,98 +83,247 @@ export const en: Messages = {
   overview: {
     kicker: "Clinical workspace",
     title: "Overview",
-    waiting: { one: "{n} review", other: "{n} reviews" },
-    waitingRest: {
-      one: "is waiting for your review. Source-grounded drafts must be reviewed before every release. Synthetic sample data.",
-      other:
-        "are waiting for your review. Source-grounded drafts must be reviewed before every release. Synthetic sample data.",
+    lead: {
+      none: "Nothing is waiting for you right now.",
+      one: "{n} item is waiting for you.",
+      other: "{n} items are waiting for you.",
     },
-    kpis: {
-      openReviews: { label: "Open reviews", help: "Clinical review pending" },
-      approved: {
-        label: "Approved",
-        help: "Waiting for release by a physician",
+    leadRole: {
+      clinician: "Source-grounded drafts are reviewed before any release.",
+      medical_director:
+        "Only what was clinically reviewed and approved is released.",
+      assistant:
+        "Reviewing, approving and releasing stay with the clinical roles.",
+      owner:
+        "For the clinic: the team, deletion requests and preparation time.",
+    },
+    synthetic: "Synthetic demo data.",
+    statband: {
+      label: "Key figures",
+      openReviews: {
+        label: "Open reviews",
+        help: "Clinical review pending",
       },
-      released: { label: "Released", help: "Released to the patient" },
+      toRelease: {
+        label: "To release",
+        help: "Waiting for medical release",
+      },
+      valuesInReview: {
+        label: "Values in review",
+        help: "Review queue, not yet published",
+      },
+      released: {
+        label: "Released · {days} d",
+        help: "Per day, oldest on the left",
+        unavailable: "Not available at present",
+      },
       patients: {
         label: "Patients",
-        help: "Scoped to the clinic · protected by row-level security",
+        help: "{withReport} with a report · {without} without a draft",
+      },
+    },
+    today: {
+      title: "Today",
+      note: "Ordered by where the work stands and how long it has waited, not by clinical urgency. The order is workflow, not a judgement.",
+      asOf: "As of {time}",
+      tiers: {
+        now: { title: "Now", tag: "waiting for you" },
+        soon: { title: "Next", tag: "new values" },
+        fyi: { title: "For information", tag: "no action needed" },
+      },
+      count: { one: "{n} entry", other: "{n} entries" },
+      empty: {
+        now: "Nothing is waiting for your role.",
+        soon: "No new values and no record without a draft.",
+        fyi: "Nothing new in the last 7 days.",
+      },
+      waited: "waiting since {since}",
+      kinds: {
+        review_draft: {
+          what: "Report v{version}: clinical review open",
+          action: "Review",
+        },
+        rework_rejected: {
+          what: "Report v{version} rejected: rework open",
+          action: "Rework",
+        },
+        decide_values: {
+          what: {
+            one: "{n} value is waiting for a decision",
+            other: "{n} values are waiting for a decision",
+          },
+          action: "Decide",
+        },
+        release: {
+          what: "Report v{version} approved: release open",
+          action: "Open",
+        },
+        decide_deletion: {
+          what: "Deletion request: decision open",
+          action: "Decide",
+        },
+        execute_deletion: {
+          what: "Deletion approved, not yet carried out",
+          action: "Show",
+        },
+        upload_values: {
+          what: "No values in the record yet",
+          action: "Open record",
+        },
+        invitation_open: {
+          title: "Invitation · {role}",
+          what: "Not yet redeemed · expires on {until}",
+          action: "Show",
+        },
+        prep_baseline: {
+          title: "Preparation time",
+          what: "The clinic's baseline has not been recorded yet",
+          action: "Record",
+        },
+        prep_follow_up: {
+          title: "Preparation time",
+          what: "No new statement for more than {days} days",
+          action: "Record",
+        },
+        values_since_run: {
+          what: {
+            one: "{n} value received after the latest interpretation",
+            other: "{n} values received after the latest interpretation",
+          },
+          detail: "Latest interpretation: run {run}",
+          action: "Open record",
+        },
+        no_draft: {
+          what: {
+            one: "{n} published value, no draft yet",
+            other: "{n} published values, no draft yet",
+          },
+          action: "Open record",
+        },
+        approved_waiting: {
+          what: "Report v{version} approved: waiting for medical release",
+          action: "Show",
+        },
+        deletion_waiting: {
+          what: "Deletion request: waiting for the medical director",
+          action: "Show",
+        },
+        released_recently: {
+          title: {
+            one: "{n} report released",
+            other: "{n} reports released",
+          },
+          ref: "last 7 days",
+          action: "Work list",
+        },
       },
     },
     worklist: {
-      title: "Clinical work list",
+      title: "Work list",
       note: "By report status · not a diagnosis or treatment advice.",
       tabs: {
         open: "Open reviews",
-        approved: "Approved",
+        approved: "To release",
         released: "Released",
+        rejected: "Rejected",
+        none: "No draft",
         all: "All",
       },
       search: "Search patient or ID",
       columns: {
         patient: "Patient",
-        assessment: "Assessment",
-        status: "Status",
+        state: "State",
+        next: "Next step",
+        values: "Values",
         updated: "Updated",
       },
+      next: {
+        clinical_review: { title: "Clinical review", who: "by the {role}" },
+        release: { title: "Release", who: "by the {role}" },
+        rework: { title: "Rework", who: "a new version after the rejection" },
+        none: { title: "Nothing open", who: "released {since}" },
+        draft: { title: "Create a draft", who: "from the published values" },
+        import: { title: "Read in values", who: "no values in the record yet" },
+      },
+      inReview: "{n} in review",
       openRow: "Open patient {name}, {ref}",
       emptyTitle: "No matching items",
       emptyNote: "Change the filter or the search term.",
     },
-    snapshot: {
-      title: "Report status",
-      note: {
-        one: "Current state · snapshot · {n} patient",
-        other: "Current state · snapshot · {n} patients",
+    practice: {
+      title: "Clinic · {days} days",
+      note: "Drafts created and reviews signed, per calendar week · real timestamps.",
+      range: "{from} – {to}",
+      week: "W {week}",
+      created: "Created",
+      signed: "Signed",
+      released: "Released",
+      chartLabel:
+        "Drafts created and reviews signed, per calendar week. Every number is also in the table.",
+      showTable: "Show as a table",
+      columns: {
+        week: "Calendar week",
+        days: "Days in the period",
       },
+      median: "Median from first draft to approval · 30 d",
+      medianNote: "Turnaround, not working time",
+      tooFew: "From {minimum} reports · {n} so far",
+      baseline: "The clinic's baseline",
+      baselineNote: "Self-reported, median per appointment",
+      baselineValue: "{n} min",
+      noBaseline: "Not recorded yet",
+      foot: "Two different measures; they are not set against each other. More under Settings › Preparation time.",
+      unavailable: "The clinic's figures are not available at present.",
     },
-    coverage: {
+    duration: {
+      minutes: "{n} min",
+      hours: "{n} h",
+      days: "{n} d",
+    },
+    data: {
       title: "Data coverage",
       note: {
-        one: "Coverage across {n} real observation · not a quality rating",
-        other: "Coverage across {n} real observations · not a quality rating",
+        one: "Count over {n} observation · no quality rating.",
+        other: "Count over {n} observations · no quality rating.",
       },
-      ring: "PUBLISHED",
       published: "Published",
-      withReference: "With reference interval",
-      latest: "Latest observation",
+      withReference: "With a source reference interval",
+      withKpi: "Linked to a catalog marker",
+      latest: "Newest observation",
+      unavailable: "The data coverage is not available at present.",
     },
-    gated: {
-      throughput: {
-        title: "Review throughput",
-        reason:
-          "The throughput series cannot be loaded at present. A backend slice of its own (report_versions by status).",
+    sources: {
+      title: "Sources",
+      names: {
+        csv: "CSV (HADP layout)",
+        ldt2: "LDT 2",
+        ldt3: "LDT 3",
+        other: "By hand or through the interface",
+        wearables: "Wearables",
       },
-      coverage: {
-        title: "Data coverage",
-        reason:
-          "Coverage across the observations cannot be loaded at present. The patient page shows the real coverage per patient.",
+      last: {
+        one: "Last {when} · {n} row",
+        other: "Last {when} · {n} rows",
       },
-      activity: {
-        title: "Recent activity",
-        reason:
-          "An activity feed needs a clinic-scoped read endpoint over the append-only events. A backend slice of its own.",
+      neverFile: "No file read yet",
+      neverOther: "Nothing entered yet",
+      wearablesNote: "Not connected in pilot phase 1",
+      state: {
+        used: "in use",
+        ready: "ready",
+        none: "not connected",
       },
-      imports: {
-        title: "Imports & sources",
-        reason:
-          "Import status needs a read endpoint over import_jobs. A backend slice of its own.",
-      },
+      unavailable: "The sources are not available at present.",
     },
-    throughput: {
-      title: "Review throughput",
-      note: "Drafts created vs. reviews signed · real timestamps",
-      days14: "14 d",
-      days30: "30 d",
-      signed: "Signed",
-      created: "Created",
-      totalSigned: "Signed in total",
-      totalCreated: "Created in total",
-      avgSigned: "Avg. signed / day",
-      showTable: "Show data table",
-      day: "Day",
-      summary:
-        "Review throughput over {days} days: {signed} signed, {created} created, an average of {avg} signed per day.",
+    activity: {
+      title: "Recent activity",
+      noteClinic:
+        "From the clinic's audit trail, without reads and sign-ins · the same wording as under Settings › Audit trail.",
+      noteOwn:
+        "Your own actions, without reads and sign-ins. The owner reads the full trail.",
+      open: "Open the trail",
+      empty: "No actions yet.",
+      unavailable: "The activity is not available at present.",
     },
   },
   patients: {
