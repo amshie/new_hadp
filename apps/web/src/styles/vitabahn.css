@@ -2179,6 +2179,213 @@
   padding: 2px 22px 18px;
 }
 
+/* Lage heute (docs/notes/0025): the tally in a row, then two columns; a trend on its band. */
+.vb-scope .vb-prep-today {
+  border-top: 1px solid var(--border-subtle);
+}
+.vb-scope .vb-prep-today h4,
+.vb-scope .vb-prep-group h4 {
+  margin: 10px 22px 4px;
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.vb-scope .vb-prep-group h4 {
+  margin-left: 0;
+  margin-right: 0;
+}
+.vb-scope .vb-prep-today h4 small,
+.vb-scope .vb-prep-group h4 small {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.vb-scope .vb-prep-tally {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-sunken);
+}
+.vb-scope .vb-prep-tally li {
+  padding: 10px 22px;
+  border-right: 1px solid var(--border-subtle);
+  min-width: 0;
+}
+.vb-scope .vb-prep-tally li:last-child {
+  border-right: 0;
+}
+.vb-scope .vb-prep-tally b {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text-strong);
+}
+.vb-scope .vb-prep-tally span {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.vb-scope .vb-prep-tally li[data-tone="out"] b,
+.vb-scope .vb-prep-tally li[data-tone="out"] span {
+  color: var(--status-danger-text);
+}
+.vb-scope .vb-prep-tally li[data-tone="wait"] b,
+.vb-scope .vb-prep-tally li[data-tone="wait"] span {
+  color: var(--status-warning-text);
+}
+/* Side by side only where both tables fit; one under the other otherwise. The 1px gap on a
+   border-coloured ground draws the rule between them either way. */
+.vb-scope .vb-prep-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 640px), 1fr));
+}
+.vb-scope .vb-prep-today .vb-prep-cols {
+  gap: 1px;
+  background: var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.vb-scope .vb-prep-group .vb-prep-cols {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 4px 32px;
+}
+.vb-scope .vb-prep-col {
+  min-width: 0;
+  padding: 10px 0 12px;
+  background: var(--surface-card);
+}
+.vb-scope .vb-prep-col h5 {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 4px 22px 6px;
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.vb-scope .vb-prep-group .vb-prep-col h5 {
+  margin-left: 0;
+  margin-right: 0;
+}
+.vb-scope .vb-prep-para {
+  margin: 8px 22px 0;
+}
+.vb-scope .vb-prep-group .vb-prep-para {
+  margin-left: 0;
+  margin-right: 0;
+}
+.vb-scope .vb-prep-today-table th,
+.vb-scope .vb-prep-today-table td {
+  padding: 8px 12px;
+  font-size: 12.5px;
+  vertical-align: top;
+}
+.vb-scope .vb-prep-today-table th:first-child,
+.vb-scope .vb-prep-today-table td:first-child {
+  padding-left: 22px;
+}
+.vb-scope .vb-prep-today-table td.is-num,
+.vb-scope .vb-prep-today-table th.is-num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.vb-scope .vb-prep-outn {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(165, 72, 64, 0.12);
+  color: var(--status-danger-text);
+  font-weight: 600;
+  text-align: center;
+}
+.vb-scope .vb-prep-trend .band {
+  fill: var(--brand-soft);
+}
+.vb-scope .vb-prep-trend .link {
+  stroke: var(--text-muted);
+  stroke-width: 1.2;
+}
+.vb-scope .vb-prep-trend .out {
+  fill: var(--status-danger-text);
+}
+.vb-scope .vb-prep-trend .in {
+  fill: var(--brand);
+}
+.vb-scope .vb-prep-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.vb-scope .vb-prep-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+  font-size: 12px;
+  color: var(--text-body);
+}
+.vb-scope .vb-prep-chip b {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.vb-scope .vb-prep-fold {
+  display: inline-block;
+  margin: 8px 0 2px;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--brand);
+  cursor: pointer;
+}
+.vb-scope .vb-prep-fold:hover,
+.vb-scope .vb-prep-fold:focus-visible {
+  text-decoration: underline;
+}
+.vb-scope .vb-pt-stand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+@media (max-width: 900px) {
+  .vb-scope .vb-prep-tally {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .vb-scope .vb-prep-tally li {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .vb-scope .vb-prep-tally li:nth-child(2n) {
+    border-right: 0;
+  }
+}
+@media print {
+  .vb-scope .vb-prep-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* The practice view (docs/notes/0023): one row per record, the counts as numbers in a
    column each; a column's heading is a button that sorts by it; a record's name leads to its
    own page. */

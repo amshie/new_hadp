@@ -251,6 +251,126 @@ test("nothing new, moved, old, missing or waiting is said so", () => {
   expect(prep.quiet).toBe(true);
 });
 
+// A marker of the catalog no laboratory gives an interval for (docs/notes/0025's "ohne
+// Referenz der Quelle").
+const SBP: CoreKpi = {
+  code: "cardio.sbp",
+  display_name: "Systolic blood pressure",
+  primary_domain_axis: "cardiovascular",
+  measurement_class: "vital_sign",
+};
+function sbp(over: Partial<TimelinePoint>): TimelinePoint {
+  return point({
+    original_name: "Systolischer Blutdruck",
+    kpi_code: "cardio.sbp",
+    kpi_primary_domain: "cardiovascular",
+    unit: "mm[Hg]",
+    original_unit: "mm[Hg]",
+    ...over,
+  });
+}
+
+test("today counts each marker's latest value by its side of the interval; the outside ones carry their course", () => {
+  const first = ldl({ value: "2.8", ...BEFORE_RUN });
+  const prep = presentVisitPrep(
+    presentDomainOverview(
+      [
+        first,
+        ldl({
+          value: "3.4",
+          ...AFTER_RUN,
+          previous_observation_id: first.observation_id,
+          comparability: "comparable",
+        }),
+        hba1c({ value: "5.5", ...BEFORE_RUN }),
+        sbp({ value: "128", ...BEFORE_RUN }),
+      ],
+      [...CATALOG, SBP],
+      RUN,
+      NOW,
+    ),
+  );
+  // Three markers with a value — LDL counted once, by its latest — one outside, one within,
+  // one the source gave no interval for. Counts only: nothing weighted or summed.
+  expect(prep.today.withValue).toBe(3);
+  expect(prep.today.within).toBe(1);
+  expect(prep.today.noReference).toBe(1);
+  expect(prep.today.latestDay).toBe("15.03.2026");
+  expect(prep.today.outside.map((o) => [o.code, o.value, o.position])).toEqual([
+    ["cardio.ldl_c", "3.4", "above"],
+  ]);
+  // Its course: both standing values, the second joined to the first because the API found
+  // them comparable.
+  expect(
+    prep.today.outside[0]!.trend.map((t) => [t.day, t.position, t.linked]),
+  ).toEqual([
+    ["01.12.2025", "within", false],
+    ["15.03.2026", "above", true],
+  ]);
+  // Each domain beside the clinician's verdict: its core markers with a value, its markers
+  // outside, and the verdict as recorded (none where the run recorded none).
+  const cardio = prep.domains.find((d) => d.axis === "cardiovascular")!;
+  expect(cardio).toMatchObject({
+    coreTotal: 2,
+    coreWithValue: 2,
+    outside: 1,
+    verdict: {
+      cisStatus: "CIS_3_RISK_DOMINANT_OR_CONFLICTING",
+      actionabilityClass: "D_ACTIONABLE_UNDER_GOVERNANCE",
+      followupAdequacy: "adequate",
+      reviewed: true,
+    },
+  });
+  expect(prep.domains.find((d) => d.axis === "metabolic")!.verdict).toBeNull();
+  expect(prep.domains.map((d) => d.axis)).toHaveLength(6);
+});
+
+test("a course draws no line between values the API did not find comparable", () => {
+  const first = ldl({ value: "3.2", ...BEFORE_RUN });
+  const prep = presentVisitPrep(
+    presentDomainOverview(
+      [
+        first,
+        ldl({
+          value: "3.4",
+          ...AFTER_RUN,
+          previous_observation_id: first.observation_id,
+          comparability: "not_comparable",
+        }),
+      ],
+      CATALOG,
+      RUN,
+      NOW,
+    ),
+  );
+  expect(prep.today.outside[0]!.trend.map((t) => t.linked)).toEqual([
+    false,
+    false,
+  ]);
+});
+
+test("old and missing core markers are grouped by sample day and by domain", () => {
+  const OLD = {
+    observed_at: "2025-05-01T00:00:00Z",
+    received_at: "2025-05-02T08:00:00Z",
+  };
+  const prep = presentVisitPrep(
+    presentDomainOverview(
+      [hba1c({ value: "5.5", ...OLD }), ldl({ value: "2.8", ...OLD })],
+      [...CATALOG, SBP],
+      RUN,
+      NOW,
+    ),
+  );
+  expect(prep.staleByDay).toEqual([{ key: "01.05.2025", count: 2 }]);
+  expect(prep.staleByAxis).toEqual([
+    { key: "metabolic", count: 1 },
+    { key: "cardiovascular", count: 1 },
+  ]);
+  expect(prep.missingByAxis).toEqual([{ key: "cardiovascular", count: 1 }]);
+  expect(prep.today.outside).toEqual([]);
+});
+
 test("the card is on the patient page and opens as a page of its own", async ({
   browser,
 }) => {
@@ -267,6 +387,35 @@ test("the card is on the patient page and opens as a page of its own", async ({
       /Seit Lauf \d+ · erfasst am \d{2}\.\d{2}\.\d{4}/,
     );
     await expect(card).toContainText("jede Zeile führt zum Wert");
+
+    // Today's position first: the counts, then the clinician's six verdicts of the run.
+    const today = card.getByRole("region", { name: /^Lage heute/ });
+    await expect(today).toContainText("Marker mit Wert");
+    await expect(today).toContainText("außerhalb des Intervalls");
+    await expect(today).toContainText(
+      "Urteile der Ärztin oder des Arztes, wie erfasst",
+    );
+    const verdicts = today.getByRole("table").filter({
+      has: page.getByRole("columnheader", { name: "Actionability" }),
+    });
+    await expect(verdicts.getByRole("row")).toHaveCount(7);
+    // The header says where the record stands in time (the first of two such lines: the
+    // other is the Werte tab's, hidden).
+    await expect(
+      page.getByText(/^Letzte Interpretation: Lauf \d+ · /).first(),
+    ).toBeVisible();
+
+    // The old and the missing are counted per domain; their lists wait behind a button.
+    const gaps = card.getByRole("region", { name: /^Alt und fehlend/ });
+    const unfold = gaps
+      .getByRole("button", { name: /^\d+ Marker anzeigen$/ })
+      .first();
+    await hydrated(unfold);
+    await expect(unfold).toHaveAttribute("aria-expanded", "false");
+    await unfold.click();
+    await expect(
+      gaps.getByRole("button", { name: "Marker ausblenden" }),
+    ).toHaveAttribute("aria-expanded", "true");
 
     // A marker's line opens the marker's history, as the domain lists do.
     const markers = card.getByRole("button", { name: /^Marker .* öffnen$/ });

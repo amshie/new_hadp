@@ -354,6 +354,10 @@ test("the patient page follows the choice; what is not interface stays German an
     const back = page.getByRole("button", { name: "Back to patients" });
     await expect(back).toBeVisible();
     expect(await languageOf(back)).toBe("en");
+    // The preparation leads with today's position, in English.
+    await expect(
+      page.getByRole("region", { name: "Preparation", exact: true }),
+    ).toContainText("Today's position");
     // Its three tabs, each with its cards.
     for (const [tab, headings] of [
       [null, ["Preparation", "Data coverage"]],

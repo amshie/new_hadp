@@ -155,6 +155,8 @@ export interface ReviewView {
   ref: string;
   // The age in full years, null without a date of birth — the page words it.
   ageYears: number | null;
+  // The date of birth as the clinic reads it ("17.05.1980"); null without one.
+  dateOfBirth: string | null;
   reportId: string;
   status: string;
   statusBadge: string;
@@ -172,6 +174,12 @@ export interface ReviewView {
   auditSteps: AuditStepView[];
   runNumber: number | null;
   domains: DomainView[];
+}
+
+// "1980-05-17" → "17.05.1980"; anything else → null.
+function birthDay(dob: string | null | undefined): string | null {
+  const m = dob ? /^(\d{4})-(\d{2})-(\d{2})/.exec(dob) : null;
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : null;
 }
 
 function ageYears(dob: string | null | undefined): number | null {
@@ -405,6 +413,7 @@ export function presentReview(
     patientName: patient.display_name,
     ref: patient.external_ref ?? "—",
     ageYears: age,
+    dateOfBirth: birthDay(patient.date_of_birth),
     reportId: report.report_id,
     status: report.status,
     statusBadge: REPORT_STATUS_BADGE[report.status] ?? "badge-neutral",
