@@ -93,6 +93,11 @@ test("the clinician creates a record and opens it: nothing is new in it yet", as
     await created.getByRole("button", { name: "Akte öffnen" }).click();
     await page.waitForURL(/\/patients\/[0-9a-f-]{36}$/);
     patientPath = new URL(page.url()).pathname;
+    // The address changes before the server has rendered the record; the opening is only
+    // recorded once it has. Its heading says so.
+    await expect(
+      page.getByRole("heading", { level: 1, name: patient.name }),
+    ).toBeVisible();
 
     await page.goto("/overview");
     const card = page.getByRole("region", { name: "Seit zuletzt" });
@@ -133,6 +138,9 @@ test("the overview names the record to the clinician until they open it again", 
     await hydrated(open);
     await open.click();
     await page.waitForURL(/\/patients\/[0-9a-f-]{36}$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: patient.name }),
+    ).toBeVisible();
 
     // Opening the record is what clears it.
     await page.goto("/overview");
