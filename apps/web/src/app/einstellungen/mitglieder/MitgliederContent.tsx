@@ -135,7 +135,7 @@ export function MitgliederContent({
             ))}
           </div>
         </div>
-        <div style={{ overflowX: "auto" }}>
+        <div className="vb-team-scroll">
           <table className="vb-team-table">
             <thead>
               <tr>
@@ -312,7 +312,7 @@ function RoleMatrix({
           <p className="vb-ov-note">{t.note}</p>
         </div>
       </div>
-      <div className="vb-ov-body" style={{ overflowX: "auto" }}>
+      <div className="vb-ov-body vb-team-scroll">
         {permissions == null ? (
           <p className="vb-ov-unavailable">{t.unavailable}</p>
         ) : (

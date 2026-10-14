@@ -1436,18 +1436,8 @@ export function PatientDetailContent({
                 onChange={(e) =>
                   setDeletionReason(e.target.value as DeletionReason)
                 }
-                style={{
-                  width: "100%",
-                  height: "38px",
-                  padding: "0 10px",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--border-default)",
-                  background: "var(--surface-sunken)",
-                  color: "var(--text-strong)",
-                  fontFamily: "var(--font-text)",
-                  fontSize: "13.5px",
-                  marginBottom: "16px",
-                }}
+                className="vb-control is-wide"
+                style={{ marginBottom: "16px" }}
               >
                 <option value="patient_request">
                   {t.deletion.reasons.patient_request}

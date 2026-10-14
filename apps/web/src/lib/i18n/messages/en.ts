@@ -113,7 +113,7 @@ export const en: Messages = {
         help: "Review queue, not yet published",
       },
       released: {
-        label: "Released · {days} d",
+        label: "Released · {days}\u00a0d",
         help: "Per day, oldest on the left",
         unavailable: "Not available at present",
       },
@@ -818,6 +818,7 @@ export const en: Messages = {
       title: "Laboratory data",
       note: "A structured laboratory file (CSV in the HADP layout, LDT 2 or LDT 3) for exactly this record. The original file is stored and then read; the values are taken over unchanged. Values that are not unambiguous go to the review queue — they are published only after a clinical decision.",
       choose: "Choose laboratory file",
+      noFile: "No file chosen",
       upload: "Upload and read",
       uploading: "Reading …",
       readOnly:
