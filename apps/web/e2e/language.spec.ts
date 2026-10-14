@@ -499,6 +499,19 @@ test("the patient page follows the choice; what is not interface stays German an
     const detail = page.getByRole("dialog");
     await expect(detail).toContainText("Review status");
     await expect(detail).toContainText("published");
+    // Its history: an image named in English, described by an English sentence, with the
+    // English note that nothing is drawn but recorded values.
+    await expect(
+      detail.getByRole("img", {
+        name: /^History of .+\. Every value is also in the table beneath\.$/,
+      }),
+    ).toBeVisible();
+    await expect(detail).toContainText(
+      /(one published value|\d+ published values)/,
+    );
+    await expect(detail).toContainText(
+      "Recorded values only: no trend line, no smoothing, no forecast.",
+    );
     // Every value of the marker beneath, with English column names.
     await expect(detail).toContainText("All values of this marker");
     await expect(
@@ -658,7 +671,10 @@ test("the report page follows the choice; its closed vocabularies stay German an
     await hydrated(row);
     await row.click();
     await expect(page).toHaveURL(/\/patients\/[0-9a-f-]{36}$/);
-    await page.getByRole("link", { name: "Open report" }).click();
+    // A click before the page is hydrated can be lost to the router's take-over.
+    const openReport = page.getByRole("link", { name: "Open report" });
+    await hydrated(openReport);
+    await openReport.click();
     await expect(page).toHaveURL(/\/assessments\/[0-9a-f-]{36}$/);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const main = page.getByRole("main");

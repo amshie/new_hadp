@@ -1,6 +1,6 @@
 # 0014 — Domain timelines on the patient page
 
-Status: part 1 implemented (synthetic Alpha); part 2 planned. Register row: "Patient page domain
+Status: parts 1 and 2 implemented (synthetic Alpha). Register row: "Patient page domain
 overview" (`docs/regulatory/CLASSIFICATION_REGISTER.md`), In review.
 
 ## Why
@@ -41,13 +41,28 @@ founder approved a mockup on 2026-10-13 with three decisions:
 `created_at` (set by the database). Both clocks are the same host in the pilot setup; a skew
 between application and database servers would blur the comparison by that skew.
 
-## Part 2 (planned)
+## Part 2 (this change)
 
-Sparklines on one shared time axis and a history chart in the marker dialog: the source interval
-drawn per value, values awaiting review hollow, replaced values crossed out, a table view, no
-trend line or smoothing. Lines join values exactly where the API computed a change
-(`comparability` = `comparable`, `previous_observation_id`); the chart computes no comparability
-of its own.
+- **Sparklines.** Each marker row carries its history on the page's one calendar axis, from
+  shortly before the oldest value to the moment the page was put together, so gaps and visit
+  rhythm line up from row to row; a tick marks today. Each row has its own value scale.
+- **History chart** in the marker dialog, above the table of every value. The geometry is one
+  pure function (`apps/web/src/lib/presenters/history.ts`, tested in
+  `apps/web/e2e/history.spec.ts`):
+  - a line joins two values exactly where the API computed a change between them
+    (`previous_observation_id` with `delta_vs_previous`); the chart decides no comparability of
+    its own;
+  - the source reference interval is drawn per value and steps where the laboratory changes; a
+    one-sided interval stays open on its open side;
+  - a value awaiting review is drawn hollow, a value a correction replaced is crossed out, a
+    standing value outside its interval is ringed; none of the first two is joined;
+  - a rejected value and a result that is no number are not drawn — the sentence above the chart
+    says how many, and the table lists them;
+  - no trend line, smoothing or forecast.
+- **Reading it without the chart.** The chart is an image named by the marker and described by
+  a summary sentence (how many published values, between which days, the latest, how many in
+  review or replaced). Every drawn value is in the table beneath, so the hover readout is a
+  convenience, not the way to a value; there is no keyboard stepping through the chart.
 
 ## Open points
 

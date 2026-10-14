@@ -42,6 +42,8 @@ export interface ValueView {
   // The source's name for the value, as written.
   name: string;
   observedAt: string;
+  // The same instant in milliseconds, for drawing it on a time axis.
+  observedMs: number;
   dateOnly: boolean;
   // The day of the sample as the clinic reads it ("02.03.2026"); a date-only value keeps its date.
   observedDay: string;
@@ -129,11 +131,19 @@ export interface DomainSection {
   verdict: DomainVerdict | null;
 }
 
+export interface TimeAxis {
+  start: number;
+  end: number;
+}
+
 export interface DomainOverview {
   runNumber: number | null;
   runRecordedAt: string | null;
   // The day the run was recorded, as the clinic reads it.
   runRecordedDay: string | null;
+  // One calendar axis for every history on the page, from shortly before the oldest value
+  // to the moment the page was put together; null without a value.
+  timeAxis: TimeAxis | null;
   domains: DomainSection[];
   // Values without a catalog marker: they belong to no domain until a person maps them.
   unassigned: ValueView[];
@@ -186,6 +196,7 @@ function toValue(
     id: p.observation_id,
     name: p.original_name,
     observedAt: p.observed_at,
+    observedMs: time(p.observed_at),
     dateOnly: p.observed_at_is_date_only,
     observedDay: dayOf(p.observed_at, p.observed_at_is_date_only),
     ageDays: Math.max(0, Math.floor((now - time(p.observed_at)) / 86_400_000)),
@@ -340,10 +351,20 @@ export function presentDomainOverview(
   });
 
   const everyValue = [...allSeries.flatMap((s) => s.values), ...unassigned];
+  const drawn = everyValue.filter((v) => v.status !== "rejected");
+  let timeAxis: TimeAxis | null = null;
+  if (drawn.length > 0) {
+    const oldest = Math.min(...drawn.map((v) => v.observedMs));
+    const end = Math.max(now, ...drawn.map((v) => v.observedMs));
+    // A margin before the oldest value: at least a month, so its mark is not on the edge.
+    const margin = Math.max(30 * 86_400_000, (end - oldest) * 0.04);
+    timeAxis = { start: oldest - margin, end };
+  }
   return {
     runNumber: matrix?.run_number ?? null,
     runRecordedAt,
     runRecordedDay: runRecordedAt != null ? dayOf(runRecordedAt, false) : null,
+    timeAxis,
     domains,
     unassigned,
     counts: {

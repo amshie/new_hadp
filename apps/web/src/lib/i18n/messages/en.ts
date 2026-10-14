@@ -500,6 +500,42 @@ export const en: Messages = {
       noScale: "no scale",
       reference: "Ref {range}",
     },
+    // A marker's history: its sparkline in the domain list and its chart in the dialog.
+    history: {
+      column: "History",
+      title: "History",
+      chartLabel:
+        "History of {name}. Every value is also in the table beneath.",
+      summary: {
+        none: "{name}: no published value yet.",
+        one: "{name}: one published value, from {to}: {value}.",
+        other:
+          "{name}: {n} published values between {from} and {to}; the latest is {value}.",
+      },
+      pending: {
+        one: "{n} value is awaiting review.",
+        other: "{n} values are awaiting review.",
+      },
+      replaced: {
+        one: "{n} value was replaced by a laboratory correction.",
+        other: "{n} values were replaced by a laboratory correction.",
+      },
+      notDrawn: {
+        one: "{n} value is not drawn (rejected or not a number) and is listed only in the table.",
+        other:
+          "{n} values are not drawn (rejected or not a number) and are listed only in the table.",
+      },
+      legend: {
+        value: "Published value",
+        joined: "Line: change calculated",
+        interval: "Source reference interval, per value",
+        outside: "Outside the source reference interval",
+        pending: "Awaiting review",
+        replaced: "Replaced by a laboratory correction",
+      },
+      today: "today",
+      foot: "Recorded values only: no trend line, no smoothing, no forecast. A line joins two values only where the platform calculated a change between them.",
+    },
     unassigned: {
       title: "Not assigned to a catalog marker",
       note: "Values the import could not link to a marker. They stay visible here and are decided in the review queue; until then they belong to no domain.",
