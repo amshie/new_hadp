@@ -90,6 +90,9 @@ export interface PrepToday {
   within: number;
   // Published, but with no interval of the source to lie against.
   noReference: number;
+  // Computed by the platform from other values, not measured: no source gave them an
+  // interval, and they are not counted as values the source left without one.
+  derived: number;
   // The newest sample day among them; null without a value.
   latestDay: string | null;
 }
@@ -264,11 +267,17 @@ export function presentVisitPrep(
   const outside: PrepOutside[] = [];
   let within = 0;
   let noReference = 0;
+  let derived = 0;
   let withValue = 0;
   let latestMs = -Infinity;
   let latestDay: string | null = null;
   const tally = (v: ValueView) => {
     withValue += 1;
+    if (v.derivation != null) {
+      // Not a sample: it neither dates the newest measurement nor lacks a source's interval.
+      derived += 1;
+      return;
+    }
     if (v.observedMs > latestMs) {
       latestMs = v.observedMs;
       latestDay = v.observedDay;
@@ -339,7 +348,7 @@ export function presentVisitPrep(
 
   return {
     run,
-    today: { withValue, outside, within, noReference, latestDay },
+    today: { withValue, outside, within, noReference, derived, latestDay },
     domains,
     staleByDay,
     staleByAxis: countBy(stale, (x) => x.axis),

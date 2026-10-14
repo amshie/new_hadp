@@ -618,6 +618,7 @@ export const en: Messages = {
           outside: "outside the interval",
           within: "within the interval",
           noReference: "without a source reference",
+          derived: "calculated, not measured",
           pending: "in review · not published",
         },
         outsideTitle: "Outside the source reference interval",

@@ -4,14 +4,16 @@ A GDPR-first, multi-tenant, **physician-governed, audit-first decision-support**
 longevity, functional-medicine, concierge, and preventive-care clinics (DACH/EU). It aggregates
 laboratory data with full provenance, shows longitudinal change against the laboratory's own
 reference intervals, lets a **clinician author** a per-patient, per-axis interpretation (recorded
-append-only with its evidence), and requires a **medical-director lock before any patient release**.
+append-only with its evidence), and lets nothing reach a patient before a **clinician has approved
+it and a medical director has released it**.
 
 > **Intended-use boundary.** A documentation / decision-**support** product — **not** an autonomous
 > medical decision-maker. The engine **validates and records; it never derives** a verdict or a
 > score: the per-axis verdicts (CIS, Actionability) and the tri-state cells are **authored by a
-> qualified clinician**, gated by a medical director. No autonomous diagnosis, treatment advice,
-> risk prediction, biological-age, or unified/health score. The MDR/MDSW classification of this
-> governance model is an **open, pending determination** (see
+> qualified clinician**; what a patient reads is released by a medical director (a medical
+> director's sign-off on the interpretation itself is not built yet). No autonomous diagnosis,
+> treatment advice, risk prediction, biological-age, or unified/health score. The MDR/MDSW
+> classification of this governance model is an **open, pending determination** (see
 > [`docs/adr/0003-adopt-hadp-governance-doctrine.md`](docs/adr/0003-adopt-hadp-governance-doctrine.md)
 > and [`docs/regulatory/INTENDED_USE.md`](docs/regulatory/INTENDED_USE.md)). **Synthetic data only**
 > in development and tests — never commit or import real patient data.

@@ -126,3 +126,28 @@ test("the page before a visit lists a computed value as computed", () => {
     ["cardio.non_hdl_c", true],
   ]);
 });
+
+test("today's position counts a computed marker as computed, not as lacking the source's interval", () => {
+  const prep = presentVisitPrep(
+    presentDomainOverview(
+      [
+        { ...total, observed_at: "2025-06-10T00:00:00Z" },
+        { ...hdl, reference_low: "1.0", reference_high: "2.0" },
+        { ...nonHdl, observed_at: "2025-07-01T00:00:00Z" },
+      ],
+      [],
+      null,
+    ),
+  );
+  // Three markers with a value: HDL within its interval, total cholesterol without one from
+  // the source, Non-HDL computed. The newest sample day is a measurement's, not the computed
+  // value's.
+  expect(prep.today).toMatchObject({
+    withValue: 3,
+    within: 1,
+    noReference: 1,
+    derived: 1,
+    latestDay: "10.06.2025",
+  });
+  expect(prep.today.outside).toEqual([]);
+});
