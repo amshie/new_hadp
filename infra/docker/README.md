@@ -163,7 +163,9 @@ the password itself is kept nowhere. Keep `demo.env` as long as the database vol
 the volume was created with the passwords in it. `scripts/demo_stack.sh gate` sets a new gate
 user and password — the way to end someone's access.
 
-- **A newer state:** `git pull && scripts/demo_stack.sh up`.
+- **A newer state:** `git pull && scripts/demo_stack.sh up`. Set up once, the
+  `Deploy demo` workflow (`.github/workflows/deploy-demo.yml`) does this by itself after
+  every push to `main` that passes CI — see **Following `main`** below.
 - **Stop:** `scripts/demo_stack.sh down` — the database volume stays; the script never
   removes it.
 - **After the server, or the object store's container, restarted:** run
@@ -177,6 +179,37 @@ Visitors open `https://<host name>/`, pass the gate, and sign in with one of the
 synthetic accounts: `owner@demo.synthetic`, `clinician@demo.synthetic`,
 `assistant@demo.synthetic`, `medical.director@demo.synthetic` in the demo clinic, and
 `clinician2@demo.synthetic` in a second one.
+
+### Following `main`
+
+The `Deploy demo` workflow runs the update above over SSH once CI has passed on `main`
+(and on demand, from the Actions tab). It needs a key of its own and four repository
+secrets; nothing else changes on the server.
+
+On the server, as root — a key for this workflow and nothing else:
+
+```bash
+ssh-keygen -t ed25519 -N '' -C hadp-deploy-demo -f /root/.ssh/hadp-deploy-demo
+cat /root/.ssh/hadp-deploy-demo.pub >> /root/.ssh/authorized_keys
+cat /root/.ssh/hadp-deploy-demo          # -> the secret DEMO_SSH_KEY
+ssh-keyscan -t ed25519 <host name or IP>  # -> the secret DEMO_SSH_KNOWN_HOSTS
+rm /root/.ssh/hadp-deploy-demo            # the private half lives in GitHub only
+```
+
+In the repository, Settings → Secrets and variables → Actions:
+
+| Secret                 | Value                                                        |
+| ---------------------- | ------------------------------------------------------------ |
+| `DEMO_SSH_HOST`        | the server's IP or DNS name                                  |
+| `DEMO_SSH_USER`        | `root` (or the user that runs the stack)                     |
+| `DEMO_SSH_KEY`         | the private key printed above, whole, including both markers |
+| `DEMO_SSH_KNOWN_HOSTS` | the `ssh-keyscan` line, whole                                |
+
+The host key is pinned: a server whose key changed fails the run instead of being trusted.
+The workflow runs `git merge --ff-only`, so a checkout with local commits stops it rather
+than being overwritten; keep `/opt/hadp` clean. Two runs never overlap (one concurrency
+group, and the script's own lock). A run that fails leaves the previous stack as it was —
+`up` replaces containers only after the images built.
 
 ### What to tell every visitor
 
@@ -216,7 +249,7 @@ through Docker's own forwarder, and all of them are counted under one address.
   the API's sign-in and the object store without the gate.
 - **Uploaded files do not survive a restart.** The object store keeps them in memory; what
   was read from a laboratory file stays in the database, the file itself is gone.
-- **No backup, no monitoring, no updates of its own.** The synthetic data can be seeded
+- **No backup, no monitoring.** The synthetic data can be seeded
   again; what a visitor created is lost with the volume. The server's own upkeep (system
   updates, SSH, the firewall) is its operator's.
 - **Not the production path.** The images are built on the server from the checkout and the
