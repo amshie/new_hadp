@@ -1,0 +1,116 @@
+name: Backup restore
+
+# The backup is proven by restoring it (docs/security/BACKUP_RESTORE.md, "The restore test"):
+# a seeded synthetic database is dumped with scripts/backup.sh — encrypted, into the S3 test
+# double — and brought back with scripts/restore.sh into an empty database, which must then
+# hold the same schema revision and the same row counts. Weekly, on a change to the scripts,
+# and on demand. Synthetic data only; the key is made for the run and thrown away with it.
+
+on:
+  pull_request:
+    paths:
+      - scripts/backup.sh
+      - scripts/restore.sh
+      - .github/workflows/backup-restore.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/backup.sh
+      - scripts/restore.sh
+      - .github/workflows/backup-restore.yml
+  schedule:
+    # Mondays, 04:17 UTC.
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  restore-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # What the development stack (docker-compose.yml) and .env.example name: the admin
+      # DSN for migrations and the seeder, the application DSN, the S3 test double.
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:55433/hadp
+      APP_DATABASE_URL: postgresql+psycopg://hadp_app:hadp_app@127.0.0.1:55433/hadp
+      REDIS_URL: redis://127.0.0.1:56379/0
+      S3_ENDPOINT_URL: http://127.0.0.1:59000
+      S3_REGION: eu-central-1
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET_SOURCE_DOCUMENTS: hadp-source-documents
+      SESSION_SECRET: ci-only-not-a-secret
+      # The backup's own settings: the double as the bucket's store, a key made below.
+      BACKUP_S3_ENDPOINT: http://127.0.0.1:59000
+      BACKUP_S3_REGION: eu-central-1
+      BACKUP_S3_BUCKET: hadp-backups
+      BACKUP_S3_ACCESS_KEY_ID: minioadmin
+      BACKUP_S3_SECRET_ACCESS_KEY: minioadmin
+      HADP_DEMO_HOME: /nonexistent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install age
+        run: sudo apt-get install -y --no-install-recommends age
+
+      - name: Development infrastructure, migrated and seeded (synthetic data)
+        run: |
+          make db-up
+          make db-init
+          cd apps/api && uv sync && cd ../..
+          make migrate
+          make seed
+
+      - name: A key for this run, and the bucket
+        run: |
+          age-keygen -o "$RUNNER_TEMP/identity.txt" 2> /dev/null
+          echo "BACKUP_AGE_RECIPIENT=$(age-keygen -y "$RUNNER_TEMP/identity.txt")" >> "$GITHUB_ENV"
+          echo "BACKUP_AGE_IDENTITY=$RUNNER_TEMP/identity.txt" >> "$GITHUB_ENV"
+          printf '<CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><LocationConstraint>eu-central-1</LocationConstraint></CreateBucketConfiguration>' \
+            > "$RUNNER_TEMP/bucket.xml"
+          curl --silent --show-error --fail --output /dev/null -X PUT \
+            -H 'Content-Type: application/xml' --data-binary "@$RUNNER_TEMP/bucket.xml" \
+            --aws-sigv4 "aws:amz:$BACKUP_S3_REGION:s3" \
+            --user "$BACKUP_S3_ACCESS_KEY_ID:$BACKUP_S3_SECRET_ACCESS_KEY" \
+            "$BACKUP_S3_ENDPOINT/$BACKUP_S3_BUCKET"
+
+      - name: Back up
+        env:
+          BACKUP_PG_DSN: postgresql://postgres:postgres@127.0.0.1:55433/hadp
+        run: scripts/backup.sh
+
+      - name: Restore into an empty database
+        env:
+          PGPASSWORD: postgres
+          RESTORE_PG_DSN: postgresql://postgres:postgres@127.0.0.1:55433/hadp_restore
+        run: |
+          psql -h 127.0.0.1 -p 55433 -U postgres -d hadp -v ON_ERROR_STOP=1 -c "CREATE DATABASE hadp_restore"
+          scripts/restore.sh latest | tee "$RUNNER_TEMP/restored.txt"
+
+      - name: The restored database holds what the source holds
+        env:
+          PGPASSWORD: postgres
+        run: |
+          {
+            echo "schema revision: $(psql -h 127.0.0.1 -p 55433 -U postgres -d hadp -Atc 'select version_num from alembic_version')"
+            for table in tenants users patients observations reports audit_events; do
+              echo "$table: $(psql -h 127.0.0.1 -p 55433 -U postgres -d hadp -Atc "select count(*) from $table")"
+            done
+          } > "$RUNNER_TEMP/source.txt"
+          # The restore's report, without its first line (the object's name).
+          tail -n +2 "$RUNNER_TEMP/restored.txt" > "$RUNNER_TEMP/restored-counts.txt"
+          diff "$RUNNER_TEMP/source.txt" "$RUNNER_TEMP/restored-counts.txt" && echo "restore: identical"
+          # Row-level security came back with the data: the same number of policies.
+          source_policies="$(psql -h 127.0.0.1 -p 55433 -U postgres -d hadp -Atc 'select count(*) from pg_policies')"
+          restored_policies="$(psql -h 127.0.0.1 -p 55433 -U postgres -d hadp_restore -Atc 'select count(*) from pg_policies')"
+          [ "$source_policies" = "$restored_policies" ] && echo "policies: $restored_policies"
+
+      - name: Tear down
+        if: always()
+        run: make db-down

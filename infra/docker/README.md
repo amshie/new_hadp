@@ -211,6 +211,14 @@ than being overwritten; keep `/opt/hadp` clean. Two runs never overlap (one conc
 group, and the script's own lock). A run that fails leaves the previous stack as it was —
 `up` replaces containers only after the images built.
 
+### Backups
+
+`scripts/backup.sh` writes one encrypted dump of the database a night to an EU bucket, and
+`scripts/restore.sh` brings one back into an empty database; the restore path is tested every
+week in CI. The setup on the server (the `age` key, `/etc/hadp-demo/backup.env`, the cron
+line) and the restore steps are in `docs/security/BACKUP_RESTORE.md`. The object store is not
+backed up: on this stack it is a test double that keeps nothing across a restart anyway.
+
 ### What to tell every visitor
 
 - Everything in it is made up. **Enter nothing real**: no real name, no real e-mail address,
@@ -249,8 +257,8 @@ through Docker's own forwarder, and all of them are counted under one address.
   the API's sign-in and the object store without the gate.
 - **Uploaded files do not survive a restart.** The object store keeps them in memory; what
   was read from a laboratory file stays in the database, the file itself is gone.
-- **No backup, no monitoring.** The synthetic data can be seeded
-  again; what a visitor created is lost with the volume. The server's own upkeep (system
+- **No monitoring.** The database is backed up nightly once `backup.env` is set (see
+  **Backups** below); what a visitor created since the last backup is lost with the volume. The server's own upkeep (system
   updates, SSH, the firewall) is its operator's.
 - **Not the production path.** The images are built on the server from the checkout and the
   proxy's image is a tag that moves; a deployment pulls scanned, pinned images from a
