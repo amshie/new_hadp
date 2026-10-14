@@ -19,7 +19,7 @@ import { reportStatusLabel } from "@/lib/presenters/review";
 
 // The practice view (docs/notes/0023): every record of the clinic with the counts the page
 // before a visit shows for it. Ordered by workflow; a person may filter by a fact and sort by
-// a column. Every row leads to the record's own preparation page. Nothing here is a rating.
+// a column. A record's name leads to its own preparation page. Nothing here is a rating.
 const COLUMNS: readonly PrepColumn[] = [
   "patient",
   "status",
@@ -182,20 +182,19 @@ export function PracticePrepContent({
                       </th>
                     );
                   })}
-                  <th scope="col">
-                    <span className="sr-only">{t.openShort}</span>
-                  </th>
                 </tr>
               </thead>
               <tbody>
                 {view.rows.map((r) => (
                   <tr key={r.patient_id}>
                     <td>
-                      <div
-                        style={{ fontWeight: 600, color: "var(--text-strong)" }}
+                      <Link
+                        href={`/patients/${r.patient_id}/vorbereitung`}
+                        className="vb-prep-record"
+                        aria-label={fill(t.open, { name: r.display_name })}
                       >
                         {r.display_name}
-                      </div>
+                      </Link>
                       <div
                         className="vb-ov-mono"
                         style={{ color: "var(--text-muted)" }}
@@ -232,15 +231,6 @@ export function PracticePrepContent({
                       {r.domains_without_verdict == null
                         ? "—"
                         : r.domains_without_verdict}
-                    </td>
-                    <td>
-                      <Link
-                        href={`/patients/${r.patient_id}/vorbereitung`}
-                        className="vb-ov-btn"
-                        aria-label={fill(t.open, { name: r.display_name })}
-                      >
-                        {t.openShort}
-                      </Link>
                     </td>
                   </tr>
                 ))}

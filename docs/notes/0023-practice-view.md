@@ -24,7 +24,7 @@ patient directory's header. One row per record of the clinic, with:
 
 A value stands when it is published and no laboratory correction has replaced it; the
 page says so under the table, with the catalog's number of core markers (43) as the
-denominator. Every row ends in the way to the record's own Vorbereitung page.
+denominator. A record's name leads to its own Vorbereitung page.
 
 The records are ordered as the work list orders them: by where the report stands (open
 review first, then approved, then rejected, then no draft, then released), then by name. A

@@ -371,7 +371,6 @@ export const de = {
     noRun: "Keine",
     newOutside: "{n} außerhalb",
     open: "Vorbereitung für {name} öffnen",
-    openShort: "Vorbereitung",
     empty: "Keine Akte entspricht dem Filter.",
     none: "Noch keine Akte in dieser Praxis.",
     coreNote:

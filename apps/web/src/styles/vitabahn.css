@@ -2150,7 +2150,8 @@
 }
 
 /* The practice view (docs/notes/0023): one row per record, the counts as numbers in a
-   column each; a column's heading is a button that sorts by it. */
+   column each; a column's heading is a button that sorts by it; a record's name leads to its
+   own page. */
 .vb-scope .vb-prep-table th.is-num,
 .vb-scope .vb-prep-table td.is-num {
   text-align: right;
@@ -2163,6 +2164,19 @@
 }
 .vb-scope .vb-prep-table td {
   vertical-align: top;
+}
+.vb-scope .vb-prep-table th {
+  white-space: normal;
+  vertical-align: bottom;
+}
+.vb-scope .vb-prep-record {
+  font-weight: 600;
+  color: var(--text-strong);
+  text-decoration: none;
+}
+.vb-scope .vb-prep-record:hover,
+.vb-scope .vb-prep-record:focus-visible {
+  text-decoration: underline;
 }
 .vb-scope .vb-prep-sort {
   background: none;
@@ -2184,10 +2198,6 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 3px;
-}
-.vb-scope .vb-prep-table .vb-ov-btn {
-  padding: 5px 10px;
-  font-size: 12.5px;
 }
 
 /* On paper: the page's content only, every line in full. */

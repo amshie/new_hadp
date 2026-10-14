@@ -363,7 +363,6 @@ export const en: Messages = {
     noRun: "None",
     newOutside: "{n} outside",
     open: "Open preparation for {name}",
-    openShort: "Preparation",
     empty: "No record matches the filter.",
     none: "No record in this practice yet.",
     coreNote:
