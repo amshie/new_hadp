@@ -22,7 +22,7 @@ export function EinladungContent({
 
   if (state.kind === "done") {
     return (
-      <p style={{ lineHeight: 1.55 }}>
+      <p>
         <strong>Vielen Dank — Ihre Einwilligung wurde erfasst.</strong>
         <br />
         Ihr klinisches Team kann Ihnen nun ärztlich freigegebene Berichte über
@@ -34,28 +34,18 @@ export function EinladungContent({
 
   return (
     <div>
-      <p style={{ lineHeight: 1.55 }}>
+      <p>
         Ihre Klinik möchte Ihnen ärztlich freigegebene Berichte über einen
         gesicherten Zugriffslink bereitstellen. Dafür wird Ihre Einwilligung
         (Zweck: Berichtsfreigabe) festgehalten — mit Zeitpunkt und Textversion.
         Sie können die Einwilligung jederzeit über Ihre Klinik widerrufen;
         bestehende Zugriffslinks werden dann sofort ungültig.
       </p>
-      <label
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: "10px",
-          margin: "18px 0",
-          lineHeight: 1.5,
-          cursor: "pointer",
-        }}
-      >
+      <label className="vb-pub-check">
         <input
           type="checkbox"
           checked={checked}
           onChange={(e) => setChecked(e.target.checked)}
-          style={{ marginTop: "3px" }}
         />
         <span>
           Ich willige ein, dass mir ärztlich freigegebene Berichte über einen
@@ -63,12 +53,13 @@ export function EinladungContent({
         </span>
       </label>
       {state.kind === "error" && (
-        <p role="alert" style={{ color: "#b3261e", lineHeight: 1.5 }}>
+        <p role="alert" className="vb-pub-error">
           {state.message}
         </p>
       )}
       <button
         type="button"
+        className="vb-ov-btn primary vb-pub-btn"
         disabled={!checked || pending}
         onClick={() =>
           startTransition(async () => {
@@ -78,15 +69,6 @@ export function EinladungContent({
             );
           })
         }
-        style={{
-          padding: "10px 18px",
-          borderRadius: "9px",
-          border: "1px solid #0f766e",
-          background: checked ? "#0f766e" : "#e5e9ea",
-          color: checked ? "#fff" : "#9aa6aa",
-          fontWeight: 600,
-          cursor: checked ? "pointer" : "not-allowed",
-        }}
       >
         Einwilligung erteilen
       </button>

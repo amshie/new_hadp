@@ -1,5 +1,7 @@
 import { setLocaleBeforeSignIn } from "@/app/einstellungen/actions";
 import { Icon } from "@/components/Icon";
+import { BrandMark } from "@/components/vitabahn/BrandMark";
+import { PublicScope } from "@/components/vitabahn/PublicScope";
 import { signInMode } from "@/lib/api";
 import { LOCALES } from "@/lib/i18n/locales";
 import { LANGUAGE_NAMES } from "@/lib/i18n/messages";
@@ -11,6 +13,9 @@ import { SignInForm } from "./SignInForm";
 // the development sign-in (an existing account's e-mail address, no credential); in production
 // no identity provider is connected yet, and the page says so instead of offering a form.
 // Asked per request — never decided at build time.
+//
+// The page is on the dashboard's design system (styles/vitabahn.css, `.vb-auth-*`): the same
+// mark, type and tokens the person sees once signed in (docs/notes/0017).
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
@@ -20,74 +25,68 @@ export default async function LoginPage() {
   const t = messages.login;
 
   return (
-    <main className="auth-page">
-      <section className="auth-brand" aria-labelledby="auth-brand-title">
-        <a className="brand" href="/login" aria-label={t.homeAria}>
-          <span className="brand-mark" aria-hidden="true" />
-          <span className="brand-copy">
-            <strong>HADP</strong>
-            <small>Health Analytics</small>
-          </span>
-        </a>
+    <PublicScope>
+      <main className="vb-auth">
+        <section className="vb-auth-brand" aria-labelledby="auth-brand-title">
+          <a className="vb-auth-logo" href="/login" aria-label={t.homeAria}>
+            <BrandMark onDark />
+          </a>
 
-        <div className="auth-message">
-          <span className="kicker">{t.kicker}</span>
-          <h1 id="auth-brand-title">{t.title}</h1>
-          <p>{t.lead}</p>
-        </div>
+          <div className="vb-auth-message">
+            <span className="vb-auth-kicker">{t.kicker}</span>
+            <h1 id="auth-brand-title">{t.title}</h1>
+            <p>{t.lead}</p>
+          </div>
 
-        <div className="auth-trust" aria-label={t.trustAria}>
-          <div className="auth-trust-item">
-            <span className="auth-trust-icon" aria-hidden="true">
-              <Icon name="lock" />
-            </span>
-            <span>{t.sessionsLimited}</span>
-          </div>
-          <div className="auth-trust-item">
-            <span className="auth-trust-icon" aria-hidden="true">
-              <Icon name="reports" />
-            </span>
-            <span>{t.audited}</span>
-          </div>
-          {mode === "development" && (
-            <div className="auth-trust-item">
-              <span className="auth-trust-icon" aria-hidden="true">
-                <Icon name="shieldCheck" />
+          <ul className="vb-auth-trust" aria-label={t.trustAria}>
+            <li>
+              <span className="vb-auth-trust-icon" aria-hidden="true">
+                <Icon name="lock" />
               </span>
-              <span>{t.pilot}</span>
-            </div>
-          )}
-        </div>
-      </section>
+              <span>{t.sessionsLimited}</span>
+            </li>
+            <li>
+              <span className="vb-auth-trust-icon" aria-hidden="true">
+                <Icon name="reports" />
+              </span>
+              <span>{t.audited}</span>
+            </li>
+            {mode === "development" && (
+              <li>
+                <span className="vb-auth-trust-icon" aria-hidden="true">
+                  <Icon name="shieldCheck" />
+                </span>
+                <span>{t.pilot}</span>
+              </li>
+            )}
+          </ul>
+        </section>
 
-      <section
-        className="auth-main"
-        id="auth-content"
-        aria-label={t.sectionAria}
-      >
-        <div className="auth-wrap">
-          <div className="auth-card">
-            <div className="eyebrow">{t.eyebrow}</div>
+        <section
+          className="vb-auth-main"
+          id="auth-content"
+          aria-label={t.sectionAria}
+        >
+          <div className="vb-auth-card">
+            <div className="vb-ov-eyebrow">{t.eyebrow}</div>
             {mode === "development" && (
               <>
                 <h2>{t.heading}</h2>
-                <p className="auth-sub">{t.devNote}</p>
+                <p className="vb-auth-sub">{t.devNote}</p>
                 <SignInForm />
               </>
             )}
             {mode === "none" && (
               <>
                 <h2>{t.noneHeading}</h2>
-                <p className="auth-sub" style={{ marginBottom: 0 }}>
-                  {t.noneNote}
-                </p>
+                <p className="vb-auth-sub">{t.noneNote}</p>
               </>
             )}
             {mode === "unreachable" && (
               <>
                 <h2>{t.unreachableHeading}</h2>
-                <p className="auth-sub">{t.unreachableNote}</p>
-                <a className="btn btn-secondary btn-block" href="/login">
+                <p className="vb-auth-sub">{t.unreachableNote}</p>
+                <a className="vb-ov-btn vb-auth-block" href="/login">
                   {t.retry}
                 </a>
               </>
@@ -99,12 +98,7 @@ export default async function LoginPage() {
               action={setLocaleBeforeSignIn}
               role="group"
               aria-label={messages.language.choose}
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                gap: "8px",
-                marginTop: "18px",
-              }}
+              className="vb-auth-languages"
             >
               {LOCALES.map((option) => (
                 <button
@@ -114,22 +108,19 @@ export default async function LoginPage() {
                   value={option}
                   lang={option}
                   aria-pressed={option === locale}
-                  className="btn btn-secondary btn-sm"
-                  style={
-                    option === locale
-                      ? { fontWeight: 700 }
-                      : { fontWeight: 400 }
-                  }
+                  className="vb-ov-btn"
                 >
                   {LANGUAGE_NAMES[option]}
                 </button>
               ))}
             </form>
 
-            <div className="auth-legal">© {new Date().getFullYear()} HADP</div>
+            <div className="vb-auth-legal">
+              © {new Date().getFullYear()} HADP
+            </div>
           </div>
-        </div>
-      </section>
-    </main>
+        </section>
+      </main>
+    </PublicScope>
   );
 }

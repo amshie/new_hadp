@@ -628,12 +628,44 @@ def resolve_patient_view(db: Session, raw_token: str) -> dict[str, Any]:
     version = _current_version(db, report)
     if version.status != ReportStatus.RELEASED:
         raise NotFound("not found")
+    statements = version.body.get("statements", [])
     return {
         "report_id": str(report.id),
         "status": report.status.value,
         "released_at": version.released_at.isoformat() if version.released_at else None,
         "synthetic": True,
-        "statements": [
-            {"id": s["id"], "text": s["text"]} for s in version.body.get("statements", [])
-        ],
+        "statements": [{"id": s["id"], "text": s["text"]} for s in statements],
+        "values": _patient_view_values(db, statements),
     }
+
+
+def _patient_view_values(db: Session, statements: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The measurements the released statements cite, as the source wrote them.
+
+    One row per cited observation, in the order the statements cite them: the source's name,
+    value, unit and reference text, verbatim, and the day of sampling. Nothing is derived; a
+    statement's own text already quotes these, the table only lines them up for the reader.
+    An observation that no longer resolves is left out (the statement still stands as text).
+    """
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for statement in statements:
+        for obs_id in statement.get("evidence_observation_ids") or []:
+            key = str(obs_id)
+            if key in seen:
+                continue
+            seen.add(key)
+            obs = db.get(Observation, uuid.UUID(key))
+            if obs is None:
+                continue
+            rows.append(
+                {
+                    "observation_id": key,
+                    "name": obs.original_name,
+                    "value": obs.original_value,
+                    "unit": obs.original_unit,
+                    "reference": obs.reference_text,
+                    "observed_on": obs.observed_at.astimezone(UTC).date().isoformat(),
+                }
+            )
+    return rows

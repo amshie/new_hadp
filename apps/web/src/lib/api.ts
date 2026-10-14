@@ -67,6 +67,15 @@ export interface PatientView {
   released_at: string | null;
   synthetic: boolean;
   statements: { id: string; text: string }[];
+  // The measurements the statements cite, as the source wrote them (the patient's table).
+  values?: {
+    observation_id: string;
+    name: string;
+    value: string;
+    unit: string | null;
+    reference: string | null;
+    observed_on: string; // YYYY-MM-DD
+  }[];
   // The practice that released the report; its address only if it gave one.
   clinic?: { name: string; address: string | null } | null;
 }

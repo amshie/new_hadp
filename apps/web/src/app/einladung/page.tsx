@@ -1,4 +1,6 @@
 import { Disclaimer } from "@/components/Disclaimer";
+import { BrandMark } from "@/components/vitabahn/BrandMark";
+import { PublicScope } from "@/components/vitabahn/PublicScope";
 import { isUuid } from "@/lib/uuid";
 
 import { EinladungContent } from "./EinladungContent";
@@ -16,27 +18,26 @@ export default async function EinladungPage({
   const valid = Boolean(tenant && token && isUuid(tenant));
 
   return (
-    <main
-      lang="de"
-      style={{
-        maxWidth: "560px",
-        margin: "0 auto",
-        padding: "56px 24px",
-        fontFamily: "var(--font-sans, system-ui, sans-serif)",
-      }}
-    >
-      <h1 style={{ fontSize: "22px", marginBottom: "8px" }}>
-        Einladung Ihrer Klinik
-      </h1>
-      {valid ? (
-        <EinladungContent tenant={tenant!} token={token!} />
-      ) : (
-        <p style={{ lineHeight: 1.55 }}>
-          Dieser Einladungslink ist nicht oder nicht mehr gültig. Bitte wenden
-          Sie sich an Ihre Klinik.
-        </p>
-      )}
-      <Disclaimer />
-    </main>
+    <PublicScope>
+      <main lang="de" className="vb-pub">
+        <header className="vb-pub-head">
+          <h1 className="vb-pub-h1">Einladung Ihrer Klinik</h1>
+        </header>
+        <div className="vb-pub-card">
+          {valid ? (
+            <EinladungContent tenant={tenant!} token={token!} />
+          ) : (
+            <p>
+              Dieser Einladungslink ist nicht oder nicht mehr gültig. Bitte
+              wenden Sie sich an Ihre Klinik.
+            </p>
+          )}
+        </div>
+        <Disclaimer />
+        <footer className="vb-pub-foot">
+          <BrandMark size={28} />
+        </footer>
+      </main>
+    </PublicScope>
   );
 }

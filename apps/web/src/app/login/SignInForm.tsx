@@ -33,13 +33,13 @@ export function SignInForm() {
   };
 
   return (
-    <form className="auth-form" onSubmit={submit}>
-      <label className="field">
+    <form className="vb-auth-form" onSubmit={submit}>
+      <label className="vb-auth-field">
         <span className="field-label">{t.emailLabel}</span>
-        <span className="input-wrap">
-          <Icon name="mail" className="input-icon" />
+        <span className="vb-auth-inputwrap">
+          <Icon name="mail" className="vb-auth-inputicon" />
           <input
-            className="input has-leading"
+            className="vb-auth-input"
             type="email"
             name="email"
             autoComplete="username"
@@ -52,21 +52,25 @@ export function SignInForm() {
       </label>
 
       {error && (
-        <div className="notice notice-danger" role="alert" id="sign-in-error">
+        <div
+          className="vb-auth-notice is-error"
+          role="alert"
+          id="sign-in-error"
+        >
           <Icon name="alert" />
           <span>{error}</span>
         </div>
       )}
 
       <button
-        className="btn btn-primary btn-block"
+        className="vb-ov-btn primary vb-auth-block"
         type="submit"
         disabled={pending || !hydrated}
       >
         {pending ? t.pending : t.submit}
       </button>
 
-      <div className="notice notice-brand">
+      <div className="vb-auth-notice">
         <Icon name="shieldInfo" />
         <span>{t.purposeNote}</span>
       </div>
