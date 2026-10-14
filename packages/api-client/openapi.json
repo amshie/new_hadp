@@ -1705,6 +1705,28 @@
         }
       }
     },
+    "/api/v1/worklist/preparation": {
+      "get": {
+        "tags": [
+          "worklist"
+        ],
+        "summary": "Get Preparation",
+        "description": "The practice view: the page before a visit, for every record of the clinic at once\n(docs/notes/0023). Rows come in the patient list's order; the page orders by workflow\nand lets a person sort by a column \u2014 the API ranks nothing.",
+        "operationId": "get_preparation_api_v1_worklist_preparation_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparationOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/worklist/coverage": {
       "get": {
         "tags": [
@@ -4517,6 +4539,32 @@
         ],
         "title": "PreparationMeasuredOut"
       },
+      "PreparationOut": {
+        "properties": {
+          "stale_after_days": {
+            "type": "integer",
+            "title": "Stale After Days"
+          },
+          "core_markers": {
+            "type": "integer",
+            "title": "Core Markers"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PreparationRowOut"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stale_after_days",
+          "core_markers",
+          "rows"
+        ],
+        "title": "PreparationOut"
+      },
       "PreparationRecorderOut": {
         "properties": {
           "user_id": {
@@ -4535,6 +4583,125 @@
           "display_name"
         ],
         "title": "PreparationRecorderOut"
+      },
+      "PreparationRowOut": {
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Patient Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "external_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Ref"
+          },
+          "report_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Status"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "latest_run_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Run Number"
+          },
+          "latest_run_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Run At"
+          },
+          "new_since_run": {
+            "type": "integer",
+            "title": "New Since Run",
+            "default": 0
+          },
+          "new_outside": {
+            "type": "integer",
+            "title": "New Outside",
+            "default": 0
+          },
+          "outside": {
+            "type": "integer",
+            "title": "Outside",
+            "default": 0
+          },
+          "stale_core": {
+            "type": "integer",
+            "title": "Stale Core",
+            "default": 0
+          },
+          "missing_core": {
+            "type": "integer",
+            "title": "Missing Core",
+            "default": 0
+          },
+          "values_pending": {
+            "type": "integer",
+            "title": "Values Pending",
+            "default": 0
+          },
+          "unassigned": {
+            "type": "integer",
+            "title": "Unassigned",
+            "default": 0
+          },
+          "domains_without_verdict": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domains Without Verdict"
+          }
+        },
+        "type": "object",
+        "required": [
+          "patient_id",
+          "display_name",
+          "external_ref",
+          "report_status",
+          "updated_at"
+        ],
+        "title": "PreparationRowOut",
+        "description": "One record on the practice view (docs/notes/0023): who it is, where its report stands,\nits latest interpretation run, and the counts the page before a visit shows for it \u2014\nworkflow and provenance facts, never a rating, a rank or a sum."
       },
       "PreparationStatementBasis": {
         "type": "string",

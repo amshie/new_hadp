@@ -15,6 +15,8 @@ export type LoginResponse = Schemas["LoginResponse"];
 export type ReleaseOut = Schemas["ReleaseOut"];
 export type WorklistRow = Schemas["WorklistRowOut"];
 export type Coverage = Schemas["CoverageOut"];
+export type Preparation = Schemas["PreparationOut"];
+export type PreparationRow = Schemas["PreparationRowOut"];
 export type Throughput = Schemas["ThroughputOut"];
 export type Source = Schemas["SourceOut"];
 export type ReviewQueueItem = Schemas["ReviewItemOut"];
@@ -322,6 +324,9 @@ export const worklist = (params?: { status?: string; q?: string }) => {
 };
 
 export const coverage = () => request<Coverage>("/api/v1/worklist/coverage");
+// The practice view: the page before a visit for every record at once (docs/notes/0023).
+export const preparation = () =>
+  request<Preparation>("/api/v1/worklist/preparation");
 
 export const throughput = (days = 30) =>
   request<Throughput>(`/api/v1/worklist/throughput?days=${days}`);

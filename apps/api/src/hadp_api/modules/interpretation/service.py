@@ -180,6 +180,38 @@ def latest_runs_by_patient(db: Session, tenant_id: uuid.UUID) -> dict[uuid.UUID,
     return latest
 
 
+def verdict_counts_by_latest_run(db: Session, tenant_id: uuid.UUID) -> dict[uuid.UUID, int]:
+    """How many domains each patient's latest run recorded a verdict for (0–6). A count of
+    authored verdicts, never their content — the practice view says how many domains a run
+    left without one."""
+    latest = latest_run_ids(db, tenant_id)
+    if not latest:
+        return {}
+    rows = db.execute(
+        select(DomainAxisInterpretation.interpretation_run_id, func.count())
+        .where(
+            DomainAxisInterpretation.tenant_id == tenant_id,
+            DomainAxisInterpretation.interpretation_run_id.in_(set(latest.values())),
+        )
+        .group_by(DomainAxisInterpretation.interpretation_run_id)
+    ).all()
+    by_run = {run_id: int(n) for run_id, n in rows}
+    return {patient_id: by_run.get(run_id, 0) for patient_id, run_id in latest.items()}
+
+
+def latest_run_ids(db: Session, tenant_id: uuid.UUID) -> dict[uuid.UUID, uuid.UUID]:
+    """Each patient's latest run by its id."""
+    rows = db.execute(
+        select(InterpretationRun.patient_id, InterpretationRun.id)
+        .where(InterpretationRun.tenant_id == tenant_id)
+        .order_by(InterpretationRun.patient_id, InterpretationRun.run_number.desc())
+    ).all()
+    latest: dict[uuid.UUID, uuid.UUID] = {}
+    for patient_id, run_id in rows:
+        latest.setdefault(patient_id, run_id)
+    return latest
+
+
 def latest_matrix(
     db: Session, tenant_id: uuid.UUID, patient_id: uuid.UUID
 ) -> dict[str, Any] | None:

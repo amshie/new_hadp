@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
@@ -126,7 +127,12 @@ export function PatientsContent({
             <b>{byCount(t.count, view.total)}</b> {t.lead}
           </p>
         </div>
-        <AddPatientDialog />
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <Link href="/vorbereitung" className="vb-ov-btn">
+            {t.prepLink}
+          </Link>
+          <AddPatientDialog />
+        </div>
       </div>
 
       {/* stat chips */}

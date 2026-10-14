@@ -9,7 +9,7 @@ data-quality columns are intentionally omitted until the rules/coverage model ex
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -17,8 +17,10 @@ from pydantic import BaseModel
 from hadp_api.auth.authz import Action
 from hadp_api.auth.dependencies import TenantContext, require
 from hadp_api.modules.audit.service import record_audit
+from hadp_api.modules.enums import DomainAxis
 from hadp_api.modules.imports import summary as imports_summary
 from hadp_api.modules.interpretation import service as interpretation_service
+from hadp_api.modules.kpi import service as kpi_service
 from hadp_api.modules.observations import service as obs_service
 from hadp_api.modules.patients import service as patients_service
 from hadp_api.modules.reports import service as reports_service
@@ -99,6 +101,39 @@ class SourceOut(BaseModel):
     last_import_at: datetime | None
 
 
+class PreparationRowOut(BaseModel):
+    """One record on the practice view (docs/notes/0023): who it is, where its report stands,
+    its latest interpretation run, and the counts the page before a visit shows for it —
+    workflow and provenance facts, never a rating, a rank or a sum."""
+
+    patient_id: uuid.UUID
+    display_name: str
+    external_ref: str | None
+    report_status: str | None
+    updated_at: datetime
+    latest_run_number: int | None = None
+    latest_run_at: datetime | None = None
+    # Published, standing values received after the latest run; of those, outside the
+    # laboratory's interval. 0 without a run.
+    new_since_run: int = 0
+    new_outside: int = 0
+    # Markers whose latest standing value lies outside their laboratory's interval.
+    outside: int = 0
+    # Core markers whose latest value is older than `stale_after_days`; with no value at all.
+    stale_core: int = 0
+    missing_core: int = 0
+    values_pending: int = 0
+    unassigned: int = 0
+    # Domains the latest run recorded no verdict for; null without a run.
+    domains_without_verdict: int | None = None
+
+
+class PreparationOut(BaseModel):
+    stale_after_days: int
+    core_markers: int
+    rows: list[PreparationRowOut]
+
+
 @router.get("", response_model=list[WorklistRowOut])
 def get_worklist(
     status: str | None = None,
@@ -156,6 +191,65 @@ def get_worklist(
         detail={"count": len(rows)},
     )
     return rows
+
+
+@router.get("/preparation", response_model=PreparationOut)
+def get_preparation(
+    ctx: TenantContext = Depends(require(Action.OBSERVATION_READ)),
+) -> PreparationOut:
+    """The practice view: the page before a visit, for every record of the clinic at once
+    (docs/notes/0023). Rows come in the patient list's order; the page orders by workflow
+    and lets a person sort by a column — the API ranks nothing."""
+    db = ctx.db
+    patients = patients_service.list_patients(db, ctx.tenant_id)
+    latest = reports_service.latest_reports_by_patient(db, ctx.tenant_id)
+    runs = interpretation_service.latest_runs_by_patient(db, ctx.tenant_id)
+    verdicts = interpretation_service.verdict_counts_by_latest_run(db, ctx.tenant_id)
+    core = {k.code for k in kpi_service.core_kpis(db)}
+    facts = obs_service.preparation_facts_by_patient(
+        db,
+        ctx.tenant_id,
+        {pid: run.recorded_at for pid, run in runs.items()},
+        core,
+        datetime.now(UTC),
+    )
+    rows: list[PreparationRowOut] = []
+    for p in patients:
+        report = latest.get(p.id)
+        run = runs.get(p.id)
+        f = facts.get(p.id) or obs_service.PatientPreparationFacts(missing_core=len(core))
+        rows.append(
+            PreparationRowOut(
+                patient_id=p.id,
+                display_name=p.display_name,
+                external_ref=p.external_ref,
+                report_status=report.status.value if report else None,
+                updated_at=report.created_at if report else p.created_at,
+                latest_run_number=run.run_number if run else None,
+                latest_run_at=run.recorded_at if run else None,
+                new_since_run=f.new_since_run,
+                new_outside=f.new_outside,
+                outside=f.outside,
+                stale_core=f.stale_core,
+                missing_core=f.missing_core,
+                values_pending=f.pending,
+                unassigned=f.unassigned,
+                domains_without_verdict=(
+                    len(DomainAxis) - verdicts.get(p.id, 0) if run is not None else None
+                ),
+            )
+        )
+    record_audit(
+        db,
+        action="worklist.preparation.read",
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        correlation_id=ctx.correlation_id,
+        detail={"count": len(rows)},
+    )
+    return PreparationOut(
+        stale_after_days=obs_service.STALE_AFTER_DAYS, core_markers=len(core), rows=rows
+    )
 
 
 @router.get("/coverage", response_model=CoverageOut)

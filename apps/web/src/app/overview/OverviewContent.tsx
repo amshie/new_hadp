@@ -441,6 +441,9 @@ function Worklist({
           <p className="vb-ov-note">{w.note}</p>
         </div>
         <div className="vb-ov-wltools">
+          <Link href="/vorbereitung" className="vb-ov-btn ghost">
+            {w.prepLink}
+          </Link>
           <div className="vb-ov-tabs" role="group" aria-label={w.title}>
             {TABS.map((key) => (
               <button
