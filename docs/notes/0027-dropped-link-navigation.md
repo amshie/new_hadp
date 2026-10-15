@@ -14,7 +14,9 @@ now and then leads nowhere. Seen on the patient page's "Open report":
 - the address and the page stay the patient's;
 - a second click on the same link goes through.
 
-Measured on 2026-10-14 against the synthetic seed: 2 of 80, 0 of 120, 2 of 200 and 1 of 79
+Measured on 2026-10-14 against the synthetic seed (a second capture, with every request
+logged, showed the report page's code chunk loaded as well, nothing left pending, and once
+the router itself aborting its payload request, `net::ERR_ABORTED`): 2 of 80, 0 of 120, 2 of 200 and 1 of 79
 fresh browser contexts, the same on `main` (`b381d70`) as on the branch under test. The
 development server did not show it. Clicking while the target's prefetch was held back did
 not make it more likely (0 of 10), and waiting for the network to be idle did not make it
@@ -24,7 +26,11 @@ less (2 of 200). The app writes nothing to `history` itself.
 
 `e2e/support/staff.ts` `followLink`: click, and if the page has not arrived within five
 seconds, click once more — what a person does. A link that does not lead where it should
-fails both clicks. Used on the step where CI met it (`language.spec.ts`, the report page).
+fails both clicks. CI met it on three different links in three runs ("Open report", "Als
+Seite öffnen", and before them the report page again): it is any link, at about one click in
+a hundred, so every step of the suite that follows a link to another page uses it (13).
+Buttons that navigate through the router (the patient list's rows) may meet it too; none has
+yet.
 
 ## Open
 
