@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { asStaff, hydrated } from "./support/staff";
+import { asStaff, followLink, hydrated } from "./support/staff";
 
 // Einstellungen (apps/web/src/app/einstellungen): the sub-navigation beside every settings
 // page, a section a role may not open shown locked rather than hidden, each card with what
@@ -69,8 +69,11 @@ test("the sub-navigation stays on every settings page, and each card says what i
     await expect(
       nav(page).getByRole("link", { name: "Audit-Protokoll" }),
     ).toHaveAttribute("aria-current", "page");
-    await nav(page).getByRole("link", { name: "Vorbereitungszeit" }).click();
-    await expect(page).toHaveURL(/\/einstellungen\/vorbereitungszeit$/);
+    await followLink(
+      page,
+      nav(page).getByRole("link", { name: "Vorbereitungszeit" }),
+      /\/einstellungen\/vorbereitungszeit$/,
+    );
     await expect(
       nav(page).getByRole("link", { name: "Vorbereitungszeit" }),
     ).toHaveAttribute("aria-current", "page");
@@ -123,8 +126,9 @@ test("a colleague's row leads to their entries in the audit trail", async ({
     });
     await hydrated(more);
     await more.click();
-    await team.getByRole("link", { name: "Im Protokoll anzeigen" }).click();
-    await expect(page).toHaveURL(
+    await followLink(
+      page,
+      team.getByRole("link", { name: "Im Protokoll anzeigen" }),
       /\/einstellungen\/audit\?actor=[0-9a-f-]{36}$/,
     );
     const main = page.getByRole("main");
@@ -138,8 +142,11 @@ test("a colleague's row leads to their entries in the audit trail", async ({
     for (const row of await rows.all()) {
       await expect(row).toContainText("Synthetic Clinician");
     }
-    await main.getByRole("link", { name: "Alle Personen anzeigen" }).click();
-    await expect(page).toHaveURL(/\/einstellungen\/audit$/);
+    await followLink(
+      page,
+      main.getByRole("link", { name: "Alle Personen anzeigen" }),
+      /\/einstellungen\/audit$/,
+    );
   });
 });
 

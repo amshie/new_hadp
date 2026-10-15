@@ -1,6 +1,12 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { asStaff, hydrated, openTab, watchPageErrors } from "./support/staff";
+import {
+  asStaff,
+  followLink,
+  hydrated,
+  openTab,
+  watchPageErrors,
+} from "./support/staff";
 
 // The interface language is a person's choice — under Einstellungen, or on the sign-in page —
 // kept on the device (apps/web/src/lib/i18n). German is what a device without a choice gets.
@@ -139,8 +145,11 @@ test("a person chooses English under Einstellungen, and goes back to German", as
       );
 
     // The overview is English: its headings, its tiers, its work list.
-    await navigation.getByRole("link", { name: "Overview" }).click();
-    await expect(page).toHaveURL(/\/overview$/);
+    await followLink(
+      page,
+      navigation.getByRole("link", { name: "Overview" }),
+      /\/overview$/,
+    );
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
     const overview = page.getByRole("heading", { level: 1, name: "Overview" });
@@ -208,8 +217,11 @@ test("a person chooses English under Einstellungen, and goes back to German", as
     await expect(dialog).toHaveCount(0);
 
     // So is the patients list.
-    await navigation.getByRole("link", { name: "Patients" }).click();
-    await expect(page).toHaveURL(/\/patients$/);
+    await followLink(
+      page,
+      navigation.getByRole("link", { name: "Patients" }),
+      /\/patients$/,
+    );
     const patients = page.getByRole("heading", { level: 1, name: "Patients" });
     await expect(patients).toBeVisible();
     expect(await languageOf(patients)).toBe("en");
@@ -219,8 +231,11 @@ test("a person chooses English under Einstellungen, and goes back to German", as
 
     // The review queue is English, around the reasons of its tasks: a closed vocabulary,
     // German until its English names are confirmed (ADR-0007), and marked so.
-    await navigation.getByRole("link", { name: "Review queue" }).click();
-    await expect(page).toHaveURL(/\/review-queue$/);
+    await followLink(
+      page,
+      navigation.getByRole("link", { name: "Review queue" }),
+      /\/review-queue$/,
+    );
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const queue = page.getByRole("heading", { level: 1, name: "Review queue" });
     await expect(queue).toBeVisible();
@@ -255,7 +270,10 @@ test("a person chooses English under Einstellungen, and goes back to German", as
     await german.click();
     await expectEnglishSettings(page);
 
-    // And back.
+    // And back — from the page anew: until the refused choice's redirect has rendered it again,
+    // the button above still carries the value written into it, and a click there sends "fr"
+    // once more.
+    await page.goto("/einstellungen");
     const back = page.getByRole("button", { name: "Deutsch" });
     await hydrated(back);
     await back.click();
@@ -687,11 +705,13 @@ test("the report page follows the choice; its closed vocabularies stay German an
     await hydrated(row);
     await row.click();
     await expect(page).toHaveURL(/\/patients\/[0-9a-f-]{36}$/);
-    // A click before the page is hydrated can be lost to the router's take-over.
-    const openReport = page.getByRole("link", { name: "Open report" });
-    await hydrated(openReport);
-    await openReport.click();
-    await expect(page).toHaveURL(/\/assessments\/[0-9a-f-]{36}$/);
+    // A click before the page is hydrated can be lost to the router's take-over (followLink
+    // waits for it), and now and then after it too (followLink clicks once more).
+    await followLink(
+      page,
+      page.getByRole("link", { name: "Open report" }),
+      /\/assessments\/[0-9a-f-]{36}$/,
+    );
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const main = page.getByRole("main");
     expect(await languageOf(main)).toBe("en");
@@ -821,11 +841,13 @@ test("members and deletion requests follow the choice; names are shown as record
       .context()
       .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
     await page.goto("/einstellungen");
-    await page
-      .getByRole("navigation", { name: "Settings sections" })
-      .getByRole("link", { name: "Team & roles" })
-      .click();
-    await expect(page).toHaveURL(/\/einstellungen\/mitglieder$/);
+    await followLink(
+      page,
+      page
+        .getByRole("navigation", { name: "Settings sections" })
+        .getByRole("link", { name: "Team & roles" }),
+      /\/einstellungen\/mitglieder$/,
+    );
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const main = page.getByRole("main");
     await expect(
@@ -905,11 +927,13 @@ test("members and deletion requests follow the choice; names are shown as record
       .context()
       .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
     await page.goto("/einstellungen");
-    await page
-      .getByRole("navigation", { name: "Settings sections" })
-      .getByRole("link", { name: "Deletion requests" })
-      .click();
-    await expect(page).toHaveURL(/\/einstellungen\/loeschantraege$/);
+    await followLink(
+      page,
+      page
+        .getByRole("navigation", { name: "Settings sections" })
+        .getByRole("link", { name: "Deletion requests" }),
+      /\/einstellungen\/loeschantraege$/,
+    );
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const main = page.getByRole("main");
     await expect(
@@ -953,11 +977,13 @@ test("the audit trail and preparation time follow the choice; codes and names st
     // every event — next to the code the API wrote, which stays as it is. The owner's own entry
     // into the clinic is always there.
     await page.goto("/einstellungen");
-    await page
-      .getByRole("navigation", { name: "Settings sections" })
-      .getByRole("link", { name: "Audit trail" })
-      .click();
-    await expect(page).toHaveURL(/\/einstellungen\/audit$/);
+    await followLink(
+      page,
+      page
+        .getByRole("navigation", { name: "Settings sections" })
+        .getByRole("link", { name: "Audit trail" }),
+      /\/einstellungen\/audit$/,
+    );
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(
       page.getByRole("heading", { level: 1, name: "Audit trail" }),
