@@ -145,8 +145,11 @@ test("a person chooses English under Einstellungen, and goes back to German", as
       );
 
     // The overview is English: its headings, its tiers, its work list.
-    await navigation.getByRole("link", { name: "Overview" }).click();
-    await expect(page).toHaveURL(/\/overview$/);
+    await followLink(
+      page,
+      navigation.getByRole("link", { name: "Overview" }),
+      /\/overview$/,
+    );
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
     const overview = page.getByRole("heading", { level: 1, name: "Overview" });
@@ -214,8 +217,11 @@ test("a person chooses English under Einstellungen, and goes back to German", as
     await expect(dialog).toHaveCount(0);
 
     // So is the patients list.
-    await navigation.getByRole("link", { name: "Patients" }).click();
-    await expect(page).toHaveURL(/\/patients$/);
+    await followLink(
+      page,
+      navigation.getByRole("link", { name: "Patients" }),
+      /\/patients$/,
+    );
     const patients = page.getByRole("heading", { level: 1, name: "Patients" });
     await expect(patients).toBeVisible();
     expect(await languageOf(patients)).toBe("en");
@@ -225,8 +231,11 @@ test("a person chooses English under Einstellungen, and goes back to German", as
 
     // The review queue is English, around the reasons of its tasks: a closed vocabulary,
     // German until its English names are confirmed (ADR-0007), and marked so.
-    await navigation.getByRole("link", { name: "Review queue" }).click();
-    await expect(page).toHaveURL(/\/review-queue$/);
+    await followLink(
+      page,
+      navigation.getByRole("link", { name: "Review queue" }),
+      /\/review-queue$/,
+    );
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const queue = page.getByRole("heading", { level: 1, name: "Review queue" });
     await expect(queue).toBeVisible();
@@ -832,11 +841,13 @@ test("members and deletion requests follow the choice; names are shown as record
       .context()
       .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
     await page.goto("/einstellungen");
-    await page
-      .getByRole("navigation", { name: "Settings sections" })
-      .getByRole("link", { name: "Team & roles" })
-      .click();
-    await expect(page).toHaveURL(/\/einstellungen\/mitglieder$/);
+    await followLink(
+      page,
+      page
+        .getByRole("navigation", { name: "Settings sections" })
+        .getByRole("link", { name: "Team & roles" }),
+      /\/einstellungen\/mitglieder$/,
+    );
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const main = page.getByRole("main");
     await expect(
@@ -916,11 +927,13 @@ test("members and deletion requests follow the choice; names are shown as record
       .context()
       .addCookies([{ name: "hadp_locale", value: "en", url: baseURL ?? "" }]);
     await page.goto("/einstellungen");
-    await page
-      .getByRole("navigation", { name: "Settings sections" })
-      .getByRole("link", { name: "Deletion requests" })
-      .click();
-    await expect(page).toHaveURL(/\/einstellungen\/loeschantraege$/);
+    await followLink(
+      page,
+      page
+        .getByRole("navigation", { name: "Settings sections" })
+        .getByRole("link", { name: "Deletion requests" }),
+      /\/einstellungen\/loeschantraege$/,
+    );
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     const main = page.getByRole("main");
     await expect(
@@ -964,11 +977,13 @@ test("the audit trail and preparation time follow the choice; codes and names st
     // every event — next to the code the API wrote, which stays as it is. The owner's own entry
     // into the clinic is always there.
     await page.goto("/einstellungen");
-    await page
-      .getByRole("navigation", { name: "Settings sections" })
-      .getByRole("link", { name: "Audit trail" })
-      .click();
-    await expect(page).toHaveURL(/\/einstellungen\/audit$/);
+    await followLink(
+      page,
+      page
+        .getByRole("navigation", { name: "Settings sections" })
+        .getByRole("link", { name: "Audit trail" }),
+      /\/einstellungen\/audit$/,
+    );
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(
       page.getByRole("heading", { level: 1, name: "Audit trail" }),

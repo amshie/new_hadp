@@ -6,6 +6,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
   asStaff,
+  followLink,
   hydrated,
   openTab,
   watchPageErrors,
@@ -283,8 +284,11 @@ test("the assistant imports a laboratory file: one value is published, two wait 
     // Both held values are in the review queue. The assistant sees them and is told that the
     // decision is not hers: the queue offers her no control.
     await openTab(page, "Akte");
-    await lab.getByRole("link", { name: "Zur Review-Queue" }).click();
-    await page.waitForURL("**/review-queue");
+    await followLink(
+      page,
+      lab.getByRole("link", { name: "Zur Review-Queue" }),
+      "**/review-queue",
+    );
     await expect(
       page.getByText(
         "Die Entscheidung ist der klinischen Rolle vorbehalten (Nur-Lese-Ansicht).",
@@ -519,10 +523,11 @@ test("the medical director releases the report", async ({ browser }) => {
       })
       .click();
     await page.waitForURL(`**${patientPath}`);
-    const openReport = page.getByRole("link", { name: "Bericht öffnen" });
-    await hydrated(openReport);
-    await openReport.click();
-    await page.waitForURL(`**${reviewPath}`);
+    await followLink(
+      page,
+      page.getByRole("link", { name: "Bericht öffnen" }),
+      `**${reviewPath}`,
+    );
 
     // She releases what the clinician approved.
     await expectStage(page, "approved");

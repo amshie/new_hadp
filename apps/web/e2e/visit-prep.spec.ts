@@ -6,7 +6,7 @@ import {
   presentVisitPrep,
   STALE_AFTER_DAYS,
 } from "../src/lib/presenters/visitPrep";
-import { asStaff, hydrated } from "./support/staff";
+import { asStaff, followLink, hydrated } from "./support/staff";
 
 // The page before a visit (apps/web/src/lib/presenters/visitPrep.ts, docs/notes/0022): the
 // facts since the latest interpretation run, from synthetic timeline points. No browser for
@@ -434,9 +434,11 @@ test("the card is on the patient page and opens as a page of its own", async ({
       await expect(first).toBeFocused();
     }
 
-    const open = card.getByRole("link", { name: "Als Seite öffnen" });
-    await open.click();
-    await page.waitForURL(/\/patients\/[0-9a-f-]{36}\/vorbereitung$/);
+    await followLink(
+      page,
+      card.getByRole("link", { name: "Als Seite öffnen" }),
+      /\/patients\/[0-9a-f-]{36}\/vorbereitung$/,
+    );
     await expect(
       page.getByRole("heading", { level: 1, name: /^Vorbereitung · / }),
     ).toBeVisible();
