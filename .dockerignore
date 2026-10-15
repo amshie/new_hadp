@@ -9,6 +9,7 @@
 !package.json
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
+!patches
 !apps/web
 !packages
 

@@ -26,13 +26,11 @@ export async function hydrated(control: Locator): Promise<void> {
     .toBe(true);
 }
 
-// Follows a link to the page `url` names. On a production build, Next.js 15.5 now and then
-// drops a link's navigation: the click is taken, the page's payload and code arrive (200,
-// nothing in the console), and the page stays where it was — about one click in a hundred, on
-// an idle, hydrated page, on any link; a second click goes through. A person clicks again, and
-// so does this, once. A link that does not lead to `url` fails both clicks. A navigation that
-// is only slow (a development server compiling the route) has left the page by the second
-// click or leaves it with it; the wait at the end decides. Note 0027 records the finding.
+// Follows a link to the page `url` names, once React has taken the link over — one click. On
+// a production build Next.js 15.5 dropped about one link navigation in a hundred until the
+// React it bundles kept a ping that arrives while it renders (patches/next@15.5.27.patch,
+// note 0027); a click that leads nowhere is that finding back, and fails here rather than
+// being clicked again.
 export async function followLink(
   page: Page,
   link: Locator,
@@ -40,11 +38,6 @@ export async function followLink(
 ): Promise<void> {
   await hydrated(link);
   await link.click();
-  const arrived = await page
-    .waitForURL(url, { timeout: 5_000 })
-    .then(() => true)
-    .catch(() => false);
-  if (!arrived) await link.click({ timeout: 2_000 }).catch(() => undefined);
   await page.waitForURL(url);
 }
 
