@@ -706,7 +706,7 @@ test("the report page follows the choice; its closed vocabularies stay German an
     await row.click();
     await expect(page).toHaveURL(/\/patients\/[0-9a-f-]{36}$/);
     // A click before the page is hydrated can be lost to the router's take-over (followLink
-    // waits for it), and now and then after it too (followLink clicks once more).
+    // waits for it).
     await followLink(
       page,
       page.getByRole("link", { name: "Open report" }),

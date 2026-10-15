@@ -13,6 +13,8 @@ ENV CI=true \
 RUN corepack enable
 WORKDIR /srv/hadp
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# The dependency patches the lockfile names (package.json `pnpm.patchedDependencies`).
+COPY patches patches
 COPY apps/web/package.json apps/web/
 COPY packages/api-client/package.json packages/api-client/
 COPY packages/config/package.json packages/config/
