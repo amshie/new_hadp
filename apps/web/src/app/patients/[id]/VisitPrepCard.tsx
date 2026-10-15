@@ -380,6 +380,12 @@ export function VisitPrepCard({
                 <b>{today.noReference}</b>
                 <span>{t.today.tally.noReference}</span>
               </li>
+              {today.derived > 0 && (
+                <li>
+                  <b>{today.derived}</b>
+                  <span>{t.today.tally.derived}</span>
+                </li>
+              )}
               <li data-tone={prep.pending > 0 ? "wait" : undefined}>
                 <b>{prep.pending}</b>
                 <span>{t.today.tally.pending}</span>

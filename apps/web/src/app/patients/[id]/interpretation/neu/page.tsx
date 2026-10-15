@@ -5,6 +5,7 @@ import { ApiError, getPatient, interpretation, me, timeline } from "@/lib/api";
 import { fill } from "@/lib/i18n/fill";
 import { getMessages } from "@/lib/i18n/server";
 import { shellIdentity } from "@/lib/identity";
+import { dayOf } from "@/lib/presenters/domainOverview";
 import { isUuid } from "@/lib/uuid";
 
 import {
@@ -36,7 +37,8 @@ export default async function AuthorRunPage({
     if (session?.role !== "clinician") redirect(`/patients/${id}`);
 
     // Evidence choices: the patient's PUBLISHED observations that no laboratory correction
-    // has replaced (the service refuses anything else, fail-closed).
+    // has replaced (the service refuses anything else, fail-closed). Each names its sample day
+    // as the clinic reads it, and a value the platform computed says so.
     const seen = new Set<string>();
     const evidenceOptions: EvidenceOption[] = points
       .filter((p) => p.review_status === "published")
@@ -48,7 +50,11 @@ export default async function AuthorRunPage({
       )
       .map((p) => ({
         id: p.observation_id,
-        label: `${p.original_name} · ${p.observed_at.slice(0, 10)}`,
+        label: [
+          p.original_name,
+          dayOf(p.observed_at, p.observed_at_is_date_only),
+          ...(p.derived ? [messages.patientPage.evidence.derived] : []),
+        ].join(" · "),
       }));
 
     const prefill: PrefillDomain[] | null = matrix.run_id

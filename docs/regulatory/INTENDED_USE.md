@@ -7,6 +7,16 @@
 > explicit open human gate (ADR-0003); it is owned by a human Regulatory Lead (currently **UNASSIGNED**,
 > see [OWNERSHIP.md](OWNERSHIP.md)). Nothing in this document is legal or regulatory advice.
 
+> **What the Alpha enforces today (2026-10-14).** The medical-director gate this statement names is
+> built for **patient-facing content only**: a clinician approves a report (`REPORT_APPROVE`), only a
+> medical director releases it (`REPORT_RELEASE`), and a patient reads released reports only. A medical
+> director's **review or lock of an interpretation run is not built**: runs are clinician-authored and
+> append-only, and every verdict's review status stays `draft` — nothing in the product moves it
+> (`InterpretationReviewStatus` has `draft` and `clinician_reviewed`; nothing writes the second).
+> Interpretation runs are not released to patients. Where this statement names a medical director's
+> review or lock of interpretations, it describes the **intended** gate, not current behaviour; no
+> claim, sales or onboarding copy may present it as existing (Claims discipline, below).
+
 ---
 
 ## Intended purpose

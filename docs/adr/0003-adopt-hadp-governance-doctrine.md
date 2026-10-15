@@ -37,6 +37,14 @@ audit-first decision-**support** workflow whose canonical artifact is a per-axis
 4. **Clinician-in-the-loop, medical-director gate.** Drafts are clinician-authored; only a medical
    director locks/releases; patients see only released content.
 
+   > **Implementation status (2026-10-14) — the decision stands; part of it is not built.** Built:
+   > the gate on patient-facing content — a clinician approves a report, only a medical director
+   > releases it (`REPORT_RELEASE`), and the patient reads released reports only. **Not built:** a
+   > medical director's review or lock of an interpretation run. Runs are clinician-authored and
+   > append-only; each verdict's `review_status` stays `draft` (nothing writes `clinician_reviewed`),
+   > and runs are not released to patients. The lock remains the open slice named under "Out of
+   > scope" below; until it ships, nothing may describe it as existing.
+
 ## Preserved protective invariants (NOT dropped by "forget the old doctrine")
 
 These existed in the lab doctrine and are **retained** because the HADP doctrine requires them too:

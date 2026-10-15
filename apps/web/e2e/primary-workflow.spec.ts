@@ -375,16 +375,16 @@ test("the clinician authors the interpretation run", async ({ browser }) => {
 
         await cell.getByText("Belege (0 gewählt) — Pflicht").click();
         // The values on offer as evidence are the published ones — the two the clinician
-        // has just published among them.
+        // has just published among them — each with its sample day as the clinic reads it.
         for (const value of [PUBLISHED_BY_IMPORT, ...HELD_FOR_REVIEW]) {
           await expect(
-            cell.getByRole("checkbox", { name: `${value.name} · 2025-06-10` }),
+            cell.getByRole("checkbox", { name: `${value.name} · 10.06.2025` }),
           ).toBeVisible();
         }
         await expect(cell.getByRole("checkbox")).toHaveCount(3);
         await cell
           .getByRole("checkbox", {
-            name: `${PUBLISHED_BY_IMPORT.name} · 2025-06-10`,
+            name: `${PUBLISHED_BY_IMPORT.name} · 10.06.2025`,
           })
           .check();
         await expect(cell.getByText("Belege (1 gewählt)")).toBeVisible();

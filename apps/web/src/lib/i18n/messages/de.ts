@@ -640,6 +640,7 @@ export const de = {
           outside: "außerhalb des Intervalls",
           within: "im Intervall",
           noReference: "ohne Referenz der Quelle",
+          derived: "berechnet, nicht gemessen",
           pending: "in Prüfung · nicht veröffentlicht",
         },
         outsideTitle: "Außerhalb des Quellreferenzintervalls",
