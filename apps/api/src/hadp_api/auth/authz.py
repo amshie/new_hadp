@@ -59,6 +59,8 @@ class Action(str, Enum):
     INTAKE_PROPOSE = "intake.propose"
     INTAKE_READ = "intake.read"
     INTAKE_DECIDE = "intake.decide"
+    # The error-rate report and the auto-acceptance rules of the clinic: tenant administration.
+    INTAKE_GOVERN = "intake.govern"
     INTERPRETATION_AUTHOR = "interpretation.author"
     REPORT_DRAFT = "report.draft"
     REPORT_EDIT = "report.edit"
@@ -125,6 +127,7 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.INTAKE_PROPOSE: _CARE_STAFF,
     Action.INTAKE_READ: _READ_STAFF,
     Action.INTAKE_DECIDE: frozenset({Role.CLINICIAN}),
+    Action.INTAKE_GOVERN: frozenset({Role.OWNER}),
     Action.INTERPRETATION_AUTHOR: frozenset({Role.CLINICIAN}),
     Action.REPORT_DRAFT: _CARE_STAFF,
     Action.REPORT_EDIT: _CARE_STAFF,

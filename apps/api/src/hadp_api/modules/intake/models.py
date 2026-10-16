@@ -91,6 +91,12 @@ class IntakeBatch(UUIDPrimaryKey, TimestampCreated, Base):
     # Per page, where its text came from: "text_layer", "ocr" or "none" (0025). Null for a
     # batch written before the column existed.
     page_sources: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    # The laboratory as the document names it — proposed like every other field, the stratum
+    # of the error-rate report (0026).
+    source_lab: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # A shadow batch is produced to be compared with values a person keyed independently: it
+    # is never shown on the confirmation screen and never decided (0026).
+    shadow: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class PendingValue(UUIDPrimaryKey, TimestampCreated, Base):
@@ -250,3 +256,45 @@ class IntakeDecision(UUIDPrimaryKey, TimestampCreated, Base):
     )
     review_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     screen_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Set when a rule, not a person, confirmed the value (0026); `decided_by_user_id` is then
+    # the person who signed the rule. A rule only confirms.
+    auto_accept_rule_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("intake_auto_accept_rules.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+
+
+class IntakeAutoAcceptRule(UUIDPrimaryKey, TimestampCreated, Base):
+    """Whether green values of one laboratory and one KPI may be confirmed without a person —
+    and under which measured error rate, over which sample, with which audit sample still
+    routed to a human. Append-only; the newest row per (laboratory, KPI) counts. INERT unless
+    the deployment's global switch is on; it ships off (`INTAKE_AUTO_ACCEPT_ENABLED`)."""
+
+    __tablename__ = "intake_auto_accept_rules"
+    __table_args__ = (
+        CheckConstraint(
+            "max_green_error_rate BETWEEN 0 AND 1 AND audit_sample_rate BETWEEN 0 AND 1",
+            name="rates_in_unit_interval",
+        ),
+        CheckConstraint("audit_sample_rate > 0", name="audit_sample_positive"),
+        CheckConstraint("min_sample >= 1", name="min_sample_positive"),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    source_lab: Mapped[str] = mapped_column(String(200), nullable=False)
+    kpi_code: Mapped[str] = mapped_column(
+        String(80), ForeignKey("kpi_catalog.code", ondelete="RESTRICT"), nullable=False
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    max_green_error_rate: Mapped[Decimal] = mapped_column(Numeric(6, 5), nullable=False)
+    min_sample: Mapped[int] = mapped_column(Integer, nullable=False)
+    audit_sample_rate: Mapped[Decimal] = mapped_column(Numeric(6, 5), nullable=False)
+    signed_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )

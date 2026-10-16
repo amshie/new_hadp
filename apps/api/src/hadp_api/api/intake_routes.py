@@ -26,7 +26,9 @@ from hadp_api.modules.documents.blob import get_blob_store
 from hadp_api.modules.documents.models import SourceDocument
 from hadp_api.modules.documents.pdf_text import PdfUnreadable
 from hadp_api.modules.enums import IntakeDecisionKind, IntakeRejectionReason, PendingValueStatus
+from hadp_api.modules.intake import auto_accept as auto_accept_service
 from hadp_api.modules.intake import decisions as decisions_service
+from hadp_api.modules.intake import error_rates as error_rates_service
 from hadp_api.modules.intake import service as intake_service
 from hadp_api.modules.intake.model_provider import ModelOutputInvalid, ProviderUnavailable
 from hadp_api.modules.intake.pages import OcrUnavailable, load_pages
@@ -44,6 +46,9 @@ class ProposeOut(BaseModel):
     green: int
     yellow: int
     red: int
+    # What auto-acceptance did with the green values: nothing while the global switch is off.
+    auto_confirmed: int
+    auto_accept_reasons: dict[str, int]
 
 
 class IntakeBatchSummaryOut(BaseModel):
@@ -107,6 +112,7 @@ class IntakeBatchOut(BaseModel):
     extraction_provider: str
     model_id: str
     prompt_version: str
+    source_lab: str | None
     page_count: int
     proposed_patient_date_of_birth: date | None
     proposed_issue_date: date | None
@@ -220,6 +226,15 @@ def propose_from_document(
         created_by_user_id=ctx.user.id,
         correlation_id=ctx.correlation_id,
     )
+    # Auto-acceptance runs on the staff-triggered path only, never behind the agent's tool —
+    # and does nothing until the deployment's switch is on (it ships off).
+    auto = auto_accept_service.apply(
+        ctx.db,
+        settings,
+        tenant_id=ctx.tenant_id,
+        batch_id=result.batch_id,
+        correlation_id=ctx.correlation_id,
+    )
     return ProposeOut(
         batch_id=result.batch_id,
         extraction_provider=provider.name,
@@ -227,6 +242,8 @@ def propose_from_document(
         green=result.green,
         yellow=result.yellow,
         red=result.red,
+        auto_confirmed=auto.confirmed,
+        auto_accept_reasons=auto.reasons,
     )
 
 
@@ -349,3 +366,130 @@ def confirm_green_values(
         confirmed=len(rows),
         observation_ids=[r.observation_id for r in rows if r.observation_id is not None],
     )
+
+
+# --- Governance: the error-rate report and the auto-acceptance rules (owner) ---------------------
+
+
+class StratumRatesOut(BaseModel):
+    source_lab: str
+    kpi_code: str
+    decided: int
+    confirmed: int
+    corrected: int
+    rejected: int
+    auto_confirmed: int
+    field_error_rates: dict[str, float | None]
+    field_errors: dict[str, int]
+    green_decided: int
+    green_errors: int
+    green_error_rate: float | None
+    green_error_upper_95: float
+    first_decision_at: datetime | None
+    last_decision_at: datetime | None
+
+
+class ErrorRatesOut(BaseModel):
+    auto_accept_enabled_globally: bool
+    strata: list[StratumRatesOut]
+
+
+class AutoAcceptRuleIn(BaseModel):
+    source_lab: str = Field(min_length=1, max_length=200)
+    kpi_code: str = Field(min_length=1, max_length=80)
+    enabled: bool
+    max_green_error_rate: Decimal = Field(ge=0, le=1, decimal_places=5)
+    min_sample: int = Field(ge=1, le=1_000_000)
+    audit_sample_rate: Decimal = Field(gt=0, le=1, decimal_places=5)
+
+
+class AutoAcceptRuleOut(BaseModel):
+    rule_id: uuid.UUID
+    source_lab: str
+    kpi_code: str
+    enabled: bool
+    max_green_error_rate: Decimal
+    min_sample: int
+    audit_sample_rate: Decimal
+    signed_by_user_id: uuid.UUID
+    created_at: datetime
+    eligibility: dict[str, object]
+
+
+@router.get("/intake/error-rates", response_model=ErrorRatesOut)
+def read_error_rates(
+    ctx: TenantContext = Depends(require(Action.INTAKE_GOVERN)),
+) -> ErrorRatesOut:
+    strata = error_rates_service.error_rates(ctx.db, tenant_id=ctx.tenant_id)
+    record_audit(
+        ctx.db,
+        action="intake.error_rates_read",
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        correlation_id=ctx.correlation_id,
+        detail={"strata": len(strata)},
+    )
+    return ErrorRatesOut(
+        auto_accept_enabled_globally=get_settings().intake_auto_accept_enabled,
+        strata=[StratumRatesOut(**s.as_dict()) for s in strata],
+    )
+
+
+def _rule_out(ctx: TenantContext, rule) -> AutoAcceptRuleOut:  # type: ignore[no-untyped-def]
+    verdict = auto_accept_service.eligibility(
+        ctx.db,
+        get_settings(),
+        tenant_id=ctx.tenant_id,
+        source_lab=rule.source_lab,
+        kpi_code=rule.kpi_code,
+    )
+    return AutoAcceptRuleOut(
+        rule_id=rule.id,
+        source_lab=rule.source_lab,
+        kpi_code=rule.kpi_code,
+        enabled=rule.enabled,
+        max_green_error_rate=rule.max_green_error_rate,
+        min_sample=rule.min_sample,
+        audit_sample_rate=rule.audit_sample_rate,
+        signed_by_user_id=rule.signed_by_user_id,
+        created_at=rule.created_at,
+        eligibility=verdict.as_dict(),
+    )
+
+
+@router.get("/intake/auto-accept/rules", response_model=list[AutoAcceptRuleOut])
+def list_auto_accept_rules(
+    ctx: TenantContext = Depends(require(Action.INTAKE_GOVERN)),
+) -> list[AutoAcceptRuleOut]:
+    rules = auto_accept_service.current_rules(ctx.db, tenant_id=ctx.tenant_id)
+    record_audit(
+        ctx.db,
+        action="intake.auto_accept_rules_read",
+        actor_user_id=ctx.user.id,
+        tenant_id=ctx.tenant_id,
+        correlation_id=ctx.correlation_id,
+        detail={"count": len(rules)},
+    )
+    return [_rule_out(ctx, rule) for _key, rule in sorted(rules.items())]
+
+
+@router.post("/intake/auto-accept/rules", response_model=AutoAcceptRuleOut, status_code=201)
+def record_auto_accept_rule(
+    body: AutoAcceptRuleIn,
+    ctx: TenantContext = Depends(require(Action.INTAKE_GOVERN)),
+) -> AutoAcceptRuleOut:
+    """Append a rule for one laboratory and one KPI, signed by the owner who records it. The
+    rule is inert while the deployment's switch is off."""
+    rule = auto_accept_service.record_rule(
+        ctx.db,
+        tenant_id=ctx.tenant_id,
+        source_lab=body.source_lab,
+        kpi_code=body.kpi_code,
+        enabled=body.enabled,
+        max_green_error_rate=body.max_green_error_rate,
+        min_sample=body.min_sample,
+        audit_sample_rate=body.audit_sample_rate,
+        signed_by_user_id=ctx.user.id,
+        correlation_id=ctx.correlation_id,
+    )
+    return _rule_out(ctx, rule)

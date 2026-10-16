@@ -69,7 +69,7 @@ def test_a_fitting_answer_becomes_a_proposal_stamped_by_the_harness() -> None:
     proposal = provider.extract(PDF, _pages())
     assert proposal.extraction_provider == "model"
     assert proposal.model_id == "fake:fake-model-1"
-    assert proposal.prompt_version == mp.PROMPT_VERSION == "intake-extract-1"
+    assert proposal.prompt_version == mp.PROMPT_VERSION == "intake-extract-2"
     assert proposal.patient_date_of_birth is not None and proposal.values[0].value_text == "5,4"
     [call] = backend.calls
     assert call["images"] == 1  # one page image

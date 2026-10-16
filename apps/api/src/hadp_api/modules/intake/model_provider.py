@@ -37,7 +37,7 @@ from hadp_api.modules.intake.pages import PageSet
 from hadp_api.modules.intake.schemas import ProposedBatchIn
 
 MODEL_PROVIDER = "model"
-PROMPT_VERSION = "intake-extract-1"
+PROMPT_VERSION = "intake-extract-2"
 IMAGE_DPI = 110
 # What the model is asked. Versioned by PROMPT_VERSION: a change here is a new version.
 SYSTEM_PROMPT = """You read German laboratory reports and transcribe the numeric results
@@ -46,6 +46,7 @@ that are printed on them.
 Answer with ONE JSON object and nothing else — no prose, no code fence. Shape:
 {"patient_date_of_birth": "YYYY-MM-DD" or null,
  "issue_date": "YYYY-MM-DD" or null,
+ "source_lab": the laboratory's name as printed in the letterhead, or null,
  "values": [{"analyte_text": str, "value_text": str, "unit_text": str or null,
              "observed_at": "YYYY-MM-DD" or null, "observed_at_is_date_only": true,
              "reference_low": str or null, "reference_high": str or null,
@@ -223,9 +224,10 @@ def parse_model_answer(
         "prompt_version": prompt_version,
         "patient_date_of_birth": data.get("patient_date_of_birth"),
         "issue_date": data.get("issue_date"),
+        "source_lab": data.get("source_lab"),
         "values": data.get("values"),
     }
-    extra = set(data) - {"patient_date_of_birth", "issue_date", "values"}
+    extra = set(data) - {"patient_date_of_birth", "issue_date", "source_lab", "values"}
     if extra:
         raise ModelOutputInvalid("unexpected_fields:" + ",".join(sorted(str(e) for e in extra)))
     try:

@@ -337,9 +337,12 @@ class IntakeTools:
         values: list[dict[str, Any]],
         patient_date_of_birth: str | None = None,
         issue_date: str | None = None,
+        source_lab: str | None = None,
     ) -> BatchOutcome:
         """Validate the proposal, run the checks, write the batch. Once per run. The model, the
-        prompt and the provider are stamped from the scope — the agent does not say who it is."""
+        prompt and the provider are stamped from the scope — the agent does not say who it is.
+        `source_lab` is the laboratory's name as printed on the letterhead: it only labels the
+        batch for the error-rate report; nothing about a value depends on it."""
         if self._write_used:
             raise ToolError("write_already_used", "this run has already proposed its batch")
         try:
@@ -350,6 +353,7 @@ class IntakeTools:
                     "prompt_version": self.scope.prompt_version,
                     "patient_date_of_birth": patient_date_of_birth,
                     "issue_date": issue_date,
+                    "source_lab": source_lab,
                     "values": values,
                 }
             )
@@ -386,6 +390,7 @@ class IntakeTools:
                 red=result.red,
                 values=tuple(
                     {
+                        "pending_value_id": str(r.id),
                         "row_index": r.row_index,
                         "analyte_text": r.proposed_analyte_text,
                         "status": r.status.value,

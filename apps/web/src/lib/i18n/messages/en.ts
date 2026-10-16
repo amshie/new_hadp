@@ -1725,6 +1725,8 @@ export const en: Messages = {
         clinicProfile: "Change the clinic profile",
         auditTrail: "Read the clinic's audit trail",
         metric: "Record and view the preparation time",
+        intakeGovern:
+          "Read the proposals' error rates and record auto-acceptance rules",
         export: "Create a data export",
         requestDeletion: "Request the deletion of a record",
         listDeletion: "View deletion requests",

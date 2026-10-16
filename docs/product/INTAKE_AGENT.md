@@ -196,6 +196,62 @@ knowing before a pilot laboratory is connected:
   creatinine — all red `unit_unknown`, because only the four approved factors convert anything.
   Each further factor is a signed decision.
 
+## Governance: error rates, auto-acceptance, shadow mode (slice 5)
+
+Slice 5 adds the figures a go-live decision about the agent would be made on — and the switch
+that decision would flip, shipped in the OFF position. Migration `0026_intake_governance`.
+
+### The laboratory on the batch (`intake_batches.source_lab`)
+
+Every batch may carry the laboratory's name as printed on the letterhead (the text-layer reader
+takes the first line of page 1; the model is asked for it in prompt `intake-extract-2`; the
+agent's write accepts `source_lab`). It labels the batch for the reports below and changes no
+value and no status. A batch without it is reported under `(unknown)`.
+
+### The error-rate report (`GET /api/v1/intake/error-rates`, owner)
+
+Computed from the clinicians' decisions, never stored, per laboratory and per KPI
+(`modules/intake/error_rates.py`): decided, confirmed, corrected, rejected; per field
+(analyte, value, unit, reference low/high, date) how often the person changed what was proposed
+(a rejection counts against every field); and, for the values that were **green** when decided,
+the error rate with its **95 % Wilson upper bound** — the figure a rule is judged by, so that a
+small clean sample never reads as "zero errors" (0 of 2 reads as ≤ 0.66, 0 of 100 as ≤ 0.04).
+Values a rule confirmed are counted apart (`auto_confirmed`) and do not feed the rate that
+justifies the rule.
+
+### Auto-acceptance rules — shipped disabled (`modules/intake/auto_accept.py`)
+
+A rule is one row per clinic, laboratory and KPI, recorded by an owner and append-only
+(`intake_auto_accept_rules`): enabled, the highest green error-rate upper bound it tolerates,
+the minimum number of green decisions it needs before it may act, and an **audit sample rate**
+greater than zero (a share of eligible values still goes to a person). Three gates stand
+between a rule and a confirmation, and all three must open:
+
+1. `INTAKE_AUTO_ACCEPT_ENABLED` — a global switch, `false` by default and in `.env.example`.
+   Off, a rule confirms nothing whatever it says (tested).
+2. The rule itself: enabled, for exactly this laboratory and KPI.
+3. The measured rate: at least `min_sample` green decisions by people in that stratum, and the
+   Wilson upper bound of their error rate at or under the rule's threshold.
+
+A rule confirms **green values only**, through the same `decide` path as a person, attributed
+to the user who signed the rule, with `auto_accept_rule_id` on the decision and the audit action
+`intake.value_auto_accepted`. It can never correct or reject (database CHECK and code). The
+screen's `POST …/intake` response reports `auto_confirmed` and the reasons the rest went to a
+person. Turning the switch on is **go-live decision 7** and the Regulatory Lead's: it is a
+change of the product model (a value enters the record without a human looking) and is recorded
+in the classification register as blocked until then.
+
+### Shadow mode (`modules/intake/shadow.py`, `evals/intake_shadow.py`, `make intake-shadow`)
+
+A batch written with `shadow=True` is checked and stored like any other but the screen never
+lists it, no decision can be made on it (`shadow_batch`), and the auto-acceptance skips it. The
+clinic keys the same report the way it does today; `compare` then sets the two side by side per
+laboratory: proposals matched to keyed values by KPI (or analyte) and sampling day, the
+divergence per field over the matched pairs, the unmatched on either side, and the **keying
+delay** (upload → first value a person published afterwards) — the figure a confirmation
+screen's `review_seconds` is later compared with. The comparison reads only; its result is
+appended to `evals/results/intake_shadow_results.jsonl`.
+
 ## Adding a laboratory format
 
 A format is a fixture, not a parser: the model reads the layout, the checks do not care about it.

@@ -87,6 +87,22 @@ const ACTION_LABELS: Record<string, Record<Locale, string>> = {
     de: "Vorgeschlagenen Wert abgelehnt",
     en: "Proposed value rejected",
   },
+  "intake.value_auto_accepted": {
+    de: "Vorgeschlagenen Wert nach Regel übernommen",
+    en: "Proposed value accepted by rule",
+  },
+  "intake.error_rates_read": {
+    de: "Fehlerraten der Vorschläge gelesen",
+    en: "Proposals' error rates read",
+  },
+  "intake.auto_accept_rules_read": {
+    de: "Regeln zur automatischen Übernahme gelesen",
+    en: "Auto-acceptance rules read",
+  },
+  "intake.auto_accept_rule_recorded": {
+    de: "Regel zur automatischen Übernahme festgelegt",
+    en: "Auto-acceptance rule recorded",
+  },
   "review_queue.read": { de: "Review-Queue gelesen", en: "Review queue read" },
   "review_item.resolved": {
     de: "Review-Eintrag entschieden",
@@ -286,6 +302,10 @@ const TARGET_LABELS: Record<string, Record<Locale, string>> = {
   import_job: { de: "Einlesevorgang", en: "Import" },
   intake_batch: { de: "Vorschlag aus Datei", en: "Proposal from a file" },
   pending_value: { de: "Vorgeschlagener Wert", en: "Proposed value" },
+  intake_auto_accept_rule: {
+    de: "Regel zur automatischen Übernahme",
+    en: "Auto-acceptance rule",
+  },
   review_item: { de: "Review-Eintrag", en: "Review item" },
   interpretation_run: { de: "Interpretation", en: "Interpretation" },
   membership: { de: "Mitgliedschaft", en: "Membership" },

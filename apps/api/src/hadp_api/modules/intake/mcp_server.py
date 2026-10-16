@@ -109,15 +109,18 @@ def build_server(tools: IntakeTools) -> FastMCP:
         values: list[dict[str, Any]],
         patient_date_of_birth: str | None = None,
         issue_date: str | None = None,
+        source_lab: str | None = None,
     ) -> str:
         """Propose the values read from the document. Code checks them and records each with a
-        status; nothing is confirmed. Usable once per run."""
+        status; nothing is confirmed. Usable once per run. `source_lab` is the laboratory's
+        name as printed on the letterhead (labels the batch; changes no value)."""
         outcome = guarded(
             tools.create_pending_batch,
             document_id=document_id,
             values=values,
             patient_date_of_birth=patient_date_of_birth,
             issue_date=issue_date,
+            source_lab=source_lab,
         )
         return _json(asdict(outcome))
 

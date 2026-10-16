@@ -48,4 +48,6 @@ class ProposedBatchIn(BaseModel):
     prompt_version: str = Field(min_length=1, max_length=40)
     patient_date_of_birth: date | None = None
     issue_date: date | None = None
+    # The laboratory as the document names it (letterhead), as written; None when not found.
+    source_lab: str | None = Field(default=None, max_length=200)
     values: list[ProposedValueIn] = Field(min_length=1, max_length=MAX_VALUES)

@@ -180,6 +180,10 @@ intake-mcp: ## Run the lab intake agent's MCP server (stdio; scope from HADP_INT
 intake-eval: ## Evaluate the intake extraction over the golden cases (PROVIDER=text-layer|model RUNS=5 OCR=off|tesseract); appends to evals/results
 	$(API_RUN) python evals/intake_eval.py --provider $${PROVIDER:-text-layer} --runs $${RUNS:-5} --ocr $${OCR:-off} --report evals/results/intake_eval_report.md
 
+.PHONY: intake-shadow
+intake-shadow: ## Shadow mode: `make intake-shadow ARGS="propose --tenant-id … --actor-user-id … --patient-id … --document-id …"` or `ARGS="compare --tenant-id … --actor-user-id …"` (appends to evals/results)
+	$(API_RUN) python evals/intake_shadow.py $(ARGS)
+
 .PHONY: worker-dev
 worker-dev: ## Run the background worker
 	cd $(WORKER_DIR) && $(UV) run python -m hadp_worker.main

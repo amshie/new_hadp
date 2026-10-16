@@ -182,8 +182,12 @@ def create_pending_batch(
     created_by_user_id: uuid.UUID | None,
     correlation_id: str | None = None,
     today: date | None = None,
+    shadow: bool = False,
 ) -> BatchResult:
     """Check and record what a model proposed from THIS patient's stored document.
+
+    `shadow`: the batch is for comparison only (shadow mode) — it never reaches the
+    confirmation screen and cannot be decided.
 
     Refuses (nothing written): a document that is not this patient's in this clinic, a stored
     file that is not a readable PDF, a proposal that does not fit the schema. Never refuses a
@@ -257,6 +261,8 @@ def create_pending_batch(
         checks=[{"version": checks.CHECKS_VERSION}, *(c.as_dict() for c in checked.checks)],
         value_count=len(checked.values),
         page_sources=list(pages.sources),
+        source_lab=(" ".join(proposal.source_lab.split())[:200] if proposal.source_lab else None),
+        shadow=shadow,
     )
     db.add(batch)
     db.flush()
@@ -312,6 +318,7 @@ def create_pending_batch(
             "extraction_provider": proposal.extraction_provider,
             "model_id": proposal.model_id,
             "prompt_version": proposal.prompt_version,
+            "shadow": shadow,
         },
     )
     return BatchResult(

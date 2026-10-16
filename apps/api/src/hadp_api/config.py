@@ -110,6 +110,11 @@ class Settings(BaseSettings):
     # In production an endpoint outside this deployment is refused unless the vendor decision
     # (EU residency, no training on customer data) is recorded by setting this.
     intake_model_external_allowed: bool = False
+    # Auto-acceptance of green values by a signed rule. SHIPS OFF: nothing confirms a value
+    # without a person until go-live decision 7 and the Regulatory Lead's sign-off; the rules
+    # and the error-rate report that would justify turning it on exist
+    # (modules/intake/auto_accept.py).
+    intake_auto_accept_enabled: bool = False
     # Web app base URL — used to build the patient-facing view link on report release.
     web_base_url: str = "http://127.0.0.1:3000"
 

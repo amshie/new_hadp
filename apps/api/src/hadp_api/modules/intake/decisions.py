@@ -254,10 +254,13 @@ def decide(
     screen_seconds: int | None = None,
     correlation_id: str | None = None,
     today: date | None = None,
+    auto_accept_rule_id: uuid.UUID | None = None,
 ) -> IntakeDecision:
     """One attributable decision on one pending value. Raises Conflict when the value is
     already decided, when a red value is confirmed as it stands, or when the checks refuse the
     reading now; NotFound outside the tenant."""
+    if auto_accept_rule_id is not None and decision is not IntakeDecisionKind.CONFIRMED:
+        raise Conflict("rule_only_confirms: a rule never corrects or rejects")
     pending = _load_value(db, tenant_id, pending_value_id)
     matching.lock_patient_record(db, pending.patient_id)
     if _already_decided(db, pending.id):
@@ -266,6 +269,8 @@ def decide(
     patient = db.get(Patient, pending.patient_id)
     if batch is None or patient is None:
         raise NotFound("pending value not found")
+    if batch.shadow:
+        raise Conflict("shadow_batch: a shadow batch is compared, never decided")
     now = datetime.now(UTC)
     day = today or now.date()
 
@@ -318,6 +323,7 @@ def decide(
         decided_by_user_id=decided_by_user_id,
         review_seconds=review_seconds,
         screen_seconds=screen_seconds,
+        auto_accept_rule_id=auto_accept_rule_id,
     )
     db.add(row)
     db.flush()
@@ -331,7 +337,18 @@ def decide(
     }
     # One literal action per decision: the trail's vocabulary is read from the source
     # (tests/test_audit_read.py), so the action is never assembled from a value.
-    if decision is IntakeDecisionKind.CONFIRMED:
+    if auto_accept_rule_id is not None:
+        record_audit(
+            db,
+            action="intake.value_auto_accepted",
+            actor_user_id=decided_by_user_id,
+            tenant_id=tenant_id,
+            target_type="pending_value",
+            target_id=pending.id,
+            correlation_id=correlation_id,
+            detail={**detail, "auto_accept_rule_id": str(auto_accept_rule_id)},
+        )
+    elif decision is IntakeDecisionKind.CONFIRMED:
         record_audit(
             db,
             action="intake.value_confirmed",
@@ -385,6 +402,8 @@ def confirm_green(
     ).scalar_one_or_none()
     if batch is None:
         raise NotFound("batch not found")
+    if batch.shadow:
+        raise Conflict("shadow_batch: a shadow batch is compared, never decided")
     decided: list[IntakeDecision] = []
     for value in db.execute(
         select(PendingValue)
@@ -421,7 +440,11 @@ def list_batches(
     rows = db.execute(
         select(IntakeBatch, SourceDocument.filename)
         .join(SourceDocument, SourceDocument.id == IntakeBatch.source_document_id)
-        .where(IntakeBatch.tenant_id == tenant_id, IntakeBatch.patient_id == patient_id)
+        .where(
+            IntakeBatch.tenant_id == tenant_id,
+            IntakeBatch.patient_id == patient_id,
+            IntakeBatch.shadow.is_(False),
+        )
         .order_by(IntakeBatch.created_at.desc(), IntakeBatch.id)
     ).all()
     out: list[dict[str, Any]] = []
@@ -460,7 +483,11 @@ def batch_view(db: Session, *, tenant_id: uuid.UUID, batch_id: uuid.UUID) -> dic
         select(IntakeBatch, SourceDocument.filename, Patient.display_name)
         .join(SourceDocument, SourceDocument.id == IntakeBatch.source_document_id)
         .join(Patient, Patient.id == IntakeBatch.patient_id)
-        .where(IntakeBatch.id == batch_id, IntakeBatch.tenant_id == tenant_id)
+        .where(
+            IntakeBatch.id == batch_id,
+            IntakeBatch.tenant_id == tenant_id,
+            IntakeBatch.shadow.is_(False),
+        )
     ).first()
     if row is None:
         raise NotFound("batch not found")
@@ -515,6 +542,7 @@ def batch_view(db: Session, *, tenant_id: uuid.UUID, batch_id: uuid.UUID) -> dic
         "extraction_provider": batch.extraction_provider,
         "model_id": batch.model_id,
         "prompt_version": batch.prompt_version,
+        "source_lab": batch.source_lab,
         "page_count": batch.page_count,
         "proposed_patient_date_of_birth": batch.proposed_patient_date_of_birth,
         "proposed_issue_date": batch.proposed_issue_date,

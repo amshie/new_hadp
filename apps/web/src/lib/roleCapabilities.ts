@@ -44,6 +44,7 @@ export const CAPABILITIES = [
   { key: "clinicProfile", actions: ["tenant_profile.edit"] },
   { key: "auditTrail", actions: ["audit.read"] },
   { key: "metric", actions: ["metric.read", "metric.record"] },
+  { key: "intakeGovern", actions: ["intake.govern"] },
   { key: "export", actions: ["privacy.export"] },
   { key: "requestDeletion", actions: ["privacy_request.create"] },
   { key: "listDeletion", actions: ["privacy_request.list"] },

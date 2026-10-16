@@ -83,6 +83,7 @@ class TextLayerProvider:
 
     def extract(self, data: bytes, pages: PageSet) -> ProposedBatchIn:
         text = "\n".join(pages.texts)
+        first_line = next((ln.strip() for ln in pages.text(1).splitlines() if ln.strip()), None)
         dob = _DOB.search(text)
         issue = _ISSUE.search(text)
         sampled = _SAMPLED.search(text)
@@ -125,6 +126,8 @@ class TextLayerProvider:
                 "prompt_version": self.prompt_version,
                 "patient_date_of_birth": _iso(dob) if dob else None,
                 "issue_date": _iso(issue) if issue else None,
+                # The letterhead: the first line of the first page, as printed.
+                "source_lab": first_line[:200] if first_line else None,
                 "values": values or [_nothing_found(len(pages.texts))],
             }
         )

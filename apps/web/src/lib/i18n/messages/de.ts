@@ -1781,6 +1781,8 @@ export const de = {
         clinicProfile: "Praxisprofil ändern",
         auditTrail: "Audit-Protokoll der Praxis lesen",
         metric: "Vorbereitungszeit erfassen und einsehen",
+        intakeGovern:
+          "Fehlerraten der Vorschläge einsehen und Regeln zur automatischen Übernahme festlegen",
         export: "Datenauskunft erstellen",
         requestDeletion: "Löschung einer Akte beantragen",
         listDeletion: "Löschanträge einsehen",
