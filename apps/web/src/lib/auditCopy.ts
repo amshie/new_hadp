@@ -59,6 +59,30 @@ const ACTION_LABELS: Record<string, Record<Locale, string>> = {
     de: "Letzter Wert für den Vorschlag gelesen",
     en: "Last value read for a proposal",
   },
+  "intake.batches_list": {
+    de: "Vorschläge einer Akte gelesen",
+    en: "A record's proposals read",
+  },
+  "intake.batch_read": {
+    de: "Vorschlag aus Datei gelesen",
+    en: "Proposal from a file read",
+  },
+  "intake.region_read": {
+    de: "Bildausschnitt eines Vorschlags gelesen",
+    en: "Page region of a proposal read",
+  },
+  "intake.value_confirmed": {
+    de: "Vorgeschlagenen Wert bestätigt",
+    en: "Proposed value confirmed",
+  },
+  "intake.value_corrected": {
+    de: "Vorgeschlagenen Wert korrigiert",
+    en: "Proposed value corrected",
+  },
+  "intake.value_rejected": {
+    de: "Vorgeschlagenen Wert abgelehnt",
+    en: "Proposed value rejected",
+  },
   "review_queue.read": { de: "Review-Queue gelesen", en: "Review queue read" },
   "review_item.resolved": {
     de: "Review-Eintrag entschieden",
@@ -257,6 +281,7 @@ const TARGET_LABELS: Record<string, Record<Locale, string>> = {
   source_document: { de: "Datei", en: "File" },
   import_job: { de: "Einlesevorgang", en: "Import" },
   intake_batch: { de: "Vorschlag aus Datei", en: "Proposal from a file" },
+  pending_value: { de: "Vorgeschlagener Wert", en: "Proposed value" },
   review_item: { de: "Review-Eintrag", en: "Review item" },
   interpretation_run: { de: "Interpretation", en: "Interpretation" },
   membership: { de: "Mitgliedschaft", en: "Membership" },

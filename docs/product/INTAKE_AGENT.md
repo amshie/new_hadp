@@ -1,11 +1,12 @@
 # Lab intake agent
 
-Status: **slices 1–2 of 5, synthetic data only (2026-10-16).** Built: the data model, the
+Status: **slices 1–3 of 5, synthetic data only (2026-10-16).** Built: the data model, the
 deterministic checks, the one write, twelve golden cases, the agent's four tools and the MCP
-server that exposes them, the red-team tests of the gate. **Not built yet:** the confirmation
-screen and the step that makes a confirmed value an observation (slice 3), the extraction
-providers that drive the tools and their evaluation (slice 4), shadow mode and the error-rate
-report (slice 5). Nothing built so far writes to the patient record, and nothing confirms a value.
+server that exposes them, the red-team tests of the gate, the confirmation screen with the
+clinician's decisions, and the deterministic text-layer provider that proposes without a model.
+**Not built yet:** the model-backed extraction provider, the router and the evaluation (slice 4),
+shadow mode and the error-rate report (slice 5). The only path by which a proposed value becomes
+an observation is a clinician's decision on the confirmation screen.
 
 A laboratory report arrives as a PDF. A model **proposes** structured values from it. Deterministic
 code **checks** each proposal and records what it found. A clinician **confirms** — and only then
@@ -35,8 +36,37 @@ the gate — the door does not exist. A proposal that tries to carry a `status`,
 | `kpi_plausibility_bounds` | global, read-only for the app role | seed from `bounds_data.py` only      | Per KPI: hard bounds outside which a value cannot be a reading from a living person, and the relative change beyond which a human looks. **Ships empty** — a bound is a clinical statement and is recorded with who signed it.                                                                  |
 | `observations`            | tenant, RLS (existing)             | a clinician's confirmation (slice 3) | The record. A confirmed value becomes an observation with `source_record_locator` = page and box, and a reference to its pending value. The timeline, interpretation and reports read observations only; they never read pending values.                                                        |
 
-A pending value is never updated. What a human decides about it is a separate append-only record
-(slice 3). The audit trail gets `intake.batch_proposed` per batch: identifiers and counts only.
+A pending value is never updated; the decision is a separate append-only row. The audit trail
+gets `intake.batch_proposed` per batch, `intake.batch_read` / `intake.region_read` per read, and
+`intake.value_confirmed` / `intake.value_corrected` / `intake.value_rejected` per decision —
+identifiers, counts and timings only.
+
+## The confirmation screen (`/intake/{batch_id}`, slice 3)
+
+One page per proposal. Every value stands beside a crop of the page region it was read from
+(`GET /intake/values/{id}/region`, PNG, recorded). The rules of the screen are the API's rules:
+
+- **green** confirms with one click, or all at once (`confirm-green`); **yellow** confirms only
+  after the region was looked at (the page asks for it; the API knows nothing of the look);
+  **red** is corrected or rejected, never confirmed (`409 red_value`).
+- At the moment of a decision the checks run **again** against the record as it now is: a
+  confirmation the checks refuse now (a duplicate appeared since) is refused (`409 checks_failed`).
+- A **correction** is the clinician's own reading: the checks run on it with the clinician's
+  confidence; the page checks are recorded but do not block (a human reads a scan the text layer
+  cannot), every other red does. The proposal and the final reading are kept side by side.
+- A **rejection** carries a reason from a closed set and enters nothing.
+- One decision per value; `review_seconds` (the value) and `screen_seconds` (the document) are
+  stored with it. The clinic's roles: care staff propose (`intake.propose`) and read
+  (`intake.read`); only a clinician decides (`intake.decide`); the medical director reads.
+
+### Providers (`modules/intake/providers.py`)
+
+`POST /patients/{id}/documents/{id}/intake` runs the provider `INTAKE_PROVIDER` names over a
+stored PDF and writes the proposal through the same `create_pending_batch` as the agent's tool.
+Built: `text-layer`, a deterministic reader of the text layer that knows no laboratory layout,
+takes a line of the shape "name value unit [reference]" as a value and proposes it with
+confidence 0.6 — so every value it proposes is yellow and a human looks at each one. It needs no
+model and no network and is the floor a model provider is measured against (slice 4).
 
 ## The deterministic checks (`modules/intake/checks.py`, ruleset `intake-checks-1`)
 

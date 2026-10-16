@@ -622,3 +622,39 @@ export const recordPreparationStatement = (input: PreparationStatementInput) =>
     method: "POST",
     body: JSON.stringify(input),
   });
+
+// --- Lab intake agent (docs/product/INTAKE_AGENT.md): proposals from a PDF, and the clinician's
+// decisions on them. The agent writes through its own tool, never through these calls.
+export type IntakeBatchSummary = Schemas["IntakeBatchSummaryOut"];
+export type IntakeBatch = Schemas["IntakeBatchOut"];
+export type IntakePendingValue = Schemas["PendingValueOut"];
+export type IntakeDecisionInput = Schemas["DecisionIn"];
+export type IntakeDecisionOut = Schemas["DecisionOut"];
+export type IntakeProposeOut = Schemas["ProposeOut"];
+export type IntakeConfirmGreenOut = Schemas["ConfirmGreenOut"];
+export const listIntakeBatches = (patientId: string) =>
+  request<IntakeBatchSummary[]>(`/api/v1/patients/${patientId}/intake-batches`);
+export const proposeIntake = (patientId: string, documentId: string) =>
+  request<IntakeProposeOut>(
+    `/api/v1/patients/${patientId}/documents/${documentId}/intake`,
+    { method: "POST" },
+  );
+export const getIntakeBatch = (batchId: string) =>
+  request<IntakeBatch>(`/api/v1/intake/batches/${batchId}`);
+export const decideIntakeValue = (batchId: string, body: IntakeDecisionInput) =>
+  request<IntakeDecisionOut>(`/api/v1/intake/batches/${batchId}/decisions`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+export const confirmGreenIntake = (
+  batchId: string,
+  screenSeconds: number | null,
+) =>
+  request<IntakeConfirmGreenOut>(
+    `/api/v1/intake/batches/${batchId}/confirm-green`,
+    { method: "POST", body: JSON.stringify({ screen_seconds: screenSeconds }) },
+  );
+// The page region a proposed value came from (PNG): the raw response, for a route handler to
+// pass through to the browser.
+export const intakeValueRegion = (pendingValueId: string) =>
+  send(`/api/v1/intake/values/${pendingValueId}/region`);

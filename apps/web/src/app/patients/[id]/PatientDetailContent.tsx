@@ -22,6 +22,7 @@ import type {
   DataExport,
   DeletionReason,
   SourceDocument,
+  IntakeBatchSummary,
 } from "@/lib/api";
 import { AuditSteps } from "@/components/vitabahn/AuditSteps";
 import { Dialog } from "@/components/vitabahn/Dialog";
@@ -147,12 +148,14 @@ export function tabOfFragment(
 export function PatientDetailContent({
   view,
   documents,
+  intakeBatches,
   consents,
   dataExports,
   sessionRole,
 }: {
   view: DetailView;
   documents: SourceDocument[];
+  intakeBatches?: IntakeBatchSummary[];
   consents: ConsentState[];
   // null: not the owner, an erased record, or the list could not be read — no card.
   dataExports: DataExport[] | null;
@@ -851,6 +854,7 @@ export function PatientDetailContent({
             patientId={view.patientId}
             documents={documents}
             canImport={canInvite}
+            intakeBatches={intakeBatches}
           />
         )}
 

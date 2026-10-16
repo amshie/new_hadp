@@ -92,6 +92,9 @@ class Settings(BaseSettings):
     # (the DACH pilot default); a time that does not name exactly one instant goes to review.
     # Report statements state a sampling time as wall-clock time in the same zone.
     lab_local_timezone: str = "Europe/Berlin"
+    # Which extraction provider reads a PDF into proposals (modules/intake/providers.py). The
+    # deterministic text-layer reader needs no model and no network.
+    intake_provider: str = "text-layer"
     # Web app base URL — used to build the patient-facing view link on report release.
     web_base_url: str = "http://127.0.0.1:3000"
 

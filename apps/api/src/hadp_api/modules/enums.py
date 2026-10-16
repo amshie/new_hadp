@@ -117,6 +117,28 @@ class PendingValueStatus(str, Enum):
     RED = "red"
 
 
+class IntakeDecisionKind(str, Enum):
+    """What a clinician decided about ONE pending value (lab intake agent) — a CLOSED
+    vocabulary, one decision per value, append-only. CONFIRMED: the proposal as it stands
+    becomes an observation. CORRECTED: the clinician's reading becomes the observation and the
+    proposal is kept beside it. REJECTED: nothing enters the record; the reason is kept."""
+
+    CONFIRMED = "confirmed"
+    CORRECTED = "corrected"
+    REJECTED = "rejected"
+
+
+class IntakeRejectionReason(str, Enum):
+    """Why a proposed value was rejected — a CLOSED vocabulary, never free text. It describes
+    the reading of the document, not the patient."""
+
+    NOT_ON_DOCUMENT = "not_on_document"  # the document does not say this
+    MISREAD = "misread"  # the document says something else and it is not worth correcting
+    WRONG_PATIENT = "wrong_patient"
+    ALREADY_RECORDED = "already_recorded"
+    OTHER = "other"
+
+
 class ImportStatus(str, Enum):
     RECEIVED = "received"
     STORED = "stored"

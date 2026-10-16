@@ -35,12 +35,18 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from hadp_api.db.base import Base, TimestampCreated, UUIDPrimaryKey
-from hadp_api.modules.enums import PendingValueStatus, pg_enum
+from hadp_api.modules.enums import (
+    IntakeDecisionKind,
+    IntakeRejectionReason,
+    PendingValueStatus,
+    pg_enum,
+)
 
 
 class IntakeBatch(UUIDPrimaryKey, TimestampCreated, Base):
@@ -176,3 +182,68 @@ class KpiPlausibilityBound(TimestampCreated, Base):
     signed_by: Mapped[str] = mapped_column(String(120), nullable=False)
     signed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     bounds_version: Mapped[str] = mapped_column(String(40), nullable=False)
+
+
+class IntakeDecision(UUIDPrimaryKey, TimestampCreated, Base):
+    """What a clinician decided about one pending value — append-only, one per value.
+
+    A confirmed or corrected value points at the observation it became; a rejected one points
+    at nothing. A correction keeps the proposal and the final reading side by side (`correction`),
+    so the proposal's error can later be measured. `review_seconds` is how long the clinician
+    spent on this value, `screen_seconds` how long the document's screen had been open when the
+    decision was made (the document's review time is the largest of them). Timings and ids only.
+    """
+
+    __tablename__ = "intake_decisions"
+    __table_args__ = (
+        UniqueConstraint("pending_value_id", name="uq_intake_decisions_pending_value_id"),
+        CheckConstraint(
+            "(decision = 'rejected') = (observation_id IS NULL)", name="observation_iff_accepted"
+        ),
+        CheckConstraint(
+            "(decision = 'rejected') = (rejection_reason IS NOT NULL)", name="reason_iff_rejected"
+        ),
+        CheckConstraint(
+            "(decision = 'corrected') = (correction IS NOT NULL)", name="correction_iff_corrected"
+        ),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("patients.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    batch_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("intake_batches.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    pending_value_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pending_values.id", ondelete="RESTRICT"), nullable=False
+    )
+    decision: Mapped[IntakeDecisionKind] = mapped_column(
+        pg_enum(IntakeDecisionKind), nullable=False
+    )
+    observation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("observations.id", ondelete="RESTRICT"), nullable=True
+    )
+    # none_as_null: a decision without a correction stores SQL NULL, which the CHECK reads.
+    correction: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True
+    )
+    rejection_reason: Mapped[IntakeRejectionReason | None] = mapped_column(
+        pg_enum(IntakeRejectionReason), nullable=True
+    )
+    decided_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    review_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    screen_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)

@@ -52,6 +52,13 @@ class Action(str, Enum):
     METRIC_READ = "metric.read"
     METRIC_RECORD = "metric.record"
     REVIEW_RESOLVE = "review.resolve"
+    # Lab intake agent (docs/product/INTAKE_AGENT.md): have a stored PDF read into proposals
+    # (operational, like an import), read the proposals (every staff role that reads values),
+    # and decide them — the decision makes a value an observation: a clinician's step, like
+    # review resolution.
+    INTAKE_PROPOSE = "intake.propose"
+    INTAKE_READ = "intake.read"
+    INTAKE_DECIDE = "intake.decide"
     INTERPRETATION_AUTHOR = "interpretation.author"
     REPORT_DRAFT = "report.draft"
     REPORT_EDIT = "report.edit"
@@ -115,6 +122,9 @@ _PERMISSIONS: dict[Action, frozenset[Role]] = {
     # Review-queue resolution is a clinical judgement (WORKFLOW §2.2/§2.4: the
     # assistant triages the queue but may not resolve clinically).
     Action.REVIEW_RESOLVE: frozenset({Role.CLINICIAN}),
+    Action.INTAKE_PROPOSE: _CARE_STAFF,
+    Action.INTAKE_READ: _READ_STAFF,
+    Action.INTAKE_DECIDE: frozenset({Role.CLINICIAN}),
     Action.INTERPRETATION_AUTHOR: frozenset({Role.CLINICIAN}),
     Action.REPORT_DRAFT: _CARE_STAFF,
     Action.REPORT_EDIT: _CARE_STAFF,

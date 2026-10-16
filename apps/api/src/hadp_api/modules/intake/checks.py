@@ -211,6 +211,8 @@ class CheckedValue:
     proposal: ProposedValue
     kpi_code: str | None
     canonical_unit: str | None
+    # The written value as one number in the WRITTEN unit (None when it is not one number).
+    numeric_value: Decimal | None
     normalized_value: Decimal | None
     normalized_reference_low: Decimal | None
     normalized_reference_high: Decimal | None
@@ -596,6 +598,7 @@ def run_checks(
                 proposal=value,
                 kpi_code=term.kpi_code if term is not None else None,
                 canonical_unit=canonical_unit,
+                numeric_value=number,
                 normalized_value=normalized,
                 normalized_reference_low=ref_low,
                 normalized_reference_high=ref_high,

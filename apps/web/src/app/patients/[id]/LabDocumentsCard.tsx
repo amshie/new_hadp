@@ -3,17 +3,19 @@
 import Link from "next/link";
 import { useRef, useState, useTransition, type CSSProperties } from "react";
 
-import type { SourceDocument } from "@/lib/api";
+import type { IntakeBatchSummary, SourceDocument } from "@/lib/api";
 import { CLINIC_TIME_ZONE } from "@/lib/clinicTime";
-import { fill } from "@/lib/i18n/fill";
+import { byCount, fill } from "@/lib/i18n/fill";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import type { Messages } from "@/lib/i18n/messages";
 import { useHydrated } from "@/lib/useHydrated";
 
 import {
   importStoredDocumentAction,
+  proposeIntakeAction,
   uploadLabFileAction,
   type LabImportResult,
+  type ProposeResult,
 } from "./lab-actions";
 
 // Laboratory files of one patient (ingestion tier 1): upload a structured file, have it read
@@ -113,12 +115,16 @@ export function LabDocumentsCard({
   patientId,
   documents,
   canImport,
+  intakeBatches = [],
 }: {
   patientId: string;
   documents: SourceDocument[];
   canImport: boolean;
+  // Proposals the lab intake agent made from this record's PDFs (newest first).
+  intakeBatches?: IntakeBatchSummary[];
 }) {
   const t = useI18n().t.patientPage.lab;
+  const [proposed, setProposed] = useState<ProposeResult | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [outcome, setOutcome] = useState<LabImportResult | null>(null);
   // The name of the chosen file, shown beside the button (the native control's own wording
@@ -145,6 +151,16 @@ export function LabDocumentsCard({
       setOutcome(await importStoredDocumentAction(patientId, documentId));
     });
   };
+
+  const propose = (documentId: string) => {
+    startTransition(async () => {
+      setProposed(null);
+      setProposed(await proposeIntakeAction(patientId, documentId));
+    });
+  };
+  const isPdf = (doc: SourceDocument) =>
+    doc.content_type === "application/pdf" ||
+    doc.filename.toLowerCase().endsWith(".pdf");
 
   return (
     <section
@@ -174,7 +190,7 @@ export function LabDocumentsCard({
             maxWidth: "88ch",
           }}
         >
-          {t.note}
+          {t.note} {t.intake.pdfNote}
         </p>
 
         {canImport ? (
@@ -198,7 +214,7 @@ export function LabDocumentsCard({
                 type="file"
                 name="file"
                 required
-                accept=".csv,.ldt,.txt"
+                accept=".csv,.ldt,.txt,.pdf"
                 aria-label={t.choose}
                 disabled={pending}
                 onChange={(e) =>
@@ -262,6 +278,47 @@ export function LabDocumentsCard({
                 <Link href="/review-queue">{t.toQueue}</Link>
               </>
             )}
+          </div>
+        )}
+        {proposed && proposed.ok && (
+          <div
+            role="status"
+            style={{
+              marginTop: "14px",
+              padding: "10px 12px",
+              border: "1px solid var(--border-subtle)",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--surface-sunken)",
+              fontSize: "12.5px",
+              lineHeight: 1.5,
+              color: "var(--text-strong)",
+            }}
+          >
+            {fill(t.intake.proposed, {
+              n: proposed.result.value_count,
+              green: proposed.result.green,
+              yellow: proposed.result.yellow,
+              red: proposed.result.red,
+            })}
+            <Link href={`/intake/${proposed.result.batch_id}`}>
+              {t.intake.openIt}
+            </Link>
+          </div>
+        )}
+        {proposed && !proposed.ok && (
+          <div
+            role="alert"
+            style={{
+              marginTop: "14px",
+              padding: "10px 12px",
+              border: "1px solid var(--btn-danger-border)",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "12.5px",
+              lineHeight: 1.5,
+              color: "var(--text-strong)",
+            }}
+          >
+            {proposed.error}
           </div>
         )}
         {outcome && !outcome.ok && (
@@ -342,7 +399,44 @@ export function LabDocumentsCard({
                       : "—"}
                   </td>
                   <td style={{ ...tdStyle, paddingRight: "22px" }}>
-                    {doc.imported ? (
+                    {isPdf(doc) ? (
+                      <div
+                        style={{
+                          display: "grid",
+                          gap: "6px",
+                          justifyItems: "start",
+                        }}
+                      >
+                        {intakeBatches
+                          .filter((b) => b.document_id === doc.id)
+                          .map((b) => (
+                            <Link
+                              key={b.batch_id}
+                              href={`/intake/${b.batch_id}`}
+                              style={{ fontSize: "12.5px" }}
+                            >
+                              {fill(t.intake.openBatch, {
+                                when: fmtWhen(b.created_at),
+                              })}{" "}
+                              (
+                              {b.open_count > 0
+                                ? byCount(t.intake.openCount, b.open_count)
+                                : t.intake.allDecided}
+                              )
+                            </Link>
+                          ))}
+                        {canImport && (
+                          <button
+                            type="button"
+                            style={btnSec}
+                            disabled={pending}
+                            onClick={() => propose(doc.id)}
+                          >
+                            {pending ? t.intake.proposing : t.intake.propose}
+                          </button>
+                        )}
+                      </div>
+                    ) : doc.imported ? (
                       countsLine(doc.imported, t.counts)
                     ) : (
                       <div

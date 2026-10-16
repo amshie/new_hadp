@@ -5,8 +5,10 @@ import { revalidatePath } from "next/cache";
 import {
   ApiError,
   importDocument,
+  proposeIntake,
   uploadDocument,
   type DocumentImportResult,
+  type IntakeProposeOut,
 } from "@/lib/api";
 import { fill } from "@/lib/i18n/fill";
 import type { Messages } from "@/lib/i18n/messages";
@@ -140,4 +142,32 @@ export async function importStoredDocumentAction(
   const outcome = await runImport(patientId, documentId, t);
   revalidatePath(`/patients/${patientId}`);
   return outcome;
+}
+
+// Have a stored PDF read into a proposal (lab intake agent). The API runs the configured
+// provider and the checks; nothing is published. The answer names the new proposal.
+export type ProposeResult =
+  | { ok: true; result: IntakeProposeOut }
+  | { ok: false; error: string };
+
+export async function proposeIntakeAction(
+  patientId: string,
+  documentId: string,
+): Promise<ProposeResult> {
+  const t = (await getMessages()).patientPage.lab.intake;
+  if (!isUuid(patientId) || !isUuid(documentId))
+    return { ok: false, error: t.errors.failed };
+  try {
+    const result = await proposeIntake(patientId, documentId);
+    revalidatePath(`/patients/${patientId}`);
+    return { ok: true, result };
+  } catch (e) {
+    if (e instanceof ApiError) {
+      if (e.status === 403) return { ok: false, error: t.errors.notAllowed };
+      if (e.status === 429) return { ok: false, error: t.errors.tooMany };
+      if (e.status === 422 || e.status === 409)
+        return { ok: false, error: t.errors.unreadable };
+    }
+    return { ok: false, error: t.errors.failed };
+  }
 }
