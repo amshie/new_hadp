@@ -87,9 +87,7 @@ def upgrade() -> None:
     op.create_check_constraint(
         "audit_sample_positive", "intake_auto_accept_rules", "audit_sample_rate > 0"
     )
-    op.create_check_constraint(
-        "min_sample_positive", "intake_auto_accept_rules", "min_sample >= 1"
-    )
+    op.create_check_constraint("min_sample_positive", "intake_auto_accept_rules", "min_sample >= 1")
     op.execute("GRANT SELECT, INSERT ON intake_auto_accept_rules TO hadp_app")
     op.execute("REVOKE UPDATE, DELETE, TRUNCATE ON intake_auto_accept_rules FROM hadp_app")
     op.execute("ALTER TABLE intake_auto_accept_rules ENABLE ROW LEVEL SECURITY")
@@ -104,9 +102,7 @@ def upgrade() -> None:
         "FOR EACH ROW EXECUTE FUNCTION hadp_block_intake_mutation()"
     )
 
-    op.add_column(
-        "intake_decisions", sa.Column("auto_accept_rule_id", sa.UUID(), nullable=True)
-    )
+    op.add_column("intake_decisions", sa.Column("auto_accept_rule_id", sa.UUID(), nullable=True))
     # A short explicit name: the convention's would exceed PostgreSQL's 63 characters.
     op.create_foreign_key(
         op.f("fk_intake_decisions_auto_accept_rule"),

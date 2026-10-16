@@ -22,7 +22,7 @@ from typing import Protocol
 
 from hadp_api.config import Settings
 from hadp_api.modules.documents.pdf_render import open_pdf
-from hadp_api.modules.documents.pdf_text import PdfUnreadable, read_pages
+from hadp_api.modules.documents.pdf_text import PdfUnreadable, Word, read_pages
 
 TEXT_LAYER = "text_layer"
 OCR = "ocr"
@@ -51,10 +51,12 @@ class OcrUnavailable(Exception):
 
 @dataclass(frozen=True)
 class PageSet:
-    """Page texts with, per page, where the text came from."""
+    """Page texts with, per page, where the text came from — and, for a text-layer page, where
+    each word is printed. OCR text carries no positions here."""
 
     texts: tuple[str, ...]
     sources: tuple[str, ...]
+    words: tuple[tuple[Word, ...], ...] = ()
 
     @property
     def page_count(self) -> int:
@@ -65,6 +67,12 @@ class PageSet:
 
     def source(self, page: int) -> str:
         return self.sources[page - 1] if 1 <= page <= len(self.sources) else NONE
+
+    def words_on(self, page: int) -> tuple[Word, ...]:
+        """The positioned words of a text-layer page; none for an OCR page or a scan."""
+        if self.source(page) != TEXT_LAYER or not 1 <= page <= len(self.words):
+            return ()
+        return self.words[page - 1]
 
 
 @dataclass(frozen=True)
@@ -129,7 +137,7 @@ def load_pages(data: bytes, settings: Settings, *, engine: OcrEngine | None = No
                 continue
             texts[index] = ocr.read(_render_page_png(data, index + 1))
             sources[index] = OCR if texts[index].strip() else NONE
-    return PageSet(tuple(texts), tuple(sources))
+    return PageSet(tuple(texts), tuple(sources), layer.words)
 
 
 __all__ = [
@@ -143,6 +151,7 @@ __all__ = [
     "PageSet",
     "PdfUnreadable",
     "TesseractEngine",
+    "Word",
     "engine_for",
     "load_pages",
 ]

@@ -138,19 +138,3 @@ def test_every_case_declares_itself_synthetic(case_dir) -> None:  # type: ignore
     patient = json.loads((case_dir / "input" / "patient.json").read_text(encoding="utf-8"))
     assert "TEST-ONLY" in patient["_note"]
     assert (case_dir / "rubric.md").exists()
-
-
-def test_bounding_boxes_point_at_the_value_on_the_page() -> None:
-    """Where the generator could locate the value word, the box lies on page 1 of an A4 page
-    and is a few points high — provenance a confirmation screen can crop."""
-    seen = 0
-    for case_dir in CASES:
-        case = load_case(case_dir)
-        for v in case.proposal.values:
-            if v.bbox is None:
-                continue
-            x0, y0, x1, y1 = v.bbox
-            assert 0 <= x0 < x1 <= 596 and 0 <= y0 < y1 <= 842
-            assert 5 <= y1 - y0 <= 20
-            seen += 1
-    assert seen >= 30

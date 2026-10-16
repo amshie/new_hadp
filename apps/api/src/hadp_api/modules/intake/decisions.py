@@ -28,6 +28,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
+from PIL import ImageDraw
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -37,7 +38,7 @@ from hadp_api.modules.audit.service import record_audit
 from hadp_api.modules.documents.blob import get_blob_store
 from hadp_api.modules.documents.models import SourceDocument
 from hadp_api.modules.documents.pdf_render import open_pdf
-from hadp_api.modules.documents.pdf_text import PdfUnreadable
+from hadp_api.modules.documents.pdf_text import PdfUnreadable, page_words
 from hadp_api.modules.enums import (
     IntakeDecisionKind,
     IntakeRejectionReason,
@@ -48,6 +49,7 @@ from hadp_api.modules.enums import (
 from hadp_api.modules.imports import matching
 from hadp_api.modules.imports.service import source_reference_text
 from hadp_api.modules.intake import checks
+from hadp_api.modules.intake.locate import line_extent
 from hadp_api.modules.intake.models import IntakeBatch, IntakeDecision, PendingValue
 from hadp_api.modules.intake.pages import OcrUnavailable, load_pages
 from hadp_api.modules.intake.service import _DbBounds, record_view
@@ -552,15 +554,20 @@ def batch_view(db: Session, *, tenant_id: uuid.UUID, batch_id: uuid.UUID) -> dic
     }
 
 
-# The region around a value, with room for the line it stands on. Points.
-_PAD_X = 160.0
+# The region around a value: its whole printed row (the analyte's name included), a little
+# above and below. Points.
+_PAD_X = 12.0
 _PAD_Y = 14.0
 _REGION_DPI = 144
+# The located value is framed in the crop: a neutral colour, never a status colour.
+_FRAME_RGB = (29, 78, 216)
+_FRAME_PX = 2
+_FRAME_MARGIN = 2.0  # points around the value's box
 
 
 def region_png(db: Session, *, tenant_id: uuid.UUID, pending_value_id: uuid.UUID) -> bytes:
     """A crop of the cited page around the value's box — the clinician's view of where the
-    number came from. Without a box: the whole page."""
+    number came from (`render_region`)."""
     value = _load_value(db, tenant_id, pending_value_id)
     document = db.get(SourceDocument, value.source_document_id)
     if document is None:
@@ -568,20 +575,48 @@ def region_png(db: Session, *, tenant_id: uuid.UUID, pending_value_id: uuid.UUID
     store = get_blob_store(get_settings())
     if not store.exists(document.storage_key):
         raise Conflict("document_unavailable: the stored source document cannot be read")
-    data = store.get(document.storage_key)
+    box: tuple[float, float, float, float] | None = None
+    if value.bbox:
+        x0, y0, x1, y1 = (float(x) for x in value.bbox)
+        box = (x0, y0, x1, y1)
+    return render_region(store.get(document.storage_key), value.page, box)
+
+
+def render_region(
+    data: bytes, page_no: int, bbox: tuple[float, float, float, float] | None
+) -> bytes:
+    """PNG of the whole printed row the box sits on, a little above and below, with the value
+    framed. Without a box (a scan, or a value code could not place with certainty): the whole
+    page, unframed. NotFound for a page the document does not have."""
     with open_pdf(data) as pdf:
-        if value.page < 1 or value.page > len(pdf.pages):
+        if page_no < 1 or page_no > len(pdf.pages):
             raise NotFound("page not found")
-        page = pdf.pages[value.page - 1]
-        if value.bbox:
-            x0, y0, x1, y1 = (float(x) for x in value.bbox)
+        page = pdf.pages[page_no - 1]
+        frame: tuple[float, float, float, float] | None = None
+        if bbox is not None:
+            x0, y0, x1, y1 = bbox
+            left, right = line_extent(page_words(page), bbox)
             box = (
-                max(0.0, x0 - _PAD_X),
+                max(0.0, left - _PAD_X),
                 max(0.0, y0 - _PAD_Y),
-                min(float(page.width), x1 + _PAD_X * 2),
+                min(float(page.width), right + _PAD_X),
                 min(float(page.height), y1 + _PAD_Y),
             )
             page = page.crop(box)
+            frame = (x0 - box[0], y0 - box[1], x1 - box[0], y1 - box[1])
+        image = page.to_image(resolution=_REGION_DPI).original.convert("RGB")
+        if frame is not None:
+            scale = _REGION_DPI / 72
+            ImageDraw.Draw(image).rectangle(
+                [
+                    round((frame[0] - _FRAME_MARGIN) * scale),
+                    round((frame[1] - _FRAME_MARGIN) * scale),
+                    round((frame[2] + _FRAME_MARGIN) * scale),
+                    round((frame[3] + _FRAME_MARGIN) * scale),
+                ],
+                outline=_FRAME_RGB,
+                width=_FRAME_PX,
+            )
         buf = io.BytesIO()
-        page.to_image(resolution=_REGION_DPI).original.save(buf, format="PNG")
+        image.save(buf, format="PNG")
         return buf.getvalue()

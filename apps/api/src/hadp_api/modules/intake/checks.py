@@ -264,14 +264,19 @@ _NUMBER_EDGE = r"(?<![0-9.,])"
 _NUMBER_END = r"(?![0-9.,])"
 
 
-def value_on_page(value_text: str, page_text: str) -> bool:
-    """Whether the value, as written, stands on the page as a number of its own: '5,2' is not
-    found inside '15,2' or '5,25'. Whitespace inside the value is not significant."""
+def value_pattern(value_text: str) -> re.Pattern[str] | None:
+    """The value, as written, as a number of its own: '5,2' does not match inside '15,2' or
+    '5,25'. Runs of whitespace inside the value count as one space. None for a blank value."""
     needle = _squash(value_text)
     if not needle:
-        return False
-    pattern = _NUMBER_EDGE + re.escape(needle) + _NUMBER_END
-    return re.search(pattern, _squash(page_text)) is not None
+        return None
+    return re.compile(_NUMBER_EDGE + re.escape(needle) + _NUMBER_END)
+
+
+def value_on_page(value_text: str, page_text: str) -> bool:
+    """Whether the value, as written, stands on the page as a number of its own."""
+    pattern = value_pattern(value_text)
+    return pattern is not None and pattern.search(_squash(page_text)) is not None
 
 
 def text_on_page(text: str, page_text: str) -> bool:

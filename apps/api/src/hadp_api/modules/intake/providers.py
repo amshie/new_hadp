@@ -20,7 +20,6 @@ from decimal import Decimal
 from typing import Any, Protocol
 
 from hadp_api.config import Settings, get_settings
-from hadp_api.modules.documents.pdf_render import open_pdf
 from hadp_api.modules.intake.pages import PageSet
 from hadp_api.modules.intake.schemas import ProposedBatchIn
 
@@ -88,7 +87,6 @@ class TextLayerProvider:
         issue = _ISSUE.search(text)
         sampled = _SAMPLED.search(text)
         values: list[dict[str, Any]] = []
-        boxes = _value_boxes(data)
         for page_no, page_text in enumerate(pages.texts, start=1):
             for line in page_text.splitlines():
                 stripped = line.strip()
@@ -115,7 +113,8 @@ class TextLayerProvider:
                         "reference_high": high,
                         "reference_text": ref_text,
                         "page": page_no,
-                        "bbox": boxes.get((page_no, m.group("value"))),
+                        # Where it is printed is found by code when the batch is written.
+                        "bbox": None,
                         "confidence": LOW_CONFIDENCE,
                     }
                 )
@@ -147,23 +146,6 @@ def _nothing_found(page_count: int) -> dict[str, Any]:
         "bbox": None,
         "confidence": Decimal("0"),
     }
-
-
-def _value_boxes(data: bytes) -> dict[tuple[int, str], list[float]]:
-    """(page, value text) -> the box of the FIRST word that is that text on the page."""
-    boxes: dict[tuple[int, str], list[float]] = {}
-    with open_pdf(data) as pdf:
-        for page_no, page in enumerate(pdf.pages, start=1):
-            for word in page.extract_words():
-                key = (page_no, word["text"])
-                if key not in boxes:
-                    boxes[key] = [
-                        round(word["x0"], 1),
-                        round(word["top"], 1),
-                        round(word["x1"], 1),
-                        round(word["bottom"], 1),
-                    ]
-    return boxes
 
 
 def get_provider(name: str, settings: Settings | None = None) -> ExtractionProvider:

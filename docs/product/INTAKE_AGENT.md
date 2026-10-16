@@ -31,13 +31,13 @@ the gate — the door does not exist. A proposal that tries to carry a `status`,
 
 ## Data model (migration `0023_lab_intake`)
 
-| Table                     | Scope                              | Written by                           | What it holds                                                                                                                                                                                                                                                                                   |
-| ------------------------- | ---------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `source_documents`        | tenant, RLS (existing)             | upload                               | The PDF itself, stored before anything reads it; checksum, idempotent re-upload.                                                                                                                                                                                                                |
-| `intake_batches`          | tenant, RLS, **append-only**       | `intake.service`                     | One extraction run over one document: provider, `model_id`, `prompt_version`, page count, the date of birth and issue date the document names, the batch-level check (patient match).                                                                                                           |
-| `pending_values`          | tenant, RLS, **append-only**       | `intake.service`                     | One proposed value: analyte, value, unit and reference **as written**, sampling date (date-only when the document names only a day), page and bounding box, the model's confidence; then what the checks computed: `kpi_code`, canonical unit, normalized value and bounds, `checks`, `status`. |
-| `kpi_plausibility_bounds` | global, read-only for the app role | seed from `bounds_data.py` only      | Per KPI: hard bounds outside which a value cannot be a reading from a living person, and the relative change beyond which a human looks. **Ships empty** — a bound is a clinical statement and is recorded with who signed it.                                                                  |
-| `observations`            | tenant, RLS (existing)             | a clinician's confirmation (slice 3) | The record. A confirmed value becomes an observation with `source_record_locator` = page and box, and a reference to its pending value. The timeline, interpretation and reports read observations only; they never read pending values.                                                        |
+| Table                     | Scope                              | Written by                           | What it holds                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------- | ---------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `source_documents`        | tenant, RLS (existing)             | upload                               | The PDF itself, stored before anything reads it; checksum, idempotent re-upload.                                                                                                                                                                                                                                                                      |
+| `intake_batches`          | tenant, RLS, **append-only**       | `intake.service`                     | One extraction run over one document: provider, `model_id`, `prompt_version`, page count, the date of birth and issue date the document names, the batch-level check (patient match).                                                                                                                                                                 |
+| `pending_values`          | tenant, RLS, **append-only**       | `intake.service`                     | One proposed value: analyte, value, unit and reference **as written**, sampling date (date-only when the document names only a day), page, the box where code found the value on the page (never the proposal's), the model's confidence; then what the checks computed: `kpi_code`, canonical unit, normalized value and bounds, `checks`, `status`. |
+| `kpi_plausibility_bounds` | global, read-only for the app role | seed from `bounds_data.py` only      | Per KPI: hard bounds outside which a value cannot be a reading from a living person, and the relative change beyond which a human looks. **Ships empty** — a bound is a clinical statement and is recorded with who signed it.                                                                                                                        |
+| `observations`            | tenant, RLS (existing)             | a clinician's confirmation (slice 3) | The record. A confirmed value becomes an observation with `source_record_locator` = page and box, and a reference to its pending value. The timeline, interpretation and reports read observations only; they never read pending values.                                                                                                              |
 
 A pending value is never updated; the decision is a separate append-only row. The audit trail
 gets `intake.batch_proposed` per batch, `intake.batch_read` / `intake.region_read` per read, and
@@ -47,7 +47,8 @@ identifiers, counts and timings only.
 ## The confirmation screen (`/intake/{batch_id}`, slice 3)
 
 One page per proposal. Every value stands beside a crop of the page region it was read from
-(`GET /intake/values/{id}/region`, PNG, recorded). The rules of the screen are the API's rules:
+(`GET /intake/values/{id}/region`, PNG, recorded): the whole printed row, the analyte's name
+included, with the value framed. The rules of the screen are the API's rules:
 
 - **green** confirms with one click, or all at once (`confirm-green`); **yellow** confirms only
   after the region was looked at (the page asks for it; the API knows nothing of the look);
@@ -61,6 +62,30 @@ One page per proposal. Every value stands beside a crop of the page region it wa
 - One decision per value; `review_seconds` (the value) and `screen_seconds` (the document) are
   stored with it. The clinic's roles: care staff propose (`intake.propose`) and read
   (`intake.read`); only a clinician decides (`intake.decide`); the medical director reads.
+
+### Where a value is printed (`modules/intake/locate.py`)
+
+The box behind every crop is found by **code**, when the batch is written, on the stored PDF's
+text layer. It is never taken from the proposal: a model reads but does not say where, and a box
+it sends is not evidence. Drawn around the wrong row, it would show the clinician a crop that
+seems to confirm a reading it does not. A box in a proposal is accepted by the schema and
+ignored.
+
+The locator looks for the value as written, as a number of its own (the rule of the `on_page`
+check), among the page's words grouped into printed lines:
+
+1. On the line that carries the analyte's name, it takes the first occurrence right of the name.
+   A value equal to its reference bound is therefore placed in the value column.
+2. When no line carries both, it takes the only place on the page the value is printed.
+3. Anything less certain gives no box: the name and the value together on several rows, or the
+   value in several places and the name on none. The screen then shows the whole page, marked
+   "Ganze Seite (keine Position bekannt)". No crop is better than one that points at the wrong
+   number.
+
+A page read by OCR has no word positions and gets no box. On the golden cases every value printed
+on a text layer is placed on its own row (`tests/test_intake_locate.py`). That includes case 09,
+where the same number stands one row higher for another analyte, and case 12, where the injected
+value's crop is the paragraph that carries it.
 
 ### Providers (`modules/intake/providers.py`)
 

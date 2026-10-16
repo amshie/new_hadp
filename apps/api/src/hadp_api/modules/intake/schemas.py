@@ -35,7 +35,8 @@ class ProposedValueIn(BaseModel):
     reference_high: str | None = Field(default=None, max_length=MAX_BOUND)
     reference_text: str | None = Field(default=None, max_length=MAX_REFERENCE_TEXT)
     page: int = Field(ge=1)
-    # [x0, y0, x1, y1] in PDF points, origin top-left; None when the provider gives none.
+    # Accepted and NOT used: where the value is printed is found by code on the stored page
+    # (locate.py), never taken from a proposal. A box from a model is not evidence.
     bbox: tuple[float, float, float, float] | None = None
     confidence: Decimal = Field(ge=0, le=1, decimal_places=3)
 

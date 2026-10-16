@@ -2,8 +2,9 @@
 
 `create_pending_batch` validates the proposal at the boundary (schema), reads the stored
 document's page texts itself (never the agent's copy), runs the deterministic checks with the
-catalog, the signed bounds and this patient's published record, and writes the batch and its
-values with the status the checks computed. It writes no observation. There is no function in
+catalog, the signed bounds and this patient's published record, locates each value on its
+page by code (locate.py), and writes the batch and its values with the status the checks
+computed. It writes no observation. There is no function in
 this module — or anywhere the agent can reach — that moves a pending value into the record;
 that is a human's step through the API, in a later slice.
 """
@@ -29,6 +30,7 @@ from hadp_api.modules.enums import PendingValueStatus
 from hadp_api.modules.imports import normalize as normalize_mod
 from hadp_api.modules.intake import checks
 from hadp_api.modules.intake.bounds_data import BOUNDS_VERSION, SIGNED_BOUNDS
+from hadp_api.modules.intake.locate import locate_value
 from hadp_api.modules.intake.models import IntakeBatch, KpiPlausibilityBound, PendingValue
 from hadp_api.modules.intake.pages import OcrUnavailable, PageSet, load_pages
 from hadp_api.modules.intake.schemas import ProposedBatchIn
@@ -233,7 +235,9 @@ def create_pending_batch(
                 reference_low=v.reference_low,
                 reference_high=v.reference_high,
                 reference_text=v.reference_text,
-                bbox=v.bbox,
+                # Where the value is printed is found by code on the stored page, never taken
+                # from the proposal: a box a model sends is not evidence (locate.py).
+                bbox=locate_value(pages.words_on(v.page), v.analyte_text, v.value_text),
             )
             for v in proposal.values
         ),
