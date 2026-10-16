@@ -1,0 +1,722 @@
+{
+  "checks_version": "intake-checks-1",
+  "batch_checks": [
+    {
+      "check": "patient_match",
+      "result": "pass",
+      "severity": null,
+      "reason": null,
+      "detail": {}
+    }
+  ],
+  "values": [
+    {
+      "analyte_text": "LDL",
+      "value_text": "128",
+      "unit_text": "mg/dl",
+      "page": 1,
+      "kpi_code": "cardio.ldl_c",
+      "canonical_unit": "mmol/L",
+      "normalized_value": "3.3100544",
+      "normalized_reference_low": "1.2929900",
+      "normalized_reference_high": "3.3617740",
+      "status": "green",
+      "reasons": [],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "kpi_code": "cardio.ldl_c"
+          }
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "canonical_unit": "mmol/L",
+            "factor": "0.0258598"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "given": true,
+            "converted": true
+          }
+        },
+        {
+          "check": "plausibility",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "delta",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "prior": false
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-10"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    },
+    {
+      "analyte_text": "HDL cholesterol",
+      "value_text": "62",
+      "unit_text": "mg/dl",
+      "page": 1,
+      "kpi_code": "cardio.hdl_c",
+      "canonical_unit": "mmol/L",
+      "normalized_value": "1.6033076",
+      "normalized_reference_low": "1.0343920",
+      "normalized_reference_high": null,
+      "status": "green",
+      "reasons": [],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "kpi_code": "cardio.hdl_c"
+          }
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "canonical_unit": "mmol/L",
+            "factor": "0.0258598"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "given": true,
+            "converted": true
+          }
+        },
+        {
+          "check": "plausibility",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "delta",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "prior": false
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-10"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    },
+    {
+      "analyte_text": "Total cholesterol",
+      "value_text": "201",
+      "unit_text": "mg/dl",
+      "page": 1,
+      "kpi_code": "cardio.total_cholesterol",
+      "canonical_unit": "mmol/L",
+      "normalized_value": "5.1978198",
+      "normalized_reference_low": null,
+      "normalized_reference_high": "5.1719600",
+      "status": "green",
+      "reasons": [],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "kpi_code": "cardio.total_cholesterol"
+          }
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "canonical_unit": "mmol/L",
+            "factor": "0.0258598"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "given": true,
+            "converted": true
+          }
+        },
+        {
+          "check": "plausibility",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "delta",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "prior": false
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-10"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    },
+    {
+      "analyte_text": "Glucose",
+      "value_text": "92",
+      "unit_text": "mg/dl",
+      "page": 1,
+      "kpi_code": "metabolic.fasting_plasma_glucose",
+      "canonical_unit": "mmol/L",
+      "normalized_value": "5.1060",
+      "normalized_reference_low": "3.8850",
+      "normalized_reference_high": "5.5500",
+      "status": "green",
+      "reasons": [],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "kpi_code": "metabolic.fasting_plasma_glucose"
+          }
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "canonical_unit": "mmol/L",
+            "factor": "0.0555"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "given": true,
+            "converted": true
+          }
+        },
+        {
+          "check": "plausibility",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "delta",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "prior": false
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-10"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    },
+    {
+      "analyte_text": "Triglycerides",
+      "value_text": "115",
+      "unit_text": "mg/dl",
+      "page": 1,
+      "kpi_code": "metabolic.triglycerides",
+      "canonical_unit": null,
+      "normalized_value": null,
+      "normalized_reference_low": null,
+      "normalized_reference_high": "150",
+      "status": "red",
+      "reasons": [
+        "unit_unknown"
+      ],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "kpi_code": "metabolic.triglycerides"
+          }
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "fail",
+          "severity": "red",
+          "reason": "unit_unknown",
+          "detail": {
+            "canonical_unit": "mmol/L"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "given": true,
+            "converted": false
+          }
+        },
+        {
+          "check": "plausibility",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "delta",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-10"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    },
+    {
+      "analyte_text": "Creatinine",
+      "value_text": "0,9",
+      "unit_text": "mg/dl",
+      "page": 1,
+      "kpi_code": "regen.creatinine",
+      "canonical_unit": null,
+      "normalized_value": null,
+      "normalized_reference_low": "0.5",
+      "normalized_reference_high": "1.0",
+      "status": "red",
+      "reasons": [
+        "unit_unknown"
+      ],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "kpi_code": "regen.creatinine"
+          }
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "fail",
+          "severity": "red",
+          "reason": "unit_unknown",
+          "detail": {
+            "canonical_unit": "umol/L"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "given": true,
+            "converted": false
+          }
+        },
+        {
+          "check": "plausibility",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "delta",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-10"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    }
+  ]
+}

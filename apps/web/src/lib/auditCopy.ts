@@ -47,6 +47,10 @@ const ACTION_LABELS: Record<string, Record<Locale, string>> = {
   "document.list": { de: "Dateiliste gelesen", en: "File list read" },
   "import.run": { de: "Einlesevorgang ausgeführt", en: "Import carried out" },
   "import.refused": { de: "Einlesen abgelehnt", en: "Import refused" },
+  "intake.batch_proposed": {
+    de: "Werte aus Datei vorgeschlagen",
+    en: "Values proposed from a file",
+  },
   "review_queue.read": { de: "Review-Queue gelesen", en: "Review queue read" },
   "review_item.resolved": {
     de: "Review-Eintrag entschieden",
@@ -206,6 +210,7 @@ const CATEGORY_LABELS: Record<AuditCategory, Record<Locale, string>> = {
   report: { de: "Berichte", en: "Reports" },
   document: { de: "Dateien", en: "Files" },
   import: { de: "Einlesevorgänge", en: "Imports" },
+  intake: { de: "Vorschläge aus Dateien", en: "Proposals from files" },
   review_item: { de: "Review-Entscheidungen", en: "Review decisions" },
   review_queue: { de: "Review-Queue", en: "Review queue" },
   consent: { de: "Einwilligungen", en: "Consents" },
@@ -243,6 +248,7 @@ const TARGET_LABELS: Record<string, Record<Locale, string>> = {
   report_version: { de: "Berichtsfassung", en: "Report version" },
   source_document: { de: "Datei", en: "File" },
   import_job: { de: "Einlesevorgang", en: "Import" },
+  intake_batch: { de: "Vorschlag aus Datei", en: "Proposal from a file" },
   review_item: { de: "Review-Eintrag", en: "Review item" },
   interpretation_run: { de: "Interpretation", en: "Interpretation" },
   membership: { de: "Mitgliedschaft", en: "Membership" },

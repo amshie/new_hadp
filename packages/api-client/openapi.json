@@ -2738,7 +2738,8 @@
           "authz",
           "worklist",
           "audit",
-          "metric"
+          "metric",
+          "intake"
         ],
         "title": "AuditCategory"
       },

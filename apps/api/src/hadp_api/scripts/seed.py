@@ -30,6 +30,7 @@ from hadp_api.modules.enums import (
 )
 from hadp_api.modules.identity.models import User
 from hadp_api.modules.imports.service import source_reference_text
+from hadp_api.modules.intake.service import seed_plausibility_bounds
 from hadp_api.modules.kpi.service import resolve_kpi_code, seed_kpi_catalog
 from hadp_api.modules.observations.models import Observation
 from hadp_api.modules.patients.models import Patient
@@ -418,6 +419,7 @@ def seed_all(engine: Engine) -> dict[str, object]:
     with Session(engine, expire_on_commit=False) as db:
         # Global KPI reference catalog (idempotent) — must exist before observations set kpi_code.
         seed_kpi_catalog(db)
+        seed_plausibility_bounds(db)
 
         clinic = _get_or_create_tenant(db, "Synthetic Longevity Clinic", "demo-clinic")
         clinic2 = _get_or_create_tenant(db, "Synthetic Preventive Care", "demo-clinic-2")

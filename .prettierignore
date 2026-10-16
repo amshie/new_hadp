@@ -7,3 +7,6 @@ packages/api-client/src/generated/
 **/.next/
 **/dist/
 **/node_modules/
+
+# Golden fixtures of the intake agent — written by their generator, compared bit for bit
+apps/api/tests/intake_cases/**/*.json

@@ -1,0 +1,117 @@
+{
+  "extraction_provider": "golden-fixture",
+  "model_id": "fixture-proposal",
+  "prompt_version": "fixture-1",
+  "patient_date_of_birth": "1970-03-12",
+  "issue_date": "2026-09-11",
+  "values": [
+    {
+      "analyte_text": "LDL",
+      "value_text": "128",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-10",
+      "observed_at_is_date_only": true,
+      "reference_low": "50",
+      "reference_high": "130",
+      "reference_text": "50 - 130",
+      "page": 1,
+      "bbox": [
+        240.9,
+        154.4,
+        260.0,
+        164.4
+      ],
+      "confidence": "0.95"
+    },
+    {
+      "analyte_text": "HDL cholesterol",
+      "value_text": "62",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-10",
+      "observed_at_is_date_only": true,
+      "reference_low": "40",
+      "reference_high": null,
+      "reference_text": "> 40",
+      "page": 1,
+      "bbox": [
+        247.3,
+        170.4,
+        260.0,
+        180.4
+      ],
+      "confidence": "0.95"
+    },
+    {
+      "analyte_text": "Total cholesterol",
+      "value_text": "201",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-10",
+      "observed_at_is_date_only": true,
+      "reference_low": null,
+      "reference_high": "200",
+      "reference_text": "< 200",
+      "page": 1,
+      "bbox": [
+        240.9,
+        186.4,
+        260.0,
+        196.4
+      ],
+      "confidence": "0.95"
+    },
+    {
+      "analyte_text": "Glucose",
+      "value_text": "92",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-10",
+      "observed_at_is_date_only": true,
+      "reference_low": "70",
+      "reference_high": "100",
+      "reference_text": "70 - 100",
+      "page": 1,
+      "bbox": [
+        247.3,
+        202.4,
+        260.0,
+        212.4
+      ],
+      "confidence": "0.95"
+    },
+    {
+      "analyte_text": "Triglycerides",
+      "value_text": "115",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-10",
+      "observed_at_is_date_only": true,
+      "reference_low": null,
+      "reference_high": "150",
+      "reference_text": "< 150",
+      "page": 1,
+      "bbox": [
+        240.9,
+        218.4,
+        260.0,
+        228.4
+      ],
+      "confidence": "0.95"
+    },
+    {
+      "analyte_text": "Creatinine",
+      "value_text": "0,9",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-10",
+      "observed_at_is_date_only": true,
+      "reference_low": "0,5",
+      "reference_high": "1,0",
+      "reference_text": "0,5 - 1,0",
+      "page": 1,
+      "bbox": [
+        244.1,
+        234.4,
+        260.0,
+        244.4
+      ],
+      "confidence": "0.95"
+    }
+  ]
+}

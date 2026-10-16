@@ -1,0 +1,45 @@
+{
+  "extraction_provider": "golden-fixture",
+  "model_id": "fixture-proposal",
+  "prompt_version": "fixture-1",
+  "patient_date_of_birth": "1968-07-30",
+  "issue_date": "2026-09-11",
+  "values": [
+    {
+      "analyte_text": "LDL",
+      "value_text": "128",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-10",
+      "observed_at_is_date_only": true,
+      "reference_low": "50",
+      "reference_high": "130",
+      "reference_text": "50 - 130",
+      "page": 1,
+      "bbox": [
+        240.9,
+        154.4,
+        260.0,
+        164.4
+      ],
+      "confidence": "0.95"
+    },
+    {
+      "analyte_text": "HbA1c",
+      "value_text": "5,2",
+      "unit_text": "%",
+      "observed_at": "2026-09-10",
+      "observed_at_is_date_only": true,
+      "reference_low": "4,0",
+      "reference_high": "6,0",
+      "reference_text": "4,0 - 6,0",
+      "page": 1,
+      "bbox": [
+        244.1,
+        170.4,
+        260.0,
+        180.4
+      ],
+      "confidence": "0.95"
+    }
+  ]
+}
