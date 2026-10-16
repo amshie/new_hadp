@@ -33,6 +33,11 @@ export async function GET(
         { status: e.status, headers: { "cache-control": "no-store" } },
       );
     }
+    // The class and message only: the API's detail carries codes, never document content.
+    console.error(
+      "intake region passthrough failed:",
+      e instanceof Error ? `${e.name}: ${e.message}` : typeof e,
+    );
     return NextResponse.json({ code: "error" }, { status: 502 });
   }
 }

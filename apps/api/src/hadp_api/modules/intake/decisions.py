@@ -28,7 +28,6 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
-import pdfplumber
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -37,6 +36,7 @@ from hadp_api.errors import Conflict, NotFound, ValidationFailed
 from hadp_api.modules.audit.service import record_audit
 from hadp_api.modules.documents.blob import get_blob_store
 from hadp_api.modules.documents.models import SourceDocument
+from hadp_api.modules.documents.pdf_render import open_pdf
 from hadp_api.modules.documents.pdf_text import PdfUnreadable, read_pages
 from hadp_api.modules.enums import (
     IntakeDecisionKind,
@@ -538,7 +538,7 @@ def region_png(db: Session, *, tenant_id: uuid.UUID, pending_value_id: uuid.UUID
     if not store.exists(document.storage_key):
         raise Conflict("document_unavailable: the stored source document cannot be read")
     data = store.get(document.storage_key)
-    with pdfplumber.open(io.BytesIO(data)) as pdf:
+    with open_pdf(data) as pdf:
         if value.page < 1 or value.page > len(pdf.pages):
             raise NotFound("page not found")
         page = pdf.pages[value.page - 1]

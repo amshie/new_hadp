@@ -14,15 +14,13 @@ the same protocol is a later slice.
 
 from __future__ import annotations
 
-import io
 import re
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Any, Protocol
 
-import pdfplumber
-
+from hadp_api.modules.documents.pdf_render import open_pdf
 from hadp_api.modules.documents.pdf_text import PdfPages
 from hadp_api.modules.intake.schemas import ProposedBatchIn
 
@@ -150,7 +148,7 @@ def _nothing_found(page_count: int) -> dict[str, Any]:
 def _value_boxes(data: bytes) -> dict[tuple[int, str], list[float]]:
     """(page, value text) -> the box of the FIRST word that is that text on the page."""
     boxes: dict[tuple[int, str], list[float]] = {}
-    with pdfplumber.open(io.BytesIO(data)) as pdf:
+    with open_pdf(data) as pdf:
         for page_no, page in enumerate(pdf.pages, start=1):
             for word in page.extract_words():
                 key = (page_no, word["text"])

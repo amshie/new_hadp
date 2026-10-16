@@ -161,7 +161,14 @@ test("the clinician looks, confirms one value, rejects another — only the conf
       patientPath,
     );
     await openTab(page, "Werte");
-    await expect(page.getByText("3,1 mmol/L").first()).toBeVisible();
-    await expect(page.getByText("5,4 %")).toHaveCount(0);
+    // The timeline shows the number the platform holds (3.1 mmol/L, the canonical unit)
+    // under the value's catalog domain; the rejected HbA1c has no marker.
+    const marker = page
+      .getByRole("region", { name: "Kardiovaskulär" })
+      .getByRole("button", { name: "Marker LDL öffnen" });
+    await expect(marker).toContainText("3.1 mmol/L");
+    await expect(
+      page.getByRole("button", { name: /^Marker HbA1c/ }),
+    ).toHaveCount(0);
   });
 });

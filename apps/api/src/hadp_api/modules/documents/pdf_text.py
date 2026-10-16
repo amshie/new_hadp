@@ -7,10 +7,9 @@ a default (CLAUDE.md), and until it runs such a page confirms nothing.
 
 from __future__ import annotations
 
-import io
 from dataclasses import dataclass
 
-import pdfplumber
+from hadp_api.modules.documents.pdf_render import open_pdf
 
 # A laboratory report beyond this is a different kind of document (CLAUDE.md: page limits).
 MAX_PAGES = 50
@@ -44,7 +43,7 @@ def read_pages(data: bytes) -> PdfPages:
     if not data.startswith(b"%PDF-"):
         raise PdfUnreadable("not_a_pdf")
     try:
-        with pdfplumber.open(io.BytesIO(data)) as pdf:
+        with open_pdf(data) as pdf:
             if pdf.doc.is_extractable is False:
                 raise PdfUnreadable("encrypted")
             if len(pdf.pages) > MAX_PAGES:

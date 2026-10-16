@@ -26,7 +26,6 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-import pdfplumber
 from pydantic import ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -37,6 +36,7 @@ from hadp_api.errors import NotFound, ValidationFailed
 from hadp_api.modules.audit.service import record_audit
 from hadp_api.modules.documents.blob import get_blob_store
 from hadp_api.modules.documents.models import SourceDocument
+from hadp_api.modules.documents.pdf_render import open_pdf
 from hadp_api.modules.documents.pdf_text import MAX_PAGES, PdfUnreadable, read_pages
 from hadp_api.modules.enums import KpiExternalCodeStatus, KpiStatus
 from hadp_api.modules.intake import service
@@ -392,7 +392,7 @@ def _render_pages(data: bytes, page_count: int) -> list[bytes | None]:
     if page_count > MAX_PAGES:
         return [None] * page_count
     images: list[bytes | None] = []
-    with pdfplumber.open(io.BytesIO(data)) as pdf:
+    with open_pdf(data) as pdf:
         for page in pdf.pages:
             buf = io.BytesIO()
             page.to_image(resolution=IMAGE_DPI).original.save(buf, format="PNG")
