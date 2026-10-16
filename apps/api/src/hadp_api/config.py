@@ -95,6 +95,21 @@ class Settings(BaseSettings):
     # Which extraction provider reads a PDF into proposals (modules/intake/providers.py). The
     # deterministic text-layer reader needs no model and no network.
     intake_provider: str = "text-layer"
+    # OCR for a page without a text layer: "off" (a scan confirms nothing) or "tesseract"
+    # (an explicit step; the page's text is marked as OCR and its values are never green).
+    intake_ocr: str = "off"
+    intake_ocr_languages: str = "deu+eng"
+    # The model-backed provider (INTAKE_PROVIDER=model): which API shape, which model, where,
+    # and with which key. A key is never read from this file; the environment holds it.
+    intake_model_backend: str = "anthropic"  # or "openai_compatible" (a local/open model)
+    intake_model_id: str | None = None
+    intake_model_base_url: str | None = None
+    intake_model_api_key: str | None = None
+    anthropic_api_key: str | None = None
+    intake_model_timeout_seconds: float = 120.0
+    # In production an endpoint outside this deployment is refused unless the vendor decision
+    # (EU residency, no training on customer data) is recorded by setting this.
+    intake_model_external_allowed: bool = False
     # Web app base URL — used to build the patient-facing view link on report release.
     web_base_url: str = "http://127.0.0.1:3000"
 

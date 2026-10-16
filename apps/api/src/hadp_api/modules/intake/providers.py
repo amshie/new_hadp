@@ -16,15 +16,16 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import date
 from decimal import Decimal
 from typing import Any, Protocol
 
+from hadp_api.config import Settings, get_settings
 from hadp_api.modules.documents.pdf_render import open_pdf
-from hadp_api.modules.documents.pdf_text import PdfPages
+from hadp_api.modules.intake.pages import PageSet
 from hadp_api.modules.intake.schemas import ProposedBatchIn
 
 TEXT_LAYER_PROVIDER = "text-layer"
+MODEL_PROVIDER = "model"
 LOW_CONFIDENCE = Decimal("0.600")
 
 
@@ -38,7 +39,7 @@ class ExtractionProvider(Protocol):
     @property
     def prompt_version(self) -> str: ...
 
-    def extract(self, data: bytes, pages: PdfPages) -> ProposedBatchIn: ...
+    def extract(self, data: bytes, pages: PageSet) -> ProposedBatchIn: ...
 
 
 _DATE = r"(\d{2})\.(\d{2})\.(\d{4})"
@@ -80,7 +81,7 @@ class TextLayerProvider:
     model_id: str = "none"
     prompt_version: str = "text-layer-1"
 
-    def extract(self, data: bytes, pages: PdfPages) -> ProposedBatchIn:
+    def extract(self, data: bytes, pages: PageSet) -> ProposedBatchIn:
         text = "\n".join(pages.texts)
         dob = _DOB.search(text)
         issue = _ISSUE.search(text)
@@ -162,21 +163,18 @@ def _value_boxes(data: bytes) -> dict[tuple[int, str], list[float]]:
     return boxes
 
 
-_PROVIDERS: dict[str, ExtractionProvider] = {TEXT_LAYER_PROVIDER: TextLayerProvider()}
-
-
-def get_provider(name: str) -> ExtractionProvider:
+def get_provider(name: str, settings: Settings | None = None) -> ExtractionProvider:
     """The provider configuration names. An unknown name is a configuration error, not a
-    fallback: nothing proposes by accident."""
-    try:
-        return _PROVIDERS[name]
-    except KeyError as exc:
-        raise LookupError(f"unknown intake provider {name!r}") from exc
+    fallback: nothing proposes by accident. The model provider needs settings (which model,
+    which key) and refuses, visibly, when they are missing."""
+    if name == TEXT_LAYER_PROVIDER:
+        return TextLayerProvider()
+    if name == MODEL_PROVIDER:
+        from hadp_api.modules.intake.model_provider import build_model_provider
+
+        return build_model_provider(settings if settings is not None else get_settings())
+    raise LookupError(f"unknown intake provider {name!r}")
 
 
 def provider_names() -> tuple[str, ...]:
-    return tuple(_PROVIDERS)
-
-
-def today() -> date:
-    return date.today()
+    return (TEXT_LAYER_PROVIDER, MODEL_PROVIDER)

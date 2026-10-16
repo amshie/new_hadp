@@ -1,0 +1,34 @@
+{
+  "_note": "Synthetic. The values as printed on report.pdf; the yardstick of the evaluation.",
+  "patient_date_of_birth": "1970-03-12",
+  "issue_date": "2026-09-18",
+  "values": [
+    {
+      "analyte_text": "HbA1c",
+      "value_text": "54",
+      "unit_text": "%",
+      "observed_at": "2026-09-17",
+      "reference_low": "4,0",
+      "reference_high": "6,0",
+      "page": 1
+    },
+    {
+      "analyte_text": "LDL",
+      "value_text": "0,0",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-17",
+      "reference_low": "50",
+      "reference_high": "130",
+      "page": 1
+    },
+    {
+      "analyte_text": "Glucose",
+      "value_text": "520",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-17",
+      "reference_low": "70",
+      "reference_high": "100",
+      "page": 1
+    }
+  ]
+}

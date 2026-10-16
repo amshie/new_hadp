@@ -88,6 +88,9 @@ class IntakeBatch(UUIDPrimaryKey, TimestampCreated, Base):
     # Batch-level checks (patient match), same shape as a value's checks.
     checks: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list)
     value_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Per page, where its text came from: "text_layer", "ocr" or "none" (0025). Null for a
+    # batch written before the column existed.
+    page_sources: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
 
 
 class PendingValue(UUIDPrimaryKey, TimestampCreated, Base):

@@ -371,6 +371,28 @@ def proposal_for(case: Case, pdf: bytes) -> dict[str, Any]:
     }
 
 
+def truth_for(case: Case) -> dict[str, Any]:
+    """What is PRINTED on the report — the ground truth an extraction is measured against
+    (evals/intake_eval.py). Not the proposal: the proposal plays a model, mistakes included."""
+    return {
+        "_note": "Synthetic. The values as printed on report.pdf; the yardstick of the evaluation.",
+        "patient_date_of_birth": iso(case.pdf_dob) if case.print_dob else None,
+        "issue_date": iso(case.issue_date),
+        "values": [
+            {
+                "analyte_text": row.name,
+                "value_text": row.value,
+                "unit_text": row.unit,
+                "observed_at": iso(row.date or case.sampling_date),
+                "reference_low": row.ref_low,
+                "reference_high": row.ref_high,
+                "page": 1,
+            }
+            for row in case.rows
+        ],
+    }
+
+
 def patient_for(case: Case) -> dict[str, Any]:
     return {
         "_note": "Synthetic. The bounds are TEST-ONLY and not clinically signed.",
@@ -661,6 +683,7 @@ def main(argv: list[str]) -> int:
             dump(pages_path, page_texts(pdf, case.scanned))
         dump(inp / "proposal.json", proposal_for(case, pdf))
         dump(inp / "patient.json", patient_for(case))
+        dump(inp / "truth.json", truth_for(case))
         if write_expected:
             from tests.intake_support import load_case, run_case, serialize
 

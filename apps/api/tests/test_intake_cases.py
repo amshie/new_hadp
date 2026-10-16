@@ -49,8 +49,8 @@ EXPECTED: dict[str, list[tuple[str, str, list[str]]]] = {
     ],
     "05_c_west_scanned": [
         ("HbA1c", "red", ["analyte_not_on_page", "low_confidence"]),
-        ("LDL", "yellow", ["low_confidence"]),
-        ("Glucose", "yellow", ["low_confidence"]),
+        ("LDL", "yellow", ["page_text_from_ocr", "low_confidence"]),
+        ("Glucose", "yellow", ["page_text_from_ocr", "low_confidence"]),
     ],
     "06_c_west_non_ucum_units": [
         ("Glucose", "red", ["unit_unknown"]),

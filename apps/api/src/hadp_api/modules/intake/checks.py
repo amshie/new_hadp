@@ -72,6 +72,7 @@ REASONS: dict[str, str] = {
     "analyte_not_on_page": RED,
     "value_not_on_page": RED,
     "unit_not_on_page": RED,
+    "page_text_from_ocr": YELLOW,
     "unmapped_analyte": YELLOW,
     "value_not_a_number": RED,
     "unit_missing": RED,
@@ -179,6 +180,10 @@ class PageTexts(Protocol):
     def text(self, page: int) -> str:
         """The text of a 1-based page as the document reader produced it ('' when the page
         has no text layer and no OCR ran)."""
+        ...
+
+    def source(self, page: int) -> str:
+        """Where the page's text came from: "text_layer", "ocr" or "none"."""
         ...
 
 
@@ -326,6 +331,9 @@ def check_on_page(value: ProposedValue, pages: PageTexts) -> CheckResult:
         return _fail(ON_PAGE, "value_not_on_page", page=value.page)
     if value.unit_text and not text_on_page(value.unit_text, text):
         return _fail(ON_PAGE, "unit_not_on_page", page=value.page)
+    if pages.source(value.page) == "ocr":
+        # Found — on text an OCR engine produced. A misreading there looks like a reading.
+        return _fail(ON_PAGE, "page_text_from_ocr", page=value.page)
     return _ok(ON_PAGE, page=value.page)
 
 

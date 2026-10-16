@@ -34,6 +34,8 @@ def _read(path: Path) -> Any:
 @dataclass(frozen=True)
 class FakePages:
     texts: tuple[str, ...]
+    # Where the recorded text came from: the reader named in pages.json (tesseract = OCR).
+    kind: str = "text_layer"
 
     @property
     def page_count(self) -> int:
@@ -41,6 +43,9 @@ class FakePages:
 
     def text(self, page: int) -> str:
         return self.texts[page - 1] if 1 <= page <= len(self.texts) else ""
+
+    def source(self, page: int) -> str:
+        return self.kind if self.text(page).strip() else "none"
 
 
 @dataclass(frozen=True)
@@ -180,7 +185,10 @@ def load_case(path: Path) -> LoadedCase:
         path=path,
         proposal=proposal,
         batch=to_batch(proposal),
-        pages=FakePages(tuple(pages["pages"])),
+        pages=FakePages(
+            tuple(pages["pages"]),
+            "ocr" if str(pages["reader"]).startswith("tesseract") else "text_layer",
+        ),
         bounds=FakeBounds(bounds),
         record=FakeRecord(date.fromisoformat(dob) if dob else None, published),
         today=date.fromisoformat(patient["today"]),

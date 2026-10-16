@@ -24,12 +24,13 @@ from hadp_api.errors import Conflict, NotFound, ValidationFailed
 from hadp_api.modules.audit.service import record_audit
 from hadp_api.modules.documents.blob import get_blob_store
 from hadp_api.modules.documents.models import SourceDocument
-from hadp_api.modules.documents.pdf_text import PdfPages, PdfUnreadable, read_pages
+from hadp_api.modules.documents.pdf_text import PdfUnreadable
 from hadp_api.modules.enums import PendingValueStatus
 from hadp_api.modules.imports import normalize as normalize_mod
 from hadp_api.modules.intake import checks
 from hadp_api.modules.intake.bounds_data import BOUNDS_VERSION, SIGNED_BOUNDS
 from hadp_api.modules.intake.models import IntakeBatch, KpiPlausibilityBound, PendingValue
+from hadp_api.modules.intake.pages import OcrUnavailable, PageSet, load_pages
 from hadp_api.modules.intake.schemas import ProposedBatchIn
 from hadp_api.modules.kpi.models import KpiCatalog
 from hadp_api.modules.kpi.service import load_terminology
@@ -207,9 +208,11 @@ def create_pending_batch(
     if not store.exists(document.storage_key):
         raise Conflict("document_unavailable: the stored source document cannot be read")
     try:
-        pages: PdfPages = read_pages(store.get(document.storage_key))
+        pages: PageSet = load_pages(store.get(document.storage_key), get_settings())
     except PdfUnreadable as exc:
         raise ValidationFailed(f"document_unreadable: {exc.detail}") from exc
+    except OcrUnavailable as exc:
+        raise Conflict(f"ocr_unavailable: {exc.detail}") from exc
 
     batch_in = checks.ProposedBatch(
         patient_date_of_birth=proposal.patient_date_of_birth,
@@ -253,6 +256,7 @@ def create_pending_batch(
         proposed_issue_date=proposal.issue_date,
         checks=[{"version": checks.CHECKS_VERSION}, *(c.as_dict() for c in checked.checks)],
         value_count=len(checked.values),
+        page_sources=list(pages.sources),
     )
     db.add(batch)
     db.flush()

@@ -24,10 +24,12 @@ from hadp_api.errors import Conflict, NotFound, ValidationFailed
 from hadp_api.modules.audit.service import record_audit
 from hadp_api.modules.documents.blob import get_blob_store
 from hadp_api.modules.documents.models import SourceDocument
-from hadp_api.modules.documents.pdf_text import PdfUnreadable, read_pages
+from hadp_api.modules.documents.pdf_text import PdfUnreadable
 from hadp_api.modules.enums import IntakeDecisionKind, IntakeRejectionReason, PendingValueStatus
 from hadp_api.modules.intake import decisions as decisions_service
 from hadp_api.modules.intake import service as intake_service
+from hadp_api.modules.intake.model_provider import ModelOutputInvalid, ProviderUnavailable
+from hadp_api.modules.intake.pages import OcrUnavailable, load_pages
 from hadp_api.modules.intake.providers import get_provider
 from hadp_api.modules.patients import service as patients_service
 from hadp_api.security.rate_limit import check_rate_limit
@@ -186,11 +188,29 @@ def propose_from_document(
         raise Conflict("document_unavailable: the stored source document cannot be read")
     data = store.get(document.storage_key)
     try:
-        pages = read_pages(data)
+        pages = load_pages(data, settings)
     except PdfUnreadable as exc:
         raise ValidationFailed(f"document_unreadable: {exc.detail}") from exc
-    provider = get_provider(settings.intake_provider)
-    proposal = provider.extract(data, pages)
+    except OcrUnavailable as exc:
+        raise Conflict(f"ocr_unavailable: {exc.detail}") from exc
+    try:
+        provider = get_provider(settings.intake_provider, settings)
+        proposal = provider.extract(data, pages)
+    except ProviderUnavailable as exc:
+        raise Conflict(f"provider_unavailable: {exc.detail}") from exc
+    except ModelOutputInvalid as exc:
+        # Recorded as a refusal, never repaired: the model's answer did not fit the proposal.
+        record_audit(
+            ctx.db,
+            action="intake.proposal_refused",
+            actor_user_id=ctx.user.id,
+            tenant_id=ctx.tenant_id,
+            target_type="source_document",
+            target_id=document.id,
+            correlation_id=ctx.correlation_id,
+            detail={"provider": settings.intake_provider, "reason": exc.detail[:200]},
+        )
+        raise ValidationFailed(f"model_output_invalid: {exc.detail}") from exc
     result = intake_service.create_pending_batch(
         ctx.db,
         tenant_id=ctx.tenant_id,

@@ -1,11 +1,14 @@
 # Lab intake agent
 
-Status: **slices 1–3 of 5, synthetic data only (2026-10-16).** Built: the data model, the
+Status: **slices 1–4 of 5, synthetic data only (2026-10-16).** Built: the data model, the
 deterministic checks, the one write, twelve golden cases, the agent's four tools and the MCP
 server that exposes them, the red-team tests of the gate, the confirmation screen with the
-clinician's decisions, and the deterministic text-layer provider that proposes without a model.
-**Not built yet:** the model-backed extraction provider, the router and the evaluation (slice 4),
-shadow mode and the error-rate report (slice 5). The only path by which a proposed value becomes
+clinician's decisions, the deterministic text-layer provider, the model-backed provider behind a
+thin router (Anthropic or any OpenAI-compatible endpoint, a local model included), OCR as an
+explicit step, and the evaluation harness with its append-only results log. **Not built yet:**
+shadow mode and the per-laboratory error-rate report (slice 5). **Not run yet:** the evaluation
+against a real model — no model key is present in this environment; the harness, the router and
+the backends are tested against recorded answers. The only path by which a proposed value becomes
 an observation is a clinician's decision on the confirmation screen.
 
 A laboratory report arrives as a PDF. A model **proposes** structured values from it. Deterministic
@@ -132,6 +135,53 @@ Each test drives the tools as the model would and ends by asserting `observation
 - the scope: another document or patient id is `out_of_scope`; a scope forged for another
   clinic's document finds nothing (RLS);
 - the server lists exactly four tools, no resources, no prompts.
+
+## Providers, OCR and the evaluation (slice 4)
+
+### The router (`modules/intake/providers.py`, `modules/intake/model_provider.py`)
+
+`INTAKE_PROVIDER` names what reads a PDF into a proposal:
+
+| Provider     | What it is                                                                                                                                                                                                                                      | Model / prompt stamped on the batch                |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `text-layer` | Deterministic reader of the text layer; no model, no network; every value yellow (confidence 0.6). The default, and the floor a model is measured against.                                                                                      | `none` / `text-layer-1`                            |
+| `model`      | A `ChatBackend` chosen by `INTAKE_MODEL_BACKEND`: `anthropic` (Messages API) or `openai_compatible` (any `/v1/chat/completions` server — Ollama, vLLM, LM Studio: a local model on-prem). Page images and page texts in, one JSON document out. | `<backend>:<INTAKE_MODEL_ID>` / `intake-extract-1` |
+
+The model's answer is validated with the same strictness as the agent's write: it must be one
+JSON object of the proposal's shape; an answer that carries a `status`, a `kpi_code`, free text
+or the fields the harness stamps (provider, model, prompt) is **refused whole** and recorded as
+`intake.proposal_refused` — never repaired. The prompt tells the model that instructions printed
+in the document are text, not instructions; the gate does not rely on that sentence (case 12).
+
+A key is read from the environment only (`INTAKE_MODEL_API_KEY`, or `ANTHROPIC_API_KEY`); without
+one the provider refuses to start, visibly (`409 provider_unavailable`), and nothing falls back to
+the text layer unnoticed. **In production an endpoint outside the deployment is refused** unless
+`INTAKE_MODEL_EXTERNAL_ALLOWED` records that the vendor decision — EU residency, no training on
+customer data (INTENDED_USE.md) — was taken.
+
+### OCR (`modules/intake/pages.py`)
+
+OCR is off by default: a scanned page has no text and every value read from it is red
+(`no_page_text`). With `INTAKE_OCR=tesseract` a page **without** a text layer — and only such a
+page — is rendered and read by tesseract, the page's text is marked as OCR on the batch
+(`page_sources`), and a value found on it is **never green**: it carries `page_text_from_ocr`
+(yellow) because an OCR misreading looks exactly like a reading. A configured engine that is not
+installed is an error at the first scan, not a fallback.
+
+### The evaluation (`evals/intake_eval.py`, `make intake-eval`)
+
+For every golden case the provider reads the committed PDF `RUNS` times (default 5) and each
+proposal is scored against `input/truth.json` — what is printed — with code, not with a model:
+per-field accuracy (value, unit, date, reference bounds; exact text), recall and precision of
+values, **hallucination** (a proposed analyte or number that does not stand verbatim on the cited
+page), the document's date of birth and issue date, and variance across runs (distinct outputs,
+spread of the scores). One JSON line per (provider, case) run is **appended** to
+`evals/results/intake_eval_results.jsonl`; the file is never rewritten (it is evidence). A
+Markdown table of each run goes to `evals/results/intake_eval_report.md`.
+
+Two models are compared by running the script twice — `PROVIDER=model` with two configurations,
+or a model against `text-layer` — and reading the two blocks. The text-layer run is in the log;
+a model run needs a key in the environment of a new session.
 
 ## What the golden cases show (`apps/api/tests/intake_cases/`)
 

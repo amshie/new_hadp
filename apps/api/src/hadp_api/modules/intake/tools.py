@@ -37,9 +37,10 @@ from hadp_api.modules.audit.service import record_audit
 from hadp_api.modules.documents.blob import get_blob_store
 from hadp_api.modules.documents.models import SourceDocument
 from hadp_api.modules.documents.pdf_render import open_pdf
-from hadp_api.modules.documents.pdf_text import MAX_PAGES, PdfUnreadable, read_pages
+from hadp_api.modules.documents.pdf_text import MAX_PAGES, PdfUnreadable
 from hadp_api.modules.enums import KpiExternalCodeStatus, KpiStatus
 from hadp_api.modules.intake import service
+from hadp_api.modules.intake.pages import OcrUnavailable, load_pages
 from hadp_api.modules.intake.schemas import ProposedBatchIn
 from hadp_api.modules.kpi.models import KpiAlias, KpiCatalog, KpiExternalCode
 from hadp_api.modules.patients.models import Patient
@@ -81,6 +82,8 @@ class IntakeScope:
 class PageView:
     page: int
     text: str
+    # "text_layer", "ocr" or "none": the model is told what it is reading.
+    source: str
     image_png: bytes | None
 
 
@@ -181,9 +184,11 @@ class IntakeTools:
                 raise ToolError("unavailable", "the stored file cannot be read")
             data = store.get(document.storage_key)
             try:
-                pages = read_pages(data)
+                pages = load_pages(data, get_settings())
             except PdfUnreadable as exc:
                 raise ToolError("unreadable", exc.detail) from exc
+            except OcrUnavailable as exc:
+                raise ToolError("ocr_unavailable", exc.detail) from exc
             images: list[bytes | None] = [None] * pages.page_count
             if with_images:
                 images = _render_pages(data, pages.page_count)
@@ -201,7 +206,12 @@ class IntakeTools:
                 document_id=document.id,
                 page_count=pages.page_count,
                 pages=tuple(
-                    PageView(page=i + 1, text=pages.texts[i], image_png=images[i])
+                    PageView(
+                        page=i + 1,
+                        text=pages.texts[i],
+                        source=pages.sources[i],
+                        image_png=images[i],
+                    )
                     for i in range(pages.page_count)
                 ),
             )

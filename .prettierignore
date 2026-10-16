@@ -10,3 +10,6 @@ packages/api-client/src/generated/
 
 # Golden fixtures of the intake agent — written by their generator, compared bit for bit
 apps/api/tests/intake_cases/**/*.json
+
+# Evaluation evidence of the intake agent — appended by evals/intake_eval.py, never hand-formatted
+apps/api/evals/results/

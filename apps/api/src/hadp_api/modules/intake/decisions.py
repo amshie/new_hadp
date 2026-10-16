@@ -37,7 +37,7 @@ from hadp_api.modules.audit.service import record_audit
 from hadp_api.modules.documents.blob import get_blob_store
 from hadp_api.modules.documents.models import SourceDocument
 from hadp_api.modules.documents.pdf_render import open_pdf
-from hadp_api.modules.documents.pdf_text import PdfUnreadable, read_pages
+from hadp_api.modules.documents.pdf_text import PdfUnreadable
 from hadp_api.modules.enums import (
     IntakeDecisionKind,
     IntakeRejectionReason,
@@ -49,6 +49,7 @@ from hadp_api.modules.imports import matching
 from hadp_api.modules.imports.service import source_reference_text
 from hadp_api.modules.intake import checks
 from hadp_api.modules.intake.models import IntakeBatch, IntakeDecision, PendingValue
+from hadp_api.modules.intake.pages import OcrUnavailable, load_pages
 from hadp_api.modules.intake.service import _DbBounds, record_view
 from hadp_api.modules.kpi.service import load_terminology
 from hadp_api.modules.observations.models import Observation
@@ -175,9 +176,11 @@ def _recheck(
     if not store.exists(document.storage_key):
         raise Conflict("document_unavailable: the stored source document cannot be read")
     try:
-        pages = read_pages(store.get(document.storage_key))
+        pages = load_pages(store.get(document.storage_key), get_settings())
     except PdfUnreadable as exc:
         raise ValidationFailed(f"document_unreadable: {exc.detail}") from exc
+    except OcrUnavailable as exc:
+        raise Conflict(f"ocr_unavailable: {exc.detail}") from exc
     checked = checks.run_checks(
         checks.ProposedBatch(
             values=(value,),

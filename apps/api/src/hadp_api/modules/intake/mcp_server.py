@@ -83,7 +83,9 @@ def build_server(tools: IntakeTools) -> FastMCP:
                 {
                     "document_id": view.document_id,
                     "page_count": view.page_count,
-                    "pages": [{"page": p.page, "text": p.text} for p in view.pages],
+                    "pages": [
+                        {"page": p.page, "source": p.source, "text": p.text} for p in view.pages
+                    ],
                 }
             )
         ]

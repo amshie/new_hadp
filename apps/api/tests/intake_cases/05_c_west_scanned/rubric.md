@@ -7,8 +7,9 @@
 
 - The OCR misreads "HbA1c" as "HbAlc" → `analyte_not_on_page` (red) for HbA1c even though the
   value itself is right: a proposal is confirmed against the page text, not against intuition.
-- LDL and glucose are on the OCR text verbatim; with confidence 0.80 / 0.85 they are yellow
-  (`low_confidence`) and must be viewed before confirmation.
+- LDL and glucose are on the OCR text verbatim — and that is exactly why they carry
+  `page_text_from_ocr` (yellow) beside `low_confidence`: a value found on OCR text is never
+  green, because an OCR misreading looks like a reading. Both must be viewed before confirmation.
 - Nothing is green on a scan at these confidences.
 
 **Why it matters** — OCR is the last resort (CLAUDE.md); this case shows what it costs and that

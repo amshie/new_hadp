@@ -36,6 +36,9 @@ class PdfPages:
             return ""
         return self.texts[page - 1]
 
+    def source(self, page: int) -> str:
+        return "text_layer" if self.text(page).strip() else "none"
+
 
 def read_pages(data: bytes) -> PdfPages:
     """The text of every page, in page order. Refuses a file that is not a PDF, an encrypted

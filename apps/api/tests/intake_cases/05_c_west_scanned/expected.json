@@ -141,6 +141,7 @@
       "normalized_reference_high": "3.0",
       "status": "yellow",
       "reasons": [
+        "page_text_from_ocr",
         "low_confidence"
       ],
       "checks": [
@@ -162,9 +163,9 @@
         },
         {
           "check": "on_page",
-          "result": "pass",
-          "severity": null,
-          "reason": null,
+          "result": "fail",
+          "severity": "yellow",
+          "reason": "page_text_from_ocr",
           "detail": {
             "page": 1
           }
@@ -259,6 +260,7 @@
       "normalized_reference_high": "5.6",
       "status": "yellow",
       "reasons": [
+        "page_text_from_ocr",
         "low_confidence"
       ],
       "checks": [
@@ -280,9 +282,9 @@
         },
         {
           "check": "on_page",
-          "result": "pass",
-          "severity": null,
-          "reason": null,
+          "result": "fail",
+          "severity": "yellow",
+          "reason": "page_text_from_ocr",
           "detail": {
             "page": 1
           }

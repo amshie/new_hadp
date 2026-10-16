@@ -59,6 +59,10 @@ const ACTION_LABELS: Record<string, Record<Locale, string>> = {
     de: "Letzter Wert für den Vorschlag gelesen",
     en: "Last value read for a proposal",
   },
+  "intake.proposal_refused": {
+    de: "Vorschlag des Leseprogramms abgewiesen",
+    en: "Reader's proposal refused",
+  },
   "intake.batches_list": {
     de: "Vorschläge einer Akte gelesen",
     en: "A record's proposals read",
