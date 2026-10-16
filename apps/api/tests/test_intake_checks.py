@@ -66,6 +66,7 @@ def reasons(checked, index=0):  # type: ignore[no-untyped-def]
 def test_every_reason_has_a_severity_and_every_check_is_named() -> None:
     assert set(checks.REASONS.values()) == {"red", "yellow"}
     assert len(checks.CHECKS) == 12 and len(set(checks.CHECKS)) == 12
+    assert "conflicting_in_batch" in checks.REASONS
 
 
 def test_a_check_result_cannot_carry_an_unknown_reason() -> None:
@@ -333,6 +334,21 @@ def test_a_published_twin_is_red_and_a_different_day_or_text_is_not() -> None:
 def test_the_same_value_twice_in_one_batch_marks_the_second() -> None:
     checked = run(value(), value())
     assert reasons(checked, 0) == [] and reasons(checked, 1) == ["duplicate_in_batch"]
+
+
+def test_two_different_readings_of_one_measurement_mark_both() -> None:
+    page = PAGE + "HbA1c 12,0 %\n"
+    checked = run(value(), value(value_text="12,0"), pages=(page,))
+    assert reasons(checked, 0) == ["conflicting_in_batch"]
+    assert reasons(checked, 1) == ["conflicting_in_batch"]
+    assert all(v.status is PendingValueStatus.YELLOW for v in checked.values)
+    # Another day is another measurement: no conflict.
+    other_day = run(
+        value(),
+        value(value_text="12,0", observed_at=datetime(2026, 9, 4, tzinfo=UTC)),
+        pages=(page,),
+    )
+    assert reasons(other_day, 0) == [] and reasons(other_day, 1) == []
 
 
 # --- confidence and patient ------------------------------------------------------------------

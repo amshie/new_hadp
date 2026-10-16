@@ -172,6 +172,10 @@ smoke: ## Live happy-path smoke over HTTP (requires API on :8000 + seeded dev DB
 smoke-web: ## Web route smoke (requires API on :8000 + web on :3000 + seeded dev DB)
 	$(API_RUN) python ../../scripts/smoke_web.py
 
+.PHONY: intake-mcp
+intake-mcp: ## Run the lab intake agent's MCP server (stdio; scope from HADP_INTAKE_* variables)
+	$(API_RUN) python -m hadp_api.modules.intake.mcp_server
+
 .PHONY: worker-dev
 worker-dev: ## Run the background worker
 	cd $(WORKER_DIR) && $(UV) run python -m hadp_worker.main

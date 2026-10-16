@@ -51,6 +51,14 @@ const ACTION_LABELS: Record<string, Record<Locale, string>> = {
     de: "Werte aus Datei vorgeschlagen",
     en: "Values proposed from a file",
   },
+  "intake.document_read": {
+    de: "Datei für den Vorschlag gelesen",
+    en: "File read for a proposal",
+  },
+  "intake.last_value_read": {
+    de: "Letzter Wert für den Vorschlag gelesen",
+    en: "Last value read for a proposal",
+  },
   "review_queue.read": { de: "Review-Queue gelesen", en: "Review queue read" },
   "review_item.resolved": {
     de: "Review-Eintrag entschieden",

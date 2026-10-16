@@ -14,6 +14,7 @@ page texts come in through small protocols, so the golden cases run without a da
 from __future__ import annotations
 
 import re
+import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -86,6 +87,7 @@ REASONS: dict[str, str] = {
     "date_before_birth": RED,
     "duplicate_of_published": RED,
     "duplicate_in_batch": RED,
+    "conflicting_in_batch": YELLOW,
     "low_confidence": YELLOW,
 }
 
@@ -139,6 +141,7 @@ class PriorValue:
     value: Decimal
     unit: str
     observed_at: datetime | None
+    observation_id: uuid.UUID | None = None
 
 
 class Terminology(Protocol):
@@ -489,18 +492,39 @@ def _duplicate_key(value: ProposedValue, kpi_code: str | None) -> tuple[str, str
     )
 
 
+def _measurement_key(value: ProposedValue, kpi_code: str | None) -> tuple[str, str | None]:
+    day = _day(value)
+    return (kpi_code or analyte_key(value.analyte_text), day.isoformat() if day else None)
+
+
+def conflicting_measurements(
+    batch: ProposedBatch, kpi_codes: list[str | None]
+) -> set[tuple[str, str | None]]:
+    """The (analyte, day) pairs this batch proposes with MORE THAN ONE distinct value or unit:
+    the model read two numbers for one measurement, and neither can be confirmed unseen."""
+    seen: dict[tuple[str, str | None], set[tuple[str, str]]] = {}
+    for value, kpi_code in zip(batch.values, kpi_codes, strict=True):
+        key = _measurement_key(value, kpi_code)
+        seen.setdefault(key, set()).add(_duplicate_key(value, kpi_code)[2:])
+    return {key for key, variants in seen.items() if len(variants) > 1}
+
+
 def check_duplicate(
     value: ProposedValue,
     kpi_code: str | None,
     record: PatientRecordView,
     seen: set[tuple[str, str | None, str, str]],
+    conflicts: set[tuple[str, str | None]] = frozenset(),  # type: ignore[assignment]
 ) -> CheckResult:
     """The same value is not already published for this patient (same KPI or name, same day,
-    same text and unit), and not proposed twice in this batch."""
+    same text and unit), not proposed twice in this batch, and not one of two different
+    readings of one measurement in this batch."""
     key = _duplicate_key(value, kpi_code)
     if key in seen:
         return _fail(DUPLICATE, "duplicate_in_batch")
     seen.add(key)
+    if _measurement_key(value, kpi_code) in conflicts:
+        return _fail(DUPLICATE, "conflicting_in_batch")
     if record.is_published(
         kpi_code=kpi_code,
         analyte_key=analyte_key(value.analyte_text),
@@ -533,6 +557,13 @@ def run_checks(
     """Every check over every value, in a fixed order, with a fixed outcome per input."""
     patient = check_patient(batch, record)
     seen: set[tuple[str, str | None, str, str]] = set()
+    conflicts = conflicting_measurements(
+        batch,
+        [
+            term.kpi_code if (term := terminology.resolve(v.analyte_text)) is not None else None
+            for v in batch.values
+        ],
+    )
     values: list[CheckedValue] = []
     for value in batch.values:
         page = check_page(value, pages)
@@ -544,7 +575,7 @@ def run_checks(
         plausibility, bound = check_plausibility(term, canonical_unit, normalized, bounds)
         delta = check_delta(term, canonical_unit, normalized, bound, record)
         when = check_date(value, batch, record, today)
-        duplicate = check_duplicate(value, term.kpi_code if term else None, record, seen)
+        duplicate = check_duplicate(value, term.kpi_code if term else None, record, seen, conflicts)
         confidence = check_confidence(value)
         checks = (
             patient,

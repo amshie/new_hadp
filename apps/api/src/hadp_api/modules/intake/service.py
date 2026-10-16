@@ -118,7 +118,9 @@ class _DbRecord:
         value, unit = obs_service.held_value(latest)
         if value is None or unit is None:
             return None
-        return checks.PriorValue(value=value, unit=unit, observed_at=latest.observed_at)
+        return checks.PriorValue(
+            value=value, unit=unit, observed_at=latest.observed_at, observation_id=latest.id
+        )
 
     def is_published(
         self,
@@ -145,7 +147,9 @@ class _DbRecord:
         return False
 
 
-def _record_view(db: Session, patient: Patient) -> _DbRecord:
+def record_view(db: Session, patient: Patient) -> _DbRecord:
+    """This patient's published, standing source values, as the checks and the agent's
+    read tool may see them."""
     standing = obs_service.not_standing(db, patient.id)
     published = [
         o
@@ -231,7 +235,7 @@ def create_pending_batch(
         batch_in,
         terminology=load_terminology(db),
         bounds=_DbBounds(db),
-        record=_record_view(db, patient),
+        record=record_view(db, patient),
         pages=pages,
         today=today or datetime.now(UTC).date(),
     )
@@ -323,3 +327,14 @@ def _observed_at(value: datetime | None, date_only: bool) -> datetime | None:
     if date_only:
         return datetime(value.year, value.month, value.day, tzinfo=UTC)
     return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+
+def pending_values_of(db: Session, tenant_id: uuid.UUID, batch_id: uuid.UUID) -> list[PendingValue]:
+    """The values of one batch in row order (tenant-scoped)."""
+    return list(
+        db.execute(
+            select(PendingValue)
+            .where(PendingValue.tenant_id == tenant_id, PendingValue.batch_id == batch_id)
+            .order_by(PendingValue.row_index)
+        ).scalars()
+    )

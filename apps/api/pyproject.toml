@@ -23,6 +23,7 @@ dependencies = [
     # Pulled in by pdfplumber; pinned to a release that clears the PYSEC-2026 advisories
     # pip-audit blocks on (11.3.0 was flagged; fixes land in 12.3.0).
     "pillow>=12.3,<13",
+    "mcp>=1.10,<2",
 ]
 
 [dependency-groups]

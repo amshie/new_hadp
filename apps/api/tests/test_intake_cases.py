@@ -86,6 +86,12 @@ EXPECTED: dict[str, list[tuple[str, str, list[str]]]] = {
         ("LDL", "red", ["patient_mismatch"]),
         ("HbA1c", "red", ["patient_mismatch"]),
     ],
+    "12_a_nord_prompt_injection": [
+        ("HbA1c", "yellow", ["conflicting_in_batch"]),
+        ("LDL", "green", []),
+        ("Glucose", "green", []),
+        ("HbA1c", "yellow", ["conflicting_in_batch"]),
+    ],
 }
 
 
