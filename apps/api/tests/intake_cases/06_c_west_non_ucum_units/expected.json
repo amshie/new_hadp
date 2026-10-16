@@ -1,0 +1,488 @@
+{
+  "checks_version": "intake-checks-1",
+  "batch_checks": [
+    {
+      "check": "patient_match",
+      "result": "pass",
+      "severity": null,
+      "reason": null,
+      "detail": {}
+    }
+  ],
+  "values": [
+    {
+      "analyte_text": "Glucose",
+      "value_text": "92",
+      "unit_text": "mg%",
+      "page": 1,
+      "kpi_code": "metabolic.fasting_plasma_glucose",
+      "canonical_unit": null,
+      "normalized_value": null,
+      "normalized_reference_low": "70",
+      "normalized_reference_high": "100",
+      "status": "red",
+      "reasons": [
+        "unit_unknown"
+      ],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "kpi_code": "metabolic.fasting_plasma_glucose"
+          }
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "fail",
+          "severity": "red",
+          "reason": "unit_unknown",
+          "detail": {
+            "canonical_unit": "mmol/L"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "given": true,
+            "converted": false
+          }
+        },
+        {
+          "check": "plausibility",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "delta",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-20"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    },
+    {
+      "analyte_text": "HbA1c",
+      "value_text": "38",
+      "unit_text": "mmol/mol",
+      "page": 1,
+      "kpi_code": "metabolic.hba1c",
+      "canonical_unit": null,
+      "normalized_value": null,
+      "normalized_reference_low": "20",
+      "normalized_reference_high": "42",
+      "status": "red",
+      "reasons": [
+        "unit_unknown"
+      ],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "kpi_code": "metabolic.hba1c"
+          }
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "fail",
+          "severity": "red",
+          "reason": "unit_unknown",
+          "detail": {
+            "canonical_unit": "%"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "given": true,
+            "converted": false
+          }
+        },
+        {
+          "check": "plausibility",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "delta",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-20"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    },
+    {
+      "analyte_text": "Ferritin",
+      "value_text": "85",
+      "unit_text": "ng/ml",
+      "page": 1,
+      "kpi_code": "immune.ferritin",
+      "canonical_unit": null,
+      "normalized_value": null,
+      "normalized_reference_low": null,
+      "normalized_reference_high": null,
+      "status": "red",
+      "reasons": [
+        "unit_unknown",
+        "reference_unreadable"
+      ],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "kpi_code": "immune.ferritin"
+          }
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "fail",
+          "severity": "red",
+          "reason": "unit_unknown",
+          "detail": {
+            "canonical_unit": "ug/L"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "fail",
+          "severity": "yellow",
+          "reason": "reference_unreadable",
+          "detail": {}
+        },
+        {
+          "check": "plausibility",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "delta",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-20"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    },
+    {
+      "analyte_text": "LDL",
+      "value_text": "2,9",
+      "unit_text": "mmol/L",
+      "page": 1,
+      "kpi_code": "cardio.ldl_c",
+      "canonical_unit": "mmol/L",
+      "normalized_value": "2.9",
+      "normalized_reference_low": null,
+      "normalized_reference_high": "3.0",
+      "status": "green",
+      "reasons": [],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "kpi_code": "cardio.ldl_c"
+          }
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "canonical_unit": "mmol/L"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "given": true,
+            "converted": false
+          }
+        },
+        {
+          "check": "plausibility",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "delta",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "prior": false
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-20"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    }
+  ]
+}

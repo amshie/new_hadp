@@ -108,6 +108,18 @@ def _canonical_unit(unit: str | None) -> str | None:
     return _UNIT_SPELLINGS.get(text.lower(), text)
 
 
+def canonical_unit_spelling(unit: str | None) -> str | None:
+    """A unit as the platform compares it: the three accepted spellings in one case, every
+    other unit as written (trimmed). No unit is guessed from a value."""
+    return _canonical_unit(unit)
+
+
+def approved_factor(kpi_code: str, source_unit: str, target_unit: str) -> Decimal | None:
+    """The exact factor of an APPROVED conversion for this KPI, or None: a unit pair that
+    is not listed is not converted, whatever the units look like."""
+    return _CONVERSIONS.get((kpi_code, source_unit, target_unit))
+
+
 def unit_was_converted(original_unit: str | None, normalized_unit: str | None) -> bool:
     """True when normalization changed the unit — and with it the value and the reference
     bounds. A different spelling of the same unit ("mmol/l") is not a conversion; neither is

@@ -1,0 +1,76 @@
+{
+  "extraction_provider": "golden-fixture",
+  "model_id": "fixture-proposal",
+  "prompt_version": "fixture-1",
+  "patient_date_of_birth": "1970-03-12",
+  "issue_date": "2026-09-06",
+  "values": [
+    {
+      "analyte_text": "HbA1c",
+      "value_text": "5,4",
+      "unit_text": "%",
+      "observed_at": "2026-09-05",
+      "observed_at_is_date_only": true,
+      "reference_low": "4,0",
+      "reference_high": "6,0",
+      "reference_text": "4,0 - 6,0",
+      "page": 1,
+      "bbox": [
+        284.1,
+        184.4,
+        300.0,
+        194.4
+      ],
+      "confidence": "0.95"
+    },
+    {
+      "analyte_text": "LDL",
+      "value_text": "3,1",
+      "unit_text": "mmol/L",
+      "observed_at": "2026-09-05",
+      "observed_at_is_date_only": true,
+      "reference_low": null,
+      "reference_high": "3,0",
+      "reference_text": "< 3,0",
+      "page": 1,
+      "bbox": [
+        284.1,
+        202.4,
+        300.0,
+        212.4
+      ],
+      "confidence": "0.95"
+    },
+    {
+      "analyte_text": "Glucose",
+      "value_text": "5,1",
+      "unit_text": "mmol/L",
+      "observed_at": "2026-09-05",
+      "observed_at_is_date_only": true,
+      "reference_low": "3,9",
+      "reference_high": "5,6",
+      "reference_text": "3,9 - 5,6",
+      "page": 1,
+      "bbox": [
+        284.1,
+        220.4,
+        300.0,
+        230.4
+      ],
+      "confidence": "0.95"
+    },
+    {
+      "analyte_text": "HbA1c",
+      "value_text": "12,0",
+      "unit_text": "%",
+      "observed_at": "2026-09-05",
+      "observed_at_is_date_only": true,
+      "reference_low": null,
+      "reference_high": null,
+      "reference_text": null,
+      "page": 1,
+      "bbox": null,
+      "confidence": "0.91"
+    }
+  ]
+}

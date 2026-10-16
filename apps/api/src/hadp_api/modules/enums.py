@@ -63,6 +63,9 @@ class AuditCategory(str, Enum):
     WORKLIST = "worklist"
     AUDIT = "audit"
     METRIC = "metric"
+    # The lab intake agent (docs/product/INTAKE_AGENT.md): a batch of values a model proposed
+    # from a stored document, and what a human later decided about each one.
+    INTAKE = "intake"
 
 
 class ValueType(str, Enum):
@@ -95,6 +98,45 @@ class ReviewStatus(str, Enum):
     PENDING = "pending"  # low confidence / conflict — needs human resolution
     PUBLISHED = "published"  # human-resolved and visible
     REJECTED = "rejected"
+
+
+class PendingValueStatus(str, Enum):
+    """What the deterministic checks say about ONE value a model proposed from a document
+    (lab intake agent) — a CLOSED vocabulary, computed by code, never set by the model.
+
+    GREEN: every check passed and the model's confidence is at least 0.9 — a human confirms
+    it with one click. YELLOW: a check asks a human to look (unmapped name, missing bounds,
+    an unusual change, a doubtful date, low confidence) — it must be viewed before it is
+    confirmed. RED: a check failed outright (value not on the cited page, unknown unit,
+    impossible value, duplicate, wrong patient) — it must be corrected or rejected. None of
+    the three is a statement about the patient; they describe the READING of a document.
+    """
+
+    GREEN = "green"
+    YELLOW = "yellow"
+    RED = "red"
+
+
+class IntakeDecisionKind(str, Enum):
+    """What a clinician decided about ONE pending value (lab intake agent) — a CLOSED
+    vocabulary, one decision per value, append-only. CONFIRMED: the proposal as it stands
+    becomes an observation. CORRECTED: the clinician's reading becomes the observation and the
+    proposal is kept beside it. REJECTED: nothing enters the record; the reason is kept."""
+
+    CONFIRMED = "confirmed"
+    CORRECTED = "corrected"
+    REJECTED = "rejected"
+
+
+class IntakeRejectionReason(str, Enum):
+    """Why a proposed value was rejected — a CLOSED vocabulary, never free text. It describes
+    the reading of the document, not the patient."""
+
+    NOT_ON_DOCUMENT = "not_on_document"  # the document does not say this
+    MISREAD = "misread"  # the document says something else and it is not worth correcting
+    WRONG_PATIENT = "wrong_patient"
+    ALREADY_RECORDED = "already_recorded"
+    OTHER = "other"
 
 
 class ImportStatus(str, Enum):

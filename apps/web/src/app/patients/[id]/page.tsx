@@ -10,11 +10,13 @@ import {
   listConsents,
   listDataExports,
   listDocuments,
+  listIntakeBatches,
   me,
   timeline,
   worklist,
   type ConsentState,
   type DataExport,
+  type IntakeBatchSummary,
   type ReportView,
   type SourceDocument,
 } from "@/lib/api";
@@ -32,29 +34,39 @@ import { PatientDetailContent } from "./PatientDetailContent";
 async function loadView(patientId: string): Promise<{
   view: DetailView;
   documents: SourceDocument[];
+  intakeBatches: IntakeBatchSummary[];
   consents: ConsentState[];
 }> {
   try {
     const rows = await worklist();
     const row = rows.find((r) => r.patient_id === patientId);
     const reportId = row?.report_id ?? null;
-    const [patient, points, matrix, catalog, documents, consents, report] =
-      await Promise.all([
-        getPatient(patientId),
-        timeline(patientId),
-        interpretation(patientId),
-        coreCatalog(),
-        listDocuments(patientId),
-        listConsents(patientId),
-        // A stale/RLS-filtered report id must not 404 the whole patient — fall through to the
-        // no-report state. Only the patient/timeline/interpretation loads gate the page.
-        reportId
-          ? getReport(reportId).catch((e) => {
-              if (e instanceof ApiError && e.status === 404) return null;
-              throw e;
-            })
-          : Promise.resolve(null),
-      ]);
+    const [
+      patient,
+      points,
+      matrix,
+      catalog,
+      documents,
+      intakeBatches,
+      consents,
+      report,
+    ] = await Promise.all([
+      getPatient(patientId),
+      timeline(patientId),
+      interpretation(patientId),
+      coreCatalog(),
+      listDocuments(patientId),
+      listIntakeBatches(patientId),
+      listConsents(patientId),
+      // A stale/RLS-filtered report id must not 404 the whole patient — fall through to the
+      // no-report state. Only the patient/timeline/interpretation loads gate the page.
+      reportId
+        ? getReport(reportId).catch((e) => {
+            if (e instanceof ApiError && e.status === 404) return null;
+            throw e;
+          })
+        : Promise.resolve(null),
+    ]);
     const resolved: ReportView = report ?? {
       report_id: "",
       patient_id: patientId,
@@ -67,6 +79,7 @@ async function loadView(patientId: string): Promise<{
     return {
       view: presentDetail(patient, resolved, points, matrix, catalog),
       documents,
+      intakeBatches,
       consents,
     };
   } catch (e) {
@@ -87,11 +100,8 @@ export default async function PatientDetailPage({
   if (!isUuid(id)) notFound();
   // The session role drives which staff actions render (invite); the API enforces them.
   // The report draft + Freigabe workflow lives on the dedicated review page, not here.
-  const [{ view, documents, consents }, session, messages] = await Promise.all([
-    loadView(id),
-    me().catch(() => null),
-    getMessages(),
-  ]);
+  const [{ view, documents, intakeBatches, consents }, session, messages] =
+    await Promise.all([loadView(id), me().catch(() => null), getMessages()]);
   // The export list is the owner's (the API refuses every other role), and a tombstoned
   // record has none. A failed read must not take the patient page down with it.
   const dataExports: DataExport[] | null =
@@ -108,6 +118,7 @@ export default async function PatientDetailPage({
       <PatientDetailContent
         view={view}
         documents={documents}
+        intakeBatches={intakeBatches}
         consents={consents}
         dataExports={dataExports}
         sessionRole={session?.role ?? null}

@@ -18,6 +18,12 @@ dependencies = [
     "python-multipart>=0.0.9,<0.1",
     "boto3>=1.34,<2",
     "redis>=5.0,<6",
+    # Text layer of stored PDFs for the lab intake agent (MIT; pdfminer.six underneath).
+    "pdfplumber>=0.11,<0.12",
+    # Pulled in by pdfplumber; pinned to a release that clears the PYSEC-2026 advisories
+    # pip-audit blocks on (11.3.0 was flagged; fixes land in 12.3.0).
+    "pillow>=12.3,<13",
+    "mcp>=1.10,<2",
 ]
 
 [dependency-groups]
@@ -28,6 +34,8 @@ dev = [
     "mypy>=1.11,<2",
     "boto3-stubs[s3]>=1.34,<2",
     "types-redis>=4.6,<5",
+    # Generates the synthetic PDF fixtures of the intake golden cases (BSD).
+    "reportlab>=4.2,<5",
 ]
 
 [build-system]
@@ -62,7 +70,7 @@ strict_equality = true
 exclude = ["alembic/"]
 
 [[tool.mypy.overrides]]
-module = ["boto3.*", "botocore.*"]
+module = ["boto3.*", "botocore.*", "pdfplumber.*", "reportlab.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

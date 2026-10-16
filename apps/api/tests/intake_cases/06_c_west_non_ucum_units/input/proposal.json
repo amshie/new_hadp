@@ -1,0 +1,81 @@
+{
+  "extraction_provider": "golden-fixture",
+  "model_id": "fixture-proposal",
+  "prompt_version": "fixture-1",
+  "patient_date_of_birth": "1970-03-12",
+  "issue_date": "2026-09-22",
+  "values": [
+    {
+      "analyte_text": "Glucose",
+      "value_text": "92",
+      "unit_text": "mg%",
+      "observed_at": "2026-09-20",
+      "observed_at_is_date_only": true,
+      "reference_low": "70",
+      "reference_high": "100",
+      "reference_text": "70 - 100",
+      "page": 1,
+      "bbox": [
+        96.4,
+        160.4,
+        109.1,
+        170.4
+      ],
+      "confidence": "0.95"
+    },
+    {
+      "analyte_text": "HbA1c",
+      "value_text": "38",
+      "unit_text": "mmol/mol",
+      "observed_at": "2026-09-20",
+      "observed_at_is_date_only": true,
+      "reference_low": "20",
+      "reference_high": "42",
+      "reference_text": "20 - 42",
+      "page": 1,
+      "bbox": [
+        89.1,
+        178.4,
+        101.8,
+        188.4
+      ],
+      "confidence": "0.95"
+    },
+    {
+      "analyte_text": "Ferritin",
+      "value_text": "85",
+      "unit_text": "ng/ml",
+      "observed_at": "2026-09-20",
+      "observed_at_is_date_only": true,
+      "reference_low": "s.o.",
+      "reference_high": null,
+      "reference_text": "siehe Kommentar",
+      "page": 1,
+      "bbox": [
+        92.5,
+        196.4,
+        105.2,
+        206.4
+      ],
+      "confidence": "0.95"
+    },
+    {
+      "analyte_text": "LDL",
+      "value_text": "2,9",
+      "unit_text": "mmol/L",
+      "observed_at": "2026-09-20",
+      "observed_at_is_date_only": true,
+      "reference_low": null,
+      "reference_high": "3,0",
+      "reference_text": "< 3,0",
+      "page": 1,
+      "bbox": [
+        75.4,
+        214.4,
+        91.3,
+        224.4
+      ],
+      "confidence": "0.95"
+    }
+  ]
+}

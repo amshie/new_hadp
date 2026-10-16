@@ -1,0 +1,52 @@
+{
+  "_note": "Synthetic. The values as printed on report.pdf; the yardstick of the evaluation.",
+  "patient_date_of_birth": null,
+  "issue_date": "2026-09-13",
+  "values": [
+    {
+      "analyte_text": "HbA1c",
+      "value_text": "5,6",
+      "unit_text": "%",
+      "observed_at": "2026-09-12",
+      "reference_low": "4,0",
+      "reference_high": "6,0",
+      "page": 1
+    },
+    {
+      "analyte_text": "Kreatinin",
+      "value_text": "78",
+      "unit_text": "µmol/L",
+      "observed_at": "2026-09-12",
+      "reference_low": "45",
+      "reference_high": "84",
+      "page": 1
+    },
+    {
+      "analyte_text": "Harnsäure",
+      "value_text": "310",
+      "unit_text": "µmol/L",
+      "observed_at": "2026-09-12",
+      "reference_low": "143",
+      "reference_high": "339",
+      "page": 1
+    },
+    {
+      "analyte_text": "Triglyceride",
+      "value_text": "1,3",
+      "unit_text": "mmol/L",
+      "observed_at": "2026-09-12",
+      "reference_low": null,
+      "reference_high": "1,7",
+      "page": 1
+    },
+    {
+      "analyte_text": "TSH",
+      "value_text": "1,8",
+      "unit_text": "mU/L",
+      "observed_at": "2026-09-12",
+      "reference_low": "0,4",
+      "reference_high": "4,0",
+      "page": 1
+    }
+  ]
+}

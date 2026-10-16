@@ -1,0 +1,61 @@
+{
+  "_note": "Synthetic. The values as printed on report.pdf; the yardstick of the evaluation.",
+  "patient_date_of_birth": "1970-03-12",
+  "issue_date": "2026-09-11",
+  "values": [
+    {
+      "analyte_text": "LDL",
+      "value_text": "128",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-10",
+      "reference_low": "50",
+      "reference_high": "130",
+      "page": 1
+    },
+    {
+      "analyte_text": "HDL cholesterol",
+      "value_text": "62",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-10",
+      "reference_low": "40",
+      "reference_high": null,
+      "page": 1
+    },
+    {
+      "analyte_text": "Total cholesterol",
+      "value_text": "201",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-10",
+      "reference_low": null,
+      "reference_high": "200",
+      "page": 1
+    },
+    {
+      "analyte_text": "Glucose",
+      "value_text": "92",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-10",
+      "reference_low": "70",
+      "reference_high": "100",
+      "page": 1
+    },
+    {
+      "analyte_text": "Triglycerides",
+      "value_text": "115",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-10",
+      "reference_low": null,
+      "reference_high": "150",
+      "page": 1
+    },
+    {
+      "analyte_text": "Creatinine",
+      "value_text": "0,9",
+      "unit_text": "mg/dl",
+      "observed_at": "2026-09-10",
+      "reference_low": "0,5",
+      "reference_high": "1,0",
+      "page": 1
+    }
+  ]
+}

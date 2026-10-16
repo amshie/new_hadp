@@ -92,6 +92,29 @@ class Settings(BaseSettings):
     # (the DACH pilot default); a time that does not name exactly one instant goes to review.
     # Report statements state a sampling time as wall-clock time in the same zone.
     lab_local_timezone: str = "Europe/Berlin"
+    # Which extraction provider reads a PDF into proposals (modules/intake/providers.py). The
+    # deterministic text-layer reader needs no model and no network.
+    intake_provider: str = "text-layer"
+    # OCR for a page without a text layer: "off" (a scan confirms nothing) or "tesseract"
+    # (an explicit step; the page's text is marked as OCR and its values are never green).
+    intake_ocr: str = "off"
+    intake_ocr_languages: str = "deu+eng"
+    # The model-backed provider (INTAKE_PROVIDER=model): which API shape, which model, where,
+    # and with which key. A key is never read from this file; the environment holds it.
+    intake_model_backend: str = "anthropic"  # or "openai_compatible" (a local/open model)
+    intake_model_id: str | None = None
+    intake_model_base_url: str | None = None
+    intake_model_api_key: str | None = None
+    anthropic_api_key: str | None = None
+    intake_model_timeout_seconds: float = 120.0
+    # In production an endpoint outside this deployment is refused unless the vendor decision
+    # (EU residency, no training on customer data) is recorded by setting this.
+    intake_model_external_allowed: bool = False
+    # Auto-acceptance of green values by a signed rule. SHIPS OFF: nothing confirms a value
+    # without a person until go-live decision 7 and the Regulatory Lead's sign-off; the rules
+    # and the error-rate report that would justify turning it on exist
+    # (modules/intake/auto_accept.py).
+    intake_auto_accept_enabled: bool = False
     # Web app base URL — used to build the patient-facing view link on report release.
     web_base_url: str = "http://127.0.0.1:3000"
 

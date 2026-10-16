@@ -2124,6 +2124,379 @@
         }
       }
     },
+    "/api/v1/patients/{patient_id}/documents/{document_id}/intake": {
+      "post": {
+        "tags": [
+          "intake"
+        ],
+        "summary": "Propose From Document",
+        "description": "Run the configured extraction provider over a stored PDF of this patient. The provider\nproposes; the checks decide the status; nothing is published.",
+        "operationId": "propose_from_document_api_v1_patients__patient_id__documents__document_id__intake_post",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          },
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/patients/{patient_id}/intake-batches": {
+      "get": {
+        "tags": [
+          "intake"
+        ],
+        "summary": "List Intake Batches",
+        "operationId": "list_intake_batches_api_v1_patients__patient_id__intake_batches_get",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IntakeBatchSummaryOut"
+                  },
+                  "title": "Response List Intake Batches Api V1 Patients  Patient Id  Intake Batches Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/intake/batches/{batch_id}": {
+      "get": {
+        "tags": [
+          "intake"
+        ],
+        "summary": "Read Intake Batch",
+        "operationId": "read_intake_batch_api_v1_intake_batches__batch_id__get",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Batch Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeBatchOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/intake/values/{pending_value_id}/region": {
+      "get": {
+        "tags": [
+          "intake"
+        ],
+        "summary": "Read Value Region",
+        "description": "The page region a proposed value came from, as PNG: the document's own text and nothing\nthe platform added. A read of health data, recorded like the batch itself.",
+        "operationId": "read_value_region_api_v1_intake_values__pending_value_id__region_get",
+        "parameters": [
+          {
+            "name": "pending_value_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pending Value Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/intake/batches/{batch_id}/decisions": {
+      "post": {
+        "tags": [
+          "intake"
+        ],
+        "summary": "Decide Value",
+        "operationId": "decide_value_api_v1_intake_batches__batch_id__decisions_post",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Batch Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/intake/batches/{batch_id}/confirm-green": {
+      "post": {
+        "tags": [
+          "intake"
+        ],
+        "summary": "Confirm Green Values",
+        "operationId": "confirm_green_values_api_v1_intake_batches__batch_id__confirm_green_post",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Batch Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmGreenIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmGreenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/intake/error-rates": {
+      "get": {
+        "tags": [
+          "intake"
+        ],
+        "summary": "Read Error Rates",
+        "operationId": "read_error_rates_api_v1_intake_error_rates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRatesOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/intake/auto-accept/rules": {
+      "get": {
+        "tags": [
+          "intake"
+        ],
+        "summary": "List Auto Accept Rules",
+        "operationId": "list_auto_accept_rules_api_v1_intake_auto_accept_rules_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AutoAcceptRuleOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Auto Accept Rules Api V1 Intake Auto Accept Rules Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "intake"
+        ],
+        "summary": "Record Auto Accept Rule",
+        "description": "Append a rule for one laboratory and one KPI, signed by the owner who records it. The\nrule is inert while the deployment's switch is off.",
+        "operationId": "record_auto_accept_rule_api_v1_intake_auto_accept_rules_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutoAcceptRuleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoAcceptRuleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/patients/{patient_id}/observations": {
       "get": {
         "tags": [
@@ -2738,7 +3111,8 @@
           "authz",
           "worklist",
           "audit",
-          "metric"
+          "metric",
+          "intake"
         ],
         "title": "AuditCategory"
       },
@@ -2836,6 +3210,134 @@
           "next_cursor"
         ],
         "title": "AuditPageOut"
+      },
+      "AutoAcceptRuleIn": {
+        "properties": {
+          "source_lab": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Source Lab"
+          },
+          "kpi_code": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Kpi Code"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "max_green_error_rate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,5}0*$"
+              }
+            ],
+            "title": "Max Green Error Rate"
+          },
+          "min_sample": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Min Sample"
+          },
+          "audit_sample_rate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,5}0*$"
+              }
+            ],
+            "title": "Audit Sample Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_lab",
+          "kpi_code",
+          "enabled",
+          "max_green_error_rate",
+          "min_sample",
+          "audit_sample_rate"
+        ],
+        "title": "AutoAcceptRuleIn"
+      },
+      "AutoAcceptRuleOut": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Rule Id"
+          },
+          "source_lab": {
+            "type": "string",
+            "title": "Source Lab"
+          },
+          "kpi_code": {
+            "type": "string",
+            "title": "Kpi Code"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "max_green_error_rate": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Max Green Error Rate"
+          },
+          "min_sample": {
+            "type": "integer",
+            "title": "Min Sample"
+          },
+          "audit_sample_rate": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Audit Sample Rate"
+          },
+          "signed_by_user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Signed By User Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "eligibility": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Eligibility"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "source_lab",
+          "kpi_code",
+          "enabled",
+          "max_green_error_rate",
+          "min_sample",
+          "audit_sample_rate",
+          "signed_by_user_id",
+          "created_at",
+          "eligibility"
+        ],
+        "title": "AutoAcceptRuleOut"
       },
       "Body_upload_document_api_v1_patients__patient_id__documents_post": {
         "properties": {
@@ -3075,6 +3577,47 @@
         ],
         "title": "ClinicProfileOut"
       },
+      "ConfirmGreenIn": {
+        "properties": {
+          "screen_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 86400.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Screen Seconds"
+          }
+        },
+        "type": "object",
+        "title": "ConfirmGreenIn"
+      },
+      "ConfirmGreenOut": {
+        "properties": {
+          "confirmed": {
+            "type": "integer",
+            "title": "Confirmed"
+          },
+          "observation_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Observation Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "confirmed",
+          "observation_ids"
+        ],
+        "title": "ConfirmGreenOut"
+      },
       "ConsentEventOut": {
         "properties": {
           "id": {
@@ -3274,6 +3817,202 @@
         ],
         "title": "CoreKpiOut"
       },
+      "CorrectedValueOut": {
+        "properties": {
+          "analyte_text": {
+            "type": "string",
+            "title": "Analyte Text"
+          },
+          "value_text": {
+            "type": "string",
+            "title": "Value Text"
+          },
+          "unit_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Text"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "observed_at_is_date_only": {
+            "type": "boolean",
+            "title": "Observed At Is Date Only"
+          },
+          "reference_low": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Low"
+          },
+          "reference_high": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference High"
+          },
+          "reference_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "analyte_text",
+          "value_text",
+          "unit_text",
+          "observed_at",
+          "observed_at_is_date_only",
+          "reference_low",
+          "reference_high",
+          "reference_text"
+        ],
+        "title": "CorrectedValueOut"
+      },
+      "CorrectionIn": {
+        "properties": {
+          "analyte_text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analyte Text"
+          },
+          "value_text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Text"
+          },
+          "unit_text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Text"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "observed_at_is_date_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At Is Date Only"
+          },
+          "reference_low": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Low"
+          },
+          "reference_high": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference High"
+          },
+          "reference_text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Text"
+          },
+          "clear_unit": {
+            "type": "boolean",
+            "title": "Clear Unit",
+            "default": false
+          },
+          "clear_reference": {
+            "type": "boolean",
+            "title": "Clear Reference",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "CorrectionIn"
+      },
       "CoverageOut": {
         "properties": {
           "total": {
@@ -3454,6 +4193,107 @@
         ],
         "title": "DataExportOut",
         "description": "One generated export, as its audit event recorded it (no content is kept)."
+      },
+      "DecisionIn": {
+        "properties": {
+          "pending_value_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Pending Value Id"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/IntakeDecisionKind"
+          },
+          "correction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CorrectionIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rejection_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntakeRejectionReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "review_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 86400.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Seconds"
+          },
+          "screen_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 86400.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Screen Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pending_value_id",
+          "decision"
+        ],
+        "title": "DecisionIn"
+      },
+      "DecisionOut": {
+        "properties": {
+          "decision_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Decision Id"
+          },
+          "pending_value_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Pending Value Id"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/IntakeDecisionKind"
+          },
+          "observation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision_id",
+          "pending_value_id",
+          "decision",
+          "observation_id"
+        ],
+        "title": "DecisionOut"
       },
       "DeletionReasonCategory": {
         "type": "string",
@@ -4044,6 +4884,27 @@
         ],
         "title": "EndedOut"
       },
+      "ErrorRatesOut": {
+        "properties": {
+          "auto_accept_enabled_globally": {
+            "type": "boolean",
+            "title": "Auto Accept Enabled Globally"
+          },
+          "strata": {
+            "items": {
+              "$ref": "#/components/schemas/StratumRatesOut"
+            },
+            "type": "array",
+            "title": "Strata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "auto_accept_enabled_globally",
+          "strata"
+        ],
+        "title": "ErrorRatesOut"
+      },
       "EvidenceObsOut": {
         "properties": {
           "observation_id": {
@@ -4417,6 +5278,215 @@
         ],
         "title": "ImportValueIn"
       },
+      "IntakeBatchOut": {
+        "properties": {
+          "batch_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Batch Id"
+          },
+          "patient_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Patient Id"
+          },
+          "patient_display_name": {
+            "type": "string",
+            "title": "Patient Display Name"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "extraction_provider": {
+            "type": "string",
+            "title": "Extraction Provider"
+          },
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "prompt_version": {
+            "type": "string",
+            "title": "Prompt Version"
+          },
+          "source_lab": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Lab"
+          },
+          "page_count": {
+            "type": "integer",
+            "title": "Page Count"
+          },
+          "proposed_patient_date_of_birth": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed Patient Date Of Birth"
+          },
+          "proposed_issue_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed Issue Date"
+          },
+          "batch_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Batch Reasons"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/PendingValueOut"
+            },
+            "type": "array",
+            "title": "Values"
+          },
+          "open_count": {
+            "type": "integer",
+            "title": "Open Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_id",
+          "patient_id",
+          "patient_display_name",
+          "document_id",
+          "filename",
+          "created_at",
+          "extraction_provider",
+          "model_id",
+          "prompt_version",
+          "source_lab",
+          "page_count",
+          "proposed_patient_date_of_birth",
+          "proposed_issue_date",
+          "batch_reasons",
+          "values",
+          "open_count"
+        ],
+        "title": "IntakeBatchOut"
+      },
+      "IntakeBatchSummaryOut": {
+        "properties": {
+          "batch_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Batch Id"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "extraction_provider": {
+            "type": "string",
+            "title": "Extraction Provider"
+          },
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "value_count": {
+            "type": "integer",
+            "title": "Value Count"
+          },
+          "green": {
+            "type": "integer",
+            "title": "Green"
+          },
+          "yellow": {
+            "type": "integer",
+            "title": "Yellow"
+          },
+          "red": {
+            "type": "integer",
+            "title": "Red"
+          },
+          "open_count": {
+            "type": "integer",
+            "title": "Open Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_id",
+          "document_id",
+          "filename",
+          "created_at",
+          "extraction_provider",
+          "model_id",
+          "value_count",
+          "green",
+          "yellow",
+          "red",
+          "open_count"
+        ],
+        "title": "IntakeBatchSummaryOut"
+      },
+      "IntakeDecisionKind": {
+        "type": "string",
+        "enum": [
+          "confirmed",
+          "corrected",
+          "rejected"
+        ],
+        "title": "IntakeDecisionKind",
+        "description": "What a clinician decided about ONE pending value (lab intake agent) \u2014 a CLOSED\nvocabulary, one decision per value, append-only. CONFIRMED: the proposal as it stands\nbecomes an observation. CORRECTED: the clinician's reading becomes the observation and the\nproposal is kept beside it. REJECTED: nothing enters the record; the reason is kept."
+      },
+      "IntakeRejectionReason": {
+        "type": "string",
+        "enum": [
+          "not_on_document",
+          "misread",
+          "wrong_patient",
+          "already_recorded",
+          "other"
+        ],
+        "title": "IntakeRejectionReason",
+        "description": "Why a proposed value was rejected \u2014 a CLOSED vocabulary, never free text. It describes\nthe reading of the document, not the patient."
+      },
       "InvitationCreatorOut": {
         "properties": {
           "user_id": {
@@ -4666,6 +5736,235 @@
           "token"
         ],
         "title": "PatientViewRequest"
+      },
+      "PendingValueOut": {
+        "properties": {
+          "pending_value_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Pending Value Id"
+          },
+          "row_index": {
+            "type": "integer",
+            "title": "Row Index"
+          },
+          "analyte_text": {
+            "type": "string",
+            "title": "Analyte Text"
+          },
+          "value_text": {
+            "type": "string",
+            "title": "Value Text"
+          },
+          "unit_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Text"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "observed_at_is_date_only": {
+            "type": "boolean",
+            "title": "Observed At Is Date Only"
+          },
+          "reference_low": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Low"
+          },
+          "reference_high": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference High"
+          },
+          "reference_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Text"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "has_region": {
+            "type": "boolean",
+            "title": "Has Region"
+          },
+          "confidence": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Confidence"
+          },
+          "kpi_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kpi Code"
+          },
+          "canonical_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonical Unit"
+          },
+          "normalized_value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Normalized Value"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PendingValueStatus"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntakeDecisionKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "observation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation Id"
+          },
+          "rejection_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntakeRejectionReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "corrected_to": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CorrectedValueOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "pending_value_id",
+          "row_index",
+          "analyte_text",
+          "value_text",
+          "unit_text",
+          "observed_at",
+          "observed_at_is_date_only",
+          "reference_low",
+          "reference_high",
+          "reference_text",
+          "page",
+          "has_region",
+          "confidence",
+          "kpi_code",
+          "canonical_unit",
+          "normalized_value",
+          "status",
+          "reasons",
+          "decision",
+          "decided_at",
+          "observation_id",
+          "rejection_reason",
+          "corrected_to"
+        ],
+        "title": "PendingValueOut"
+      },
+      "PendingValueStatus": {
+        "type": "string",
+        "enum": [
+          "green",
+          "yellow",
+          "red"
+        ],
+        "title": "PendingValueStatus",
+        "description": "What the deterministic checks say about ONE value a model proposed from a document\n(lab intake agent) \u2014 a CLOSED vocabulary, computed by code, never set by the model.\n\nGREEN: every check passed and the model's confidence is at least 0.9 \u2014 a human confirms\nit with one click. YELLOW: a check asks a human to look (unmapped name, missing bounds,\nan unusual change, a doubtful date, low confidence) \u2014 it must be viewed before it is\nconfirmed. RED: a check failed outright (value not on the cited page, unknown unit,\nimpossible value, duplicate, wrong patient) \u2014 it must be corrected or rejected. None of\nthe three is a statement about the patient; they describe the READING of a document."
       },
       "PreparationMeasuredOut": {
         "properties": {
@@ -5027,6 +6326,58 @@
           "measured_last_30_days"
         ],
         "title": "PreparationTimeOut"
+      },
+      "ProposeOut": {
+        "properties": {
+          "batch_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Batch Id"
+          },
+          "extraction_provider": {
+            "type": "string",
+            "title": "Extraction Provider"
+          },
+          "value_count": {
+            "type": "integer",
+            "title": "Value Count"
+          },
+          "green": {
+            "type": "integer",
+            "title": "Green"
+          },
+          "yellow": {
+            "type": "integer",
+            "title": "Yellow"
+          },
+          "red": {
+            "type": "integer",
+            "title": "Red"
+          },
+          "auto_confirmed": {
+            "type": "integer",
+            "title": "Auto Confirmed"
+          },
+          "auto_accept_reasons": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Auto Accept Reasons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_id",
+          "extraction_provider",
+          "value_count",
+          "green",
+          "yellow",
+          "red",
+          "auto_confirmed",
+          "auto_accept_reasons"
+        ],
+        "title": "ProposeOut"
       },
       "RecordPreparationStatementRequest": {
         "properties": {
@@ -5834,6 +7185,125 @@
           "evidence_observation_ids"
         ],
         "title": "StatementIn"
+      },
+      "StratumRatesOut": {
+        "properties": {
+          "source_lab": {
+            "type": "string",
+            "title": "Source Lab"
+          },
+          "kpi_code": {
+            "type": "string",
+            "title": "Kpi Code"
+          },
+          "decided": {
+            "type": "integer",
+            "title": "Decided"
+          },
+          "confirmed": {
+            "type": "integer",
+            "title": "Confirmed"
+          },
+          "corrected": {
+            "type": "integer",
+            "title": "Corrected"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          },
+          "auto_confirmed": {
+            "type": "integer",
+            "title": "Auto Confirmed"
+          },
+          "field_error_rates": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Field Error Rates"
+          },
+          "field_errors": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Field Errors"
+          },
+          "green_decided": {
+            "type": "integer",
+            "title": "Green Decided"
+          },
+          "green_errors": {
+            "type": "integer",
+            "title": "Green Errors"
+          },
+          "green_error_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Green Error Rate"
+          },
+          "green_error_upper_95": {
+            "type": "number",
+            "title": "Green Error Upper 95"
+          },
+          "first_decision_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Decision At"
+          },
+          "last_decision_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Decision At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_lab",
+          "kpi_code",
+          "decided",
+          "confirmed",
+          "corrected",
+          "rejected",
+          "auto_confirmed",
+          "field_error_rates",
+          "field_errors",
+          "green_decided",
+          "green_errors",
+          "green_error_rate",
+          "green_error_upper_95",
+          "first_decision_at",
+          "last_decision_at"
+        ],
+        "title": "StratumRatesOut"
       },
       "TenantMembershipOut": {
         "properties": {

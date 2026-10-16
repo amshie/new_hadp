@@ -1,0 +1,608 @@
+{
+  "checks_version": "intake-checks-1",
+  "batch_checks": [
+    {
+      "check": "patient_match",
+      "result": "fail",
+      "severity": "yellow",
+      "reason": "patient_dob_not_proposed",
+      "detail": {}
+    }
+  ],
+  "values": [
+    {
+      "analyte_text": "HbA1c",
+      "value_text": "5,6",
+      "unit_text": "%",
+      "page": 1,
+      "kpi_code": "metabolic.hba1c",
+      "canonical_unit": "%",
+      "normalized_value": "5.6",
+      "normalized_reference_low": "4.0",
+      "normalized_reference_high": "6.0",
+      "status": "yellow",
+      "reasons": [
+        "patient_dob_not_proposed"
+      ],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "fail",
+          "severity": "yellow",
+          "reason": "patient_dob_not_proposed",
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "kpi_code": "metabolic.hba1c"
+          }
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "canonical_unit": "%"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "given": true,
+            "converted": false
+          }
+        },
+        {
+          "check": "plausibility",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "delta",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "prior": false
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-12"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    },
+    {
+      "analyte_text": "Kreatinin",
+      "value_text": "78",
+      "unit_text": "µmol/L",
+      "page": 1,
+      "kpi_code": null,
+      "canonical_unit": null,
+      "normalized_value": null,
+      "normalized_reference_low": "45",
+      "normalized_reference_high": "84",
+      "status": "yellow",
+      "reasons": [
+        "patient_dob_not_proposed",
+        "unmapped_analyte"
+      ],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "fail",
+          "severity": "yellow",
+          "reason": "patient_dob_not_proposed",
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "fail",
+          "severity": "yellow",
+          "reason": "unmapped_analyte",
+          "detail": {}
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_kpi"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "given": true,
+            "converted": false
+          }
+        },
+        {
+          "check": "plausibility",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "delta",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-12"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    },
+    {
+      "analyte_text": "Harnsäure",
+      "value_text": "310",
+      "unit_text": "µmol/L",
+      "page": 1,
+      "kpi_code": null,
+      "canonical_unit": null,
+      "normalized_value": null,
+      "normalized_reference_low": "143",
+      "normalized_reference_high": "339",
+      "status": "yellow",
+      "reasons": [
+        "patient_dob_not_proposed",
+        "unmapped_analyte"
+      ],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "fail",
+          "severity": "yellow",
+          "reason": "patient_dob_not_proposed",
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "fail",
+          "severity": "yellow",
+          "reason": "unmapped_analyte",
+          "detail": {}
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_kpi"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "given": true,
+            "converted": false
+          }
+        },
+        {
+          "check": "plausibility",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "delta",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-12"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    },
+    {
+      "analyte_text": "Triglyceride",
+      "value_text": "1,3",
+      "unit_text": "mmol/L",
+      "page": 1,
+      "kpi_code": null,
+      "canonical_unit": null,
+      "normalized_value": null,
+      "normalized_reference_low": null,
+      "normalized_reference_high": "1.7",
+      "status": "yellow",
+      "reasons": [
+        "patient_dob_not_proposed",
+        "unmapped_analyte"
+      ],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "fail",
+          "severity": "yellow",
+          "reason": "patient_dob_not_proposed",
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "fail",
+          "severity": "yellow",
+          "reason": "unmapped_analyte",
+          "detail": {}
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_kpi"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "given": true,
+            "converted": false
+          }
+        },
+        {
+          "check": "plausibility",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "delta",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-12"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    },
+    {
+      "analyte_text": "TSH",
+      "value_text": "1,8",
+      "unit_text": "mU/L",
+      "page": 1,
+      "kpi_code": null,
+      "canonical_unit": null,
+      "normalized_value": null,
+      "normalized_reference_low": "0.4",
+      "normalized_reference_high": "4.0",
+      "status": "yellow",
+      "reasons": [
+        "patient_dob_not_proposed",
+        "unmapped_analyte"
+      ],
+      "checks": [
+        {
+          "check": "patient_match",
+          "result": "fail",
+          "severity": "yellow",
+          "reason": "patient_dob_not_proposed",
+          "detail": {}
+        },
+        {
+          "check": "page_cited",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "on_page",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "page": 1
+          }
+        },
+        {
+          "check": "mapping",
+          "result": "fail",
+          "severity": "yellow",
+          "reason": "unmapped_analyte",
+          "detail": {}
+        },
+        {
+          "check": "value",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "unit",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_kpi"
+          }
+        },
+        {
+          "check": "reference",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "given": true,
+            "converted": false
+          }
+        },
+        {
+          "check": "plausibility",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "delta",
+          "result": "skipped",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "why": "no_normalized_value"
+          }
+        },
+        {
+          "check": "date",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "day": "2026-09-12"
+          }
+        },
+        {
+          "check": "duplicate",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {}
+        },
+        {
+          "check": "confidence",
+          "result": "pass",
+          "severity": null,
+          "reason": null,
+          "detail": {
+            "confidence": "0.95"
+          }
+        }
+      ]
+    }
+  ]
+}

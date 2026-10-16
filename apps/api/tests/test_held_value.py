@@ -410,6 +410,10 @@ def test_the_migration_runs_through_alembic_in_both_directions(client, admin_ses
         assert {name: row.numeric_value for name, row in rows.items()} == {
             name: expected for name, (_o, _n, _norm, expected) in LEGACY.items()
         }
+        # End the read transaction before the schema changes again: the downgrade drops
+        # `intake_decisions` (0024), whose foreign key to observations needs an exclusive lock
+        # on that table, and the SELECT above still holds a share lock on it.
+        admin_session.rollback()
 
         command.downgrade(cfg, "0017_report_rejection_reason")
         rows = _numbers(admin_session, pid)

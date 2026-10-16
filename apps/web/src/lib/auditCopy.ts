@@ -47,6 +47,62 @@ const ACTION_LABELS: Record<string, Record<Locale, string>> = {
   "document.list": { de: "Dateiliste gelesen", en: "File list read" },
   "import.run": { de: "Einlesevorgang ausgeführt", en: "Import carried out" },
   "import.refused": { de: "Einlesen abgelehnt", en: "Import refused" },
+  "intake.batch_proposed": {
+    de: "Werte aus Datei vorgeschlagen",
+    en: "Values proposed from a file",
+  },
+  "intake.document_read": {
+    de: "Datei für den Vorschlag gelesen",
+    en: "File read for a proposal",
+  },
+  "intake.last_value_read": {
+    de: "Letzter Wert für den Vorschlag gelesen",
+    en: "Last value read for a proposal",
+  },
+  "intake.proposal_refused": {
+    de: "Vorschlag des Leseprogramms abgewiesen",
+    en: "Reader's proposal refused",
+  },
+  "intake.batches_list": {
+    de: "Vorschläge einer Akte gelesen",
+    en: "A record's proposals read",
+  },
+  "intake.batch_read": {
+    de: "Vorschlag aus Datei gelesen",
+    en: "Proposal from a file read",
+  },
+  "intake.region_read": {
+    de: "Bildausschnitt eines Vorschlags gelesen",
+    en: "Page region of a proposal read",
+  },
+  "intake.value_confirmed": {
+    de: "Vorgeschlagenen Wert bestätigt",
+    en: "Proposed value confirmed",
+  },
+  "intake.value_corrected": {
+    de: "Vorgeschlagenen Wert korrigiert",
+    en: "Proposed value corrected",
+  },
+  "intake.value_rejected": {
+    de: "Vorgeschlagenen Wert abgelehnt",
+    en: "Proposed value rejected",
+  },
+  "intake.value_auto_accepted": {
+    de: "Vorgeschlagenen Wert nach Regel übernommen",
+    en: "Proposed value accepted by rule",
+  },
+  "intake.error_rates_read": {
+    de: "Fehlerraten der Vorschläge gelesen",
+    en: "Proposals' error rates read",
+  },
+  "intake.auto_accept_rules_read": {
+    de: "Regeln zur automatischen Übernahme gelesen",
+    en: "Auto-acceptance rules read",
+  },
+  "intake.auto_accept_rule_recorded": {
+    de: "Regel zur automatischen Übernahme festgelegt",
+    en: "Auto-acceptance rule recorded",
+  },
   "review_queue.read": { de: "Review-Queue gelesen", en: "Review queue read" },
   "review_item.resolved": {
     de: "Review-Eintrag entschieden",
@@ -206,6 +262,7 @@ const CATEGORY_LABELS: Record<AuditCategory, Record<Locale, string>> = {
   report: { de: "Berichte", en: "Reports" },
   document: { de: "Dateien", en: "Files" },
   import: { de: "Einlesevorgänge", en: "Imports" },
+  intake: { de: "Vorschläge aus Dateien", en: "Proposals from files" },
   review_item: { de: "Review-Entscheidungen", en: "Review decisions" },
   review_queue: { de: "Review-Queue", en: "Review queue" },
   consent: { de: "Einwilligungen", en: "Consents" },
@@ -243,6 +300,12 @@ const TARGET_LABELS: Record<string, Record<Locale, string>> = {
   report_version: { de: "Berichtsfassung", en: "Report version" },
   source_document: { de: "Datei", en: "File" },
   import_job: { de: "Einlesevorgang", en: "Import" },
+  intake_batch: { de: "Vorschlag aus Datei", en: "Proposal from a file" },
+  pending_value: { de: "Vorgeschlagener Wert", en: "Proposed value" },
+  intake_auto_accept_rule: {
+    de: "Regel zur automatischen Übernahme",
+    en: "Auto-acceptance rule",
+  },
   review_item: { de: "Review-Eintrag", en: "Review item" },
   interpretation_run: { de: "Interpretation", en: "Interpretation" },
   membership: { de: "Mitgliedschaft", en: "Membership" },

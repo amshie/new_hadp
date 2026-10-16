@@ -1,0 +1,43 @@
+{
+  "_note": "Synthetic. The values as printed on report.pdf; the yardstick of the evaluation.",
+  "patient_date_of_birth": "1970-03-12",
+  "issue_date": "2026-09-22",
+  "values": [
+    {
+      "analyte_text": "Glucose",
+      "value_text": "92",
+      "unit_text": "mg%",
+      "observed_at": "2026-09-20",
+      "reference_low": "70",
+      "reference_high": "100",
+      "page": 1
+    },
+    {
+      "analyte_text": "HbA1c",
+      "value_text": "38",
+      "unit_text": "mmol/mol",
+      "observed_at": "2026-09-20",
+      "reference_low": "20",
+      "reference_high": "42",
+      "page": 1
+    },
+    {
+      "analyte_text": "Ferritin",
+      "value_text": "85",
+      "unit_text": "ng/ml",
+      "observed_at": "2026-09-20",
+      "reference_low": "s.o.",
+      "reference_high": null,
+      "page": 1
+    },
+    {
+      "analyte_text": "LDL",
+      "value_text": "2,9",
+      "unit_text": "mmol/L",
+      "observed_at": "2026-09-20",
+      "reference_low": null,
+      "reference_high": "3,0",
+      "page": 1
+    }
+  ]
+}

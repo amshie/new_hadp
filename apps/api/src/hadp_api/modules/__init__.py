@@ -11,6 +11,7 @@ from hadp_api.modules.derivations import models as derivation_models  # noqa: F4
 from hadp_api.modules.documents import models as document_models  # noqa: F401
 from hadp_api.modules.identity import models as identity_models  # noqa: F401
 from hadp_api.modules.imports import models as import_models  # noqa: F401
+from hadp_api.modules.intake import models as intake_models  # noqa: F401
 from hadp_api.modules.interpretation import models as interpretation_models  # noqa: F401
 from hadp_api.modules.invitations import models as invitation_models  # noqa: F401
 from hadp_api.modules.kpi import models as kpi_models  # noqa: F401

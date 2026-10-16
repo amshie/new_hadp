@@ -1,0 +1,93 @@
+{
+  "_note": "Synthetic. The bounds are TEST-ONLY and not clinically signed.",
+  "patient": {
+    "display_name": "Muster, Erika",
+    "date_of_birth": "1970-03-12"
+  },
+  "today": "2026-10-16",
+  "published": [
+    {
+      "kpi_code": "cardio.ldl_c",
+      "analyte_text": "LDL",
+      "observed_at": "2026-03-01",
+      "value_text": "2,1",
+      "unit_text": "mmol/L",
+      "held_value": "2.1",
+      "held_unit": "mmol/L"
+    },
+    {
+      "kpi_code": "metabolic.hba1c",
+      "analyte_text": "HbA1c",
+      "observed_at": "2026-03-01",
+      "value_text": "5,4",
+      "unit_text": "%",
+      "held_value": "5.4",
+      "held_unit": "%"
+    }
+  ],
+  "test_bounds": {
+    "_note": {
+      "text": "TEST FIXTURE ONLY — not clinically signed; never copy into bounds_data.py"
+    },
+    "metabolic.hba1c": {
+      "unit": "%",
+      "hard_low": "2",
+      "hard_high": "20",
+      "delta_max_relative": "1.0"
+    },
+    "cardio.ldl_c": {
+      "unit": "mmol/L",
+      "hard_low": "0.1",
+      "hard_high": "15",
+      "delta_max_relative": "1.5"
+    },
+    "cardio.hdl_c": {
+      "unit": "mmol/L",
+      "hard_low": "0.1",
+      "hard_high": "5",
+      "delta_max_relative": "1.5"
+    },
+    "cardio.total_cholesterol": {
+      "unit": "mmol/L",
+      "hard_low": "0.5",
+      "hard_high": "25",
+      "delta_max_relative": "1.5"
+    },
+    "metabolic.fasting_plasma_glucose": {
+      "unit": "mmol/L",
+      "hard_low": "0.5",
+      "hard_high": "60",
+      "delta_max_relative": "2.0"
+    },
+    "metabolic.triglycerides": {
+      "unit": "mmol/L",
+      "hard_low": "0.1",
+      "hard_high": "60",
+      "delta_max_relative": "3.0"
+    },
+    "regen.creatinine": {
+      "unit": "umol/L",
+      "hard_low": "10",
+      "hard_high": "2500",
+      "delta_max_relative": "2.0"
+    },
+    "immune.hs_crp": {
+      "unit": "mg/L",
+      "hard_low": "0",
+      "hard_high": "500",
+      "delta_max_relative": null
+    },
+    "immune.ferritin": {
+      "unit": "ug/L",
+      "hard_low": "1",
+      "hard_high": "20000",
+      "delta_max_relative": "3.0"
+    },
+    "regen.hemoglobin": {
+      "unit": "g/L",
+      "hard_low": "20",
+      "hard_high": "250",
+      "delta_max_relative": "1.0"
+    }
+  }
+}
